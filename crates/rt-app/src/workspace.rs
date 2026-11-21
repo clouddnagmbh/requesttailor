@@ -29,6 +29,30 @@ pub struct SendInput {
     pub secrets: Vec<(String, String)>,
 }
 
+/// One variable as the editor shows it: where its value comes from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreviewVar {
+    pub name: String,
+    /// `None` for secrets (never shown resolved) and for unresolved names.
+    pub value: Option<String>,
+    pub source: rt_core::vars::VarSource,
+    pub secret: bool,
+}
+
+/// What a request would send, without sending it: for variable highlighting with provenance
+/// in the editor. Computed by `rt_core::prepare`, so it matches what `send` does.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Preview {
+    /// Resolved URL with secret values masked as `***`; `None` if preparation failed.
+    pub url: Option<String>,
+    /// Resolved headers, secrets masked.
+    pub headers: Vec<(String, String)>,
+    pub variables: Vec<PreviewVar>,
+    pub unresolved: Vec<String>,
+    /// Preparation error message (e.g. unsupported auth), if any.
+    pub error: Option<String>,
+}
+
 /// An owned copy of everything needed to send one request, so sending (async, possibly long)
 /// never borrows the `Workspace` across an `.await`.
 #[derive(Debug, Clone)]
@@ -87,7 +111,7 @@ impl Workspace {
         todo!("wave 3, strand F")
     }
 
-    /// Request paths with unsaved changes.
+    /// Request paths (and `environments/<name>.yml` paths) with unsaved changes.
     pub fn dirty(&self) -> Vec<String> {
         todo!("wave 3, strand F")
     }
@@ -100,6 +124,23 @@ impl Workspace {
     /// Environments as in the files: secret variables have `value: None`.
     pub fn environments(&self) -> Vec<Environment> {
         self.doc.model().environments.clone()
+    }
+
+    /// Resolves the request as `send` would, without sending.
+    pub fn preview(&self, request_path: &str, input: SendInput) -> Result<Preview, AppError> {
+        let _ = (request_path, input);
+        todo!("wave 3, strand F")
+    }
+
+    /// Creates or replaces an environment (by `env.name`). Secret values are never written.
+    pub fn update_environment(&mut self, env: Environment) -> Result<(), AppError> {
+        let _ = env;
+        todo!("wave 3, strand F")
+    }
+
+    pub fn delete_environment(&mut self, name: &str) -> Result<(), AppError> {
+        let _ = name;
+        todo!("wave 3, strand F")
     }
 
     pub fn snapshot(&self, request_path: &str, input: SendInput) -> Result<SendSnapshot, AppError> {

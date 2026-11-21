@@ -144,6 +144,27 @@ impl CollectionDoc {
         todo!("wave 3, strand F")
     }
 
+    /// Creates or replaces the environment `env.name` (file `environments/<name>.yml`).
+    /// Secret variables are written as `secret: true` without a value, whatever `value`
+    /// holds. Returns the file path.
+    ///
+    /// Owner: wave 3, strand F.
+    pub fn set_environment(
+        &mut self,
+        env: &rt_core::model::Environment,
+    ) -> Result<String, FormatError> {
+        let _ = env;
+        todo!("wave 3, strand F")
+    }
+
+    /// Removes the environment `name` and its file.
+    ///
+    /// Owner: wave 3, strand F.
+    pub fn remove_environment(&mut self, name: &str) -> Result<(), FormatError> {
+        let _ = name;
+        todo!("wave 3, strand F")
+    }
+
     /// The parsed YAML of one file, for edits that the model does not cover yet.
     #[cfg(test)]
     fn yaml_mut(&mut self, path: &str) -> Option<&mut yaml::Document> {

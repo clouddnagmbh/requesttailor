@@ -174,6 +174,23 @@ export type TreeNode =
   | { kind: "folder"; name: string; path: string; children: TreeNode[] }
   | { kind: "request"; name: string; path: string; method: string };
 
+export interface PreviewVar {
+  name: string;
+  /** `null` for secrets (never shown resolved) and unresolved names. */
+  value: string | null;
+  source: VarSource;
+  secret: boolean;
+}
+
+/** What a request would send, computed by the core without sending. Secrets masked. */
+export interface Preview {
+  url: string | null;
+  headers: [string, string][];
+  variables: PreviewVar[];
+  unresolved: string[];
+  error: string | null;
+}
+
 export interface FileChange {
   path: string;
   text: string;
@@ -184,6 +201,7 @@ export type AppError =
   | { kind: "request-not-found"; message: string }
   | { kind: "folder-not-found"; message: string }
   | { kind: "response-not-found"; message: number }
+  | { kind: "environment-not-found"; message: string }
   | { kind: "shell"; message: string };
 
 export interface StoredResponse {

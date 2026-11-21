@@ -22,7 +22,7 @@ mod workspace;
 
 pub use response::{LineSlice, ResponseStore, StoredResponse};
 pub use secrets::{SecretKey, SecretStore};
-pub use workspace::{SendInput, SendSnapshot, Workspace};
+pub use workspace::{Preview, PreviewVar, SendInput, SendSnapshot, Workspace};
 
 use serde::{Deserialize, Serialize};
 
@@ -64,6 +64,8 @@ pub enum AppError {
     FolderNotFound(String),
     #[error("response not found: {0}")]
     ResponseNotFound(u64),
+    #[error("environment not found: {0}")]
+    EnvironmentNotFound(String),
     /// Anything the shell failed at (I/O, keychain, ...), passed through for display.
     #[error("{0}")]
     Shell(String),

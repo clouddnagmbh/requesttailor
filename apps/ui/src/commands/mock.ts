@@ -23,6 +23,7 @@ import type {
   Environment,
   FileChange,
   LineSlice,
+  Preview,
   RequestSpec,
   SendReport,
   StoredResponse,
@@ -183,14 +184,15 @@ export class MockBackend implements Backend {
   }
 
   async dirty(): Promise<string[]> {
-    return [...this.requests.keys()].filter(
+    const requests = [...this.requests.keys()].filter(
       (p) => JSON.stringify(this.requests.get(p)) !== JSON.stringify(this.saved.get(p)),
     );
+    return [...requests, ...[...this.envDirty].map((n) => `environments/${n}.yml`)];
   }
 
   async save(): Promise<FileChange[]> {
     const changes: FileChange[] = [];
-    for (const path of await this.dirty()) {
+    for (const path of (await this.dirty()).filter((p) => this.requests.has(p))) {
       const spec = this.requests.get(path)!;
       // Simplified rendering; secret values are never part of a request spec.
       const text = `# mock rendering, not OpenCollection\n${JSON.stringify(spec, null, 2)}\n`;
@@ -198,11 +200,56 @@ export class MockBackend implements Backend {
       this.saved.set(path, structuredClone(spec));
       changes.push({ path, text });
     }
+    for (const name of this.envDirty) {
+      const env = this.envs.find((e) => e.name === name);
+      const path = `environments/${name}.yml`;
+      // Secret values are never part of an Environment here (value: null).
+      const text = env ? `# mock rendering\n${JSON.stringify(env, null, 2)}\n` : "";
+      this.files.set(path, text);
+      changes.push({ path, text });
+    }
+    this.envDirty.clear();
     return changes;
   }
 
   async environments(): Promise<Environment[]> {
     return structuredClone(this.envs);
+  }
+
+  private envDirty = new Set<string>();
+
+  async updateEnvironment(env: Environment): Promise<void> {
+    const clean = structuredClone(env);
+    for (const v of clean.variables) if (v.secret) v.value = null;
+    const i = this.envs.findIndex((e) => e.name === env.name);
+    if (i >= 0) this.envs[i] = clean;
+    else this.envs.push(clean);
+    this.envDirty.add(env.name);
+  }
+
+  async deleteEnvironment(name: string): Promise<void> {
+    if (!this.envs.some((e) => e.name === name)) throw new BackendError("environment-not-found", name);
+    this.envs = this.envs.filter((e) => e.name !== name);
+    this.envDirty.add(name);
+  }
+
+  async preview(path: string, input: SendInput): Promise<Preview> {
+    const r = (await this.send(path, input)).report;
+    const env = this.envs.find((e) => e.name === input.environment);
+    return {
+      url: r.request?.url ?? null,
+      headers: r.request?.headers ?? [],
+      variables: r.variables.map((u) => ({
+        ...u,
+        value: u.secret
+          ? null
+          : (input.vars.find(([n]) => n === u.name)?.[1] ??
+            env?.variables.find((v) => v.name === u.name)?.value ??
+            null),
+      })),
+      unresolved: r.unresolved,
+      error: null,
+    };
   }
 
   async send(path: string, input: SendInput): Promise<StoredResponse> {

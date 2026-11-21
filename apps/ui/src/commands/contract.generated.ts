@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AppError, Auth, Body, Environment, FileChange, LineSlice, ReportBody, RequestSpec, SecretKey, SendError, SendReport, StoredResponse, TransportError, TreeNode, VarSource } from "./types";
+import type { AppError, Auth, Body, Environment, FileChange, LineSlice, Preview, ReportBody, RequestSpec, SecretKey, SendError, SendReport, StoredResponse, TransportError, TreeNode, VarSource } from "./types";
 
 export const requestSpec: RequestSpec = {
   "auth": {
@@ -518,6 +518,40 @@ export const tree: TreeNode = {
   "path": ""
 };
 
+export const preview: Preview = {
+  "error": null,
+  "headers": [
+    [
+      "Authorization",
+      "Bearer ***"
+    ]
+  ],
+  "unresolved": [
+    "missing"
+  ],
+  "url": "http://127.0.0.1/users?token=***",
+  "variables": [
+    {
+      "name": "baseUrl",
+      "secret": false,
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "value": "http://127.0.0.1"
+    },
+    {
+      "name": "token",
+      "secret": true,
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "value": null
+    }
+  ]
+};
+
 export const fileChange: FileChange = {
   "path": "a.yml",
   "text": "info:\n"
@@ -539,6 +573,10 @@ export const appErrors: AppError[] = [
   {
     "kind": "response-not-found",
     "message": 3
+  },
+  {
+    "kind": "environment-not-found",
+    "message": "PRD"
   },
   {
     "kind": "shell",

@@ -11,7 +11,9 @@
 
 use std::time::Duration;
 
-use rt_app::{AppError, FileChange, LineSlice, SecretKey, StoredResponse, TreeNode};
+use rt_app::{
+    AppError, FileChange, LineSlice, Preview, PreviewVar, SecretKey, StoredResponse, TreeNode,
+};
 use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
     RawKind, RequestSpec, Settings, Variable,
@@ -247,6 +249,7 @@ fn app_errors() -> Vec<AppError> {
         AppError::RequestNotFound("a.yml".into()),
         AppError::FolderNotFound("f".into()),
         AppError::ResponseNotFound(3),
+        AppError::EnvironmentNotFound("PRD".into()),
         AppError::Shell("x".into()),
     ]
 }
@@ -288,6 +291,34 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
         ("tree", "TreeNode", j(tree())),
+        (
+            "preview",
+            "Preview",
+            j(Preview {
+                url: Some("http://127.0.0.1/users?token=***".into()),
+                headers: vec![("Authorization".into(), "Bearer ***".into())],
+                variables: vec![
+                    PreviewVar {
+                        name: "baseUrl".into(),
+                        value: Some("http://127.0.0.1".into()),
+                        source: VarSource::Environment {
+                            name: "Local".into(),
+                        },
+                        secret: false,
+                    },
+                    PreviewVar {
+                        name: "token".into(),
+                        value: None,
+                        source: VarSource::Environment {
+                            name: "Local".into(),
+                        },
+                        secret: true,
+                    },
+                ],
+                unresolved: vec!["missing".into()],
+                error: None,
+            }),
+        ),
         (
             "fileChange",
             "FileChange",

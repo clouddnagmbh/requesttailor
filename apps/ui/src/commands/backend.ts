@@ -13,6 +13,7 @@ import type {
   Environment,
   FileChange,
   LineSlice,
+  Preview,
   RequestSpec,
   StoredResponse,
   TreeNode,
@@ -82,6 +83,13 @@ export interface Backend {
   save(): Promise<FileChange[]>;
   /** Environments as in the files; secret variables have `value: null`. */
   environments(): Promise<Environment[]>;
+  /** Creates or replaces an environment by name (unsaved until `save`). Secret values in
+   *  `env` are ignored: set them with `secrets.set`. */
+  updateEnvironment(env: Environment): Promise<void>;
+  deleteEnvironment(name: string): Promise<void>;
+
+  /** Resolves the request as `send` would, without sending (variable provenance, preview). */
+  preview(path: string, input: SendInput): Promise<Preview>;
 
   /** Sends the saved-or-unsaved current state of the request. Secrets are added by the shell. */
   send(path: string, input: SendInput): Promise<StoredResponse>;
