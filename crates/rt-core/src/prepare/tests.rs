@@ -508,6 +508,23 @@ fn query_params_already_in_the_url_are_not_duplicated() {
 }
 
 #[test]
+fn invalid_url_error_names_unresolved_variables() {
+    let t = Tree::new("{{baseUrl}}:port/users");
+    let err = t.prepare(&PrepareInput::default()).unwrap_err();
+    let PrepareError::InvalidUrl(message) = err else {
+        panic!("expected InvalidUrl, got {err:?}");
+    };
+    assert!(
+        message.starts_with("http://{{baseUrl}}:port/users: "),
+        "{message}"
+    );
+    assert!(
+        message.ends_with("(unresolved variables: baseUrl)"),
+        "{message}"
+    );
+}
+
+#[test]
 fn encoding_on_encodes_once_and_never_double_encodes() {
     let mut t = Tree::new("https://example.com/a b/%20ok/ä?q=x y&pre=%2F&amp=a+b&odd=100%");
     t.request.params = vec![
