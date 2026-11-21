@@ -14,17 +14,20 @@
 //! Layout of a collection: `opencollection.yml` at the root, one `folder.yml` per folder
 //! (optional), one `*.yml` per item, `environments/<name>.yml` per environment. A folder that
 //! contains its own `opencollection.yml` is a separate, nested collection and not part of
-//! this one. How files map to the model is described in the `read` module.
+//! this one. How files map to the model is described in the `read` module; how the model is
+//! written back (format-preserving edits) in the `write` module.
 //!
-//! Owner: wave 2, strand B.
+//! Owner: wave 2, strand B (reading); wave 3, strand F (writing).
 
 use std::collections::BTreeMap;
 
 use rt_core::model::Collection;
 
+mod edit;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs;
 mod read;
+mod write;
 mod yaml;
 
 /// Files of one collection, keyed by path relative to the collection root, `/`-separated
@@ -83,6 +86,8 @@ pub struct CollectionDoc {
     model: Collection,
     files: BTreeMap<String, Source>,
     issues: Vec<FormatError>,
+    /// Files that are not valid YAML (part of `issues`), kept for rebuilding the model.
+    parse_issues: Vec<FormatError>,
 }
 
 impl CollectionDoc {
@@ -120,19 +125,26 @@ impl CollectionDoc {
     /// assertions, docs, examples, comments, layout) stays as it was, and the result is
     /// formatted the way Bruno writes it. The model view is updated too.
     ///
+    /// Secret request variables are written without a value. An `Auth::Unsupported` can only
+    /// be kept as the file has it; setting another one is an error. Every edit is read back
+    /// and must give `spec`, otherwise it is refused and the file is left as it was.
+    ///
     /// Owner: wave 3, strand F.
     pub fn set_request(
         &mut self,
         path: &str,
         spec: &rt_core::model::RequestSpec,
     ) -> Result<(), FormatError> {
-        let _ = (path, spec);
-        todo!("wave 3, strand F")
+        self.edit_request(path, spec)
     }
 
     /// Adds a new request file in `folder` (`""` for the collection root, else a folder path
     /// as in `Folder::path`). The file name is derived from `spec.name` and made unique;
     /// `seq` is set after the last item if `spec.seq` is `None`. Returns the new request path.
+    ///
+    /// File name: a slug of the name (lower case, `-` between words, at most 64 characters,
+    /// `request` if nothing is left), then `-2`, `-3`, ... if taken (ignoring case, for
+    /// case-insensitive file systems). Layout as Bruno 3 writes new requests.
     ///
     /// Owner: wave 3, strand F.
     pub fn add_request(
@@ -140,29 +152,30 @@ impl CollectionDoc {
         folder: &str,
         spec: &rt_core::model::RequestSpec,
     ) -> Result<String, FormatError> {
-        let _ = (folder, spec);
-        todo!("wave 3, strand F")
+        self.new_request(folder, spec)
     }
 
     /// Creates or replaces the environment `env.name` (file `environments/<name>.yml`).
     /// Secret variables are written as `secret: true` without a value, whatever `value`
     /// holds. Returns the file path.
     ///
+    /// An environment declared inline in `opencollection.yml` (`config.environments`) is
+    /// edited there and `opencollection.yml` is returned. A new file is named after the
+    /// environment, with characters not allowed in file names replaced by `-`.
+    ///
     /// Owner: wave 3, strand F.
     pub fn set_environment(
         &mut self,
         env: &rt_core::model::Environment,
     ) -> Result<String, FormatError> {
-        let _ = env;
-        todo!("wave 3, strand F")
+        self.edit_environment(env)
     }
 
-    /// Removes the environment `name` and its file.
+    /// Removes the environment `name` and its file (or its entry in `opencollection.yml`).
     ///
     /// Owner: wave 3, strand F.
     pub fn remove_environment(&mut self, name: &str) -> Result<(), FormatError> {
-        let _ = name;
-        todo!("wave 3, strand F")
+        self.delete_environment(name)
     }
 
     /// The parsed YAML of one file, for edits that the model does not cover yet.
@@ -236,11 +249,13 @@ pub fn read_collection(files: &FileSet) -> Result<CollectionDoc, FormatError> {
     read::check_version(&docs[COLLECTION_FILE].root)?;
     let mut builder = read::Builder::new(&docs);
     let model = builder.collection();
+    let parse_issues = issues.clone();
     issues.extend(builder.issues);
     Ok(CollectionDoc {
         model,
         files: sources,
         issues,
+        parse_issues,
     })
 }
 
