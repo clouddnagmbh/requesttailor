@@ -9,3 +9,6 @@ node_modules/
 # Internal planning docs (pricing, partner internals). They belong in requesttailor-pro,
 # never in the history of this repo, which becomes public.
 /docs/
+
+# Local agent worktrees and settings
+/.claude/
