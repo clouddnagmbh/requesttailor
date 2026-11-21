@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! URL building: interpolation, path params, query params, percent-encoding.
+//! URL building: interpolation, path params, percent-encoding.
+//!
+//! The URL is the truth for the query string, as in Bruno: query params in the request's
+//! `params` list only mirror the URL for display and are never appended.
 //!
 //! Follows Bruno where it matters for imported collections
 //! (`packages/bruno-electron/src/ipc/network/interpolate-vars.js`, `.../network/index.js` and
@@ -15,7 +18,7 @@
 //!   existing `%XX` escapes are kept in the query too, so nothing is encoded twice.
 //! - Path segments keep RFC 3986 `pchar`s (`:@!$&'()*+,;=`), so OData keys survive unencoded;
 //!   query names and values are encoded like `encodeURIComponent`.
-//! - With encoding off the URL goes out as written; appended params are not encoded either.
+//! - With encoding off the URL goes out as written.
 
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
@@ -61,21 +64,19 @@ pub(super) struct Draft {
     path: String,
     /// Pairs as written in the URL; `None` if the URL has no `?`.
     query: Option<Vec<String>>,
-    /// Interpolated query params from the params list: `(name, value)`.
-    extra: Vec<(String, String)>,
     /// With encoding off only: `#...` as written.
     fragment: String,
     encode: bool,
 }
 
-/// Interpolates the URL template and the params. Path params are substituted here.
+/// Interpolates the URL template and substitutes path params. Query params are ignored:
+/// the URL already carries the query.
 pub(super) fn draft(
     template: &str,
     params: &[Param],
     encode: bool,
     interp: &mut Interp<'_>,
 ) -> Draft {
-    let mirrored = raw_query_pairs(template);
     let mut url = interp.text(template);
     if !has_explicit_scheme(&url) {
         url.insert_str(0, "http://");
@@ -85,13 +86,6 @@ pub(super) fn draft(
         .iter()
         .filter(|p| p.enabled && p.kind == ParamKind::Path)
         .map(|p| (p.name.as_str(), interp.text(&p.value)))
-        .collect();
-    let extra = params
-        .iter()
-        .filter(|p| p.enabled && p.kind == ParamKind::Query)
-        // Bruno keeps the query both in the URL and in the params list; send it once.
-        .filter(|p| !mirrored.iter().any(|(n, v)| *n == p.name && *v == p.value))
-        .map(|p| (interp.text(&p.name), interp.text(&p.value)))
         .collect();
 
     let origin_end = origin_len(&url);
@@ -124,7 +118,6 @@ pub(super) fn draft(
         origin: url[..origin_end].to_owned(),
         path,
         query,
-        extra,
         fragment,
         encode,
     }
@@ -156,15 +149,9 @@ impl Draft {
                     pairs.push(encoded);
                 }
             }
-            pairs.extend(
-                self.extra
-                    .iter()
-                    .map(|(n, v)| format!("{}={}", encode(n, COMPONENT), encode(v, COMPONENT))),
-            );
         } else {
             out.push_str(&self.path);
             pairs.extend(self.query.iter().flatten().cloned());
-            pairs.extend(self.extra.iter().map(|(n, v)| format!("{n}={v}")));
         }
         if let Some((key, value)) = &api_key {
             // Like `URLSearchParams.set`: replaces every pair of that name. Always encoded.
@@ -240,19 +227,6 @@ fn origin_len(url: &str) -> usize {
         + url[authority..]
             .find(['/', '?', '#'])
             .unwrap_or(url.len() - authority)
-}
-
-/// Query pairs as written in the URL template, for detecting params that mirror them.
-fn raw_query_pairs(template: &str) -> Vec<(&str, &str)> {
-    let Some((_, query)) = template.split_once('?') else {
-        return Vec::new();
-    };
-    let query = query.split('#').next().unwrap_or_default();
-    query
-        .split('&')
-        .filter(|p| !p.is_empty())
-        .map(|p| p.split_once('=').unwrap_or((p, "")))
-        .collect()
 }
 
 fn substitute_path_params(path: &str, params: &[(&str, String)]) -> String {

@@ -28,7 +28,8 @@ impl KeyValue {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ParamKind {
-    /// Appended to the query string.
+    /// Mirrors a pair of the URL's query string for display. The URL is the truth: query
+    /// params are never appended when sending (same as Bruno).
     Query,
     /// Replaces `:name` in the URL path.
     Path,

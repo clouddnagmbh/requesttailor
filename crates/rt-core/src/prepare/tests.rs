@@ -467,44 +467,26 @@ fn path_params_are_encoded_when_encoding_is_on() {
 }
 
 #[test]
-fn query_params_are_appended_in_order_enabled_only() {
-    let mut t = Tree::new("https://example.com/search");
-    t.request.vars.push(var("q", "rust lang"));
-    t.request.params = vec![
-        param(ParamKind::Query, "q", "{{q}}"),
-        Param {
-            enabled: false,
-            ..param(ParamKind::Query, "off", "1")
-        },
-        param(ParamKind::Query, "page", "2"),
-        param(ParamKind::Query, "flag", ""),
-    ];
-    let p = t.ok();
-    assert_eq!(
-        p.request.url,
-        "https://example.com/search?q=rust%20lang&page=2&flag="
-    );
-
-    t.request.url = "https://example.com/search?lang=en".into();
-    assert_eq!(
-        t.ok().request.url,
-        "https://example.com/search?lang=en&q=rust%20lang&page=2&flag="
-    );
-}
-
-#[test]
-fn query_params_already_in_the_url_are_not_duplicated() {
-    // Bruno writes the query both into the URL and into the params list; they mirror each other.
+fn the_url_is_the_truth_query_params_are_never_appended() {
+    // Bruno writes the query into the URL and mirrors it in the params list; only the URL is
+    // sent. Params that are missing from the URL, or disabled, change nothing.
     let mut t = Tree::new("http://localhost:8081/api/try?version={{v}}");
     t.request.vars.push(var("v", "2"));
     t.request.params = vec![
         param(ParamKind::Query, "version", "{{v}}"),
         param(ParamKind::Query, "extra", "x"),
+        Param {
+            enabled: false,
+            ..param(ParamKind::Query, "off", "1")
+        },
     ];
     assert_eq!(
         t.ok().request.url,
-        "http://localhost:8081/api/try?version=2&extra=x"
+        "http://localhost:8081/api/try?version=2"
     );
+
+    t.request.url = "https://example.com/search".into();
+    assert_eq!(t.ok().request.url, "https://example.com/search");
 }
 
 #[test]
@@ -526,15 +508,10 @@ fn invalid_url_error_names_unresolved_variables() {
 
 #[test]
 fn encoding_on_encodes_once_and_never_double_encodes() {
-    let mut t = Tree::new("https://example.com/a b/%20ok/ä?q=x y&pre=%2F&amp=a+b&odd=100%");
-    t.request.params = vec![
-        param(ParamKind::Query, "k&k", "v=v"),
-        param(ParamKind::Query, "enc", "%41"),
-    ];
+    let t = Tree::new("https://example.com/a b/%20ok/ä?q=x y&pre=%2F&amp=a+b&odd=100%&enc=%41");
     assert_eq!(
         t.ok().request.url,
-        "https://example.com/a%20b/%20ok/%C3%A4?q=x%20y&pre=%2F&amp=a%2Bb&odd=100%25\
-         &k%26k=v%3Dv&enc=%41"
+        "https://example.com/a%20b/%20ok/%C3%A4?q=x%20y&pre=%2F&amp=a%2Bb&odd=100%25&enc=%41"
     );
 }
 
@@ -542,8 +519,7 @@ fn encoding_on_encodes_once_and_never_double_encodes() {
 fn encoding_off_sends_the_url_as_written() {
     let mut t = Tree::new("https://example.com/a b/ä?q=x y");
     t.request.settings.encode_url = Some(false);
-    t.request.params = vec![param(ParamKind::Query, "k", "v w")];
-    assert_eq!(t.ok().request.url, "https://example.com/a b/ä?q=x y&k=v w");
+    assert_eq!(t.ok().request.url, "https://example.com/a b/ä?q=x y");
 }
 
 #[test]
