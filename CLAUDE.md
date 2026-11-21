@@ -7,7 +7,7 @@ RequestTailor ist ein API-Client mit Rust-Kern, der nativ (macOS, Windows, Linux
 - Alles hier ist Apache 2.0 und kennt **keine Bezahlfunktion**: keine Lizenzprüfung, keine Platzhalter für Pro-Features, kein Login-Dialog. Pro-Code entsteht nur im privaten Repo `requesttailor-pro`.
 - Der Kern kennt höchstens die Schnittstelle „Feature freigeschaltet: ja/nein“, die ohne Pro-Modul immer die Free-Antwort gibt.
 - Code fließt nur von privat nach öffentlich, nie per Copy-and-paste zurück. Was einmal öffentlich ist, bleibt es.
-- Keine Abhängigkeit mit GPL, AGPL, LGPL, SSPL oder anderer Copyleft-Lizenz. `cargo-deny` und der npm-Lizenzcheck erzwingen das; die Allowlist steht einmal in `deny.toml` und gilt für Rust und npm. Eine Lizenz dort aufzunehmen ist eine bewusste Entscheidung mit Begründung im Commit.
+- Keine Abhängigkeit mit GPL, AGPL, LGPL, SSPL oder anderer Copyleft-Lizenz. `cargo-deny` und der npm-Lizenzcheck erzwingen das; die Allowlist steht einmal in `deny.toml` und gilt für Rust und npm. Eine Lizenz dort aufzunehmen ist eine bewusste Entscheidung mit Begründung im Commit. Einzelne npm-Pakete mit anderer Lizenz stehen mit Begründung in `scripts/npm-license-exceptions.json` (derzeit nur `lightningcss`, MPL-2.0, Build-Werkzeug von Vite 8); `devOnly`-Ausnahmen dürfen nie ausgelieferter Code sein. Neue Ausnahmen entscheidet der Projektverantwortliche, kein Agent.
 - Name und Logo „RequestTailor“ stehen nicht unter Apache.
 - Jede Quelldatei beginnt mit dem Lizenzkopf:
   ```
@@ -73,9 +73,10 @@ crates/rt-script   Skript-Sandbox (QuickJS)
 crates/rt-plugin   Plugin-Host (WASM) und SDK
 crates/rt-cli      CLI `rt`, Begleitdienst, MCP-Server
 crates/rt-wasm     Kern als WebAssembly
+crates/rt-app      Befehlsschicht der App (Rust-Seite): Workspace, Antwortspeicher, Secrets
 crates/rt-testserver  lokaler HTTP-Testserver (nur Testinfrastruktur, nativ)
 testdata/collections/bruno  Korpus: 86 Bruno-Collections (MIT), unverändert, für Round-Trip-Tests
-apps/ui            gemeinsame Oberfläche (TypeScript)
+apps/ui            gemeinsame Oberfläche (Svelte 5, TypeScript, CodeMirror 6)
 apps/desktop       Tauri-2-Hülle
 apps/web           Web-App
 plugins/odata      OData V2/V4, CSRF, $batch
@@ -97,6 +98,14 @@ Stand Welle 2. Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1
 - Zeit immer über `web_time::Instant`, nie `std::time::Instant` (panikt in wasm32).
 - OpenCollection erlaubt keine unbekannten Felder (`additionalProperties: false`), außer `extensions` in `opencollection.yml`. Eigene Daten gehören dorthin oder in Begleitdateien.
 
+### App (ab Welle 3)
+
+- Die Oberfläche (`apps/ui`) ruft den Kern **nur** über `Backend` in `apps/ui/src/commands/backend.ts` auf. Drei Umsetzungen: Tauri (`apps/desktop`, über `rt-app`), Web (`apps/web`, über `rt-wasm` → `rt-app`), Mock (`apps/ui/src/commands/mock.ts`, für UI-Tests mit `?backend=mock`). Keine Weiche nach Plattform im Komponentencode.
+- `apps/ui/src/commands/types.ts` spiegelt die serde-JSON der Rust-Typen. Der Vertragstest `cargo test -p rt-app --test contract` erzeugt `contract.generated.ts`; `npm run check -w apps/ui` scheitert, sobald beide auseinanderlaufen. Nach Änderungen an Rust-Typen: `RT_UPDATE_CONTRACT=1 cargo test -p rt-app --test contract`.
+- Gemeinsamer Zustand: `apps/ui/src/state/app.svelte.ts` (`getApp()`).
+- Secret-Werte stehen nie in Collection-Dateien: nativ im OS-Schlüsselbund, im Web verschlüsselt im Browser-Speicher; sie gehen nur beim Senden in den Umgebungs-Layer (`SendInput.secrets`).
+- Große Antworten bleiben auf der Rust-Seite (`ResponseStore`); die UI holt nur sichtbare Zeilen.
+
 ## Befehle
 
 Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit. Einmalig: `rustup target add wasm32-unknown-unknown aarch64-apple-ios`.
@@ -110,6 +119,9 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo deny --all-features check
 npm ci --ignore-scripts && npm run check:licenses && npm run test:scripts
+npm run check -w apps/ui && npm test -w apps/ui      # Svelte/TS-Typprüfung inkl. Vertrag, Unit-Tests
+npm run check -w apps/web && npm run e2e -w apps/web # Playwright gegen die Web-Hülle (installiertes Chrome)
+npm run dev -w apps/web                              # Web-App lokal, http://127.0.0.1:5173/?backend=mock
 node scripts/check-license-headers.mjs
 node scripts/check-dco.mjs origin/main..HEAD
 node scripts/check-perf-budgets.mjs

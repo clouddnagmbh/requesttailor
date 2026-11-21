@@ -1,0 +1,20 @@
+[package]
+name = "rt-app"
+description = "RequestTailor: the command layer behind the app (desktop and web), one implementation for both."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rt-core = { path = "../rt-core" }
+rt-format = { path = "../rt-format" }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[dev-dependencies]
+serde_json = "1"
+
+[lints]
+workspace = true

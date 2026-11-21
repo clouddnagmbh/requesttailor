@@ -764,6 +764,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rt-app"
+version = "0.0.0"
+dependencies = [
+ "rt-core",
+ "rt-format",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "rt-cli"
 version = "0.0.0"
 dependencies = [

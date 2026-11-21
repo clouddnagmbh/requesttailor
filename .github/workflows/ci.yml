@@ -180,10 +180,30 @@ jobs:
       # Wave 1: budgets defined, nothing measured yet. Wave 4 adds measuring and --require-all.
       - run: node scripts/check-perf-budgets.mjs
 
+  frontend:
+    name: frontend (svelte, playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Type check (includes the Rust/TS contract fixtures)
+        run: |
+          npm run check -w apps/ui
+          npm run check -w apps/web
+      - name: Unit tests
+        run: npm test -w apps/ui
+      # Uses the Google Chrome preinstalled on GitHub's ubuntu runners (channel "chrome").
+      - name: Playwright
+        run: npm run e2e -w apps/web
+
   # Single required status for branch protection.
   ci-ok:
     if: always()
-    needs: [native, wasm, ios, conformance, lint, licenses, dco, secrets, perf]
+    needs: [native, wasm, ios, conformance, lint, licenses, dco, secrets, perf, frontend]
     runs-on: ubuntu-latest
     steps:
       - name: All jobs green

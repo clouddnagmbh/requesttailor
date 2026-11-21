@@ -115,6 +115,35 @@ impl CollectionDoc {
         }
     }
 
+    /// Replaces the request at `path` (relative to the collection root) with `spec`.
+    /// Only what differs is rewritten; everything the model does not represent (scripts,
+    /// assertions, docs, examples, comments, layout) stays as it was, and the result is
+    /// formatted the way Bruno writes it. The model view is updated too.
+    ///
+    /// Owner: wave 3, strand F.
+    pub fn set_request(
+        &mut self,
+        path: &str,
+        spec: &rt_core::model::RequestSpec,
+    ) -> Result<(), FormatError> {
+        let _ = (path, spec);
+        todo!("wave 3, strand F")
+    }
+
+    /// Adds a new request file in `folder` (`""` for the collection root, else a folder path
+    /// as in `Folder::path`). The file name is derived from `spec.name` and made unique;
+    /// `seq` is set after the last item if `spec.seq` is `None`. Returns the new request path.
+    ///
+    /// Owner: wave 3, strand F.
+    pub fn add_request(
+        &mut self,
+        folder: &str,
+        spec: &rt_core::model::RequestSpec,
+    ) -> Result<String, FormatError> {
+        let _ = (folder, spec);
+        todo!("wave 3, strand F")
+    }
+
     /// The parsed YAML of one file, for edits that the model does not cover yet.
     #[cfg(test)]
     fn yaml_mut(&mut self, path: &str) -> Option<&mut yaml::Document> {

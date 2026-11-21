@@ -12,3 +12,7 @@ node_modules/
 
 # Local agent worktrees and settings
 /.claude/
+
+# Playwright output
+test-results/
+playwright-report/
