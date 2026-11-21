@@ -22,9 +22,11 @@ use std::collections::BTreeMap;
 
 use rt_core::model::Collection;
 
+mod edit;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs;
 mod read;
+mod write;
 mod yaml;
 
 /// Files of one collection, keyed by path relative to the collection root, `/`-separated
@@ -83,6 +85,8 @@ pub struct CollectionDoc {
     model: Collection,
     files: BTreeMap<String, Source>,
     issues: Vec<FormatError>,
+    /// Files that are not valid YAML (part of `issues`), kept for rebuilding the model.
+    parse_issues: Vec<FormatError>,
 }
 
 impl CollectionDoc {
@@ -126,8 +130,7 @@ impl CollectionDoc {
         path: &str,
         spec: &rt_core::model::RequestSpec,
     ) -> Result<(), FormatError> {
-        let _ = (path, spec);
-        todo!("wave 3, strand F")
+        self.edit_request(path, spec)
     }
 
     /// Adds a new request file in `folder` (`""` for the collection root, else a folder path
@@ -140,8 +143,7 @@ impl CollectionDoc {
         folder: &str,
         spec: &rt_core::model::RequestSpec,
     ) -> Result<String, FormatError> {
-        let _ = (folder, spec);
-        todo!("wave 3, strand F")
+        self.new_request(folder, spec)
     }
 
     /// Creates or replaces the environment `env.name` (file `environments/<name>.yml`).
@@ -153,16 +155,14 @@ impl CollectionDoc {
         &mut self,
         env: &rt_core::model::Environment,
     ) -> Result<String, FormatError> {
-        let _ = env;
-        todo!("wave 3, strand F")
+        self.edit_environment(env)
     }
 
     /// Removes the environment `name` and its file.
     ///
     /// Owner: wave 3, strand F.
     pub fn remove_environment(&mut self, name: &str) -> Result<(), FormatError> {
-        let _ = name;
-        todo!("wave 3, strand F")
+        self.delete_environment(name)
     }
 
     /// The parsed YAML of one file, for edits that the model does not cover yet.
@@ -236,11 +236,13 @@ pub fn read_collection(files: &FileSet) -> Result<CollectionDoc, FormatError> {
     read::check_version(&docs[COLLECTION_FILE].root)?;
     let mut builder = read::Builder::new(&docs);
     let model = builder.collection();
+    let parse_issues = issues.clone();
     issues.extend(builder.issues);
     Ok(CollectionDoc {
         model,
         files: sources,
         issues,
+        parse_issues,
     })
 }
 
