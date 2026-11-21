@@ -179,7 +179,14 @@ test("a page from another origin cannot use the companion", async ({ page, baseU
   }, AGENT_URL);
   // The companion answers 403 without CORS headers, so the browser hides even that.
   expect(result.status.available).toBe(false);
-  expect(result.status.howTo).toContain(`--allow-origin ${new URL(other).origin}`);
+  // The hint names the origin unless it is one of rt agent's defaults (true on port 5173,
+  // where this test agent was nevertheless started with a narrower allowlist).
+  const otherOrigin = new URL(other).origin;
+  const defaults = ["http://127.0.0.1:5173", "http://localhost:5173"];
+  expect(result.status.howTo).toContain("rt agent");
+  if (!defaults.includes(otherOrigin)) {
+    expect(result.status.howTo).toContain(`--allow-origin ${otherOrigin}`);
+  }
   expect(result.pairError).toContain("not reachable");
   expect(agent.stderr()).toContain("not allowed (see --allow-origin)");
 });
