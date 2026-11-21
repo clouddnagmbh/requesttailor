@@ -36,30 +36,30 @@ pub(crate) struct Builder<'a> {
     pub issues: Vec<FormatError>,
 }
 
-fn file_stem(path: &str) -> &str {
+pub(crate) fn file_stem(path: &str) -> &str {
     let name = path.rsplit('/').next().unwrap_or(path);
     name.strip_suffix(".yml").unwrap_or(name)
 }
 
-fn parent_dir(path: &str) -> &str {
+pub(crate) fn parent_dir(path: &str) -> &str {
     path.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
 
-fn text(node: Option<&Node>) -> String {
+pub(crate) fn text(node: Option<&Node>) -> String {
     node.and_then(Node::text).unwrap_or_default().to_owned()
 }
 
-fn flag(node: Option<&Node>) -> Option<bool> {
+pub(crate) fn flag(node: Option<&Node>) -> Option<bool> {
     node.and_then(Node::as_bool)
 }
 
 /// `enabled` from `disabled: true` (the spec) or `enabled: false` (seen in the wild).
-fn enabled(node: &Node) -> bool {
+pub(crate) fn enabled(node: &Node) -> bool {
     flag(node.get("disabled")) != Some(true) && flag(node.get("enabled")) != Some(false)
 }
 
 /// The selected entry of a variant list, or the first one.
-fn selected(list: &Node) -> Option<&Node> {
+pub(crate) fn selected(list: &Node) -> Option<&Node> {
     list.items()
         .find(|v| flag(v.get("selected")) == Some(true))
         .or_else(|| list.items().next())
@@ -199,7 +199,7 @@ impl<'a> Builder<'a> {
         }
     }
 
-    fn request(&mut self, path: &str) -> Option<RequestEntry> {
+    pub(crate) fn request(&mut self, path: &str) -> Option<RequestEntry> {
         let root = &self.docs.get(path)?.root;
         let info = root.get("info");
         let kind = info.and_then(|i| i.get("type")).and_then(Node::text);
@@ -244,7 +244,7 @@ impl<'a> Builder<'a> {
         })
     }
 
-    fn auth(&mut self, path: &str, node: Option<&Node>, missing: Auth) -> Auth {
+    pub(crate) fn auth(&mut self, path: &str, node: Option<&Node>, missing: Auth) -> Auth {
         let Some(node) = node.filter(|n| !n.is_null()) else {
             return missing;
         };
@@ -287,7 +287,7 @@ impl<'a> Builder<'a> {
         }
     }
 
-    fn body(&mut self, path: &str, node: Option<&Node>) -> Body {
+    pub(crate) fn body(&mut self, path: &str, node: Option<&Node>) -> Body {
         let Some(node) = node.filter(|n| !n.is_null()) else {
             return Body::None;
         };
@@ -331,37 +331,37 @@ impl<'a> Builder<'a> {
     }
 }
 
-fn key_values(list: Option<&Node>) -> Vec<KeyValue> {
-    list.map(|l| {
-        l.items()
-            .map(|h| KeyValue {
-                name: text(h.get("name")),
-                value: text(h.get("value")),
-                enabled: enabled(h),
-            })
-            .collect()
-    })
-    .unwrap_or_default()
+pub(crate) fn key_values(list: Option<&Node>) -> Vec<KeyValue> {
+    list.map(|l| l.items().map(key_value).collect())
+        .unwrap_or_default()
 }
 
-fn params(list: Option<&Node>) -> Vec<Param> {
-    list.map(|l| {
-        l.items()
-            .map(|p| Param {
-                name: text(p.get("name")),
-                value: text(p.get("value")),
-                kind: match p.get("type").and_then(Node::text) {
-                    Some("path") => ParamKind::Path,
-                    _ => ParamKind::Query,
-                },
-                enabled: enabled(p),
-            })
-            .collect()
-    })
-    .unwrap_or_default()
+pub(crate) fn key_value(h: &Node) -> KeyValue {
+    KeyValue {
+        name: text(h.get("name")),
+        value: text(h.get("value")),
+        enabled: enabled(h),
+    }
 }
 
-fn part(p: &Node) -> MultipartPart {
+pub(crate) fn params(list: Option<&Node>) -> Vec<Param> {
+    list.map(|l| l.items().map(param).collect())
+        .unwrap_or_default()
+}
+
+pub(crate) fn param(p: &Node) -> Param {
+    Param {
+        name: text(p.get("name")),
+        value: text(p.get("value")),
+        kind: match p.get("type").and_then(Node::text) {
+            Some("path") => ParamKind::Path,
+            _ => ParamKind::Query,
+        },
+        enabled: enabled(p),
+    }
+}
+
+pub(crate) fn part(p: &Node) -> MultipartPart {
     let kind = match p.get("type").and_then(Node::text) {
         Some("file") => PartKind::File,
         _ => PartKind::Text,
@@ -394,12 +394,12 @@ fn variable_value(node: Option<&Node>) -> Option<String> {
     node.text().map(str::to_owned)
 }
 
-fn variables(list: Option<&Node>) -> Vec<Variable> {
+pub(crate) fn variables(list: Option<&Node>) -> Vec<Variable> {
     list.map(|l| l.items().map(variable).collect())
         .unwrap_or_default()
 }
 
-fn variable(v: &Node) -> Variable {
+pub(crate) fn variable(v: &Node) -> Variable {
     let secret = flag(v.get("secret")) == Some(true);
     Variable {
         name: text(v.get("name")),
@@ -414,7 +414,7 @@ fn variable(v: &Node) -> Variable {
     }
 }
 
-fn environment(e: &Node, fallback_name: &str) -> Environment {
+pub(crate) fn environment(e: &Node, fallback_name: &str) -> Environment {
     Environment {
         name: e
             .get("name")
@@ -425,7 +425,7 @@ fn environment(e: &Node, fallback_name: &str) -> Environment {
     }
 }
 
-fn settings(node: Option<&Node>) -> Settings {
+pub(crate) fn settings(node: Option<&Node>) -> Settings {
     let Some(s) = node else {
         return Settings::default();
     };

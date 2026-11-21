@@ -16,11 +16,11 @@
 //! Rejected with an error: anchors, aliases, tags, explicit (`?`) and complex keys,
 //! directives, multiple documents, duplicate keys and tab indentation.
 
-// Renders changed scalars; reached only through the edit API, which only tests use so far.
-#[cfg_attr(not(test), allow(dead_code))]
+mod edit;
 mod emit;
 mod parse;
 
+pub(crate) use edit::{ItemOp, Val, document_text, reparse};
 pub(crate) use parse::parse;
 
 /// One YAML document.
@@ -167,10 +167,7 @@ impl Node {
         }
     }
 
-    #[cfg_attr(
-        not(test),
-        allow(dead_code, reason = "edit API; only tests edit documents so far")
-    )]
+    #[cfg(test)]
     pub fn get_mut(&mut self, key: &str) -> Option<&mut Node> {
         match self {
             Node::Map(m) => m
@@ -189,10 +186,7 @@ impl Node {
         }
     }
 
-    #[cfg_attr(
-        not(test),
-        allow(dead_code, reason = "edit API; only tests edit documents so far")
-    )]
+    #[cfg(test)]
     pub fn as_scalar_mut(&mut self) -> Option<&mut Scalar> {
         match self {
             Node::Scalar(s) => Some(s),
@@ -265,10 +259,6 @@ impl Scalar {
 
     /// Sets a string value. An unchanged value keeps its source text; a changed one is
     /// rendered as Bruno would write it. `newline` is the document's line break.
-    #[cfg_attr(
-        not(test),
-        allow(dead_code, reason = "edit API; only tests edit documents so far")
-    )]
     pub fn set_str(&mut self, value: &str, newline: &str) {
         if self.resolve() == Resolved::Str && self.value == value {
             return;

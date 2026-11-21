@@ -31,5 +31,10 @@ keyring = { version = "3.6", features = ["windows-native"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3.6", features = ["async-secret-service", "async-io", "crypto-rust"] }
 
+# Native-only test infrastructure for the send acceptance test (tests/workspace.rs).
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+rt-testserver = { path = "../rt-testserver" }
+tokio = { version = "1", features = ["rt", "net", "time"] }
+
 [lints]
 workspace = true

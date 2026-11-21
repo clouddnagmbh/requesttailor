@@ -3482,10 +3482,12 @@ dependencies = [
  "memchr",
  "rt-core",
  "rt-format",
+ "rt-testserver",
  "serde",
  "serde_json",
  "serde_json_path",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
