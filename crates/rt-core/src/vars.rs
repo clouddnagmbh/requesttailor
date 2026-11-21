@@ -69,3 +69,6 @@ impl Scope {
         todo!("wave 2, strand C")
     }
 }
+
+#[cfg(test)]
+mod tests;

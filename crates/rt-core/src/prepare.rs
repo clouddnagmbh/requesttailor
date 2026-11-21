@@ -59,3 +59,6 @@ pub fn prepare(
     let _ = (context, input, files);
     todo!("wave 2, strand C")
 }
+
+#[cfg(test)]
+mod tests;
