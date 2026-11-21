@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! `rt-cli`: the `rt` command line (wave 2: `rt send`). Companion service and MCP server
-//! follow in later waves.
+//! `rt-cli`: the `rt` command line: `rt send` (wave 2) and the companion `rt agent` (wave 3).
+//! The MCP server follows in a later wave.
 //!
 //! Everything the binary does is here, so it can be tested without spawning a process:
 //! argument parsing, finding the collection root, the file-system [`FileSource`], exit codes.
+
+pub mod agent;
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -33,6 +35,7 @@ rt {version}: send requests from OpenCollection (YAML) files
 
 Usage:
   rt send <request-file> [options]
+  rt agent [--port <PORT>] [--allow-origin <ORIGIN>]...
   rt --help | --version
 
 Options for send:
@@ -41,6 +44,11 @@ Options for send:
       --body-limit <BYTES>  Keep at most BYTES of the response body (default {limit})
       --pretty              Indent the JSON report
   -h, --help                Show this help
+
+rt agent runs the companion for the web app on 127.0.0.1 until stopped:
+      --port <PORT>           Listen on PORT (default {agent_port})
+      --allow-origin <ORIGIN> Web app origin that may pair and send; repeatable
+                              (default {agent_origins})
 
 The collection root is the nearest folder above <request-file> that contains
 {COLLECTION_FILE}.
@@ -57,6 +65,8 @@ Exit codes:
   {EXIT_PREPARE}  the request could not be prepared (environment, variables, auth, body)
 ",
         version = env!("CARGO_PKG_VERSION"),
+        agent_port = agent::DEFAULT_PORT,
+        agent_origins = agent::DEFAULT_ORIGINS.join(" and "),
     )
 }
 
@@ -69,6 +79,7 @@ pub enum Command {
     Help,
     Version,
     Send(SendArgs),
+    Agent(agent::AgentArgs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,6 +106,9 @@ where
         Some(Short('h') | Long("help")) => Ok(Command::Help),
         Some(Short('V') | Long("version")) => Ok(Command::Version),
         Some(Value(cmd)) if cmd == "send" => parse_send(&mut parser),
+        Some(Value(cmd)) if cmd == "agent" => {
+            Ok(agent::parse(&mut parser)?.map_or(Command::Help, Command::Agent))
+        }
         Some(Value(cmd)) => Err(format!("unknown command {:?}", cmd.to_string_lossy())),
         Some(other) => Err(other.unexpected().to_string()),
     }
@@ -283,6 +297,7 @@ where
             return EXIT_OK;
         }
         Ok(Command::Send(args)) => args,
+        Ok(Command::Agent(args)) => return agent::run(args, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
     let (root, request_path) = match find_root(&args.file) {
