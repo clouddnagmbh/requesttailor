@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The RequestTailor Authors
+
+// Performance gate: compares measurements against perf/budgets.toml.
+// Usage: node scripts/check-perf-budgets.mjs [results.json] [--require-all]
+// results.json maps metric names to numbers, e.g. { "cold_start": 412 }.
+// Without a results file every metric is "not measured" (wave 1 to 3). From wave 4 CI passes
+// --require-all so a missing measurement fails as well.
+
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+/** Parses the TOML subset used by budgets.toml: [metrics.<name>] tables with string/number values. */
+export function parseBudgets(text) {
+  const metrics = {};
+  let current = null;
+  for (const [i, raw] of text.split("\n").entries()) {
+    const line = raw.replace(/\s+#.*$/, "").replace(/^#.*$/, "").trim();
+    if (line === "") continue;
+    const table = line.match(/^\[metrics\.([A-Za-z0-9_]+)\]$/);
+    if (table) {
+      current = metrics[table[1]] = {};
+      continue;
+    }
+    const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+)$/);
+    if (!kv || current === null) throw new Error(`budgets.toml line ${i + 1}: cannot parse "${raw}"`);
+    const value = kv[2].startsWith('"') ? JSON.parse(kv[2]) : Number(kv[2]);
+    if (typeof value === "number" && Number.isNaN(value)) {
+      throw new Error(`budgets.toml line ${i + 1}: "${kv[2]}" is not a number`);
+    }
+    current[kv[1]] = value;
+  }
+  for (const [name, m] of Object.entries(metrics)) {
+    if (typeof m.max !== "number") throw new Error(`budgets.toml: metric "${name}" needs a numeric max`);
+  }
+  return metrics;
+}
+
+/** Returns one row per budget: { name, value, max, unit, status: "ok" | "over" | "not measured" }. */
+export function evaluate(budgets, results) {
+  const unknown = Object.keys(results).filter((k) => !(k in budgets));
+  if (unknown.length > 0) throw new Error(`results for unknown metrics: ${unknown.join(", ")}`);
+  return Object.entries(budgets).map(([name, b]) => {
+    const value = results[name];
+    const status = typeof value !== "number" ? "not measured" : value <= b.max ? "ok" : "over";
+    return { name, value, max: b.max, unit: b.unit ?? "", status };
+  });
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const requireAll = args.includes("--require-all");
+  const resultsPath = resolve(args.find((a) => !a.startsWith("--")) ?? "perf/results.json");
+  const budgets = parseBudgets(readFileSync(resolve("perf/budgets.toml"), "utf8"));
+  const results = existsSync(resultsPath) ? JSON.parse(readFileSync(resultsPath, "utf8")) : {};
+  const rows = evaluate(budgets, results);
+
+  for (const r of rows) {
+    const shown = r.status === "not measured" ? "-" : `${r.value} ${r.unit}`;
+    console.log(`${r.status.padEnd(12)} ${r.name.padEnd(22)} ${shown.padStart(10)}  (max ${r.max} ${r.unit})`);
+  }
+  const failed = rows.filter((r) => r.status === "over" || (requireAll && r.status === "not measured"));
+  if (failed.length > 0) {
+    console.error(`perf budget check FAILED: ${failed.map((r) => r.name).join(", ")}`);
+    process.exit(1);
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  main();
+}

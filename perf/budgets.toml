@@ -1,0 +1,19 @@
+# Performance budgets (product principle 4). They are release gates: exceeding one fails the build.
+# Wave 1 only defines them. Measuring starts in wave 4 (CI writes perf/results.json);
+# until then every metric reports "not measured" and passes.
+
+[metrics.cold_start]
+description = "Desktop app cold start until the first interactive frame"
+unit = "ms"
+max = 500
+
+[metrics.idle_memory]
+description = "Resident memory of the desktop app, idle, one collection open"
+unit = "MB"
+max = 150
+
+[metrics.large_response_frame]
+description = "p95 frame time while scrolling a 100 MB response body"
+unit = "ms"
+# Proposal for "no stutter" (one frame at 60 Hz). Confirm when measuring starts in wave 4.
+max = 16.7

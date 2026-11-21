@@ -14,7 +14,7 @@ RequestTailor ist ein API-Client mit Rust-Kern, der nativ (macOS, Windows, Linux
   // SPDX-License-Identifier: Apache-2.0
   // Copyright 2026 The RequestTailor Authors
   ```
-- Commits tragen ein DCO-Sign-off (`git commit -s`).
+- Commits tragen ein DCO-Sign-off (`git commit -s`), die CI prüft das. Details für Beitragende: `CONTRIBUTING.md`; Markenregeln: `TRADEMARKS.md`.
 
 ## Arbeitsregeln
 
@@ -48,7 +48,7 @@ Sie entscheiden jede Feature-Frage.
 | 100-MB-Antwort | rendert und scrollt ohne Ruckeln |
 | Bedienung | Request senden in unter drei Tastendrücken ab App-Start |
 
-Die Budgets werden als automatisierte Tests gemessen; eine Überschreitung bricht den Build. Die Messung wird in Welle 4 scharf geschaltet, die Schwellwerte liegen dann in `perf/budgets.toml`.
+Die Budgets werden als automatisierte Tests gemessen; eine Überschreitung bricht den Build. Die Schwellwerte stehen in `perf/budgets.toml`. Bis Welle 3 misst noch nichts, jede Messgröße meldet „not measured“. In Welle 4 schreibt die CI `perf/results.json` und ruft die Prüfung mit `--require-all` auf; dann bricht auch eine fehlende Messung den Build. Der Wert 16,7 ms (p95-Framezeit für „ohne Ruckeln“) ist ein Vorschlag und in Welle 4 zu bestätigen.
 
 ## Technische Leitplanken
 
@@ -78,7 +78,8 @@ apps/desktop       Tauri-2-Hülle
 apps/web           Web-App
 plugins/odata      OData V2/V4, CSRF, $batch
 ci/canary          absichtlich verbotene Abhängigkeiten; die Lizenz-Gates müssen sie ablehnen
-scripts            Prüfskripte ohne Abhängigkeiten
+scripts            Prüfskripte ohne Abhängigkeiten (Lizenzen, Köpfe, DCO, Performance)
+perf/budgets.toml  Performance-Budgets, einzige Quelle für die Schwellwerte
 ```
 
 ## Befehle
@@ -95,6 +96,9 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo deny --all-features check
 npm ci --ignore-scripts && npm run check:licenses && npm run test:scripts
 node scripts/check-license-headers.mjs
+node scripts/check-dco.mjs origin/main..HEAD
+node scripts/check-perf-budgets.mjs
+gitleaks git --no-banner --redact --config .gitleaks.toml .
 ci/canary/run.sh
 ```
 
