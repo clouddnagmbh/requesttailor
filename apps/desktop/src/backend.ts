@@ -52,7 +52,7 @@ export type Command = (typeof COMMANDS)[number];
 /** `invoke` from `@tauri-apps/api/core`, injectable for tests. */
 export type Invoke = (cmd: Command, args?: Record<string, unknown>) => Promise<unknown>;
 
-/** Turns a rejected command (the serialized `AppError`, `{ kind, message }`) into a
+/** Turns a rejected command (`CommandError`: the `AppError` kind and a readable message) into a
  *  `BackendError`. Anything else (a Tauri error string) becomes kind `shell`. */
 export function toBackendError(e: unknown): BackendError {
   if (e instanceof BackendError) return e;

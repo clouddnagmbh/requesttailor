@@ -92,10 +92,3 @@ export async function readFolderFile(page: Page, path: string, name = "collectio
   );
 }
 
-/**
- * Tests marked with `needsIntegration` need `rt_app::Workspace` (strand F) and
- * `rt_app::ResponseStore` (strand C), which are stubs until the wave 3 integration. They are
- * skipped unless `RT_SHELLS_INTEGRATED=1`; after the merge, remove the skips (and this flag).
- */
-export const INTEGRATED = process.env.RT_SHELLS_INTEGRATED === "1";
-export const NEEDS_INTEGRATION = "needs rt_app::Workspace (strand F) and ResponseStore (strand C)";

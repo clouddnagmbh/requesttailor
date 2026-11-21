@@ -3,23 +3,10 @@
 
 // Gate "open folder, create request, send, save" in the browser with the real core:
 // WebBackend + rt-wasm + a folder (OPFS behind a fake picker) + rt-testserver.
-//
-// INTEGRATION: these need rt_app::Workspace (strand F) and ResponseStore (strand C); they are
-// skipped until then (see `INTEGRATED` in ./env.ts).
 
 import { expect, test, type Page } from "@playwright/test";
 
-import {
-  INTEGRATED,
-  NEEDS_INTEGRATION,
-  SERVER,
-  fakePicker,
-  fillFolder,
-  readFolderFile,
-  sampleCollection,
-} from "./env";
-
-test.skip(!INTEGRATED, NEEDS_INTEGRATION);
+import { SERVER, fakePicker, fillFolder, readFolderFile, sampleCollection } from "./env";
 
 async function setup(page: Page): Promise<void> {
   await fakePicker(page);
@@ -27,7 +14,31 @@ async function setup(page: Page): Promise<void> {
   await fillFolder(page, sampleCollection());
 }
 
-test("open folder, create request, set URL, send, save, read the file back", async ({ page }) => {
+test("gate in the UI: open folder, create request, type URL, send, save, file on disk", async ({ page }) => {
+  await setup(page);
+  await page.getByTestId("open-collection").click();
+  await expect(page.getByTestId("collection-name")).toHaveText("Shell test");
+  await page.getByTestId("env-switcher").selectOption("Local");
+
+  await page.keyboard.press("ControlOrMeta+n");
+  await page.getByTestId("new-request-name").fill("Ping");
+  await page.getByTestId("new-request-name").press("Enter");
+  await expect(page.getByTestId("tree-request").filter({ hasText: "Ping" })).toBeVisible();
+
+  const url = page.getByTestId("url-input").locator(".cm-content");
+  await url.click();
+  await url.press("ControlOrMeta+a");
+  await page.keyboard.type("{{baseUrl}}/echo/ping");
+
+  await page.getByTestId("send").click();
+  await expect(page.getByTestId("response-status")).toHaveText("200");
+
+  await page.getByTestId("save").click();
+  await expect(page.getByTestId("save")).toBeDisabled();
+  await expect.poll(() => readFolderFile(page, "ping.yml")).toContain("{{baseUrl}}/echo/ping");
+});
+
+test("command layer: open folder, create request, set URL, send, save, read the file back", async ({ page }) => {
   await setup(page);
   const result = await page.evaluate(async () => {
     const b = (window as unknown as { __rt: { backend: import("@requesttailor/ui").Backend } }).__rt.backend;
@@ -62,6 +73,22 @@ test("in the UI: open folder, pick a request, send, see 200", async ({ page }) =
   await page.getByTestId("tree-request").filter({ hasText: "Health" }).click();
   await page.getByTestId("send").click();
   await expect(page.getByTestId("response-status")).toHaveText("200");
+});
+
+test("a 100 MB response is kept whole (not cut at the default body limit)", async ({ page }) => {
+  await setup(page);
+  const result = await page.evaluate(async () => {
+    const b = (window as unknown as { __rt: { backend: import("@requesttailor/ui").Backend } }).__rt.backend;
+    await b.openCollection();
+    const path = await b.createRequest("", "Big");
+    const spec = await b.getRequest(path);
+    await b.updateRequest(path, { ...spec, url: "{{baseUrl}}/bytes/104857600" });
+    const sent = await b.send(path, { environment: "Local", vars: [] });
+    const tail = await b.responseBytes(sent.response_id!, 104857600 - 16, 16);
+    await b.releaseResponse(sent.response_id!);
+    return { size: sent.size, truncated: sent.report.response?.truncated, tail: tail.length };
+  });
+  expect(result).toEqual({ size: 104857600, truncated: false, tail: 16 });
 });
 
 test("a blocked request reaches the UI layer as transport error 'blocked'", async ({ page }) => {

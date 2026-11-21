@@ -2,11 +2,8 @@
 // Copyright 2026 The RequestTailor Authors
 
 //! Gate flow of the desktop shell without a window: open a folder, create a request, send it
-//! to rt-testserver with a secret from the (here: in-memory) keychain, save, read the file back.
-//!
-//! Ignored until the wave 3 integration: needs `rt_app::Workspace` (strand F) and
-//! `rt_app::ResponseStore` (strand C). Run with
-//! `cargo test -p rt-desktop --test flow -- --include-ignored`.
+//! to rt-testserver with a secret from the (here: in-memory) keychain, save, read the file back,
+//! and delete an environment (its file goes away on save).
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -69,7 +66,6 @@ fn requests(node: &TreeNode) -> Vec<String> {
 const SECRET: &str = "s3cr3t-desktop-token";
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs rt_app::Workspace (strand F) and ResponseStore (strand C)"]
 async fn open_create_send_save() {
     let addr = rt_testserver::spawn_local().await;
     let dir = collection(&format!("http://{addr}"));
@@ -142,4 +138,34 @@ async fn open_create_send_save() {
         core.get_request(&path).unwrap().url,
         "{{baseUrl}}/echo/ping"
     );
+
+    // A 100 MB response is kept whole (not cut at the default 10 MB body limit).
+    let big = core.create_request("", "Big").unwrap();
+    let mut spec = core.get_request(&big).unwrap();
+    spec.url = "{{baseUrl}}/bytes/104857600".into();
+    core.update_request(&big, spec).unwrap();
+    let stored = core
+        .send(
+            &big,
+            SendInput {
+                environment: Some("Local".into()),
+                ..SendInput::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(stored.size, 104_857_600);
+    assert!(!stored.report.response.as_ref().unwrap().truncated);
+    let id = stored.response_id.unwrap();
+    assert_eq!(
+        core.response_bytes(id, 104_857_600 - 16, 16).unwrap().len(),
+        16
+    );
+    core.release_response(id);
+
+    // Deleting an environment removes its file on save.
+    core.delete_environment("Local").unwrap();
+    core.save().unwrap();
+    assert!(!dir.0.join("environments/Local.yml").exists());
+    assert!(core.environments().unwrap().is_empty());
 }
