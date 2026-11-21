@@ -14,6 +14,12 @@ targets = [
   "aarch64-apple-ios",
 ]
 all-features = true
+# webpki-root-certs (CDLA-Permissive-2.0, not allowed) is a dependency of
+# rustls-platform-verifier on wasm32 only. rt-core uses rustls-platform-verifier on native
+# targets only, so the crate is never built; cargo-deny evaluates each edge's target cfg on
+# its own and would list it anyway. Check with:
+#   cargo tree --target wasm32-unknown-unknown -i webpki-root-certs   (nothing to print)
+exclude = ["webpki-root-certs"]
 
 [advisories]
 yanked = "deny"
