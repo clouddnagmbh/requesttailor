@@ -861,7 +861,6 @@ mod tests {
 
     /// The success path runs through `transport::collect` (strand A).
     #[test]
-    #[ignore = "needs strand A (transport::collect); run after merge"]
     fn response_is_collected_and_reported() {
         let c = collection();
         let ctx = c.request("api/get.yml").unwrap();
@@ -884,7 +883,6 @@ mod tests {
 
     /// End to end through `prepare` (strand C) and `collect` (strand A).
     #[test]
-    #[ignore = "needs strands A and C; run after merge"]
     fn send_prepares_sends_and_masks() {
         let c = collection();
         let t = MockTransport::new(Ok((201, vec![b"ok"])));
