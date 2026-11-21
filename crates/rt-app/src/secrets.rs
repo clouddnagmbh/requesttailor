@@ -62,8 +62,20 @@ pub mod keychain {
     pub const SERVICE: &str = "RequestTailor";
 
     /// Keychain account for one secret: `<collection>/<environment>/<variable>`.
+    ///
+    /// `%` and `/` in the environment and variable names are percent-encoded, so the last two
+    /// `/`-separated segments are always environment and variable and the mapping is
+    /// injective even though the collection (a path) contains `/`.
     pub fn account(key: &SecretKey) -> String {
-        format!("{}/{}/{}", key.collection, key.environment, key.variable)
+        fn escape(s: &str) -> String {
+            s.replace('%', "%25").replace('/', "%2F")
+        }
+        format!(
+            "{}/{}/{}",
+            key.collection,
+            escape(&key.environment),
+            escape(&key.variable)
+        )
     }
 
     impl SecretStore for KeychainStore {
@@ -177,6 +189,18 @@ pub mod keychain {
             assert_ne!(a, account(&key("c", "PRD", "token")));
             assert_ne!(a, account(&key("c", "Local", "password")));
             assert_ne!(a, account(&key("d", "Local", "token")));
+        }
+
+        #[test]
+        fn slashes_in_names_cannot_collide() {
+            let a = account(&key("/p/a", "b", "c"));
+            let b = account(&key("/p", "a/b", "c"));
+            let c = account(&key("/p", "a", "b/c"));
+            assert_ne!(a, b);
+            assert_ne!(a, c);
+            assert_ne!(b, c);
+            assert_eq!(b, "/p/a%2Fb/c");
+            assert_ne!(account(&key("/p", "a%2Fb", "c")), b);
         }
 
         #[test]

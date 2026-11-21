@@ -121,9 +121,14 @@ export class AppState {
     this.environment = name;
   }
 
+  /** Re-reads environments after edits; keeps the active one if it still exists. */
   async reloadEnvironments(): Promise<void> {
     await this.guard(async () => {
       this.environments = await this.backend.environments();
+      if (!this.environments.some((e) => e.name === this.environment)) {
+        this.environment = this.environments[0]?.name ?? null;
+      }
+      this.dirty = await this.backend.dirty();
     });
   }
 }
