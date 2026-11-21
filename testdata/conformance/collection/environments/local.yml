@@ -1,0 +1,21 @@
+name: local
+variables:
+  - name: port
+    value: "47811"
+  - name: baseUrl
+    value: http://127.0.0.1:{{port}}
+  - name: level
+    value: environment
+  - name: user
+    value: alice
+  - secret: true
+    name: password
+  - name: token
+    value: tok-123
+  - secret: true
+    name: apiToken
+  - name: apiKeyValue
+    value: key-abc
+  - name: disabledVar
+    value: should-not-resolve
+    disabled: true

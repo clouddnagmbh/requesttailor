@@ -1,0 +1,18 @@
+info:
+  name: text
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/echo/body"
+  body:
+    type: text
+    data: "plain {{greeting}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

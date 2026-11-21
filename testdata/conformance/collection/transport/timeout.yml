@@ -1,0 +1,15 @@
+info:
+  name: timeout
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/delay/3000"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 300
+  followRedirects: true
+  maxRedirects: 5

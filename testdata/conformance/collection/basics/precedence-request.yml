@@ -1,0 +1,23 @@
+info:
+  name: precedence-request
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: "{{baseUrl}}/echo/level"
+  headers:
+    - name: X-Level
+      value: "{{level}}"
+  auth: inherit
+
+runtime:
+  variables:
+    - name: level
+      value: request
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

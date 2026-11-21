@@ -1,0 +1,358 @@
+{
+  "$comment": "Conformance cases, run identically against the native core (crates/rt-cli/tests/conformance.rs) and the WASM core in the browser (crates/rt-wasm/tests/conformance.rs). Schema and comparison rules: harness.rs next to this file. {base} is http://127.0.0.1:{port}, the test server.",
+  "collections": {
+    "conformance": {
+      "path": "conformance/collection",
+      "environment": "local",
+      "vars": [["port", "{port}"]]
+    },
+    "bruno-methods": {
+      "path": "collections/bruno/mounting-method-indicators-yml",
+      "vars": [["host", "{base}/echo"]]
+    },
+    "bruno-secrets": {
+      "path": "collections/bruno/api-spec-create-from-collection",
+      "environment": "local",
+      "vars": [["baseUrl", "{base}/echo"], ["secvar", "user-7"]]
+    },
+    "bruno-oauth2": {
+      "path": "collections/bruno/auth-inherited-auth"
+    },
+    "bruno-datatypes": {
+      "path": "collections/bruno/variable-datatypes-workspace-collections-yml",
+      "vars": [["localhost", "{base}/echo"]]
+    }
+  },
+  "cases": [
+    {
+      "name": "get with query, inherited headers, disabled header and param",
+      "collection": "conformance",
+      "request": "basics/get.yml",
+      "expect": {
+        "status": 200,
+        "unresolved": [],
+        "sent": {
+          "method": "GET",
+          "url": "{base}/echo/get?a=1&b=two",
+          "headers": [["X-Hello", "hello world"]],
+          "headers_absent": ["X-Disabled"]
+        },
+        "echo": {
+          "method": "GET",
+          "path": "/echo/get",
+          "query": "a=1&b=two",
+          "headers": [["x-hello", "hello world"], ["x-collection", "conformance"], ["x-folder", "basics"]],
+          "headers_absent": ["x-disabled"],
+          "body_len": 0
+        },
+        "response": { "url": "{base}/echo/get?a=1&b=two", "version": "HTTP/1.1", "encoding": "utf8", "truncated": false },
+        "variables": [["baseUrl", "environment"], ["greeting", "collection"]]
+      }
+    },
+    {
+      "name": "the URL is the truth for the query: a params entry missing from the URL is not sent",
+      "collection": "conformance",
+      "request": "basics/params-not-in-url.yml",
+      "expect": {
+        "status": 200,
+        "sent": { "url": "{base}/echo/params?a=1" },
+        "echo": { "path": "/echo/params", "query": "a=1" }
+      }
+    },
+    {
+      "name": "path parameter",
+      "collection": "conformance",
+      "request": "basics/path-params.yml",
+      "expect": { "status": 200, "echo": { "method": "GET", "path": "/echo/users/42", "query": "" } }
+    },
+    {
+      "name": "HTTP error status is a response, not an error",
+      "collection": "conformance",
+      "request": "basics/status.yml",
+      "expect": { "status": 404, "response": { "body_json": { "status": 404 } } }
+    },
+    {
+      "name": "unresolved and disabled variables stay verbatim and are reported",
+      "collection": "conformance",
+      "request": "basics/unresolved.yml",
+      "expect": {
+        "status": 200,
+        "unresolved": ["missingVar", "disabledVar"],
+        "echo": { "headers": [["x-missing", "{{missingVar}}"], ["x-disabled-var", "{{disabledVar}}"]] }
+      }
+    },
+    {
+      "name": "unresolved host fails preparation and names the variable",
+      "collection": "conformance",
+      "request": "basics/bad-host.yml",
+      "expect": { "error": "prepare", "unresolved": ["noSuchHost"], "no_request": true }
+    },
+    {
+      "name": "secret values are masked in the report but sent on the wire",
+      "collection": "conformance",
+      "request": "basics/secret.yml",
+      "vars": [["apiToken", "s3cr3t-token"]],
+      "expect": {
+        "status": 200,
+        "unresolved": [],
+        "sent": { "url": "{base}/echo/secret?t=***", "headers": [["X-Token", "***"]], "not_contains": "s3cr3t-token" },
+        "echo": { "query": "t=s3cr3t-token", "headers": [["x-token", "s3cr3t-token"]] },
+        "variables": [["apiToken", "runtime"]]
+      }
+    },
+    {
+      "name": "precedence: environment over collection",
+      "collection": "conformance",
+      "request": "precedence-env.yml",
+      "expect": { "status": 200, "echo": { "headers": [["x-level", "environment"]] }, "variables": [["level", "environment"]] }
+    },
+    {
+      "name": "precedence: folder over environment",
+      "collection": "conformance",
+      "request": "basics/precedence.yml",
+      "expect": { "status": 200, "echo": { "headers": [["x-level", "folder"]] }, "variables": [["level", "folder"]] }
+    },
+    {
+      "name": "precedence: request over folder",
+      "collection": "conformance",
+      "request": "basics/precedence-request.yml",
+      "expect": { "status": 200, "echo": { "headers": [["x-level", "request"]] }, "variables": [["level", "request"]] }
+    },
+    {
+      "name": "precedence: runtime over request",
+      "collection": "conformance",
+      "request": "basics/precedence-request.yml",
+      "vars": [["level", "runtime"]],
+      "expect": { "status": 200, "echo": { "headers": [["x-level", "runtime"]] }, "variables": [["level", "runtime"]] }
+    },
+    {
+      "name": "request not in the collection",
+      "collection": "conformance",
+      "request": "basics/does-not-exist.yml",
+      "expect": { "error": "not-found", "no_request": true }
+    },
+    {
+      "name": "unknown environment",
+      "collection": "conformance",
+      "request": "basics/get.yml",
+      "environment": "staging",
+      "expect": { "error": "prepare", "no_request": true }
+    },
+    {
+      "name": "body: json",
+      "collection": "conformance",
+      "request": "body/json.yml",
+      "expect": {
+        "status": 200,
+        "sent": { "method": "POST", "body_size": 32 },
+        "echo": { "method": "POST", "body": "{\"greeting\": \"hello\", \"n\": 1}", "headers": [["content-type", "application/json*"]] }
+      }
+    },
+    {
+      "name": "body: text",
+      "collection": "conformance",
+      "request": "body/text.yml",
+      "expect": { "status": 200, "echo": { "body": "plain hello", "headers": [["content-type", "text/plain*"]] } }
+    },
+    {
+      "name": "body: xml",
+      "collection": "conformance",
+      "request": "body/xml.yml",
+      "expect": { "status": 200, "echo": { "body": "<greeting>hello</greeting>", "headers": [["content-type", "application/xml*"]] } }
+    },
+    {
+      "name": "body: form-urlencoded",
+      "collection": "conformance",
+      "request": "body/form.yml",
+      "expect": {
+        "status": 200,
+        "echo": { "body": "name=alice&role=environment", "headers": [["content-type", "application/x-www-form-urlencoded*"]] }
+      }
+    },
+    {
+      "name": "body: multipart text parts",
+      "collection": "conformance",
+      "request": "body/multipart.yml",
+      "expect": {
+        "status": 200,
+        "echo": {
+          "body_contains": ["name=\"field1\"", "\r\n\r\none\r\n", "name=\"field2\"", "\r\n\r\nhello\r\n"],
+          "headers": [["content-type", "multipart/form-data; boundary=*"]]
+        }
+      }
+    },
+    {
+      "name": "body: file relative to the collection root",
+      "collection": "conformance",
+      "request": "body/file.yml",
+      "expect": {
+        "status": 200,
+        "sent": { "body_size": 20 },
+        "echo": { "body": "conformance payload\n", "headers": [["content-type", "text/plain*"]] }
+      }
+    },
+    {
+      "name": "auth: basic with a secret password",
+      "collection": "conformance",
+      "request": "auth/basic.yml",
+      "vars": [["password", "pa55word"]],
+      "expect": {
+        "status": 200,
+        "sent": { "url": "{base}/basic-auth/alice/***", "headers": [["Authorization", "Basic ***"]], "not_contains": "pa55word" },
+        "response": { "body_json": { "authenticated": true, "user": "alice" } }
+      }
+    },
+    {
+      "name": "auth: API key in a header",
+      "collection": "conformance",
+      "request": "auth/apikey-header.yml",
+      "expect": { "status": 200, "echo": { "headers": [["x-api-key", "key-abc"]] } }
+    },
+    {
+      "name": "auth: API key in the query",
+      "collection": "conformance",
+      "request": "auth/apikey-query.yml",
+      "expect": { "status": 200, "echo": { "query": "api_key=key-abc", "headers_absent": ["authorization"] } }
+    },
+    {
+      "name": "auth: bearer inherited from the folder",
+      "collection": "conformance",
+      "request": "auth/bearer/inherit.yml",
+      "expect": { "status": 200, "response": { "body_json": { "authenticated": true } } }
+    },
+    {
+      "name": "auth: bearer inherited through two folders",
+      "collection": "conformance",
+      "request": "auth/bearer/nested/inherit-nested.yml",
+      "expect": { "status": 200, "response": { "body_json": { "authenticated": true } } }
+    },
+    {
+      "name": "auth: none stops inheritance",
+      "collection": "conformance",
+      "request": "auth/bearer/none.yml",
+      "expect": { "status": 200, "echo": { "headers_absent": ["authorization"] } }
+    },
+    {
+      "name": "redirects are followed",
+      "collection": "conformance",
+      "request": "transport/redirect.yml",
+      "expect": {
+        "status": 200,
+        "response": { "url": "{base}/redirect/0", "redirects": 2, "body_json": { "redirected": true } }
+      }
+    },
+    {
+      "name": "redirects not followed when disabled",
+      "collection": "conformance",
+      "request": "transport/no-follow.yml",
+      "browser": "fetch with redirect: manual returns an opaque response without status or Location",
+      "expect": { "status": 302, "response": { "headers": [["location", "/redirect/0"]], "redirects": 0 } }
+    },
+    {
+      "name": "redirect limit",
+      "collection": "conformance",
+      "request": "transport/too-many-redirects.yml",
+      "browser": "fetch has no redirect limit option (fixed at 20)",
+      "expect": { "error": "transport/too-many-redirects" }
+    },
+    {
+      "name": "timeout",
+      "collection": "conformance",
+      "request": "transport/timeout.yml",
+      "expect": { "error": "transport/timeout", "no_response": true }
+    },
+    {
+      "name": "connection refused",
+      "collection": "conformance",
+      "request": "transport/refused.yml",
+      "expect": { "error": "transport/connect", "no_response": true }
+    },
+    {
+      "name": "binary body as base64",
+      "collection": "conformance",
+      "request": "transport/bytes.yml",
+      "expect": { "status": 200, "response": { "encoding": "base64", "size": 300, "truncated": false, "body_pattern": 300 } }
+    },
+    {
+      "name": "body limit truncates but counts everything",
+      "collection": "conformance",
+      "request": "transport/bytes.yml",
+      "vars": [["size", "1000"]],
+      "body_limit": 100,
+      "expect": { "status": 200, "response": { "size": 1000, "truncated": true, "body_pattern": 100 } }
+    },
+    {
+      "name": "large streamed body",
+      "collection": "conformance",
+      "request": "transport/bytes.yml",
+      "vars": [["size", "300000"]],
+      "expect": { "status": 200, "response": { "encoding": "base64", "size": 300000, "truncated": false, "body_pattern": 300000 } }
+    },
+    {
+      "name": "bruno corpus, unchanged: GET",
+      "collection": "bruno-methods",
+      "request": "GET-Request.yml",
+      "expect": {
+        "status": 200,
+        "unresolved": [],
+        "sent": { "method": "GET", "url": "{base}/echo/api/resource" },
+        "echo": { "method": "GET", "path": "/echo/api/resource" }
+      }
+    },
+    {
+      "name": "bruno corpus, unchanged: POST",
+      "collection": "bruno-methods",
+      "request": "POST-Request.yml",
+      "expect": { "status": 200, "unresolved": [], "echo": { "method": "POST", "path": "/echo/api/resource" } }
+    },
+    {
+      "name": "bruno corpus, unchanged: PUT",
+      "collection": "bruno-methods",
+      "request": "PUT-Request.yml",
+      "expect": { "status": 200, "unresolved": [], "echo": { "method": "PUT", "path": "/echo/api/resource" } }
+    },
+    {
+      "name": "bruno corpus, unchanged: PATCH",
+      "collection": "bruno-methods",
+      "request": "PATCH-Request.yml",
+      "expect": { "status": 200, "unresolved": [], "echo": { "method": "PATCH", "path": "/echo/api/resource" } }
+    },
+    {
+      "name": "bruno corpus, unchanged: DELETE",
+      "collection": "bruno-methods",
+      "request": "DELETE-Request.yml",
+      "expect": { "status": 200, "unresolved": [], "echo": { "method": "DELETE", "path": "/echo/api/resource" } }
+    },
+    {
+      "name": "bruno corpus, unchanged: secret from the environment masked in the URL",
+      "collection": "bruno-secrets",
+      "request": "Base url.yml",
+      "expect": {
+        "status": 200,
+        "unresolved": [],
+        "sent": { "url": "{base}/echo/users/***", "not_contains": "user-7" },
+        "echo": { "path": "/echo/users/user-7" }
+      }
+    },
+    {
+      "name": "bruno corpus, unchanged: inherited OAuth 2.0 is reported as unsupported",
+      "collection": "bruno-oauth2",
+      "request": "oauth2-folder/oauth2-request.yml",
+      "expect": { "error": "prepare", "no_request": true }
+    },
+    {
+      "name": "bruno corpus, unchanged: typed variables in a form body",
+      "collection": "bruno-datatypes",
+      "request": "folder/form_urlencoded.yml",
+      "expect": {
+        "status": 200,
+        "unresolved": [],
+        "echo": {
+          "method": "POST",
+          "path": "/echo/api/echo/everything",
+          "body": "fu_str=form_string&fu_num=42&fu_bool=true&fu_obj=%7B%22key%22%3A%22value%22%7D"
+        }
+      }
+    }
+  ]
+}

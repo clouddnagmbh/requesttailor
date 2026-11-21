@@ -1,0 +1,20 @@
+info:
+  name: bytes
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{baseUrl}}/bytes/{{size}}"
+  auth: inherit
+
+runtime:
+  variables:
+    - name: size
+      value: "300"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

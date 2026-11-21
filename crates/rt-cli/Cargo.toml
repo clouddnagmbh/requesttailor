@@ -7,5 +7,24 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[[bin]]
+name = "rt"
+path = "src/main.rs"
+
+[dependencies]
+# Small, no dependencies: keeps `rt` cold start lean (clap would add parsing and help machinery
+# we do not need yet).
+lexopt = "0.3"
+rt-core = { path = "../rt-core" }
+rt-format = { path = "../rt-format" }
+serde_json = "1"
+# Current-thread runtime only; the native transport needs the I/O and timer drivers.
+tokio = { version = "1", features = ["rt", "net", "time"] }
+
+[dev-dependencies]
+rt-testserver = { path = "../rt-testserver" }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt", "net", "time", "macros"] }
+
 [lints]
 workspace = true
