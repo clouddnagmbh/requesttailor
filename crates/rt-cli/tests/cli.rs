@@ -143,7 +143,6 @@ fn run_case(request: &str, collection: &str, port: u16, expected_code: i32, pret
 }
 
 #[test]
-#[ignore = "needs strands A-C (transport, format, prepare); run after merge"]
 fn sends_cases_through_the_binary() {
     let server = tokio::runtime::Runtime::new().unwrap();
     let port = server.block_on(rt_testserver::spawn_local()).port();

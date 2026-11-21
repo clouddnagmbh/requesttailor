@@ -74,7 +74,6 @@ async fn browser_reaches_the_test_server() {
 }
 
 #[wasm_bindgen_test]
-#[ignore = "needs strands A-C (fetch transport, format, prepare); run after merge"]
 async fn conformance_browser() {
     let port = harness::BROWSER_PORT;
     let suite = harness::suite();
@@ -115,7 +114,6 @@ async fn conformance_browser() {
 /// The JS boundary: files as a JS object, options as a JS object, report as a JS object
 /// that matches the CLI's JSON.
 #[wasm_bindgen_test]
-#[ignore = "needs strands A-C (fetch transport, format, prepare); run after merge"]
 async fn js_api_sends_an_unchanged_bruno_collection() {
     let port = harness::BROWSER_PORT;
     let suite = harness::suite();

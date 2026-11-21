@@ -144,7 +144,7 @@
       "request": "body/json.yml",
       "expect": {
         "status": 200,
-        "sent": { "method": "POST", "body_size": 32 },
+        "sent": { "method": "POST", "body_size": 29 },
         "echo": { "method": "POST", "body": "{\"greeting\": \"hello\", \"n\": 1}", "headers": [["content-type", "application/json*"]] }
       }
     },

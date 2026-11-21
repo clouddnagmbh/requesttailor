@@ -130,6 +130,19 @@ impl Draft {
         api_key: Option<(String, String)>,
         unresolved: &[String],
     ) -> Result<String, PrepareError> {
+        // A placeholder left in scheme or host can never be a valid URL, even if a lenient
+        // parser accepts the braces; fail here and name the variables instead of on the wire.
+        if self.origin.contains("{{") {
+            let names = if unresolved.is_empty() {
+                String::new()
+            } else {
+                format!(" (unresolved variables: {})", unresolved.join(", "))
+            };
+            return Err(PrepareError::InvalidUrl(format!(
+                "{}{}: host contains an unresolved placeholder{names}",
+                self.origin, self.path
+            )));
+        }
         let mut out = self.origin;
         let mut pairs: Vec<String> = Vec::new();
         if self.encode {

@@ -107,7 +107,6 @@ fn panic_message(e: tokio::task::JoinError) -> String {
 }
 
 #[test]
-#[ignore = "needs strands A-C (transport, format, prepare); run after merge"]
 fn conformance_native() {
     // Same runtime flavour as `rt`.
     let runtime = tokio::runtime::Builder::new_current_thread()

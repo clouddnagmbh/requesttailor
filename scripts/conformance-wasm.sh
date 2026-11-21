@@ -6,7 +6,7 @@
 # tests in headless Chrome, stops the server.
 #
 # Usage: scripts/conformance-wasm.sh [cargo test args...]
-#   e.g. scripts/conformance-wasm.sh -- --include-ignored
+#   e.g. scripts/conformance-wasm.sh -- conformance_browser
 #
 # Needs: wasm-bindgen-test-runner of the same version as wasm-bindgen in Cargo.lock
 #   (cargo install wasm-bindgen-cli --version <v> --locked), Google Chrome, and a matching

@@ -1053,3 +1053,16 @@ fn file_body_from_the_file_source() {
         Err(PrepareError::BodyFile { path, .. }) if path == "data/missing.bin"
     ));
 }
+
+#[test]
+fn unresolved_placeholder_in_the_host_is_a_prepare_error() {
+    // The `url` crate accepts `{` in a host, so this must be caught explicitly.
+    for template in ["http://{{noSuchHost}}/echo", "{{scheme}}://example.com/x"] {
+        let t = Tree::new(template);
+        let err = t.prepare(&PrepareInput::default()).unwrap_err();
+        let PrepareError::InvalidUrl(message) = err else {
+            panic!("expected InvalidUrl for {template}, got {err:?}");
+        };
+        assert!(message.contains("unresolved variables: "), "{message}");
+    }
+}
