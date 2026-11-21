@@ -16,5 +16,10 @@ thiserror = "2"
 [dev-dependencies]
 serde_json = "1"
 
+# Native-only test infrastructure for the send acceptance test (tests/workspace.rs).
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+rt-testserver = { path = "../rt-testserver" }
+tokio = { version = "1", features = ["rt", "net", "time"] }
+
 [lints]
 workspace = true
