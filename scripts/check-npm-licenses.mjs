@@ -5,10 +5,14 @@
 // dependencies) and fails if a license is missing or not on the allowlist.
 // The allowlist is the [licenses].allow array in deny.toml, so Rust and npm share one policy.
 //
+// Packages listed in scripts/npm-license-exceptions.json may carry one other license; entries
+// marked devOnly must be dev dependencies (build tools, never shipped).
+//
 // Usage: node scripts/check-npm-licenses.mjs [path/to/package-lock.json] [path/to/deny.toml]
+//                                            [path/to/npm-license-exceptions.json]
 // No dependencies on purpose: the gate must not need the packages it is checking.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -87,8 +91,19 @@ function licenseOf(entry) {
   return null;
 }
 
+/** Parses npm-license-exceptions.json into [{ re, license, devOnly }]. */
+export function readExceptions(json) {
+  const parsed = JSON.parse(json);
+  return (parsed.exceptions ?? []).map((e, i) => {
+    if (typeof e.pattern !== "string" || typeof e.license !== "string" || !e.reason) {
+      throw new Error(`npm-license-exceptions.json: entry ${i} needs pattern, license and reason`);
+    }
+    return { re: new RegExp(e.pattern), license: e.license, devOnly: e.devOnly === true };
+  });
+}
+
 /** Returns a list of violations ({ name, license, reason }) for a parsed package-lock.json. */
-export function checkLockfile(lock, allowed) {
+export function checkLockfile(lock, allowed, exceptions = []) {
   if (!lock || typeof lock.packages !== "object") {
     throw new Error("package-lock.json has no \"packages\" map (lockfileVersion >= 2 required)");
   }
@@ -108,7 +123,13 @@ export function checkLockfile(lock, allowed) {
       violations.push({ name, license, reason: `unparseable: ${err.message}` });
       continue;
     }
-    if (!ok) violations.push({ name, license, reason: "not on the allowlist in deny.toml" });
+    if (ok) continue;
+    const exception = exceptions.find((e) => e.re.test(name) && e.license === license);
+    if (exception && (!exception.devOnly || entry.dev === true)) continue;
+    const reason = exception
+      ? "excepted for dev dependencies only, but this one is shipped"
+      : "not on the allowlist in deny.toml";
+    violations.push({ name, license, reason });
   }
   return violations;
 }
@@ -116,10 +137,14 @@ export function checkLockfile(lock, allowed) {
 function main() {
   const lockPath = resolve(process.argv[2] ?? "package-lock.json");
   const denyPath = resolve(process.argv[3] ?? "deny.toml");
+  const exceptionsPath = resolve(process.argv[4] ?? "scripts/npm-license-exceptions.json");
   const allowed = readAllowlist(readFileSync(denyPath, "utf8"));
+  const exceptions = existsSync(exceptionsPath)
+    ? readExceptions(readFileSync(exceptionsPath, "utf8"))
+    : [];
   const lock = JSON.parse(readFileSync(lockPath, "utf8"));
   const total = Object.values(lock.packages ?? {}).filter((e) => !e.link).length;
-  const violations = checkLockfile(lock, allowed);
+  const violations = checkLockfile(lock, allowed, exceptions);
 
   if (violations.length > 0) {
     console.error(`npm license check FAILED for ${lockPath}:`);

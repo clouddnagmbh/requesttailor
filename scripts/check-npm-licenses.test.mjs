@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { checkLockfile, isAllowed, readAllowlist } from "./check-npm-licenses.mjs";
+import { checkLockfile, isAllowed, readAllowlist, readExceptions } from "./check-npm-licenses.mjs";
 
 const allowed = readAllowlist(readFileSync(new URL("../deny.toml", import.meta.url), "utf8"));
 
@@ -49,7 +49,35 @@ test("missing license is a violation", () => {
   assert.equal(checkLockfile(lock, allowed)[0].reason, "no license declared");
 });
 
+const exceptions = readExceptions(
+  readFileSync(new URL("./npm-license-exceptions.json", import.meta.url), "utf8"),
+);
+
 test("repository lockfile passes", () => {
   const lock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
-  assert.deepEqual(checkLockfile(lock, allowed), []);
+  assert.deepEqual(checkLockfile(lock, allowed, exceptions), []);
+});
+
+test("a dev-only exception does not cover a shipped dependency", () => {
+  const lock = {
+    packages: {
+      "node_modules/lightningcss": { license: "MPL-2.0", dev: true },
+      "node_modules/lightningcss-darwin-arm64": { license: "MPL-2.0" },
+    },
+  };
+  const v = checkLockfile(lock, allowed, exceptions);
+  assert.deepEqual(v.map((x) => x.name), ["lightningcss-darwin-arm64"]);
+  assert.match(v[0].reason, /dev dependencies only/);
+});
+
+test("an exception covers only its own license", () => {
+  const lock = { packages: { "node_modules/lightningcss": { license: "GPL-3.0-only", dev: true } } };
+  assert.equal(checkLockfile(lock, allowed, exceptions).length, 1);
+});
+
+test("the GPL canary is still rejected with exceptions loaded", () => {
+  const lock = JSON.parse(
+    readFileSync(new URL("../ci/canary/npm-gpl/package-lock.json", import.meta.url), "utf8"),
+  );
+  assert.equal(checkLockfile(lock, allowed, exceptions).length, 1);
 });
