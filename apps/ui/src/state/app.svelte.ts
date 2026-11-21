@@ -33,6 +33,10 @@ export class AppState {
   /** Last error to show in the status area, or `null`. */
   error = $state<string | null>(null);
 
+  /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
+   *  shells with concurrent commands (Tauri) never send or save a stale request. */
+  private lastEdit: Promise<unknown> = Promise.resolve();
+
   constructor(backend: Backend) {
     this.backend = backend;
   }
@@ -82,11 +86,16 @@ export class AppState {
   /** Records an edit from the editor and tells the backend (in memory, unsaved). */
   async edit(path: string, spec: RequestSpec): Promise<void> {
     this.drafts[path] = spec;
-    await this.guard(async () => {
-      await this.backend.updateRequest(path, $state.snapshot(spec) as RequestSpec);
-      this.dirty = await this.backend.dirty();
-      if (this.tree) this.tree = await this.backend.tree();
-    });
+    const snapshot = $state.snapshot(spec) as RequestSpec;
+    const run = this.lastEdit.then(() =>
+      this.guard(async () => {
+        await this.backend.updateRequest(path, snapshot);
+        this.dirty = await this.backend.dirty();
+        if (this.tree) this.tree = await this.backend.tree();
+      }),
+    );
+    this.lastEdit = run;
+    await run;
   }
 
   async create(folder: string, name: string): Promise<void> {
@@ -99,6 +108,7 @@ export class AppState {
   }
 
   async save(): Promise<void> {
+    await this.lastEdit;
     await this.guard(async () => {
       await this.backend.save();
       this.dirty = await this.backend.dirty();
@@ -108,6 +118,7 @@ export class AppState {
   async send(path: string | null = this.active): Promise<void> {
     if (!path) return;
     this.sending[path] = true;
+    await this.lastEdit;
     await this.guard(async () => {
       const previous = this.results[path];
       const result = await this.backend.send(path, { environment: this.environment, vars: [] });
@@ -121,9 +132,14 @@ export class AppState {
     this.environment = name;
   }
 
+  /** Re-reads environments after edits; keeps the active one if it still exists. */
   async reloadEnvironments(): Promise<void> {
     await this.guard(async () => {
       this.environments = await this.backend.environments();
+      if (!this.environments.some((e) => e.name === this.environment)) {
+        this.environment = this.environments[0]?.name ?? null;
+      }
+      this.dirty = await this.backend.dirty();
     });
   }
 }
