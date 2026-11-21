@@ -6,11 +6,12 @@
   "description": "Web app (core as WebAssembly).",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node ../../scripts/build-wasm.mjs --optional && vite",
+    "build": "node ../../scripts/build-wasm.mjs && vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
-    "e2e": "playwright test"
+    "e2e": "playwright test && npm run e2e:shells",
+    "e2e:shells": "node ../../scripts/build-wasm.mjs && playwright test --config e2e/shells/playwright.config.ts"
   },
   "dependencies": {
     "@requesttailor/ui": "0.0.0"

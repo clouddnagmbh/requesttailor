@@ -3065,6 +3065,7 @@ name = "rt-wasm"
 version = "0.0.0"
 dependencies = [
  "js-sys",
+ "rt-app",
  "rt-core",
  "rt-format",
  "serde",
