@@ -12,6 +12,7 @@ publish.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+rt-app = { path = "../rt-app" }
 rt-core = { path = "../rt-core" }
 rt-format = { path = "../rt-format" }
 serde = { version = "1", features = ["derive"] }

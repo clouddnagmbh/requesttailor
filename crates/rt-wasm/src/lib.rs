@@ -24,6 +24,40 @@
 //! are not a valid collection.
 //!
 //! Requests go out through the browser's `fetch` (`FetchTransport`), so CORS applies.
+//!
+//! ```text
+//! Workspace.open(files) -> Workspace
+//! ```
+//!
+//! The web app's command layer: an open collection (`rt_app::Workspace`) plus the bodies of
+//! its responses (`rt_app::ResponseStore`). `files` as for `send`. Methods mirror the UI's
+//! `Backend` (`apps/ui/src/commands/backend.ts`); values go in and out as plain objects with
+//! exactly the serde JSON of the Rust types (`apps/ui/src/commands/types.ts`):
+//!
+//! ```text
+//! name() -> string                        tree() -> TreeNode
+//! request(path) -> RequestSpec             createRequest(folder, name) -> string
+//! updateRequest(path, spec)                dirty() -> string[]
+//! prepareSave() -> PreparedSave            commit(prepared)
+//! environments() -> Environment[]          updateEnvironment(env)
+//! deleteEnvironment(name)                  preview(path, input) -> Preview
+//! send(path, input, companion?) -> Promise<StoredResponse>
+//! responseLines(id, start, count) -> LineSlice
+//! responseBytes(id, offset, length) -> Uint8Array
+//! filterJson(id, expression) -> string     releaseResponse(id)
+//! ```
+//!
+//! Saving is two-step so a failed write keeps the changes unsaved: `prepareSave()` returns
+//! `{ changes: FileChange[] }` without touching the workspace; after the shell has written the
+//! files it calls `commit(prepared)`, which clears `dirty`.
+//!
+//! `input` is `rt_app::SendInput` (`{ environment, vars, secrets }`): the web shell reads the
+//! secret values from its browser store and passes them here. `companion` is
+//! `{ url, token }` to send through `rt agent` (`CompanionTransport`), or `null`/`undefined`
+//! for the browser's `fetch`. Transport failures, including `blocked`, are in
+//! `report.error` of the result. Other errors are thrown as `Error`s named `AppError` with a
+//! `kind` property (the serialized `AppError` kind, e.g. `request-not-found`) and a readable
+//! `message`; bad arguments throw a `TypeError`.
 
 use std::collections::BTreeMap;
 
@@ -120,7 +154,7 @@ mod js {
         js_sys::TypeError::new(msg.as_ref()).into()
     }
 
-    fn file_set(files: &JsValue) -> Result<FileSet, JsValue> {
+    pub(super) fn file_set(files: &JsValue) -> Result<FileSet, JsValue> {
         let entries = if files.is_instance_of::<Map>() {
             Array::from(files)
         } else if files.is_object() {
@@ -183,6 +217,301 @@ mod js {
 #[cfg(target_arch = "wasm32")]
 pub use js::send_js;
 
+/// Bytes kept per response by the web workspace (the response store keeps the full body).
+pub const BODY_LIMIT: usize = 256 * 1024 * 1024;
+
+/// Where the web workspace sends through the companion (`rt agent`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Companion {
+    pub url: String,
+    pub token: String,
+}
+
+/// `kind` (as serialized, e.g. `request-not-found`) and readable message of an `AppError`.
+pub fn error_parts(e: &rt_app::AppError) -> (String, String) {
+    let kind = serde_json::to_value(e)
+        .ok()
+        .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(str::to_owned))
+        .unwrap_or_else(|| "shell".to_owned());
+    (kind, e.to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+mod workspace_js {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use js_sys::{JSON, Promise, Reflect, Uint8Array};
+    use rt_app::{AppError, ResponseStore, SendInput, Workspace};
+    use rt_core::send::SendOptions;
+    use rt_core::transport::companion::CompanionTransport;
+    use rt_core::transport::fetch::FetchTransport;
+    use serde::Serialize;
+    use serde::de::DeserializeOwned;
+    use wasm_bindgen::prelude::*;
+
+    use super::{BODY_LIMIT, Companion, error_parts};
+
+    fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
+        let json =
+            serde_json::to_string(value).map_err(|e| named_error("shell", &e.to_string()))?;
+        JSON::parse(&json)
+    }
+
+    fn from_js<T: DeserializeOwned>(value: &JsValue, what: &str) -> Result<T, JsValue> {
+        let json = JSON::stringify(value)
+            .map_err(|_| type_error(format!("{what} must be JSON-serializable")))?;
+        serde_json::from_str(&String::from(json))
+            .map_err(|e| type_error(format!("invalid {what}: {e}")))
+    }
+
+    fn type_error(msg: String) -> JsValue {
+        js_sys::TypeError::new(&msg).into()
+    }
+
+    fn named_error(kind: &str, message: &str) -> JsValue {
+        let err = js_sys::Error::new(message);
+        err.set_name("AppError");
+        let _ = Reflect::set(&err, &"kind".into(), &kind.into());
+        err.into()
+    }
+
+    fn app_error(e: AppError) -> JsValue {
+        let (kind, message) = error_parts(&e);
+        named_error(&kind, &message)
+    }
+
+    /// JavaScript numbers are f64; ids and offsets are non-negative integers.
+    fn int(value: f64) -> Result<u64, JsValue> {
+        if value.is_finite() && value >= 0.0 && value.fract() == 0.0 {
+            Ok(value as u64)
+        } else {
+            Err(type_error(format!(
+                "expected a non-negative integer, got {value}"
+            )))
+        }
+    }
+
+    struct Inner {
+        workspace: Workspace,
+        responses: ResponseStore,
+    }
+
+    /// See the crate documentation. State sits in an `Rc<RefCell<_>>` so `send` awaits
+    /// without holding a borrow: other calls stay possible while a request runs.
+    #[wasm_bindgen(js_name = Workspace)]
+    pub struct WorkspaceJs {
+        inner: Rc<RefCell<Inner>>,
+    }
+
+    #[wasm_bindgen(js_class = Workspace)]
+    impl WorkspaceJs {
+        pub fn open(files: JsValue) -> Result<WorkspaceJs, JsValue> {
+            let files = super::js::file_set(&files)?;
+            let workspace = Workspace::open(files).map_err(app_error)?;
+            Ok(Self {
+                inner: Rc::new(RefCell::new(Inner {
+                    workspace,
+                    responses: ResponseStore::new(),
+                })),
+            })
+        }
+
+        /// The collection's name from `opencollection.yml` (may be empty).
+        pub fn name(&self) -> String {
+            self.inner.borrow().workspace.collection().name.clone()
+        }
+
+        pub fn tree(&self) -> Result<JsValue, JsValue> {
+            to_js(&self.inner.borrow().workspace.tree())
+        }
+
+        pub fn request(&self, path: &str) -> Result<JsValue, JsValue> {
+            to_js(
+                &self
+                    .inner
+                    .borrow()
+                    .workspace
+                    .request(path)
+                    .map_err(app_error)?,
+            )
+        }
+
+        #[wasm_bindgen(js_name = createRequest)]
+        pub fn create_request(&self, folder: &str, name: &str) -> Result<String, JsValue> {
+            self.inner
+                .borrow_mut()
+                .workspace
+                .create_request(folder, name)
+                .map_err(app_error)
+        }
+
+        #[wasm_bindgen(js_name = updateRequest)]
+        pub fn update_request(&self, path: &str, spec: JsValue) -> Result<(), JsValue> {
+            let spec = from_js(&spec, "request")?;
+            self.inner
+                .borrow_mut()
+                .workspace
+                .update_request(path, spec)
+                .map_err(app_error)
+        }
+
+        pub fn dirty(&self) -> Result<JsValue, JsValue> {
+            to_js(&self.inner.borrow().workspace.dirty())
+        }
+
+        /// The files to write, without changing this workspace (see the crate documentation).
+        #[wasm_bindgen(js_name = prepareSave)]
+        pub fn prepare_save(&self) -> Result<PreparedSave, JsValue> {
+            let mut next = self.inner.borrow().workspace.clone();
+            let changes = next.save().map_err(app_error)?;
+            Ok(PreparedSave {
+                changes: to_js(&changes)?,
+                next: Some(next),
+            })
+        }
+
+        /// Adopts a `prepareSave` result once its files are written.
+        pub fn commit(&self, prepared: &mut PreparedSave) -> Result<(), JsValue> {
+            let next = prepared
+                .next
+                .take()
+                .ok_or_else(|| named_error("shell", "this save was already committed"))?;
+            self.inner.borrow_mut().workspace = next;
+            Ok(())
+        }
+
+        pub fn environments(&self) -> Result<JsValue, JsValue> {
+            to_js(&self.inner.borrow().workspace.environments())
+        }
+
+        #[wasm_bindgen(js_name = updateEnvironment)]
+        pub fn update_environment(&self, env: JsValue) -> Result<(), JsValue> {
+            let env = from_js(&env, "environment")?;
+            self.inner
+                .borrow_mut()
+                .workspace
+                .update_environment(env)
+                .map_err(app_error)
+        }
+
+        #[wasm_bindgen(js_name = deleteEnvironment)]
+        pub fn delete_environment(&self, name: &str) -> Result<(), JsValue> {
+            self.inner
+                .borrow_mut()
+                .workspace
+                .delete_environment(name)
+                .map_err(app_error)
+        }
+
+        pub fn preview(&self, path: &str, input: JsValue) -> Result<JsValue, JsValue> {
+            let input: SendInput = from_js(&input, "input")?;
+            let preview = self
+                .inner
+                .borrow()
+                .workspace
+                .preview(path, input)
+                .map_err(app_error)?;
+            to_js(&preview)
+        }
+
+        /// Resolves with the `StoredResponse`; transport failures are in `report.error`.
+        pub fn send(
+            &self,
+            path: &str,
+            input: JsValue,
+            companion: JsValue,
+        ) -> Result<Promise, JsValue> {
+            let input: SendInput = from_js(&input, "input")?;
+            let companion: Option<Companion> = if companion.is_null() || companion.is_undefined() {
+                None
+            } else {
+                Some(from_js(&companion, "companion")?)
+            };
+            let snapshot = self
+                .inner
+                .borrow()
+                .workspace
+                .snapshot(path, input)
+                .map_err(app_error)?;
+            let inner = Rc::clone(&self.inner);
+            Ok(wasm_bindgen_futures::future_to_promise(async move {
+                let options = SendOptions {
+                    body_limit: BODY_LIMIT,
+                };
+                let report = match companion {
+                    Some(c) => {
+                        let transport = CompanionTransport::new(c.url, c.token);
+                        snapshot.send(&transport, &options).await
+                    }
+                    None => snapshot.send(&FetchTransport::new(), &options).await,
+                };
+                let stored = inner.borrow_mut().responses.insert(report);
+                to_js(&stored)
+            }))
+        }
+
+        #[wasm_bindgen(js_name = responseLines)]
+        pub fn response_lines(&self, id: f64, start: f64, count: u32) -> Result<JsValue, JsValue> {
+            let slice = self
+                .inner
+                .borrow()
+                .responses
+                .lines(int(id)?, int(start)?, count)
+                .map_err(app_error)?;
+            to_js(&slice)
+        }
+
+        #[wasm_bindgen(js_name = responseBytes)]
+        pub fn response_bytes(
+            &self,
+            id: f64,
+            offset: f64,
+            length: u32,
+        ) -> Result<Uint8Array, JsValue> {
+            let bytes = self
+                .inner
+                .borrow()
+                .responses
+                .bytes(int(id)?, int(offset)?, length)
+                .map_err(app_error)?;
+            Ok(Uint8Array::from(&bytes[..]))
+        }
+
+        #[wasm_bindgen(js_name = filterJson)]
+        pub fn filter_json(&self, id: f64, expression: &str) -> Result<String, JsValue> {
+            self.inner
+                .borrow()
+                .responses
+                .filter_json(int(id)?, expression)
+                .map_err(app_error)
+        }
+
+        #[wasm_bindgen(js_name = releaseResponse)]
+        pub fn release_response(&self, id: f64) -> Result<(), JsValue> {
+            self.inner.borrow_mut().responses.release(int(id)?);
+            Ok(())
+        }
+    }
+
+    /// Result of `Workspace.prepareSave`.
+    #[wasm_bindgen]
+    pub struct PreparedSave {
+        changes: JsValue,
+        next: Option<Workspace>,
+    }
+
+    #[wasm_bindgen]
+    impl PreparedSave {
+        /// `FileChange[]` to write.
+        #[wasm_bindgen(getter)]
+        pub fn changes(&self) -> JsValue {
+            self.changes.clone()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,6 +529,35 @@ mod tests {
         assert_eq!(Options::from_json("{}").unwrap(), Options::default());
         assert!(Options::from_json(r#"{"env":"x"}"#).is_err());
         assert!(Options::from_json(r#"{"vars":{"a":1}}"#).is_err());
+    }
+
+    #[test]
+    fn app_errors_have_a_kind_and_a_readable_message() {
+        use rt_app::AppError;
+        assert_eq!(
+            error_parts(&AppError::RequestNotFound("a.yml".into())),
+            (
+                "request-not-found".into(),
+                "request not found: a.yml".into()
+            )
+        );
+        assert_eq!(
+            error_parts(&AppError::ResponseNotFound(7)),
+            ("response-not-found".into(), "response not found: 7".into())
+        );
+        assert_eq!(
+            error_parts(&AppError::Shell("disk full".into())),
+            ("shell".into(), "disk full".into())
+        );
+    }
+
+    #[test]
+    fn companion_credentials() {
+        let c: Companion =
+            serde_json::from_str(r#"{"url":"http://127.0.0.1:47812","token":"t"}"#).unwrap();
+        assert_eq!(c.url, "http://127.0.0.1:47812");
+        assert_eq!(c.token, "t");
+        assert!(serde_json::from_str::<Companion>(r#"{"url":"x"}"#).is_err());
     }
 
     #[test]

@@ -1,0 +1,33 @@
+[package]
+name = "rt-desktop"
+description = "RequestTailor: the desktop app (Tauri 2 shell over rt-app)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# Desktop only (macOS, Windows, Linux). Excluded from the wasm32 build and the iOS check.
+
+[lib]
+name = "rt_desktop"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+rt-app = { path = "../../../crates/rt-app" }
+rt-core = { path = "../../../crates/rt-core" }
+rt-format = { path = "../../../crates/rt-format" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tokio = { version = "1", features = ["rt"] }
+
+[dev-dependencies]
+rt-testserver = { path = "../../../crates/rt-testserver" }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true
