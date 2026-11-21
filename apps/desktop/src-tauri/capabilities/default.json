@@ -1,0 +1,28 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window may call the app's own commands and nothing else: no file system, shell, dialog or other plugin APIs (the folder picker runs on the Rust side).",
+  "windows": ["main"],
+  "permissions": [
+    "allow-open-collection",
+    "allow-tree",
+    "allow-get-request",
+    "allow-create-request",
+    "allow-update-request",
+    "allow-dirty",
+    "allow-save",
+    "allow-environments",
+    "allow-update-environment",
+    "allow-delete-environment",
+    "allow-preview",
+    "allow-send",
+    "allow-response-lines",
+    "allow-response-bytes",
+    "allow-filter-json",
+    "allow-release-response",
+    "allow-secret-has",
+    "allow-secret-get",
+    "allow-secret-set",
+    "allow-secret-delete"
+  ]
+}
