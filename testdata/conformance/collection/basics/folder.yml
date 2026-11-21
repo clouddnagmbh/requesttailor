@@ -1,0 +1,12 @@
+info:
+  name: basics
+  type: folder
+  seq: 1
+
+request:
+  headers:
+    - name: X-Folder
+      value: basics
+  variables:
+    - name: level
+      value: folder

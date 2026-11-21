@@ -1,0 +1,25 @@
+info:
+  name: form
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/echo/body"
+  body:
+    type: form-urlencoded
+    data:
+      - name: name
+        value: alice
+      - name: role
+        value: "{{level}}"
+      - name: skipped
+        value: "yes"
+        disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

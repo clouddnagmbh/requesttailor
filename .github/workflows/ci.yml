@@ -65,6 +65,29 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --all-targets --target aarch64-apple-ios --locked
 
+  # Parity gate: the same cases (testdata/conformance) against the native core and the WASM core
+  # in headless Chrome. GitHub's ubuntu image ships Chrome and a matching chromedriver.
+  conformance:
+    name: conformance (native + browser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned toolchain and wasm32 target
+        run: |
+          rustup toolchain install
+          rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Native suite (core and the rt binary)
+        run: cargo test -p rt-cli --test conformance --test cli --locked
+      - name: Install wasm-bindgen-test-runner (version from Cargo.lock)
+        run: |
+          v=$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/"/, "", $3); print $3 }' Cargo.lock)
+          if ! wasm-bindgen-test-runner --version 2>/dev/null | grep -qxF "wasm-bindgen-test-runner $v"; then
+            cargo install wasm-bindgen-cli --version "$v" --locked
+          fi
+      - name: Browser suite (headless Chrome)
+        run: CHROMEDRIVER="$CHROMEWEBDRIVER/chromedriver" scripts/conformance-wasm.sh
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -160,7 +183,7 @@ jobs:
   # Single required status for branch protection.
   ci-ok:
     if: always()
-    needs: [native, wasm, ios, lint, licenses, dco, secrets, perf]
+    needs: [native, wasm, ios, conformance, lint, licenses, dco, secrets, perf]
     runs-on: ubuntu-latest
     steps:
       - name: All jobs green

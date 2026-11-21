@@ -1,0 +1,15 @@
+opencollection: "1.0.0"
+info:
+  name: conformance
+
+request:
+  headers:
+    - name: X-Collection
+      value: conformance
+  variables:
+    - name: level
+      value: collection
+    - name: greeting
+      value: hello
+
+bundled: false

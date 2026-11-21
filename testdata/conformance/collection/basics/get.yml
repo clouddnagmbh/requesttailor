@@ -1,0 +1,32 @@
+info:
+  name: get
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/echo/get?a=1&b=two"
+  headers:
+    - name: X-Hello
+      value: "{{greeting}} world"
+    - name: X-Disabled
+      value: "nope"
+      disabled: true
+  params:
+    - name: a
+      value: "1"
+      type: query
+    - name: b
+      value: two
+      type: query
+    - name: c
+      value: "3"
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

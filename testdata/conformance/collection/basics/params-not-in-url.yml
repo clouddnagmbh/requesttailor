@@ -1,0 +1,22 @@
+info:
+  name: params-not-in-url
+  type: http
+  seq: 9
+
+http:
+  method: GET
+  url: "{{baseUrl}}/echo/params?a=1"
+  params:
+    - name: a
+      value: "1"
+      type: query
+    - name: extra
+      value: "yes"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

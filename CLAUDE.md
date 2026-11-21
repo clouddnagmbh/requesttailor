@@ -115,7 +115,11 @@ node scripts/check-dco.mjs origin/main..HEAD
 node scripts/check-perf-budgets.mjs
 gitleaks git --no-banner --redact --config .gitleaks.toml .
 ci/canary/run.sh
+cargo test -p rt-cli --test conformance --test cli --locked
+scripts/conformance-wasm.sh
 ```
+
+Konformitäts-Suite (`testdata/conformance`, Fälle in `cases.json`, Vergleich in `harness.rs`): nativ über die beiden `rt-cli`-Tests, im Browser über `scripts/conformance-wasm.sh` (startet `rt-testserver` auf Port 47811, Headless Chrome). Dafür einmalig `cargo install wasm-bindgen-cli --version <wasm-bindgen aus Cargo.lock> --locked` und ein zu Chrome passender `chromedriver` in `CHROMEDRIVER` oder im `PATH` (`npx @puppeteer/browsers install chromedriver@<Chrome-Version>`). Weitere Argumente gehen an `cargo test`, z. B. `scripts/conformance-wasm.sh -- --include-ignored`. `rt` selbst: `cargo run -p rt-cli -- send <request-file> [--env NAME] [--var NAME=VALUE]...`, Details in `crates/rt-cli/README.md`.
 
 CI (`.github/workflows/ci.yml`) führt genau diese Befehle aus. Der Job `ci-ok` ist der einzige Pflicht-Status für Branch-Schutz. Warnungen sind in der CI Fehler (`RUSTFLAGS=-D warnings`).
 
