@@ -77,7 +77,7 @@ crates/rt-app      Befehlsschicht der App (Rust-Seite): Workspace, Antwortspeich
 crates/rt-testserver  lokaler HTTP-Testserver (nur Testinfrastruktur, nativ)
 testdata/collections/bruno  Korpus: 86 Bruno-Collections (MIT), unverändert, für Round-Trip-Tests
 apps/ui            gemeinsame Oberfläche (Svelte 5, TypeScript, CodeMirror 6)
-apps/desktop       Tauri-2-Hülle
+apps/desktop       Tauri-2-Hülle; Crate `rt-desktop` in `apps/desktop/src-tauri` (nur Desktop, nicht wasm32/iOS)
 apps/web           Web-App
 plugins/odata      OData V2/V4, CSRF, $batch
 ci/canary          absichtlich verbotene Abhängigkeiten; die Lizenz-Gates müssen sie ablehnen
@@ -105,23 +105,30 @@ Stand Welle 2. Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1
 - Gemeinsamer Zustand: `apps/ui/src/state/app.svelte.ts` (`getApp()`).
 - Secret-Werte stehen nie in Collection-Dateien: nativ im OS-Schlüsselbund, im Web verschlüsselt im Browser-Speicher; sie gehen nur beim Senden in den Umgebungs-Layer (`SendInput.secrets`).
 - Große Antworten bleiben auf der Rust-Seite (`ResponseStore`); die UI holt nur sichtbare Zeilen.
+- Hüllen: Desktop über Tauri-Befehle (`apps/desktop/src-tauri`, Ordner-Zugriff nur auf der Rust-Seite, Schlüsselbund), Web über `rt-wasm` (`Workspace`-Klasse), File System Access und verschlüsselten Browser-Speicher. Beide lesen Ordner nach denselben Regeln und speichern über `prepareSave`/`commit`; ein `FileChange` mit leerem `text` heißt „Datei löschen“ (Notlösung bis zu einem eigenen Feld).
+- Begleitdienst `rt agent` (`crates/rt-cli/src/agent`, Protokoll in `rt_core::transport::companion`): nur Loopback, Host- und Origin-Prüfung, Kopplung per Einmalcode, Token nur im Speicher. Sicherheitsmodell in `crates/rt-cli/README.md`.
 
 ## Befehle
 
-Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit. Einmalig: `rustup target add wasm32-unknown-unknown aarch64-apple-ios`.
+Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit. Einmalig: `rustup target add wasm32-unknown-unknown aarch64-apple-ios`. Linux braucht für jeden Workspace-Build `libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev build-essential` (Tauri).
 
 ```sh
 cargo build --workspace --all-targets --locked
 cargo test --workspace --locked
-cargo build --workspace --exclude rt-cli --exclude rt-testserver --target wasm32-unknown-unknown --locked
-cargo check --workspace --all-targets --target aarch64-apple-ios --locked
+cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-desktop --target wasm32-unknown-unknown --locked
+cargo check --workspace --exclude rt-desktop --all-targets --target aarch64-apple-ios --locked
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo deny --all-features check
 npm ci --ignore-scripts && npm run check:licenses && npm run test:scripts
 npm run check -w apps/ui && npm test -w apps/ui      # Svelte/TS-Typprüfung inkl. Vertrag, Unit-Tests
 npm run check -w apps/web && npm run e2e -w apps/web # Playwright gegen die Web-Hülle (installiertes Chrome)
-npm run dev -w apps/web                              # Web-App lokal, http://127.0.0.1:5173/?backend=mock
+npm run dev -w apps/web                              # Web-App lokal, http://127.0.0.1:5173/ (echt) oder ?backend=mock
+npm run e2e:shells -w apps/web                       # nur die Hüllen-Tests (echter Kern, OPFS, rt-testserver auf 47815)
+node scripts/build-wasm.mjs                          # Kern für die Web-App bauen (apps/web/public/wasm, gitignored)
+npm run check -w apps/desktop && npm test -w apps/desktop
+npm run dev -w apps/desktop                          # Desktop-App lokal (Tauri)
+npm run build -w apps/desktop                        # Release-Build ohne Bundle
 node scripts/check-license-headers.mjs
 node scripts/check-dco.mjs origin/main..HEAD
 node scripts/check-perf-budgets.mjs
