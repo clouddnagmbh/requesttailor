@@ -77,8 +77,8 @@ test("a blocked request reaches the UI layer as transport error 'blocked'", asyn
 test("secret values are injected at send and never written to files", async ({ page }) => {
   await setup(page);
   const SECRET = "s3cr3t-web-token";
-  const result = await page.evaluate(async (secret) => {
-    const { createWebBackend } = await import(/* @vite-ignore */ "/src/web-backend.ts");
+  const result = await page.evaluate(async ({ secret, url }) => {
+    const { createWebBackend } = await import(url);
     // In-memory stand-in for the browser secret store (strand D).
     const values = new Map<string, string>();
     const k = (e: string, v: string) => `${e}\u0000${v}`;
@@ -100,7 +100,7 @@ test("secret values are injected at send and never written to files", async ({ p
     const body = (await b.responseLines(sent.response_id!, 0, 1000)).lines.join("\n");
     const saved = await b.save();
     return { body, request: JSON.stringify(sent.report.request), saved: JSON.stringify(saved) };
-  }, SECRET);
+  }, { secret: SECRET, url: "/src/web-backend.ts" });
   expect(result.body).toContain(SECRET);
   expect(result.request).not.toContain(SECRET);
   expect(result.saved).not.toContain(SECRET);

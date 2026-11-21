@@ -14,15 +14,11 @@ pub mod files;
 
 pub use crate::core::{CollectionInfo, Core};
 
-/// Service name under which secret values are stored in the OS keychain.
-pub const KEYCHAIN_SERVICE: &str = "dev.requesttailor.desktop";
-
 /// Starts the app. Returns when the last window is closed.
 pub fn run() {
-    let core = commands::AppCore::new(rt_app::secrets::keychain::KeychainStore::new(
-        KEYCHAIN_SERVICE,
-    ))
-    .expect("native transport");
+    // The app's keychain store (service "RequestTailor"); collection = canonical root path.
+    let core = commands::AppCore::new(rt_app::secrets::keychain::KeychainStore::default())
+        .expect("native transport");
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(core)

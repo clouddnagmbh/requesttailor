@@ -12,8 +12,9 @@ import { SERVER, fakePicker, fillFolder, readFolderFile, sampleCollection } from
 // Modules of the app, imported inside the page through the Vite dev server.
 const DIRECTORY = "/src/fs/directory.ts";
 const WASM = "/src/wasm.ts";
+const BACKEND = "/src/web-backend.ts";
 
-test("reads a folder with the skip rules and writes changes into it", async ({ page }) => {
+test("reads a folder with the skip rules, writes and deletes files", async ({ page }) => {
   await page.goto("/?backend=mock");
   await fillFolder(page, { ...sampleCollection(), "files/big.bin": "x".repeat(16 * 1024 * 1024 + 1) });
   const result = await page.evaluate(async (url) => {
@@ -23,6 +24,9 @@ test("reads a folder with the skip rules and writes changes into it", async ({ p
     await fs.writeChanges(root, [
       { path: "health.yml", text: "changed\n" },
       { path: "users/admin/new.yml", text: "new\n" },
+      // Empty text = deleted file (e.g. a deleted environment); a missing file is fine.
+      { path: "blocked.yml", text: "" },
+      { path: "gone/never.yml", text: "" },
     ]);
     const rejected: string[] = [];
     for (const bad of ["../x.yml", "/x.yml", "a//b.yml", "a\\b.yml", "./x.yml", ""]) {
@@ -38,6 +42,7 @@ test("reads a folder with the skip rules and writes changes into it", async ({ p
   expect(result.rejected).toHaveLength(6);
   expect(await readFolderFile(page, "health.yml")).toBe("changed\n");
   expect(await readFolderFile(page, "users/admin/new.yml")).toBe("new\n");
+  expect(await readFolderFile(page, "blocked.yml")).toBeNull();
   // Paths are checked before anything is written.
   expect(await readFolderFile(page, "ok.yml")).toBeNull();
 });
@@ -111,4 +116,63 @@ test("the real backend starts without loading the core", async ({ page }) => {
     "web",
   );
   expect(wasmRequests).toEqual([]);
+});
+
+test("transport: companion status, pairing on switch-on, and the mode", async ({ page }) => {
+  await page.goto("/?backend=mock");
+  const result = await page.evaluate(async (url) => {
+    const { createWebBackend } = await import(url);
+    let token: string | null = null;
+    const calls: string[] = [];
+    const client = {
+      status: async () => ({ available: true, paired: token !== null, url: "http://127.0.0.1:47812", howTo: "" }),
+      pair: async () => {
+        calls.push("pair");
+        token = "t";
+      },
+      credentials: async () => (token ? { url: "http://127.0.0.1:47812", token } : null),
+      forget: async () => {
+        token = null;
+      },
+    };
+    const b = await createWebBackend({ companion: () => client });
+    const out: unknown[] = [b.kind, b.transport.mode(), await b.transport.companion()];
+    await b.transport.useCompanion(true);
+    out.push(b.transport.mode(), (await b.transport.companion()).paired);
+    await b.transport.useCompanion(false);
+    out.push(b.transport.mode(), calls);
+    return out;
+  }, BACKEND);
+  expect(result).toEqual([
+    "web",
+    "browser",
+    { available: true, paired: false, url: "http://127.0.0.1:47812", howTo: "" },
+    "companion",
+    true,
+    "browser",
+    ["pair"],
+  ]);
+});
+
+test("transport: a failed pairing stays in browser mode and explains why", async ({ page }) => {
+  await page.goto("/?backend=mock");
+  const result = await page.evaluate(async (url) => {
+    const { createWebBackend } = await import(url);
+    const client = {
+      status: async () => ({ available: false, paired: false, url: null, howTo: "Run `rt agent`" }),
+      pair: async () => {
+        throw new Error("The companion is not reachable. Run `rt agent`");
+      },
+      credentials: async () => null,
+      forget: async () => undefined,
+    };
+    const b = await createWebBackend({ companion: () => client });
+    const error = await b.transport.useCompanion(true).then(
+      () => null,
+      (e: { name: string; message: string }) => ({ name: e.name, message: e.message }),
+    );
+    return { error, mode: b.transport.mode() };
+  }, BACKEND);
+  expect(result.mode).toBe("browser");
+  expect(result.error).toEqual({ name: "BackendError", message: "The companion is not reachable. Run `rt agent`" });
 });

@@ -84,14 +84,29 @@ export function pathParts(path: string): string[] {
   return parts;
 }
 
-/** Writes `changes` below `root`, creating folders as needed. All paths are checked before
- *  anything is written. */
+function isNotFound(e: unknown): boolean {
+  return e instanceof DOMException && e.name === "NotFoundError";
+}
+
+/** Writes `changes` below `root`, creating folders as needed. A change with empty `text`
+ *  deletes its file (`Workspace::save` reports a deleted environment that way); a file that
+ *  is already gone is fine. All paths are checked before anything is written. */
 export async function writeChanges(root: FileSystemDirectoryHandle, changes: FileChange[]): Promise<void> {
   const targets = changes.map((c) => ({ parts: pathParts(c.path), text: c.text }));
   for (const { parts, text } of targets) {
+    const name = parts[parts.length - 1];
     let dir = root;
+    if (text === "") {
+      try {
+        for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
+        await dir.removeEntry(name);
+      } catch (e) {
+        if (!isNotFound(e)) throw e;
+      }
+      continue;
+    }
     for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part, { create: true });
-    const file = await dir.getFileHandle(parts[parts.length - 1], { create: true });
+    const file = await dir.getFileHandle(name, { create: true });
     const writable = await file.createWritable();
     try {
       await writable.write(text);

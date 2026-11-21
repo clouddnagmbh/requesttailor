@@ -6,8 +6,9 @@
 // secret store for secret values (./secrets/store.ts), and the companion client for requests
 // the browser blocks (./companion/client.ts). Owner: wave 3, strand E.
 //
-// - Nothing heavy happens at start: the core (WebAssembly), the secret store and the companion
-//   client are loaded on first use, so the app starts fast and `?backend=mock` never needs them.
+// - Nothing heavy happens at start: the core (WebAssembly) and the secret store are loaded on
+//   first use, so the app starts fast and `?backend=mock` never needs them. The companion
+//   client is created at start (cheap) so a pairing link in the URL is handled immediately.
 // - The first "Open folder" of a page reopens the last folder without a picker if the browser
 //   still grants access to it (Chrome's "allow on every visit"); otherwise the picker opens in
 //   that folder.
@@ -121,6 +122,13 @@ export class WebBackend implements Backend {
       companion: () => this.companionStatus(),
       useCompanion: (enabled) => this.useCompanion(enabled),
     };
+    // Created right away (it only reads storage): it pairs from a `#rt-pair=` code in the URL
+    // as soon as the page opens, e.g. from the pairing link `rt agent` prints.
+    try {
+      this.companionClient = deps.companion();
+    } catch (e) {
+      console.warn("RequestTailor companion client unavailable:", e);
+    }
   }
 
   private session(): Session {
