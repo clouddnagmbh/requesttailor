@@ -1,0 +1,7 @@
+{
+  "name": "@requesttailor/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Tauri 2 desktop shell."
+}

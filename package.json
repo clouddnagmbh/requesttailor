@@ -1,0 +1,20 @@
+{
+  "name": "requesttailor",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "workspaces": [
+    "apps/ui",
+    "apps/desktop",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check:licenses": "node scripts/check-npm-licenses.mjs",
+    "check:headers": "node scripts/check-license-headers.mjs",
+    "test:scripts": "node --test scripts/*.test.mjs"
+  }
+}

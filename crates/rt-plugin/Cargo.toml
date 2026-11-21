@@ -1,0 +1,11 @@
+[package]
+name = "rt-plugin"
+description = "RequestTailor: Plugin host (WASM) and SDK."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

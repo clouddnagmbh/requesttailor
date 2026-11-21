@@ -1,0 +1,7 @@
+{
+  "name": "@requesttailor/ui",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Shared user interface for desktop and web."
+}
