@@ -1,3 +1,7 @@
 # Secret scan configuration. Extends the gitleaks default rules.
 [extend]
 useDefault = true
+
+[allowlist]
+description = "Bruno's public e2e fixtures carry fake test credentials (see testdata/collections/bruno/README.md)"
+paths = ['''^testdata/collections/bruno/''']

@@ -1,0 +1,373 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The RequestTailor Authors
+
+//! Local HTTP test server for transport tests and the conformance suite.
+//! Test infrastructure only; never part of a shipped build. Native only.
+//!
+//! Every response carries permissive CORS headers so browser (WASM) tests can call it.
+//!
+//! | Route | Behaviour |
+//! | --- | --- |
+//! | `ANY /echo[/...]` | 200, JSON: `method`, `path`, `query`, `headers` (lowercased names, in order), `body` (UTF-8 or `null`), `body_base64`, `body_len`, `version` |
+//! | `ANY /status/{code}` | that status, JSON `{"status": code}` |
+//! | `GET /redirect/{n}` | 302 to `/redirect/{n-1}`; `/redirect/0` is 200 `{"redirected": true}` |
+//! | `GET /redirect-to?url=...` | 302 to `url` |
+//! | `GET /delay/{ms}` | waits, then 200 `{"delayed_ms": ms}` |
+//! | `GET /bytes/{n}` | `n` bytes of `application/octet-stream`, streamed in 64 KiB chunks; byte `i` is `i % 251` |
+//! | `GET /basic-auth/{user}/{pass}` | 200 if `Authorization: Basic` matches, else 401 with `WWW-Authenticate` |
+//! | `GET /bearer/{token}` | 200 if `Authorization: Bearer {token}`, else 401 |
+//! | `OPTIONS *` | CORS preflight, 204 |
+
+use std::convert::Infallible;
+use std::net::SocketAddr;
+use std::time::Duration;
+
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as B64;
+use bytes::Bytes;
+use http_body_util::{BodyExt, Full, combinators::BoxBody};
+use hyper::body::{Frame, Incoming};
+use hyper::header::{self, HeaderValue};
+use hyper::{Method, Request, Response, StatusCode};
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto;
+use tokio::net::TcpListener;
+
+type Body = BoxBody<Bytes, Infallible>;
+
+/// Default port for browser tests, which cannot discover a random port at run time.
+pub const DEFAULT_PORT: u16 = 47811;
+
+/// Binds `addr` and serves until the process ends. Returns the bound address.
+/// Use port 0 for a random free port (native tests).
+pub async fn spawn(addr: SocketAddr) -> std::io::Result<SocketAddr> {
+    let listener = TcpListener::bind(addr).await?;
+    let local = listener.local_addr()?;
+    tokio::spawn(async move {
+        loop {
+            let Ok((stream, _)) = listener.accept().await else {
+                continue;
+            };
+            tokio::spawn(async move {
+                let service = hyper::service::service_fn(handle);
+                // HTTP/1.1 and cleartext HTTP/2 (prior knowledge) on the same port.
+                let _ = auto::Builder::new(TokioExecutor::new())
+                    .serve_connection(TokioIo::new(stream), service)
+                    .await;
+            });
+        }
+    });
+    Ok(local)
+}
+
+/// Starts the server on a random local port inside the current tokio runtime.
+pub async fn spawn_local() -> SocketAddr {
+    spawn(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind test server")
+}
+
+fn full(status: StatusCode, content_type: &str, body: impl Into<Bytes>) -> Response<Body> {
+    let mut r = Response::new(Full::new(body.into()).boxed());
+    *r.status_mut() = status;
+    r.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(content_type).unwrap(),
+    );
+    r
+}
+
+fn json(status: StatusCode, value: serde_json::Value) -> Response<Body> {
+    full(status, "application/json", value.to_string())
+}
+
+fn redirect(location: &str) -> Response<Body> {
+    let mut r = full(StatusCode::FOUND, "text/plain", "");
+    if let Ok(v) = HeaderValue::from_str(location) {
+        r.headers_mut().insert(header::LOCATION, v);
+    }
+    r
+}
+
+fn add_cors(req_headers: &hyper::HeaderMap, r: &mut Response<Body>) {
+    let h = r.headers_mut();
+    h.insert("access-control-allow-origin", HeaderValue::from_static("*"));
+    h.insert(
+        "access-control-expose-headers",
+        HeaderValue::from_static("*"),
+    );
+    h.insert(
+        "access-control-allow-methods",
+        HeaderValue::from_static("GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"),
+    );
+    // "*" does not cover Authorization in the Fetch spec, so echo what the browser asks for.
+    let allow = req_headers
+        .get("access-control-request-headers")
+        .cloned()
+        .unwrap_or_else(|| HeaderValue::from_static("*"));
+    h.insert("access-control-allow-headers", allow);
+    h.insert("access-control-max-age", HeaderValue::from_static("600"));
+}
+
+fn query_param(query: &str, key: &str) -> Option<String> {
+    query.split('&').find_map(|pair| {
+        let (k, v) = pair.split_once('=')?;
+        (k == key).then(|| percent_decode(v))
+    })
+}
+
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'%' if i + 2 < bytes.len() => {
+                let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
+                match hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                    Some(b) => {
+                        out.push(b);
+                        i += 3;
+                    }
+                    None => {
+                        out.push(b'%');
+                        i += 1;
+                    }
+                }
+            }
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn streamed_bytes(n: u64) -> Response<Body> {
+    const CHUNK: u64 = 64 * 1024;
+    let mut r = Response::new(pattern_body(n, CHUNK).boxed());
+    r.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/octet-stream"),
+    );
+    r.headers_mut()
+        .insert(header::CONTENT_LENGTH, HeaderValue::from(n));
+    r
+}
+
+/// `n` pattern bytes produced chunk by chunk, so large bodies are never held in memory.
+fn pattern_body(
+    n: u64,
+    chunk: u64,
+) -> impl hyper::body::Body<Data = Bytes, Error = Infallible> + Send + Sync + 'static {
+    struct Pattern {
+        sent: u64,
+        total: u64,
+        chunk: u64,
+    }
+    impl hyper::body::Body for Pattern {
+        type Data = Bytes;
+        type Error = Infallible;
+        fn poll_frame(
+            mut self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Option<Result<Frame<Bytes>, Infallible>>> {
+            if self.sent >= self.total {
+                return std::task::Poll::Ready(None);
+            }
+            let len = self.chunk.min(self.total - self.sent);
+            let start = self.sent;
+            let data: Vec<u8> = (start..start + len).map(|i| (i % 251) as u8).collect();
+            self.sent += len;
+            std::task::Poll::Ready(Some(Ok(Frame::data(Bytes::from(data)))))
+        }
+        fn size_hint(&self) -> hyper::body::SizeHint {
+            hyper::body::SizeHint::with_exact(self.total - self.sent)
+        }
+    }
+    Pattern {
+        sent: 0,
+        total: n,
+        chunk,
+    }
+}
+
+async fn handle(req: Request<Incoming>) -> Result<Response<Body>, Infallible> {
+    let req_headers = req.headers().clone();
+    let mut response = route(req).await;
+    add_cors(&req_headers, &mut response);
+    Ok(response)
+}
+
+async fn route(req: Request<Incoming>) -> Response<Body> {
+    if req.method() == Method::OPTIONS {
+        return full(StatusCode::NO_CONTENT, "text/plain", "");
+    }
+    let path = req.uri().path().to_owned();
+    let query = req.uri().query().unwrap_or("").to_owned();
+    let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
+
+    match segments.as_slice() {
+        ["echo", ..] => echo(req, path, query).await,
+        ["status", code] => match code
+            .parse::<u16>()
+            .ok()
+            .and_then(|c| StatusCode::from_u16(c).ok())
+        {
+            Some(status) => json(status, serde_json::json!({ "status": status.as_u16() })),
+            None => json(
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({ "error": "bad status" }),
+            ),
+        },
+        ["redirect", n] => match n.parse::<u32>() {
+            Ok(0) => json(StatusCode::OK, serde_json::json!({ "redirected": true })),
+            Ok(n) => redirect(&format!("/redirect/{}", n - 1)),
+            Err(_) => json(
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({ "error": "bad count" }),
+            ),
+        },
+        ["redirect-to"] => match query_param(&query, "url") {
+            Some(url) => redirect(&url),
+            None => json(
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({ "error": "missing url" }),
+            ),
+        },
+        ["delay", ms] => match ms.parse::<u64>() {
+            Ok(ms) => {
+                tokio::time::sleep(Duration::from_millis(ms.min(60_000))).await;
+                json(StatusCode::OK, serde_json::json!({ "delayed_ms": ms }))
+            }
+            Err(_) => json(
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({ "error": "bad delay" }),
+            ),
+        },
+        ["bytes", n] => match n.parse::<u64>() {
+            Ok(n) => streamed_bytes(n),
+            Err(_) => json(
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({ "error": "bad size" }),
+            ),
+        },
+        ["basic-auth", user, pass] => {
+            let expected = format!("Basic {}", B64.encode(format!("{user}:{pass}")));
+            if header_is(&req, &expected) {
+                json(
+                    StatusCode::OK,
+                    serde_json::json!({ "authenticated": true, "user": user }),
+                )
+            } else {
+                let mut r = json(
+                    StatusCode::UNAUTHORIZED,
+                    serde_json::json!({ "authenticated": false }),
+                );
+                r.headers_mut().insert(
+                    header::WWW_AUTHENTICATE,
+                    HeaderValue::from_static("Basic realm=\"rt-testserver\""),
+                );
+                r
+            }
+        }
+        ["bearer", token] => {
+            if header_is(&req, &format!("Bearer {token}")) {
+                json(StatusCode::OK, serde_json::json!({ "authenticated": true }))
+            } else {
+                json(
+                    StatusCode::UNAUTHORIZED,
+                    serde_json::json!({ "authenticated": false }),
+                )
+            }
+        }
+        _ => json(
+            StatusCode::NOT_FOUND,
+            serde_json::json!({ "error": "no such route", "path": path }),
+        ),
+    }
+}
+
+fn header_is(req: &Request<Incoming>, expected: &str) -> bool {
+    req.headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v == expected)
+}
+
+async fn echo(req: Request<Incoming>, path: String, query: String) -> Response<Body> {
+    let method = req.method().to_string();
+    let version = format!("{:?}", req.version());
+    let headers: Vec<serde_json::Value> = req
+        .headers()
+        .iter()
+        .map(|(k, v)| serde_json::json!([k.as_str(), String::from_utf8_lossy(v.as_bytes())]))
+        .collect();
+    let body = match req.into_body().collect().await {
+        Ok(b) => b.to_bytes(),
+        Err(_) => Bytes::new(),
+    };
+    json(
+        StatusCode::OK,
+        serde_json::json!({
+            "method": method,
+            "path": path,
+            "query": query,
+            "headers": headers,
+            "body": std::str::from_utf8(&body).ok(),
+            "body_base64": B64.encode(&body),
+            "body_len": body.len(),
+            "version": version,
+        }),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn percent_decoding() {
+        assert_eq!(
+            percent_decode("http%3A%2F%2Fa.b%2Fc%3Fd%3D1"),
+            "http://a.b/c?d=1"
+        );
+        assert_eq!(percent_decode("a+b%2"), "a b%2");
+        assert_eq!(
+            query_param("x=1&url=%2Fecho", "url").as_deref(),
+            Some("/echo")
+        );
+    }
+
+    #[tokio::test]
+    async fn serves_echo_over_tcp() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let addr = spawn_local().await;
+        let mut s = tokio::net::TcpStream::connect(addr).await.unwrap();
+        s.write_all(b"POST /echo/a?b=1 HTTP/1.1\r\nHost: x\r\nX-Test: yes\r\nContent-Length: 2\r\nConnection: close\r\n\r\nhi")
+            .await
+            .unwrap();
+        let mut out = String::new();
+        s.read_to_string(&mut out).await.unwrap();
+        assert!(out.starts_with("HTTP/1.1 200"), "{out}");
+        assert!(out.contains("access-control-allow-origin: *"), "{out}");
+        let body = out.split("\r\n\r\n").nth(1).unwrap();
+        let v: serde_json::Value = serde_json::from_str(body).unwrap();
+        assert_eq!(v["method"], "POST");
+        assert_eq!(v["path"], "/echo/a");
+        assert_eq!(v["query"], "b=1");
+        assert_eq!(v["body"], "hi");
+        assert!(
+            v["headers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|h| h[0] == "x-test" && h[1] == "yes")
+        );
+    }
+}

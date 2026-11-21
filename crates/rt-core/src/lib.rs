@@ -3,12 +3,12 @@
 
 //! `rt-core`: HTTP engine, variables, auth and runner.
 //!
-//! Scaffold only (wave 1). No functionality yet.
+//! Module owners in wave 2: `model` (interface commit), `transport` (strand A),
+//! `vars` and `prepare` (strand C), `send` (strand D).
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_builds() {
-        assert_eq!(env!("CARGO_PKG_NAME"), "rt-core");
-    }
-}
+pub mod model;
+pub mod prepare;
+pub mod send;
+pub mod serde_ms;
+pub mod transport;
+pub mod vars;

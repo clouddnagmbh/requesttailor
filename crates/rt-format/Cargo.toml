@@ -7,5 +7,10 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+
+[dependencies]
+rt-core = { path = "../rt-core" }
+thiserror = "2"
+
 [lints]
 workspace = true

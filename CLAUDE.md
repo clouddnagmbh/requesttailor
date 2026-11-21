@@ -73,6 +73,8 @@ crates/rt-script   Skript-Sandbox (QuickJS)
 crates/rt-plugin   Plugin-Host (WASM) und SDK
 crates/rt-cli      CLI `rt`, Begleitdienst, MCP-Server
 crates/rt-wasm     Kern als WebAssembly
+crates/rt-testserver  lokaler HTTP-Testserver (nur Testinfrastruktur, nativ)
+testdata/collections/bruno  Korpus: 86 Bruno-Collections (MIT), unverändert, für Round-Trip-Tests
 apps/ui            gemeinsame Oberfläche (TypeScript)
 apps/desktop       Tauri-2-Hülle
 apps/web           Web-App
@@ -82,6 +84,19 @@ scripts            Prüfskripte ohne Abhängigkeiten (Lizenzen, Köpfe, DCO, Per
 perf/budgets.toml  Performance-Budgets, einzige Quelle für die Schwellwerte
 ```
 
+## Kern-Schnittstellen
+
+Stand Welle 2. Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
+
+- `rt_core::model`: internes Request-Modell (Collection, Folder, RequestSpec, Environment). Formatneutral.
+- `rt_core::transport::Transport`: Grenze zum Netz. Nativ eigener HTTP-Stack, im Browser `fetch`. Antwort-Body als Stream.
+- `rt_core::vars::Scope`: geschichtete Variablen mit Herkunft (`VarSource`), Rangfolge wie Bruno: Global < Collection < Umgebung < Ordner < Request < Laufzeit.
+- `rt_core::prepare::prepare`: RequestContext → fertiger `HttpRequest` (Variablen, Vererbung, Auth, Body).
+- `rt_core::send::send`: der eine Einstieg für „Request senden“; `SendReport` ist zugleich die JSON-Ausgabe von `rt send` und das Ergebnis von `rt-wasm`.
+- `rt_format::{FileSet, read_collection, CollectionDoc}`: Dateien ↔ Modell, arbeitet im Speicher, damit es auch im Browser läuft.
+- Zeit immer über `web_time::Instant`, nie `std::time::Instant` (panikt in wasm32).
+- OpenCollection erlaubt keine unbekannten Felder (`additionalProperties: false`), außer `extensions` in `opencollection.yml`. Eigene Daten gehören dorthin oder in Begleitdateien.
+
 ## Befehle
 
 Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit. Einmalig: `rustup target add wasm32-unknown-unknown aarch64-apple-ios`.
@@ -89,7 +104,7 @@ Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit
 ```sh
 cargo build --workspace --all-targets --locked
 cargo test --workspace --locked
-cargo build --workspace --target wasm32-unknown-unknown --locked
+cargo build --workspace --exclude rt-cli --exclude rt-testserver --target wasm32-unknown-unknown --locked
 cargo check --workspace --all-targets --target aarch64-apple-ios --locked
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
