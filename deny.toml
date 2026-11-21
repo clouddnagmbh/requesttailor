@@ -14,12 +14,6 @@ targets = [
   "aarch64-apple-ios",
 ]
 all-features = true
-# webpki-root-certs (CDLA-Permissive-2.0, not allowed) is a dependency of
-# rustls-platform-verifier on wasm32 only. rt-core uses rustls-platform-verifier on native
-# targets only, so the crate is never built; cargo-deny evaluates each edge's target cfg on
-# its own and would list it anyway. Check with:
-#   cargo tree --target wasm32-unknown-unknown -i webpki-root-certs   (nothing to print)
-exclude = ["webpki-root-certs"]
 
 [advisories]
 yanked = "deny"
@@ -39,6 +33,15 @@ allow = [
 ]
 confidence-threshold = 0.93
 unused-allowed-license = "allow"
+
+# webpki-root-certs is Mozilla's root store as data under CDLA-Permissive-2.0 (permissive, not
+# copyleft). It is a wasm32-only dependency of rustls-platform-verifier, which rt-core uses on
+# native targets only, so it is never built (`cargo tree --target wasm32-unknown-unknown -i
+# webpki-root-certs` prints nothing). cargo-deny evaluates each edge's target cfg on its own and
+# lists it anyway. Allowed for this crate only, so it stays visible to advisories and bans.
+[[licenses.exceptions]]
+crate = "webpki-root-certs"
+allow = ["CDLA-Permissive-2.0"]
 
 [bans]
 multiple-versions = "warn"
