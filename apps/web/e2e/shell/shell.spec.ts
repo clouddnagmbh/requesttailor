@@ -15,7 +15,7 @@ async function openCollection(page: Page) {
 }
 
 const treeRequest = (page: Page, name: string) => page.getByTestId("tree-request").filter({ hasText: name });
-const tab = (page: Page, name: string) => page.getByRole("tab").filter({ hasText: name });
+const tab = (page: Page, name: string) => page.getByTestId("tab").filter({ hasText: name });
 
 test("tree shows folders and requests and opens a tab", async ({ page }) => {
   await openCollection(page);
@@ -40,7 +40,7 @@ test("tree shows folders and requests and opens a tab", async ({ page }) => {
   await expect(treeRequest(page, "Health")).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(tab(page, "Health")).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tab")).toHaveCount(2);
+  await expect(page.getByTestId("tab")).toHaveCount(2);
 });
 
 test("create a request in a folder via the UI", async ({ page }) => {
@@ -78,7 +78,7 @@ test("tabs switch, close and show the dirty marker", async ({ page }) => {
   await treeRequest(page, "List users").click();
   await treeRequest(page, "Create user").click();
   await treeRequest(page, "Health").click();
-  await expect(page.getByRole("tab")).toHaveText([/List users/, /Create user/, /Health/]);
+  await expect(page.getByTestId("tab")).toHaveText([/List users/, /Create user/, /Health/]);
   await expect(tab(page, "Health")).toHaveAttribute("aria-selected", "true");
 
   await tab(page, "List users").click();
@@ -87,11 +87,11 @@ test("tabs switch, close and show the dirty marker", async ({ page }) => {
 
   // Close button, middle click, Mod+W.
   await tab(page, "Create user").getByRole("button", { name: "Close Create user" }).click();
-  await expect(page.getByRole("tab")).toHaveText([/List users/, /Health/]);
+  await expect(page.getByTestId("tab")).toHaveText([/List users/, /Health/]);
   await tab(page, "Health").click({ button: "middle" });
-  await expect(page.getByRole("tab")).toHaveText([/List users/]);
+  await expect(page.getByTestId("tab")).toHaveText([/List users/]);
   await page.keyboard.press(`${MOD}+w`);
-  await expect(page.getByRole("tab")).toHaveCount(0);
+  await expect(page.getByTestId("tab")).toHaveCount(0);
 
   // A new request is unsaved: the tab shows the marker until Save.
   await page.getByRole("button", { name: "New request in users" }).click();
