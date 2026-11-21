@@ -1486,6 +1486,12 @@ dependencies = [
 name = "rt-cli"
 version = "0.0.0"
 dependencies = [
+ "base64",
+ "bytes",
+ "getrandom",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "lexopt",
  "rt-core",
  "rt-format",
@@ -1493,6 +1499,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "url",
+ "web-time",
 ]
 
 [[package]]
