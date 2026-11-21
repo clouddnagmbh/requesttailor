@@ -43,6 +43,30 @@ unused-allowed-license = "allow"
 crate = "webpki-root-certs"
 allow = ["CDLA-Permissive-2.0"]
 
+# Tauri 2 (desktop shell), approved by the project owner on 2026-11-21. MPL-2.0 is file-level
+# copyleft; these crates are used unmodified and the obligation does not extend to our code.
+# Build-time only on desktop targets (tauri-codegen / tauri-build, via dom_query):
+[[licenses.exceptions]]
+crate = "cssparser"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "cssparser-macros"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "selectors"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "dtoa-short"
+allow = ["MPL-2.0"]
+
+# Shipped in the desktop binary (tauri -> dirs -> dirs-sys), unmodified; source is on crates.io.
+[[licenses.exceptions]]
+crate = "option-ext"
+allow = ["MPL-2.0"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
