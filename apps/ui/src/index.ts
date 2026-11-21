@@ -7,6 +7,7 @@ import { mount } from "svelte";
 
 import type { Backend } from "./commands/backend";
 import AppShell from "./shell/AppShell.svelte";
+import "./styles/tokens.css";
 
 export type * from "./commands/backend";
 export type * from "./commands/types";
