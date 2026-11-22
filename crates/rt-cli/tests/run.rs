@@ -507,7 +507,8 @@ fn rt(cwd: &Path, args: &[&str]) -> Out {
     }
 }
 
-/// A collection: `ping.yml` (GET /echo/ping), `users/` with `list.yml` and `get.yml`,
+/// A collection: `ping.yml` (GET /echo/ping), `users/` with `list.yml` (the secret `token` in
+/// a header; not an echo, the response body is reported as received) and `get.yml`,
 /// environment `Local` with `base` and the secret `token`.
 fn collection(dir: &Path, base: &str) -> PathBuf {
     let root = dir.join("col");
@@ -536,7 +537,7 @@ fn collection(dir: &Path, base: &str) -> PathBuf {
         "users/list.yml",
         "List users",
         1,
-        "{{base}}/echo/users?id={{id}}",
+        "{{base}}/status/200?id={{id}}",
         "  headers:\n    - name: Authorization\n      value: Bearer {{token}}\n",
     );
     request(
@@ -654,6 +655,15 @@ fn runs_a_collection_with_reports() {
         .map(|s| s["request_path"].as_str().unwrap())
         .collect();
     assert_eq!(paths, ["ping.yml", "users/list.yml", "users/get.yml"]);
+    let headers = &v["steps"][1]["report"]["request"]["headers"];
+    assert!(
+        headers
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|h| h[1] == "Bearer ***"),
+        "{headers}"
+    );
     // JUnit: one suite per request, a passing "request" case when there are no tests.
     let x = std::fs::read_to_string(&junit).unwrap();
     assert!(!x.contains("s3cr3t-run-token"));
