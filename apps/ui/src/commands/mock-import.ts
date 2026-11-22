@@ -4,7 +4,8 @@
 // Import in the mock backend, for the import UI's tests. Owner: wave 4, strand B.
 //
 // Detects the format from names and content like the core does (roughly), and answers with a
-// fixed, realistic plan per format. Files whose text contains `INVALID` are refused, so tests
+// fixed plan per format, worded like the core's loss report (`rt_format::import`: scripts are
+// kept and only unsupported APIs are reported, except in `.http` files). Files whose text contains `INVALID` are refused, so tests
 // can show the error path. `write` "opens" the mock's demo collection.
 
 import { BackendError, type CollectionInfo, type ImportApi, type ImportSource, type PluginApi } from "./backend";
@@ -28,8 +29,20 @@ function detect(f: ImportSource): Exclude<ImportFormat, "plugin"> | null {
 
 const LOSSES: Record<Exclude<ImportFormat, "plugin">, Loss[]> = {
   postman: [
-    { location: "Users", kind: "script", effect: "dropped", detail: "pre-request script (3 lines) not imported" },
-    { location: "Users / Get user", kind: "test", effect: "dropped", detail: "test script (5 lines) not imported" },
+    {
+      location: "Users",
+      kind: "script",
+      effect: "approximated",
+      detail:
+        "pre-request script kept, but it uses `fetch()`, which RequestTailor does not support (use pm.sendRequest, bru.sendRequest or rt.sendRequest); see SHIM-COVERAGE.md",
+    },
+    {
+      location: "Users / Get user",
+      kind: "test",
+      effect: "approximated",
+      detail:
+        "post-response script kept, but it uses `expect().should`, which RequestTailor does not support (chai `should` is not available); see SHIM-COVERAGE.md",
+    },
     {
       location: "Users / Login",
       kind: "auth",
