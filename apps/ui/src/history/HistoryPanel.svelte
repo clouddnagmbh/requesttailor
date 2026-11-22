@@ -232,7 +232,11 @@
           <span class="status {cls}" data-testid="history-status" data-class={cls}>{statusLabel(entry)}</span>
         </div>
         <div class="line meta">
-          <span class="url">{entry.url ?? (entry.error ? describeError(entry.error) : "")}</span>
+          {#if entry.error}
+            <span class="url failed" data-testid="history-error">{describeError(entry.error)}</span>
+          {:else}
+            <span class="url">{entry.url ?? ""}</span>
+          {/if}
           {#if entry.duration_ms != null}<span data-testid="history-duration">{formatDuration(entry.duration_ms)}</span>{/if}
           <time datetime={new Date(entry.at).toISOString()} data-testid="history-time">{timeAgo(entry.at, now)}</time>
         </div>
@@ -368,6 +372,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-family: var(--rt-font-mono);
+  }
+  .failed {
+    font-family: inherit;
+    color: var(--rt-danger);
   }
   .status {
     font: 600 var(--rt-size-small) / 1 var(--rt-font-mono);
