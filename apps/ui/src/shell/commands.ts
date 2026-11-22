@@ -29,6 +29,10 @@ export const LABELS: Record<CommandId, string> = {
   palette: "Command palette",
   "toggle-theme": "Toggle theme",
   "focus-sidebar": "Focus sidebar",
+  import: "Import collection…",
+  search: "Search in collection",
+  history: "Show history",
+  git: "Show Git",
 };
 
 /** Commands available in the current state. */
@@ -51,6 +55,8 @@ export function buildCommands(app: AppState, actions: Actions, mac: boolean): Co
         run: () => app.setEnvironment(e.name),
       }),
     ),
+    cmd("import"),
+    ...(open ? [cmd("search"), cmd("history"), cmd("git")] : []),
     cmd("toggle-theme"),
     ...(app.active ? [cmd("close-tab")] : []),
     ...(open ? [cmd("focus-sidebar")] : []),

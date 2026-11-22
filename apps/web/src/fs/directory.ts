@@ -88,15 +88,15 @@ function isNotFound(e: unknown): boolean {
   return e instanceof DOMException && e.name === "NotFoundError";
 }
 
-/** Writes `changes` below `root`, creating folders as needed. A change with empty `text`
+/** Writes `changes` below `root`, creating folders as needed. A change with `deleted: true`
  *  deletes its file (`Workspace::save` reports a deleted environment that way); a file that
  *  is already gone is fine. All paths are checked before anything is written. */
 export async function writeChanges(root: FileSystemDirectoryHandle, changes: FileChange[]): Promise<void> {
-  const targets = changes.map((c) => ({ parts: pathParts(c.path), text: c.text }));
-  for (const { parts, text } of targets) {
+  const targets = changes.map((c) => ({ parts: pathParts(c.path), text: c.text, deleted: c.deleted }));
+  for (const { parts, text, deleted } of targets) {
     const name = parts[parts.length - 1];
     let dir = root;
-    if (text === "") {
+    if (deleted) {
       try {
         for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
         await dir.removeEntry(name);

@@ -12,9 +12,14 @@ import {
   type CompanionStatus,
   type Environment,
   type FileChange,
+  type GitApi,
+  type HistoryApi,
+  type ImportApi,
   type LineSlice,
   type Preview,
+  type RecentCollection,
   type RequestSpec,
+  type SearchHit,
   type SecretsApi,
   type SendInput,
   type StoredResponse,
@@ -22,6 +27,10 @@ import {
   type TransportMode,
   type TreeNode,
 } from "@requesttailor/ui";
+
+import { tauriGit } from "./git";
+import { tauriHistory } from "./history";
+import { tauriImports } from "./import";
 
 /** All commands the webview may call; must match `capabilities/default.json`. */
 export const COMMANDS = [
@@ -45,12 +54,41 @@ export const COMMANDS = [
   "secret_get",
   "secret_set",
   "secret_delete",
+  "git_status",
+  "git_diff",
+  "git_commit",
+  "git_log",
+  "git_branches",
+  "git_checkout",
+  "git_create_branch",
+  "git_push",
+  "git_pull",
+  "git_conflict",
+  "git_resolve",
+  "git_init",
+  "git_clone",
+  "git_identity",
+  "git_set_identity",
+  "git_has_credentials",
+  "git_set_credentials",
+  "git_delete_credentials",
+  "import_analyze",
+  "import_write",
+  "import_discard",
+  "history_list",
+  "history_clear",
+  "search",
+  "recent_collections",
+  "open_recent",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
 /** `invoke` from `@tauri-apps/api/core`, injectable for tests. */
 export type Invoke = (cmd: Command, args?: Record<string, unknown>) => Promise<unknown>;
+
+/** A command call that rejects with `BackendError`; what the per-feature files get. */
+export type Call = <T>(cmd: Command, args?: Record<string, unknown>) => Promise<T>;
 
 /** Turns a rejected command (`CommandError`: the `AppError` kind and a readable message) into a
  *  `BackendError`. Anything else (a Tauri error string) becomes kind `shell`. */
@@ -74,8 +112,15 @@ export class TauriBackend implements Backend {
   readonly kind = "tauri" as const;
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
+  readonly git: GitApi;
+  readonly imports: ImportApi;
+  readonly history: HistoryApi;
 
   constructor(private readonly invokeRaw: Invoke) {
+    const call: Call = (cmd, args) => this.call(cmd, args);
+    this.git = tauriGit(call);
+    this.imports = tauriImports(call);
+    this.history = tauriHistory(call);
     this.secrets = {
       has: (environment, variable) => this.call("secret_has", { environment, variable }),
       get: (environment, variable) => this.call("secret_get", { environment, variable }),
@@ -104,6 +149,15 @@ export class TauriBackend implements Backend {
 
   openCollection(): Promise<CollectionInfo | null> {
     return this.call("open_collection");
+  }
+  recentCollections(): Promise<RecentCollection[]> {
+    return this.call("recent_collections");
+  }
+  openRecent(id: string, interactive: boolean): Promise<CollectionInfo | null> {
+    return this.call("open_recent", { id, interactive });
+  }
+  search(query: string, limit: number): Promise<SearchHit[]> {
+    return this.call("search", { query, limit });
   }
   tree(): Promise<TreeNode> {
     return this.call("tree");

@@ -22,16 +22,16 @@ test("reads a folder with the skip rules, writes and deletes files", async ({ pa
     const root = await (await navigator.storage.getDirectory()).getDirectoryHandle("collection");
     const files: Map<string, Uint8Array> = await fs.readDirectory(root);
     await fs.writeChanges(root, [
-      { path: "health.yml", text: "changed\n" },
-      { path: "users/admin/new.yml", text: "new\n" },
-      // Empty text = deleted file (e.g. a deleted environment); a missing file is fine.
-      { path: "blocked.yml", text: "" },
-      { path: "gone/never.yml", text: "" },
+      { path: "health.yml", text: "changed\n", deleted: false },
+      { path: "users/admin/new.yml", text: "new\n", deleted: false },
+      // `deleted` = deleted file (e.g. a deleted environment); a missing file is fine.
+      { path: "blocked.yml", text: "", deleted: true },
+      { path: "gone/never.yml", text: "", deleted: true },
     ]);
     const rejected: string[] = [];
     for (const bad of ["../x.yml", "/x.yml", "a//b.yml", "a\\b.yml", "./x.yml", ""]) {
       try {
-        await fs.writeChanges(root, [{ path: "ok.yml", text: "ok" }, { path: bad, text: "x" }]);
+        await fs.writeChanges(root, [{ path: "ok.yml", text: "ok", deleted: false }, { path: bad, text: "x", deleted: false }]);
       } catch (e) {
         if ((e as { kind?: string }).kind === "shell") rejected.push(bad);
       }

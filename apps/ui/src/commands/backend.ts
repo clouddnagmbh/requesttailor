@@ -12,9 +12,21 @@
 import type {
   Environment,
   FileChange,
+  GitBranch,
+  GitCommit,
+  GitConflict,
+  GitDiff,
+  GitIdentity,
+  GitPullResult,
+  GitResolution,
+  GitStatus,
+  HistoryEntry,
+  ImportFormat,
+  ImportPlan,
   LineSlice,
   Preview,
   RequestSpec,
+  SearchHit,
   StoredResponse,
   TreeNode,
 } from "./types";
@@ -26,6 +38,12 @@ export interface CollectionInfo {
   name: string;
   /** Where it lives, for display only (path on desktop, directory name in the browser). */
   location: string;
+}
+
+/** A collection opened before on this device (most recent first). */
+export interface RecentCollection extends CollectionInfo {
+  /** Unix milliseconds. */
+  openedAt: number;
 }
 
 export interface SendInput {
@@ -66,11 +84,77 @@ export interface TransportApi {
   useCompanion(enabled: boolean): Promise<void>;
 }
 
+/** Git for the repository that holds the open collection (rt_app::git describes the model:
+ *  no staging area, paths relative to the collection). Operations that change the working
+ *  tree (`checkout`, `pull`, `resolve`) reject with kind `git` while there are unsaved
+ *  changes; afterwards the UI calls `AppState.reload()`. Remote operations reject with kind
+ *  `git-auth` (message: the host) when credentials are missing or wrong.
+ *  Web: `push`, `pull` and `clone` go through the companion and reject with kind
+ *  `unsupported` without it. Owners in wave 4: strands A1 (desktop) and A2 (web, UI). */
+export interface GitApi {
+  status(): Promise<GitStatus>;
+  /** `HEAD` → working tree of one file. */
+  diff(path: string): Promise<GitDiff>;
+  /** Commits exactly `paths` (new, changed or deleted) with `message`. */
+  commit(message: string, paths: string[]): Promise<GitCommit>;
+  /** Commits of the current branch, newest first. */
+  log(limit: number): Promise<GitCommit[]>;
+  branches(): Promise<GitBranch[]>;
+  /** Switches to a local branch, or to a remote one (`origin/x` → local `x` tracking it). */
+  checkout(branch: string): Promise<void>;
+  createBranch(name: string, checkout: boolean): Promise<void>;
+  /** Pushes the current branch to its upstream (sets `origin/<branch>` if it has none). */
+  push(): Promise<void>;
+  /** Fetches and merges the upstream into the current branch. */
+  pull(): Promise<GitPullResult>;
+  conflict(path: string): Promise<GitConflict>;
+  resolve(path: string, resolution: GitResolution): Promise<void>;
+  /** Creates a repository in the collection folder. */
+  init(): Promise<void>;
+  /** Clones `url` into a new folder inside one the user picks and opens it; `null` if
+   *  cancelled. */
+  clone(url: string): Promise<CollectionInfo | null>;
+  /** Author for commits; `null` if none is configured. */
+  identity(): Promise<GitIdentity | null>;
+  setIdentity(identity: GitIdentity): Promise<void>;
+  /** HTTPS credentials per host, kept like secret values (keychain / encrypted storage). */
+  hasCredentials(host: string): Promise<boolean>;
+  setCredentials(host: string, username: string, password: string): Promise<void>;
+  deleteCredentials(host: string): Promise<void>;
+}
+
+/** Import another tool's file as a new collection: `analyze` converts and reports what would
+ *  be lost, `write` puts it into a new folder (`plan.folder_name` inside a folder the user
+ *  picks) and opens it. Owner in wave 4: strand B. */
+export interface ImportApi {
+  /** `format: null` detects it. Rejects with kind `import` for unknown or invalid files. */
+  analyze(fileName: string, data: Uint8Array, format: ImportFormat | null): Promise<ImportPlan>;
+  /** `null` if the user cancelled the folder picker (the plan stays available). */
+  write(id: number): Promise<CollectionInfo | null>;
+  discard(id: number): Promise<void>;
+}
+
+/** Sends from this device. Recorded by the backend on every `send`; no bodies, no header
+ *  values, URL with secrets masked. Owner in wave 4: strand E. */
+export interface HistoryApi {
+  /** Entries of the open collection matching `query` (empty: all), newest first. */
+  list(query: string, limit: number): Promise<HistoryEntry[]>;
+  /** Forgets the open collection's entries. */
+  clear(): Promise<void>;
+}
+
 export interface Backend {
   readonly kind: "tauri" | "web" | "mock";
 
   /** Shows the platform's folder picker and opens the collection; `null` if cancelled. */
   openCollection(): Promise<CollectionInfo | null>;
+  /** Collections opened on this device, most recent first. Owner in wave 4: strand C. */
+  recentCollections(): Promise<RecentCollection[]>;
+  /** Opens a recent collection without a picker. `interactive: false` (at start) never
+   *  prompts and resolves `null` if the platform needs the user's consent first (the browser's
+   *  folder permission); `interactive: true` runs from a click and may prompt. Also `null` if
+   *  the folder is gone. */
+  openRecent(id: string, interactive: boolean): Promise<CollectionInfo | null>;
   tree(): Promise<TreeNode>;
   getRequest(path: string): Promise<RequestSpec>;
   /** New GET request named `name` in `folder` (`""` = root). Returns its path. Unsaved. */
@@ -99,8 +183,15 @@ export interface Backend {
   filterJson(id: number, expression: string): Promise<string>;
   releaseResponse(id: number): Promise<void>;
 
+  /** Full-text search over the open collection, unsaved changes included. Owner in wave 4:
+   *  strand E. */
+  search(query: string, limit: number): Promise<SearchHit[]>;
+
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
+  readonly git: GitApi;
+  readonly imports: ImportApi;
+  readonly history: HistoryApi;
 }
 
 /** Errors from a backend are rejected promises carrying this shape. */

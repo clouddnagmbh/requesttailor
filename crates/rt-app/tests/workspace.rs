@@ -37,7 +37,7 @@ fn files(list: &[(&str, &str)]) -> FileSet {
 /// What the shell does with `save`'s result. An empty text deletes the file.
 fn apply(set: &mut FileSet, changes: &[FileChange]) {
     for c in changes {
-        if c.text.is_empty() {
+        if c.deleted {
             set.files.remove(&c.path);
         } else {
             set.files
@@ -328,12 +328,13 @@ fn environments_are_created_updated_and_deleted() {
     ws.delete_environment("Staging").unwrap();
     assert_eq!(ws.dirty(), vec!["environments/Staging.yml".to_string()]);
     let changes = ws.save().unwrap();
-    // Deletion is a change with empty text (see `Workspace::save`).
+    // Deletion is a change with `deleted: true` (see `Workspace::save`).
     assert_eq!(
         changes,
         vec![FileChange {
             path: "environments/Staging.yml".into(),
-            text: String::new()
+            text: String::new(),
+            deleted: true,
         }]
     );
     apply(&mut on_disk, &changes);

@@ -42,6 +42,33 @@ describe("TauriBackend", () => {
     await b.secrets.get("Local", "token");
     await b.secrets.set("Local", "token", "v");
     await b.secrets.delete("Local", "token");
+    await b.recentCollections();
+    await b.openRecent("/a", false);
+    await b.search("users", 10);
+    const g = b.git;
+    await g.status();
+    await g.diff("a.yml");
+    await g.commit("msg", ["a.yml"]);
+    await g.log(5);
+    await g.branches();
+    await g.checkout("main");
+    await g.createBranch("x", true);
+    await g.push();
+    await g.pull();
+    await g.conflict("a.yml");
+    await g.resolve("a.yml", "ours");
+    await g.init();
+    await g.clone("https://example.com/r.git");
+    await g.identity();
+    await g.setIdentity({ name: "Ada", email: "a@example.com" });
+    await g.hasCredentials("example.com");
+    await g.setCredentials("example.com", "ada", "pw");
+    await g.deleteCredentials("example.com");
+    await b.imports.analyze("c.json", new Uint8Array([1, 2]), "postman");
+    await b.imports.write(1);
+    await b.imports.discard(1);
+    await b.history.list("q", 20);
+    await b.history.clear();
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -63,6 +90,32 @@ describe("TauriBackend", () => {
       ["secret_get", { environment: "Local", variable: "token" }],
       ["secret_set", { environment: "Local", variable: "token", value: "v" }],
       ["secret_delete", { environment: "Local", variable: "token" }],
+      ["recent_collections", undefined],
+      ["open_recent", { id: "/a", interactive: false }],
+      ["search", { query: "users", limit: 10 }],
+      ["git_status", undefined],
+      ["git_diff", { path: "a.yml" }],
+      ["git_commit", { message: "msg", paths: ["a.yml"] }],
+      ["git_log", { limit: 5 }],
+      ["git_branches", undefined],
+      ["git_checkout", { branch: "main" }],
+      ["git_create_branch", { name: "x", checkout: true }],
+      ["git_push", undefined],
+      ["git_pull", undefined],
+      ["git_conflict", { path: "a.yml" }],
+      ["git_resolve", { path: "a.yml", resolution: "ours" }],
+      ["git_init", undefined],
+      ["git_clone", { url: "https://example.com/r.git" }],
+      ["git_identity", undefined],
+      ["git_set_identity", { identity: { name: "Ada", email: "a@example.com" } }],
+      ["git_has_credentials", { host: "example.com" }],
+      ["git_set_credentials", { host: "example.com", username: "ada", password: "pw" }],
+      ["git_delete_credentials", { host: "example.com" }],
+      ["import_analyze", { fileName: "c.json", data: [1, 2], format: "postman" }],
+      ["import_write", { id: 1 }],
+      ["import_discard", { id: 1 }],
+      ["history_list", { query: "q", limit: 20 }],
+      ["history_clear", undefined],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });
@@ -125,7 +178,7 @@ describe("TauriBackend", () => {
     const libRs = readFileSync(new URL("../src-tauri/src/lib.rs", import.meta.url), "utf8");
     for (const c of COMMANDS) {
       expect(buildRs).toContain(`"${c}"`);
-      expect(libRs).toContain(`commands::${c},`);
+      expect(libRs).toMatch(new RegExp(`\\b\\w+::${c},`));
     }
   });
 });

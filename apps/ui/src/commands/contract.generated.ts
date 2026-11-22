@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AppError, Auth, Body, Environment, FileChange, LineSlice, Preview, ReportBody, RequestSpec, SecretKey, SendError, SendReport, StoredResponse, TransportError, TreeNode, VarSource } from "./types";
+import type { AppError, Auth, Body, Environment, FileChange, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, Preview, ReportBody, RequestSpec, SearchHit, SecretKey, SendError, SendReport, StoredResponse, TransportError, TreeNode, VarSource } from "./types";
 
 export const requestSpec: RequestSpec = {
   "auth": {
@@ -552,10 +552,315 @@ export const preview: Preview = {
   ]
 };
 
-export const fileChange: FileChange = {
-  "path": "a.yml",
-  "text": "info:\n"
+export const fileChanges: FileChange[] = [
+  {
+    "deleted": false,
+    "path": "a.yml",
+    "text": "info:\n"
+  },
+  {
+    "deleted": true,
+    "path": "environments/Old.yml",
+    "text": ""
+  }
+];
+
+export const gitStatus: GitStatus = {
+  "ahead": 1,
+  "behind": 0,
+  "branch": "main",
+  "files": [
+    {
+      "path": "a.yml",
+      "state": "untracked"
+    },
+    {
+      "path": "a.yml",
+      "state": "modified"
+    },
+    {
+      "path": "a.yml",
+      "state": "deleted"
+    },
+    {
+      "path": "a.yml",
+      "state": "conflicted"
+    }
+  ],
+  "merging": false,
+  "repo": true,
+  "upstream": "origin/main"
 };
+
+export const gitStatusNoRepo: GitStatus = {
+  "ahead": 0,
+  "behind": 0,
+  "branch": null,
+  "files": [],
+  "merging": false,
+  "repo": false,
+  "upstream": null
+};
+
+export const gitDiff: GitDiff = {
+  "binary": false,
+  "hunks": [
+    {
+      "lines": [
+        {
+          "kind": "context",
+          "text": "x"
+        },
+        {
+          "kind": "removed",
+          "text": "x"
+        },
+        {
+          "kind": "added",
+          "text": "x"
+        }
+      ],
+      "new_lines": 2,
+      "new_start": 1,
+      "old_lines": 2,
+      "old_start": 1
+    }
+  ],
+  "path": "a.yml"
+};
+
+export const gitBranches: GitBranch[] = [
+  {
+    "current": true,
+    "name": "main",
+    "remote": false
+  },
+  {
+    "current": false,
+    "name": "origin/main",
+    "remote": true
+  }
+];
+
+export const gitCommit: GitCommit = {
+  "author": "Ada",
+  "oid": "0123456789abcdef0123456789abcdef01234567",
+  "summary": "Add users",
+  "time": 1790000000
+};
+
+export const gitPullResults: GitPullResult[] = [
+  {
+    "outcome": "up-to-date"
+  },
+  {
+    "commits": 2,
+    "outcome": "fast-forward"
+  },
+  {
+    "oid": "abc",
+    "outcome": "merged"
+  },
+  {
+    "outcome": "conflicts",
+    "paths": [
+      "a.yml"
+    ]
+  }
+];
+
+export const gitConflict: GitConflict = {
+  "base": "a",
+  "ours": "b",
+  "path": "a.yml",
+  "theirs": null
+};
+
+export const gitResolutions: GitResolution[] = [
+  "ours",
+  "theirs"
+];
+
+export const gitIdentity: GitIdentity = {
+  "email": "ada@example.com",
+  "name": "Ada"
+};
+
+export const importPlan: ImportPlan = {
+  "collection_name": "My API",
+  "files": 3,
+  "folder_name": "My API",
+  "format": "postman",
+  "id": 1,
+  "report": {
+    "environments": 0,
+    "folders": 1,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "pre-request script (3 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Users / Get user"
+      }
+    ],
+    "requests": 2
+  }
+};
+
+export const importFormats: ImportFormat[] = [
+  "postman",
+  "insomnia",
+  "openapi",
+  "curl",
+  "har",
+  "http"
+];
+
+export const lossKinds: LossKind[] = [
+  "script",
+  "test",
+  "auth",
+  "body",
+  "variable",
+  "setting",
+  "documentation",
+  "example",
+  "protocol",
+  "other"
+];
+
+export const lossEffects: LossEffect[] = [
+  "dropped",
+  "approximated"
+];
+
+export const historyEntry: HistoryEntry = {
+  "at": 1790000000000,
+  "collection": "/home/a/api",
+  "duration_ms": 12.5,
+  "environment": "Local",
+  "error": null,
+  "id": 7,
+  "method": "POST",
+  "name": "Create user",
+  "request_path": "users/create.yml",
+  "size": 2,
+  "status": 201,
+  "url": "http://127.0.0.1/users?token=***"
+};
+
+export const historyEntryFailed: HistoryEntry = {
+  "at": 1790000000000,
+  "collection": "/home/a/api",
+  "duration_ms": null,
+  "environment": "Local",
+  "error": {
+    "kind": "prepare",
+    "message": "x"
+  },
+  "id": 7,
+  "method": "POST",
+  "name": "Create user",
+  "request_path": "users/create.yml",
+  "size": null,
+  "status": null,
+  "url": null
+};
+
+export const searchHits: SearchHit[] = [
+  {
+    "field": "name",
+    "method": "POST",
+    "name": "Create user",
+    "path": "users/create.yml",
+    "ranges": [
+      [
+        12,
+        17
+      ]
+    ],
+    "snippet": "{{baseUrl}}/users"
+  },
+  {
+    "field": "url",
+    "method": "POST",
+    "name": "Create user",
+    "path": "users/create.yml",
+    "ranges": [
+      [
+        12,
+        17
+      ]
+    ],
+    "snippet": "{{baseUrl}}/users"
+  },
+  {
+    "field": "param",
+    "method": "POST",
+    "name": "Create user",
+    "path": "users/create.yml",
+    "ranges": [
+      [
+        12,
+        17
+      ]
+    ],
+    "snippet": "{{baseUrl}}/users"
+  },
+  {
+    "field": "header",
+    "method": "POST",
+    "name": "Create user",
+    "path": "users/create.yml",
+    "ranges": [
+      [
+        12,
+        17
+      ]
+    ],
+    "snippet": "{{baseUrl}}/users"
+  },
+  {
+    "field": "body",
+    "method": "POST",
+    "name": "Create user",
+    "path": "users/create.yml",
+    "ranges": [
+      [
+        12,
+        17
+      ]
+    ],
+    "snippet": "{{baseUrl}}/users"
+  },
+  {
+    "field": "auth",
+    "method": "POST",
+    "name": "Create user",
+    "path": "users/create.yml",
+    "ranges": [
+      [
+        12,
+        17
+      ]
+    ],
+    "snippet": "{{baseUrl}}/users"
+  },
+  {
+    "field": "variable",
+    "method": "POST",
+    "name": "Create user",
+    "path": "users/create.yml",
+    "ranges": [
+      [
+        12,
+        17
+      ]
+    ],
+    "snippet": "{{baseUrl}}/users"
+  }
+];
 
 export const appErrors: AppError[] = [
   {
@@ -577,6 +882,26 @@ export const appErrors: AppError[] = [
   {
     "kind": "environment-not-found",
     "message": "PRD"
+  },
+  {
+    "kind": "filter",
+    "message": "x"
+  },
+  {
+    "kind": "import",
+    "message": "x"
+  },
+  {
+    "kind": "git",
+    "message": "x"
+  },
+  {
+    "kind": "git-auth",
+    "message": "github.com"
+  },
+  {
+    "kind": "unsupported",
+    "message": "x"
   },
   {
     "kind": "shell",

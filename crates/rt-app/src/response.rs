@@ -151,22 +151,22 @@ impl ResponseStore {
     /// Bodies above a size limit are rejected with a clear message rather than parsed.
     ///
     /// The expression is RFC 9535 JSONPath; the result is the JSON array of all matched
-    /// values (`[]` when nothing matches). Errors are `AppError::Shell` with a message for
+    /// values (`[]` when nothing matches). Errors are `AppError::Filter` with a message for
     /// display: "invalid JSONPath expression: ...", "response body is not valid JSON: ..."
     /// or "response body is too large to filter ...".
     pub fn filter_json(&self, id: u64, expression: &str) -> Result<String, AppError> {
         let body = &self.entry(id)?.body;
         let path = serde_json_path::JsonPath::parse(expression)
-            .map_err(|e| AppError::Shell(format!("invalid JSONPath expression: {e}")))?;
+            .map_err(|e| AppError::Filter(format!("invalid JSONPath expression: {e}")))?;
         if body.len() > Self::FILTER_LIMIT_BYTES {
-            return Err(AppError::Shell(format!(
+            return Err(AppError::Filter(format!(
                 "response body is too large to filter ({} MB; the limit is {} MB)",
                 body.len().div_ceil(1024 * 1024),
                 Self::FILTER_LIMIT_BYTES / (1024 * 1024)
             )));
         }
         let value: serde_json::Value = serde_json::from_slice(body)
-            .map_err(|e| AppError::Shell(format!("response body is not valid JSON: {e}")))?;
+            .map_err(|e| AppError::Filter(format!("response body is not valid JSON: {e}")))?;
         let matches = path.query(&value).all();
         serde_json::to_string_pretty(&matches).map_err(|e| AppError::Shell(e.to_string()))
     }

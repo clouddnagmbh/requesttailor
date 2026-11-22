@@ -11,8 +11,13 @@
 
 use std::time::Duration;
 
+use rt_app::git::{
+    DiffHunk, DiffLine, DiffLineKind, GitBranch, GitCommit, GitConflict, GitDiff, GitFile,
+    GitFileState, GitIdentity, GitPullResult, GitResolution, GitStatus,
+};
 use rt_app::{
-    AppError, FileChange, LineSlice, Preview, PreviewVar, SecretKey, StoredResponse, TreeNode,
+    AppError, FileChange, HistoryEntry, ImportPlan, LineSlice, Preview, PreviewVar, SearchField,
+    SearchHit, SecretKey, StoredResponse, TreeNode,
 };
 use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
@@ -23,6 +28,7 @@ use rt_core::send::{
 };
 use rt_core::transport::{HttpVersion, Redirect, Timing, TransportError};
 use rt_core::vars::{VarSource, VarUse};
+use rt_format::import::{ImportFormat, Loss, LossEffect, LossKind, LossReport};
 use serde::Serialize;
 
 fn kv(name: &str, value: &str) -> KeyValue {
@@ -250,8 +256,99 @@ fn app_errors() -> Vec<AppError> {
         AppError::FolderNotFound("f".into()),
         AppError::ResponseNotFound(3),
         AppError::EnvironmentNotFound("PRD".into()),
+        AppError::Filter("x".into()),
+        AppError::Import("x".into()),
+        AppError::Git("x".into()),
+        AppError::GitAuth("github.com".into()),
+        AppError::Unsupported("x".into()),
         AppError::Shell("x".into()),
     ]
+}
+
+fn git_status() -> GitStatus {
+    GitStatus {
+        repo: true,
+        branch: Some("main".into()),
+        upstream: Some("origin/main".into()),
+        ahead: 1,
+        behind: 0,
+        files: [
+            GitFileState::Untracked,
+            GitFileState::Modified,
+            GitFileState::Deleted,
+            GitFileState::Conflicted,
+        ]
+        .into_iter()
+        .map(|state| GitFile {
+            path: "a.yml".into(),
+            state,
+        })
+        .collect(),
+        merging: false,
+    }
+}
+
+fn git_diff() -> GitDiff {
+    GitDiff {
+        path: "a.yml".into(),
+        binary: false,
+        hunks: vec![DiffHunk {
+            old_start: 1,
+            old_lines: 2,
+            new_start: 1,
+            new_lines: 2,
+            lines: [
+                DiffLineKind::Context,
+                DiffLineKind::Removed,
+                DiffLineKind::Added,
+            ]
+            .into_iter()
+            .map(|kind| DiffLine {
+                kind,
+                text: "x".into(),
+            })
+            .collect(),
+        }],
+    }
+}
+
+fn import_plan() -> ImportPlan {
+    ImportPlan {
+        id: 1,
+        format: ImportFormat::Postman,
+        collection_name: "My API".into(),
+        folder_name: "My API".into(),
+        files: 3,
+        report: LossReport {
+            format: ImportFormat::Postman,
+            requests: 2,
+            folders: 1,
+            environments: 0,
+            losses: vec![Loss {
+                location: "Users / Get user".into(),
+                kind: LossKind::Script,
+                effect: LossEffect::Dropped,
+                detail: "pre-request script (3 lines) not imported".into(),
+            }],
+        },
+    }
+}
+
+fn history_entry() -> HistoryEntry {
+    HistoryEntry {
+        id: 7,
+        at: 1_790_000_000_000,
+        collection: "/home/a/api".into(),
+        request_path: "users/create.yml".into(),
+        name: "Create user".into(),
+        environment: Some("Local".into()),
+        method: "POST".into(),
+        url: Some("http://127.0.0.1/users?token=***".into()),
+        status: Some(201),
+        error: None,
+        duration_ms: Some(12.5),
+        size: Some(2),
+    }
 }
 
 /// `(TypeScript name, TypeScript type, value)`
@@ -320,12 +417,155 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
         (
-            "fileChange",
-            "FileChange",
-            j(FileChange {
-                path: "a.yml".into(),
-                text: "info:\n".into(),
+            "fileChanges",
+            "FileChange[]",
+            j(vec![
+                FileChange {
+                    path: "a.yml".into(),
+                    text: "info:\n".into(),
+                    deleted: false,
+                },
+                FileChange {
+                    path: "environments/Old.yml".into(),
+                    text: String::new(),
+                    deleted: true,
+                },
+            ]),
+        ),
+        ("gitStatus", "GitStatus", j(git_status())),
+        (
+            "gitStatusNoRepo",
+            "GitStatus",
+            j(GitStatus {
+                repo: false,
+                branch: None,
+                upstream: None,
+                ahead: 0,
+                behind: 0,
+                files: vec![],
+                merging: false,
             }),
+        ),
+        ("gitDiff", "GitDiff", j(git_diff())),
+        (
+            "gitBranches",
+            "GitBranch[]",
+            j(vec![
+                GitBranch {
+                    name: "main".into(),
+                    current: true,
+                    remote: false,
+                },
+                GitBranch {
+                    name: "origin/main".into(),
+                    current: false,
+                    remote: true,
+                },
+            ]),
+        ),
+        (
+            "gitCommit",
+            "GitCommit",
+            j(GitCommit {
+                oid: "0123456789abcdef0123456789abcdef01234567".into(),
+                summary: "Add users".into(),
+                author: "Ada".into(),
+                time: 1_790_000_000,
+            }),
+        ),
+        (
+            "gitPullResults",
+            "GitPullResult[]",
+            j(vec![
+                GitPullResult::UpToDate,
+                GitPullResult::FastForward { commits: 2 },
+                GitPullResult::Merged { oid: "abc".into() },
+                GitPullResult::Conflicts {
+                    paths: vec!["a.yml".into()],
+                },
+            ]),
+        ),
+        (
+            "gitConflict",
+            "GitConflict",
+            j(GitConflict {
+                path: "a.yml".into(),
+                base: Some("a".into()),
+                ours: Some("b".into()),
+                theirs: None,
+            }),
+        ),
+        (
+            "gitResolutions",
+            "GitResolution[]",
+            j(vec![GitResolution::Ours, GitResolution::Theirs]),
+        ),
+        (
+            "gitIdentity",
+            "GitIdentity",
+            j(GitIdentity {
+                name: "Ada".into(),
+                email: "ada@example.com".into(),
+            }),
+        ),
+        ("importPlan", "ImportPlan", j(import_plan())),
+        ("importFormats", "ImportFormat[]", j(ImportFormat::ALL)),
+        (
+            "lossKinds",
+            "LossKind[]",
+            j(vec![
+                LossKind::Script,
+                LossKind::Test,
+                LossKind::Auth,
+                LossKind::Body,
+                LossKind::Variable,
+                LossKind::Setting,
+                LossKind::Documentation,
+                LossKind::Example,
+                LossKind::Protocol,
+                LossKind::Other,
+            ]),
+        ),
+        (
+            "lossEffects",
+            "LossEffect[]",
+            j(vec![LossEffect::Dropped, LossEffect::Approximated]),
+        ),
+        ("historyEntry", "HistoryEntry", j(history_entry())),
+        (
+            "historyEntryFailed",
+            "HistoryEntry",
+            j(HistoryEntry {
+                url: None,
+                status: None,
+                duration_ms: None,
+                size: None,
+                error: Some(rt_core::send::SendError::Prepare("x".into())),
+                ..history_entry()
+            }),
+        ),
+        (
+            "searchHits",
+            "SearchHit[]",
+            j([
+                SearchField::Name,
+                SearchField::Url,
+                SearchField::Param,
+                SearchField::Header,
+                SearchField::Body,
+                SearchField::Auth,
+                SearchField::Variable,
+            ]
+            .into_iter()
+            .map(|field| SearchHit {
+                path: "users/create.yml".into(),
+                name: "Create user".into(),
+                method: "POST".into(),
+                field,
+                snippet: "{{baseUrl}}/users".into(),
+                ranges: vec![(12, 17)],
+            })
+            .collect::<Vec<_>>()),
         ),
         ("appErrors", "AppError[]", j(app_errors())),
         (

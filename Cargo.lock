@@ -426,6 +426,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a680398c10c7bc0488067c4612226ea905a85f607134b69f3068d505d58c4214"
+dependencies = [
+ "memchr",
+ "serde_core",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3486,6 +3496,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_json_path",
+ "similar",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -3548,6 +3559,7 @@ dependencies = [
  "rt-app",
  "rt-core",
  "rt-format",
+ "rt-git",
  "rt-testserver",
  "serde",
  "serde_json",
@@ -3562,7 +3574,15 @@ name = "rt-format"
 version = "0.0.0"
 dependencies = [
  "rt-core",
+ "serde",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rt-git"
+version = "0.0.0"
+dependencies = [
+ "rt-app",
 ]
 
 [[package]]
@@ -4183,6 +4203,15 @@ name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "similar"
+version = "3.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2f8bec09ae8fae0f4f265a4559a9334be3929d8504e9b536df0a41302bd1733"
+dependencies = [
+ "bstr",
+]
 
 [[package]]
 name = "siphasher"

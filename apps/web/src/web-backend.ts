@@ -22,9 +22,13 @@ import {
   type CompanionStatus,
   type Environment,
   type FileChange,
+  type GitApi,
+  type ImportApi,
   type LineSlice,
   type Preview,
+  type RecentCollection,
   type RequestSpec,
+  type SearchHit,
   type SecretsApi,
   type SendInput,
   type StoredResponse,
@@ -34,6 +38,10 @@ import {
 } from "@requesttailor/ui";
 
 import { createCompanionClient, type CompanionClient } from "./companion/client";
+import { webGit } from "./git";
+import { WebHistory } from "./history";
+import { webImports } from "./import";
+import { webRecent, type WebRecent } from "./recent";
 import { readDirectory, writeChanges } from "./fs/directory";
 import { lastFolder, rememberFolder } from "./fs/recent";
 import { openBrowserSecretStore } from "./secrets/store";
@@ -64,11 +72,22 @@ export const UNSUPPORTED_MESSAGE =
 
 const NO_COMPANION_HOWTO = "Run `rt agent` on this computer to send requests the browser blocks.";
 
-interface Session {
+export interface Session {
   id: string;
   handle: FileSystemDirectoryHandle;
   ws: CoreWorkspace;
   secrets: Promise<SecretsApi> | null;
+}
+
+/** What the per-feature parts (./git, ./import, ./history, ./recent; wave 4) may use. */
+export interface WebHost {
+  readonly deps: WebBackendDeps;
+  /** The open collection; throws `BackendError` if none. */
+  session(): Session;
+  /** Opens `handle` as the collection (asks for read/write access if needed). */
+  openHandle(handle: FileSystemDirectoryHandle): Promise<CollectionInfo>;
+  /** The companion's URL and token if it is paired, else `null`. */
+  companionCredentials(): Promise<CompanionCredentials | null>;
 }
 
 function guardSync<T>(f: () => T): T {
@@ -104,12 +123,33 @@ export class WebBackend implements Backend {
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
 
+  readonly git: GitApi;
+  readonly imports: ImportApi;
+  readonly history: WebHistory;
+  private readonly recent: WebRecent;
+
   private current: Session | null = null;
   private triedLast = false;
   private companionOn = false;
   private companionClient: CompanionClient | null = null;
 
-  constructor(private readonly deps: WebBackendDeps = DEFAULT_DEPS) {
+  constructor(readonly deps: WebBackendDeps = DEFAULT_DEPS) {
+    const host: WebHost = {
+      deps,
+      session: () => this.session(),
+      openHandle: (handle) => this.openHandle(handle),
+      companionCredentials: async () => {
+        try {
+          return await this.client().credentials();
+        } catch {
+          return null;
+        }
+      },
+    };
+    this.git = webGit(host);
+    this.imports = webImports(host);
+    this.history = new WebHistory(host);
+    this.recent = webRecent(host);
     const store = () => this.secretStore(this.session());
     this.secrets = {
       has: (env, name) => guard(async () => (await store()).has(env, name)),
@@ -168,6 +208,10 @@ export class WebBackend implements Backend {
         throw toBackendError(e);
       }
     }
+    return this.openHandle(handle);
+  }
+
+  private openHandle(handle: FileSystemDirectoryHandle): Promise<CollectionInfo> {
     return guard(async () => {
       await ensureReadWrite(handle);
       const [core, files] = await Promise.all([this.deps.loadCore(), readDirectory(handle)]);
@@ -175,8 +219,20 @@ export class WebBackend implements Backend {
       const id = await rememberFolder(handle);
       this.current?.ws.free();
       this.current = { id, handle, ws, secrets: null };
-      return { id, name: ws.name().trim() || handle.name, location: handle.name };
+      const info = { id, name: ws.name().trim() || handle.name, location: handle.name };
+      this.recent.opened(info, handle);
+      return info;
     });
+  }
+
+  recentCollections(): Promise<RecentCollection[]> {
+    return guard(() => this.recent.list());
+  }
+  openRecent(id: string, interactive: boolean): Promise<CollectionInfo | null> {
+    return guard(() => this.recent.open(id, interactive));
+  }
+  search(query: string, limit: number): Promise<SearchHit[]> {
+    return guard(async () => this.session().ws.search(query, limit));
   }
 
   tree(): Promise<TreeNode> {
@@ -262,7 +318,13 @@ export class WebBackend implements Backend {
     return guard(async () => {
       const s = this.session();
       const companion = this.companionOn ? await this.companionCredentials() : null;
-      return await s.ws.send(path, await this.coreInput(s, input), companion);
+      const result = await s.ws.send(path, await this.coreInput(s, input), companion);
+      try {
+        this.history.record(s.id, s.ws.request(path), result);
+      } catch (e) {
+        console.warn("RequestTailor: recording the send in the history failed:", e);
+      }
+      return result;
     });
   }
 

@@ -1,15 +1,23 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- App layout: header, resizable sidebar with the folder tree, tabs, request editor above the
-     response (resizable split), command palette and global shortcuts. Owner: wave 3, strand A.
-     Composes the other strands' components through their props only. -->
+<!-- App layout: header, resizable sidebar (views: requests, search, history, Git), tabs,
+     request editor above the response (resizable split), command palette and global shortcuts.
+     Owner: wave 3, strand A. Composes the other strands' components through their props only.
+     Wave 4 mount points: GitPanel (A2), ImportDialog (B), RecentCollections and
+     reopenOnStart (C), SearchPanel and HistoryPanel (E). -->
 <script lang="ts">
-  import { tick } from "svelte";
+  import { onMount, tick } from "svelte";
 
-  import type { Backend } from "../commands/backend";
+  import type { Backend, CollectionInfo } from "../commands/backend";
   import RequestEditor from "../editor/RequestEditor.svelte";
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
+  import GitPanel from "../git/GitPanel.svelte";
+  import HistoryPanel from "../history/HistoryPanel.svelte";
+  import ImportDialog from "../import/ImportDialog.svelte";
+  import RecentCollections from "../recent/RecentCollections.svelte";
+  import { reopenOnStart } from "../recent/startup";
+  import SearchPanel from "../search/SearchPanel.svelte";
   import ResponseView from "../response/ResponseView.svelte";
   import { AppState, provideApp } from "../state/app.svelte";
   import "../styles/base.css";
@@ -36,11 +44,31 @@
   };
 
   let managing = $state(false);
+  let importing = $state(false);
   let innerWidth = $state(1024);
   let paletteOpen = $state(false);
   /** Folder the inline "new request" prompt is open for (`""` = root). */
   let newIn = $state<string | null>(null);
   let sidebar = $state<ReturnType<typeof Sidebar>>();
+  let searchPanel = $state<ReturnType<typeof SearchPanel>>();
+
+  // ---- sidebar views (per device) ----
+  type SideView = "requests" | "search" | "history" | "git";
+  const SIDE_VIEWS: { id: SideView; label: string }[] = [
+    { id: "requests", label: "Requests" },
+    { id: "search", label: "Search" },
+    { id: "history", label: "History" },
+    { id: "git", label: "Git" },
+  ];
+  const isSideView = (v: unknown): v is SideView => SIDE_VIEWS.some((s) => s.id === v);
+  let sideView = $state<SideView>(load("sideView", "requests", isSideView));
+  async function showView(view: SideView) {
+    sideView = view;
+    store("sideView", view);
+    await tick();
+    if (view === "search") searchPanel?.focus();
+    if (view === "requests") await sidebar?.focus();
+  }
 
   // ---- panel sizes (per device) ----
   const SIDEBAR_MIN = 160;
@@ -85,20 +113,34 @@
     if (saved.active && app.tabs.includes(saved.active)) await app.select(saved.active);
   }
 
-  async function openFolder() {
+  /** Runs `opening` (which may open a collection) and restores that collection's tabs. */
+  async function openWith(opening: () => Promise<void>) {
     const before = app.collection;
     restoring = true;
     try {
-      await app.open();
+      await opening();
       if (app.collection && app.collection !== before) await restoreTabs(app.collection.id);
     } finally {
       restoring = false;
     }
     if (app.collection && app.collection !== before) {
+      if (sideView !== "requests") return;
       await tick();
       await sidebar?.focus();
     }
   }
+  const openFolder = () => openWith(() => app.open());
+  /** For collections the backend opened itself (recent list, import, clone). */
+  const adoptCollection = (info: CollectionInfo) => openWith(() => app.adopt(info));
+
+  onMount(() => {
+    reopenOnStart(app).then(
+      (info) => {
+        if (info && !app.collection) void adoptCollection(info);
+      },
+      (e: unknown) => console.warn("RequestTailor: reopening the last collection failed:", e),
+    );
+  });
 
   // ---- commands and shortcuts ----
   const actions: Actions = {
@@ -113,7 +155,11 @@
     },
     palette: () => (paletteOpen = !paletteOpen),
     "toggle-theme": () => theme.toggle(),
-    "focus-sidebar": () => sidebar?.focus(),
+    "focus-sidebar": () => showView("requests"),
+    import: () => (importing = true),
+    search: () => showView("search"),
+    history: () => showView("history"),
+    git: () => showView("git"),
   };
   const commands = $derived(buildCommands(app, actions, mac));
 
@@ -144,6 +190,7 @@
     <button class="button" data-testid="open-collection" title="Open folder ({keys('open-folder')})" onclick={openFolder}>
       Open folder
     </button>
+    <button class="button" data-testid="import" onclick={() => (importing = true)}>Import</button>
     <span class="collection" title={app.collection?.location ?? ""}>
       <span data-testid="collection-name">{app.collection?.name ?? ""}</span>
     </span>
@@ -180,7 +227,30 @@
 
   <div class="body">
     <div class="side" style:width="{sidebarWidth}px">
-      <Sidebar bind:this={sidebar} bind:newIn hint={keys("new-request")} />
+      {#if app.collection}
+        <div class="views" role="tablist" aria-label="Sidebar">
+          {#each SIDE_VIEWS as v (v.id)}
+            <button
+              role="tab"
+              class="view"
+              data-testid="view-{v.id}"
+              aria-selected={sideView === v.id}
+              onclick={() => showView(v.id)}>{v.label}</button
+            >
+          {/each}
+        </div>
+      {/if}
+      <div class="view-body">
+        {#if sideView === "requests" || !app.collection}
+          <Sidebar bind:this={sidebar} bind:newIn hint={keys("new-request")} />
+        {:else if sideView === "search"}
+          <SearchPanel bind:this={searchPanel} />
+        {:else if sideView === "history"}
+          <HistoryPanel />
+        {:else}
+          <GitPanel onopen={adoptCollection} />
+        {/if}
+      </div>
     </div>
     <Resizer
       label="Resize sidebar"
@@ -226,6 +296,7 @@
       {:else}
         <div class="start" data-testid="start">
           <p>{app.collection ? "Open a request from the sidebar." : "Open a folder with a collection to start."}</p>
+          {#if !app.collection}<RecentCollections onopen={adoptCollection} />{/if}
           <dl>
             {#each SHORTCUTS as s (s.command)}
               <dt><kbd>{formatShortcut(s, mac)}</kbd></dt>
@@ -244,6 +315,7 @@
 
 <CommandPalette bind:open={paletteOpen} {commands} />
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
+<ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
 
 <svelte:window bind:innerWidth />
 
@@ -307,6 +379,32 @@
     flex: none;
     min-width: 0;
     max-width: 60vw;
+    display: flex;
+    flex-direction: column;
+  }
+  .views {
+    display: flex;
+    gap: 2px;
+    padding: 4px 6px 0;
+    border-bottom: 1px solid var(--rt-border);
+  }
+  .view {
+    padding: 3px 8px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--rt-fg-muted);
+    font: inherit;
+    font-size: var(--rt-size-small);
+    cursor: pointer;
+  }
+  .view[aria-selected="true"] {
+    border-bottom-color: var(--rt-accent);
+    color: var(--rt-fg);
+  }
+  .view-body {
+    flex: 1;
+    min-height: 0;
   }
   main {
     flex: 1;

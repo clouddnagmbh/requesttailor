@@ -322,7 +322,7 @@ fn jsonpath_errors_are_clear() {
         "$..[",
         "$.a b",
     ] {
-        let Err(AppError::Shell(message)) = filter(bad) else {
+        let Err(AppError::Filter(message)) = filter(bad) else {
             panic!("{bad:?} should be rejected")
         };
         assert!(
@@ -339,7 +339,7 @@ fn filtering_a_non_json_body_is_a_clear_error() {
         .insert(text("{\"a\": 1,\n oops}"))
         .response_id
         .unwrap();
-    let Err(AppError::Shell(message)) = store.filter_json(id, "$.a") else {
+    let Err(AppError::Filter(message)) = store.filter_json(id, "$.a") else {
         panic!("should fail")
     };
     assert!(
@@ -349,7 +349,7 @@ fn filtering_a_non_json_body_is_a_clear_error() {
     assert!(message.contains("line 2"), "{message}");
 
     let id = store.insert(binary(&[0xff, 0x00])).response_id.unwrap();
-    let Err(AppError::Shell(message)) = store.filter_json(id, "$") else {
+    let Err(AppError::Filter(message)) = store.filter_json(id, "$") else {
         panic!("should fail")
     };
     assert!(
@@ -364,7 +364,7 @@ fn filtering_a_too_large_body_is_refused_before_parsing() {
     let body = format!("[{}0]", "0,".repeat(20 * 1024 * 1024));
     let id = store.insert(text(&body)).response_id.unwrap();
     let started = Instant::now();
-    let Err(AppError::Shell(message)) = store.filter_json(id, "$[0]") else {
+    let Err(AppError::Filter(message)) = store.filter_json(id, "$[0]") else {
         panic!("should fail")
     };
     assert!(message.contains("too large"), "{message}");

@@ -192,21 +192,24 @@ impl Workspace {
 
     /// Files that changed since open or the last save; the shell writes them. Clears `dirty`.
     ///
-    /// **Deleted files** (a deleted environment) are returned as a `FileChange` with an
-    /// empty `text`: the shell deletes that file. No file the format writes is ever empty, so
-    /// this cannot be mistaken for content. (Stopgap until `FileChange` can say "delete".)
+    /// **Deleted files** (a deleted environment) are returned with `deleted: true` and an
+    /// empty `text`: the shell deletes that file.
     pub fn save(&mut self) -> Result<Vec<FileChange>, AppError> {
         let now = self.doc.write();
         let changes: Vec<FileChange> = self
             .dirty
             .iter()
-            .map(|path| FileChange {
-                path: path.clone(),
-                text: now
-                    .files
-                    .get(path)
-                    .map(|b| String::from_utf8_lossy(b).into_owned())
-                    .unwrap_or_default(),
+            .map(|path| match now.files.get(path) {
+                Some(b) => FileChange {
+                    path: path.clone(),
+                    text: String::from_utf8_lossy(b).into_owned(),
+                    deleted: false,
+                },
+                None => FileChange {
+                    path: path.clone(),
+                    text: String::new(),
+                    deleted: true,
+                },
             })
             .collect();
         for change in &changes {

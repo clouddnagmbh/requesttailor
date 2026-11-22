@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 rt-core = { path = "../rt-core" }
+# Loss reports and import formats are part of the app and CLI JSON.
+serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
 [lints]

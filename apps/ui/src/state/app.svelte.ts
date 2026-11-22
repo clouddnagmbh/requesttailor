@@ -32,6 +32,11 @@ export class AppState {
   sending = $state<Record<string, boolean>>({});
   /** Last error to show in the status area, or `null`. */
   error = $state<string | null>(null);
+  /** Counts finished sends; views that show sent data (history) re-read when it changes. */
+  sendCount = $state(0);
+  /** Counts collection (re)loads: open, `adopt`, `reload`; views that cache collection data
+   *  (Git status, search results) re-read when it changes. */
+  loadCount = $state(0);
 
   /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
    *  shells with concurrent commands (Tauri) never send or save a stale request. */
@@ -51,19 +56,58 @@ export class AppState {
     }
   }
 
+  /** Shows the folder picker and opens the chosen collection. */
   async open(): Promise<void> {
     await this.guard(async () => {
       const info = await this.backend.openCollection();
-      if (!info) return;
-      this.collection = info;
-      this.tabs = [];
-      this.active = null;
-      this.drafts = {};
-      this.results = {};
+      if (info) await this.load(info);
+    });
+  }
+
+  /** Shows a collection the backend has just opened by other means (recent list, import,
+   *  clone). */
+  async adopt(info: CollectionInfo): Promise<void> {
+    await this.guard(() => this.load(info));
+  }
+
+  private async load(info: CollectionInfo): Promise<void> {
+    this.collection = info;
+    this.tabs = [];
+    this.active = null;
+    this.drafts = {};
+    this.results = {};
+    this.tree = await this.backend.tree();
+    this.environments = await this.backend.environments();
+    this.environment = this.environments[0]?.name ?? null;
+    this.dirty = await this.backend.dirty();
+    this.loadCount++;
+  }
+
+  /** Re-reads the open collection after its files changed underneath (Git checkout, pull,
+   *  conflict resolution). Keeps the tabs whose requests still exist, with their state from
+   *  the files; the active environment stays if it still exists. */
+  async reload(): Promise<void> {
+    if (!this.collection) return;
+    await this.lastEdit;
+    await this.guard(async () => {
       this.tree = await this.backend.tree();
+      const drafts: Record<string, RequestSpec> = {};
+      for (const path of this.tabs) {
+        try {
+          drafts[path] = await this.backend.getRequest(path);
+        } catch {
+          // The request is gone in this version of the files.
+        }
+      }
+      this.drafts = drafts;
+      this.tabs = this.tabs.filter((p) => p in drafts);
+      if (this.active && !(this.active in drafts)) this.active = this.tabs[0] ?? null;
       this.environments = await this.backend.environments();
-      this.environment = this.environments[0]?.name ?? null;
+      if (!this.environments.some((e) => e.name === this.environment)) {
+        this.environment = this.environments[0]?.name ?? null;
+      }
       this.dirty = await this.backend.dirty();
+      this.loadCount++;
     });
   }
 
@@ -126,6 +170,7 @@ export class AppState {
       if (previous?.response_id != null) await this.backend.releaseResponse(previous.response_id);
     });
     this.sending[path] = false;
+    this.sendCount++;
   }
 
   setEnvironment(name: string | null): void {

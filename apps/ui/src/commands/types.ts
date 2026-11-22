@@ -193,7 +193,10 @@ export interface Preview {
 
 export interface FileChange {
   path: string;
+  /** Empty when `deleted`. */
   text: string;
+  /** Delete the file (a file that is already gone is fine). */
+  deleted: boolean;
 }
 
 export type AppError =
@@ -202,6 +205,12 @@ export type AppError =
   | { kind: "folder-not-found"; message: string }
   | { kind: "response-not-found"; message: number }
   | { kind: "environment-not-found"; message: string }
+  | { kind: "filter"; message: string }
+  | { kind: "import"; message: string }
+  | { kind: "git"; message: string }
+  /** The remote wants credentials or rejected them; `message` is the host. */
+  | { kind: "git-auth"; message: string }
+  | { kind: "unsupported"; message: string }
   | { kind: "shell"; message: string };
 
 export interface StoredResponse {
@@ -224,4 +233,153 @@ export interface SecretKey {
   collection: string;
   environment: string;
   variable: string;
+}
+
+// ---- git (rt_app::git) ----
+
+export type GitFileState = "untracked" | "modified" | "deleted" | "conflicted";
+
+export interface GitFile {
+  path: string;
+  state: GitFileState;
+}
+
+export interface GitStatus {
+  /** `false`: the collection is not in a Git repository. */
+  repo: boolean;
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  files: GitFile[];
+  merging: boolean;
+}
+
+export interface GitBranch {
+  name: string;
+  current: boolean;
+  remote: boolean;
+}
+
+export interface GitCommit {
+  oid: string;
+  summary: string;
+  author: string;
+  /** Unix seconds. */
+  time: number;
+}
+
+export type GitPullResult =
+  | { outcome: "up-to-date" }
+  | { outcome: "fast-forward"; commits: number }
+  | { outcome: "merged"; oid: string }
+  | { outcome: "conflicts"; paths: string[] };
+
+export interface GitConflict {
+  path: string;
+  base: string | null;
+  ours: string | null;
+  theirs: string | null;
+}
+
+export type GitResolution = "ours" | "theirs";
+
+export interface GitIdentity {
+  name: string;
+  email: string;
+}
+
+export type DiffLineKind = "context" | "added" | "removed";
+
+export interface DiffLine {
+  kind: DiffLineKind;
+  text: string;
+}
+
+export interface DiffHunk {
+  old_start: number;
+  old_lines: number;
+  new_start: number;
+  new_lines: number;
+  lines: DiffLine[];
+}
+
+export interface GitDiff {
+  path: string;
+  binary: boolean;
+  hunks: DiffHunk[];
+}
+
+// ---- import (rt_format::import, rt_app::import) ----
+
+export type ImportFormat = "postman" | "insomnia" | "openapi" | "curl" | "har" | "http";
+
+export type LossKind =
+  | "script"
+  | "test"
+  | "auth"
+  | "body"
+  | "variable"
+  | "setting"
+  | "documentation"
+  | "example"
+  | "protocol"
+  | "other";
+
+export type LossEffect = "dropped" | "approximated";
+
+export interface Loss {
+  /** Where in the source, e.g. `Users / Get user`. */
+  location: string;
+  kind: LossKind;
+  effect: LossEffect;
+  detail: string;
+}
+
+export interface LossReport {
+  format: ImportFormat;
+  requests: number;
+  folders: number;
+  environments: number;
+  losses: Loss[];
+}
+
+export interface ImportPlan {
+  id: number;
+  format: ImportFormat;
+  collection_name: string;
+  folder_name: string;
+  files: number;
+  report: LossReport;
+}
+
+// ---- history and search (rt_app::history, rt_app::search) ----
+
+export interface HistoryEntry {
+  id: number;
+  /** Unix milliseconds. */
+  at: number;
+  collection: string;
+  request_path: string;
+  name: string;
+  environment: string | null;
+  method: string;
+  /** As sent, secrets masked. */
+  url: string | null;
+  status: number | null;
+  error: SendError | null;
+  duration_ms: number | null;
+  size: number | null;
+}
+
+export type SearchField = "name" | "url" | "param" | "header" | "body" | "auth" | "variable";
+
+export interface SearchHit {
+  path: string;
+  name: string;
+  method: string;
+  field: SearchField;
+  snippet: string;
+  /** `[start, end)` offsets into `snippet` (JavaScript string indexes). */
+  ranges: [number, number][];
 }

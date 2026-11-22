@@ -9,13 +9,17 @@
 //! - Requests go out through `rt_core`'s native transport (one instance, connections reused).
 //! - Secret values come from a [`SecretStore`] (the OS keychain in the app) and are injected
 //!   into `SendInput::secrets` for the selected environment only, at send and preview time.
+//! - Wave 4 parts live in their own modules and hang off `Core` as fields: `history` (strand
+//!   E, recorded on every send), `recent` (strand C, told on every open), `imports` (strand
+//!   B). Git (strand A1) works on [`Core::root`] and calls [`Core::reload`] afterwards.
+//!   `data_dir` is the app's data folder (`None` in tests: nothing is persisted).
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
 use rt_app::{
-    AppError, FileChange, LineSlice, Preview, ResponseStore, SecretKey, SecretStore, SendInput,
-    StoredResponse, TreeNode, Workspace,
+    AppError, FileChange, Imports, LineSlice, Preview, ResponseStore, SecretKey, SecretStore,
+    SendInput, StoredResponse, TreeNode, Workspace,
 };
 use rt_core::model::{Environment, RequestSpec};
 use rt_core::send::SendOptions;
@@ -23,6 +27,8 @@ use rt_core::transport::native::NativeTransport;
 use serde::Serialize;
 
 use crate::files;
+use crate::history::DesktopHistory;
+use crate::recent::Recent;
 
 /// Body bytes kept per response. The response store keeps the whole body so the UI can
 /// render it virtually (budget: a 100 MB response scrolls without stutter).
@@ -48,6 +54,11 @@ pub struct Core<S> {
     responses: Mutex<ResponseStore>,
     transport: NativeTransport,
     secrets: S,
+    /// The app's data folder; `None`: persist nothing (tests).
+    pub data_dir: Option<PathBuf>,
+    pub history: DesktopHistory,
+    pub recent: Recent,
+    pub imports: Mutex<Imports>,
 }
 
 fn shell(e: impl std::fmt::Display) -> AppError {
@@ -60,13 +71,53 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl<S: SecretStore> Core<S> {
+    /// A core that persists nothing (tests).
     pub fn new(secrets: S) -> Result<Self, AppError> {
+        Self::with_data_dir(secrets, None)
+    }
+
+    /// A core that keeps history and recent collections in `data_dir`.
+    pub fn with_data_dir(secrets: S, data_dir: Option<PathBuf>) -> Result<Self, AppError> {
         Ok(Self {
             session: Mutex::new(None),
             responses: Mutex::new(ResponseStore::new()),
             transport: NativeTransport::new().map_err(shell)?,
+            history: DesktopHistory::new(data_dir.as_deref()),
+            recent: Recent::new(data_dir.as_deref()),
+            imports: Mutex::new(Imports::new()),
             secrets,
+            data_dir,
         })
+    }
+
+    /// The secret store (Git credentials are kept there too).
+    pub fn secrets(&self) -> &S {
+        &self.secrets
+    }
+
+    /// Root folder of the open collection.
+    pub fn root(&self) -> Option<PathBuf> {
+        lock(&self.session).as_ref().map(|s| s.root.clone())
+    }
+
+    /// Id (`CollectionInfo::id`) of the open collection.
+    pub fn collection_id(&self) -> Option<String> {
+        lock(&self.session).as_ref().map(|s| s.id.clone())
+    }
+
+    /// Whether the open collection has unsaved changes (Git refuses to change files then).
+    pub fn has_unsaved_changes(&self) -> bool {
+        lock(&self.session)
+            .as_ref()
+            .is_some_and(|s| !s.workspace.dirty().is_empty())
+    }
+
+    /// Reads the open collection's folder again (after Git changed its files).
+    pub fn reload(&self) -> Result<CollectionInfo, AppError> {
+        let root = self
+            .root()
+            .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
+        self.open(&root)
     }
 
     fn with_session<T>(
@@ -107,6 +158,7 @@ impl<S: SecretStore> Core<S> {
         });
         // Bodies of the previous collection are no longer reachable from the UI.
         *lock(&self.responses) = ResponseStore::new();
+        self.recent.opened(&info);
         Ok(info)
     }
 
@@ -164,9 +216,10 @@ impl<S: SecretStore> Core<S> {
 
     /// Sends the current (possibly unsaved) state of the request.
     pub async fn send(&self, path: &str, input: SendInput) -> Result<StoredResponse, AppError> {
-        let snapshot = self.with_session(|s| {
+        let (snapshot, collection, spec) = self.with_session(|s| {
             let input = self.with_secrets(s, input)?;
-            s.workspace.snapshot(path, input)
+            let spec = s.workspace.request(path)?;
+            Ok((s.workspace.snapshot(path, input)?, s.id.clone(), spec))
         })?;
         let transport = self.transport.clone();
         // The core's send future is not `Send` (response bodies are `!Send` streams, as in
@@ -182,6 +235,8 @@ impl<S: SecretStore> Core<S> {
         })
         .await
         .map_err(|e| AppError::Shell(format!("send failed: {e}")))?;
+        self.history
+            .record(&collection, &spec.name, &spec.method, &report);
         Ok(lock(&self.responses).insert(report))
     }
 
@@ -191,6 +246,10 @@ impl<S: SecretStore> Core<S> {
 
     pub fn response_bytes(&self, id: u64, offset: u64, length: u32) -> Result<Vec<u8>, AppError> {
         lock(&self.responses).bytes(id, offset, length)
+    }
+
+    pub fn search(&self, query: &str, limit: usize) -> Result<Vec<rt_app::SearchHit>, AppError> {
+        self.with_session(|s| Ok(rt_app::search::search(&s.workspace, query, limit)))
     }
 
     pub fn filter_json(&self, id: u64, expression: &str) -> Result<String, AppError> {

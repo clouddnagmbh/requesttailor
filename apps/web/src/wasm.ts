@@ -10,9 +10,13 @@ import {
   BackendError,
   type Environment,
   type FileChange,
+  type GitDiff,
+  type ImportFormat,
+  type ImportPlan,
   type LineSlice,
   type Preview,
   type RequestSpec,
+  type SearchHit,
   type SendReport,
   type StoredResponse,
   type TreeNode,
@@ -53,6 +57,16 @@ export interface CoreWorkspace {
   responseBytes(id: number, offset: number, length: number): Uint8Array;
   filterJson(id: number, expression: string): string;
   releaseResponse(id: number): void;
+  search(query: string, limit: number): SearchHit[];
+  free(): void;
+}
+
+/** `Importer` (crates/rt-wasm/src/import_js.rs). */
+export interface CoreImporter {
+  analyze(fileName: string, data: Uint8Array, format: ImportFormat | null): ImportPlan;
+  /** The new collection's files; the plan is gone afterwards. */
+  take(id: number): FileChange[];
+  discard(id: number): void;
   free(): void;
 }
 
@@ -62,6 +76,8 @@ export interface CoreModule {
   default(options?: { module_or_path?: string | URL }): Promise<unknown>;
   Workspace: { open(files: CoreFiles): CoreWorkspace };
   send(files: CoreFiles, requestPath: string, options?: Record<string, unknown>): Promise<SendReport>;
+  Importer: new () => CoreImporter;
+  textDiff(path: string, old: Uint8Array | null, current: Uint8Array | null): GitDiff;
 }
 
 // An absolute URL: Vite's dev server would otherwise mark the import as a module import and

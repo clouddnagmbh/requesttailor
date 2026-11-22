@@ -68,14 +68,16 @@ Die Budgets werden als automatisierte Tests gemessen; eine Überschreitung brich
 
 ```
 crates/rt-core     HTTP-Engine, Variablen, Auth, Runner
-crates/rt-format   OpenCollection lesen und schreiben, Importer
+crates/rt-format   OpenCollection lesen und schreiben, Importer (`import`, ein Modul pro Quelle, Verlustbericht)
 crates/rt-script   Skript-Sandbox (QuickJS)
 crates/rt-plugin   Plugin-Host (WASM) und SDK
 crates/rt-cli      CLI `rt`, Begleitdienst, MCP-Server
 crates/rt-wasm     Kern als WebAssembly
-crates/rt-app      Befehlsschicht der App (Rust-Seite): Workspace, Antwortspeicher, Secrets
+crates/rt-app      Befehlsschicht der App (Rust-Seite): Workspace, Antwortspeicher, Secrets, Git-Typen, Import, Historie, Suche
+crates/rt-git      Git nativ (gitoxide), nur Desktop/CLI/iOS, nicht wasm32
 crates/rt-testserver  lokaler HTTP-Testserver (nur Testinfrastruktur, nativ)
 testdata/collections/bruno  Korpus: 86 Bruno-Collections (MIT), unverändert, für Round-Trip-Tests
+testdata/import    Import-Korpus pro Quelle, frei lizenziert, Herkunft und Lizenz je Datei in SOURCES.md
 apps/ui            gemeinsame Oberfläche (Svelte 5, TypeScript, CodeMirror 6)
 apps/desktop       Tauri-2-Hülle; Crate `rt-desktop` in `apps/desktop/src-tauri` (nur Desktop, nicht wasm32/iOS)
 apps/web           Web-App
@@ -105,7 +107,10 @@ Stand Welle 2. Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1
 - Gemeinsamer Zustand: `apps/ui/src/state/app.svelte.ts` (`getApp()`).
 - Secret-Werte stehen nie in Collection-Dateien: nativ im OS-Schlüsselbund, im Web verschlüsselt im Browser-Speicher; sie gehen nur beim Senden in den Umgebungs-Layer (`SendInput.secrets`).
 - Große Antworten bleiben auf der Rust-Seite (`ResponseStore`); die UI holt nur sichtbare Zeilen.
-- Hüllen: Desktop über Tauri-Befehle (`apps/desktop/src-tauri`, Ordner-Zugriff nur auf der Rust-Seite, Schlüsselbund), Web über `rt-wasm` (`Workspace`-Klasse), File System Access und verschlüsselten Browser-Speicher. Beide lesen Ordner nach denselben Regeln und speichern über `prepareSave`/`commit`; ein `FileChange` mit leerem `text` heißt „Datei löschen“ (Notlösung bis zu einem eigenen Feld).
+- Hüllen: Desktop über Tauri-Befehle (`apps/desktop/src-tauri`, Ordner-Zugriff nur auf der Rust-Seite, Schlüsselbund), Web über `rt-wasm` (`Workspace`-Klasse), File System Access und verschlüsselten Browser-Speicher. Beide lesen Ordner nach denselben Regeln und speichern über `prepareSave`/`commit`; ein `FileChange` mit `deleted: true` heißt „Datei löschen“.
+- Welle 4: `Backend` hat `git` (`GitApi`), `imports` (`ImportApi`), `history` (`HistoryApi`), `search`, `recentCollections`/`openRecent`. Typen in `rt_app::{git, import, history, search}` und `rt_format::import`. Jede Hülle setzt sie in eigenen Dateien um (Desktop: `src-tauri/src/{git,import,history,search,recent}.rs` und `src/{git,import,history}.ts`; Web: `src/{git/,import.ts,history.ts,recent.ts}`; Mock: `commands/mock-*.ts`). Neue Tauri-Befehle stehen dreimal: `build.rs`, `capabilities/default.json`, `generate_handler!` in `lib.rs` (der Desktop-Test prüft das).
+- Git ohne Staging-Bereich: `commit(message, paths)`. Was Arbeitsdateien ändert (`checkout`, `pull`, `resolve`), verweigert bei ungespeicherten Änderungen; danach ruft die UI `AppState.reload()`. Nativ `rt-git` (gitoxide), im Web isomorphic-git, Netzwerk dort über den Begleitdienst.
+- Historie speichert keine Bodies und keine Header-Werte; die URL ist die maskierte aus dem Report.
 - Begleitdienst `rt agent` (`crates/rt-cli/src/agent`, Protokoll in `rt_core::transport::companion`): nur Loopback, Host- und Origin-Prüfung, Kopplung per Einmalcode, Token nur im Speicher. Sicherheitsmodell in `crates/rt-cli/README.md`.
 
 ## Befehle
@@ -115,7 +120,7 @@ Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit
 ```sh
 cargo build --workspace --all-targets --locked
 cargo test --workspace --locked
-cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-desktop --target wasm32-unknown-unknown --locked
+cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-desktop --exclude rt-git --target wasm32-unknown-unknown --locked
 cargo check --workspace --exclude rt-desktop --all-targets --target aarch64-apple-ios --locked
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings

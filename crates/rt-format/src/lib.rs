@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! `rt-format`: reads and writes OpenCollection 1.0 (YAML) collections; importers later.
+//! `rt-format`: reads and writes OpenCollection 1.0 (YAML) collections; importers (`import`).
 //!
 //! This is the only crate that knows the file format (see CLAUDE.md, "Format"). It maps files
 //! to `rt_core::model` and back. It works on an in-memory [`FileSet`], so the same code runs
@@ -17,7 +17,7 @@
 //! this one. How files map to the model is described in the `read` module; how the model is
 //! written back (format-preserving edits) in the `write` module.
 //!
-//! Owner: wave 2, strand B (reading); wave 3, strand F (writing).
+//! Owner: wave 2, strand B (reading); wave 3, strand F (writing); wave 4, strand B (`import`).
 
 use std::collections::BTreeMap;
 
@@ -26,6 +26,7 @@ use rt_core::model::Collection;
 mod edit;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs;
+pub mod import;
 mod read;
 mod write;
 mod yaml;

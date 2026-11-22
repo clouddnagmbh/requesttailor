@@ -47,6 +47,11 @@
 //! filterJson(id, expression) -> string     releaseResponse(id)
 //! ```
 //!
+//! Wave 4 (one file each): `search(query, limit) -> SearchHit[]` on `Workspace`;
+//! `textDiff(path, old, new) -> GitDiff` (`git_js.rs`); `Importer` with
+//! `analyze(fileName, data, format) -> ImportPlan`, `take(id) -> FileChange[]`, `discard(id)`
+//! (`import_js.rs`); history helpers (`history_js.rs`, strand E).
+//!
 //! Saving is two-step so a failed write keeps the changes unsaved: `prepareSave()` returns
 //! `{ changes: FileChange[] }` without touching the workspace; after the shell has written the
 //! files it calls `commit(prepared)`, which clears `dirty`.
@@ -150,7 +155,7 @@ mod js {
 
     use super::{Options, send_files};
 
-    fn type_error(msg: impl AsRef<str>) -> JsValue {
+    pub(crate) fn type_error(msg: impl AsRef<str>) -> JsValue {
         js_sys::TypeError::new(msg.as_ref()).into()
     }
 
@@ -253,13 +258,13 @@ mod workspace_js {
 
     use super::{BODY_LIMIT, Companion, error_parts};
 
-    fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
+    pub(crate) fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
         let json =
             serde_json::to_string(value).map_err(|e| named_error("shell", &e.to_string()))?;
         JSON::parse(&json)
     }
 
-    fn from_js<T: DeserializeOwned>(value: &JsValue, what: &str) -> Result<T, JsValue> {
+    pub(crate) fn from_js<T: DeserializeOwned>(value: &JsValue, what: &str) -> Result<T, JsValue> {
         let json = JSON::stringify(value)
             .map_err(|_| type_error(format!("{what} must be JSON-serializable")))?;
         serde_json::from_str(&String::from(json))
@@ -270,20 +275,20 @@ mod workspace_js {
         js_sys::TypeError::new(&msg).into()
     }
 
-    fn named_error(kind: &str, message: &str) -> JsValue {
+    pub(crate) fn named_error(kind: &str, message: &str) -> JsValue {
         let err = js_sys::Error::new(message);
         err.set_name("AppError");
         let _ = Reflect::set(&err, &"kind".into(), &kind.into());
         err.into()
     }
 
-    fn app_error(e: AppError) -> JsValue {
+    pub(crate) fn app_error(e: AppError) -> JsValue {
         let (kind, message) = error_parts(&e);
         named_error(&kind, &message)
     }
 
     /// JavaScript numbers are f64; ids and offsets are non-negative integers.
-    fn int(value: f64) -> Result<u64, JsValue> {
+    pub(crate) fn int(value: f64) -> Result<u64, JsValue> {
         if value.is_finite() && value >= 0.0 && value.fract() == 0.0 {
             Ok(value as u64)
         } else {
@@ -493,6 +498,15 @@ mod workspace_js {
             self.inner.borrow_mut().responses.release(int(id)?);
             Ok(())
         }
+
+        /// `SearchHit[]` (`rt_app::search`, owner: wave 4, strand E).
+        pub fn search(&self, query: &str, limit: u32) -> Result<JsValue, JsValue> {
+            to_js(&rt_app::search::search(
+                &self.inner.borrow().workspace,
+                query,
+                limit as usize,
+            ))
+        }
     }
 
     /// Result of `Workspace.prepareSave`.
@@ -511,6 +525,14 @@ mod workspace_js {
         }
     }
 }
+
+// Wave 4, one module per strand: git (A2), import (B), history (E).
+#[cfg(target_arch = "wasm32")]
+mod git_js;
+#[cfg(target_arch = "wasm32")]
+mod history_js;
+#[cfg(target_arch = "wasm32")]
+mod import_js;
 
 #[cfg(test)]
 mod tests {

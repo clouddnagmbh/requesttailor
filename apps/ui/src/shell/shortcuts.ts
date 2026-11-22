@@ -14,7 +14,11 @@ export type CommandId =
   | "close-tab"
   | "palette"
   | "toggle-theme"
-  | "focus-sidebar";
+  | "focus-sidebar"
+  | "import"
+  | "search"
+  | "history"
+  | "git";
 
 export interface Shortcut {
   command: CommandId;

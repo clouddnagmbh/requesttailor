@@ -25,7 +25,7 @@
 //! the target, so a crash never leaves a half-written request file. Paths are relative and
 //! `/`-separated; anything that could leave the root (`..`, absolute, `\`) is rejected.
 //!
-//! A change with empty `text` means the file was deleted (`Workspace::save` reports a deleted
+//! A change with `deleted: true` means the file was deleted (`Workspace::save` reports a deleted
 //! environment that way): the file is removed; a file that is already gone is fine.
 
 use std::io::{self, Write as _};
@@ -105,7 +105,7 @@ fn too_large(why: String) -> io::Error {
 }
 
 /// Writes `changes` below `root`, each file atomically (temporary file, then rename); a change
-/// with empty `text` deletes its file. Stops at the first error; files written before it stay
+/// with `deleted: true` deletes its file. Stops at the first error; files written before it stay
 /// written.
 pub fn write_changes(root: &Path, changes: &[FileChange]) -> io::Result<()> {
     // Validate everything first, so a bad path does not leave a partial save behind.
@@ -114,7 +114,7 @@ pub fn write_changes(root: &Path, changes: &[FileChange]) -> io::Result<()> {
         .map(|c| resolve(root, &c.path))
         .collect::<io::Result<Vec<_>>>()?;
     for (change, target) in changes.iter().zip(targets) {
-        if change.text.is_empty() {
+        if change.deleted {
             match std::fs::remove_file(&target) {
                 Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e),
                 _ => {}
@@ -262,10 +262,12 @@ mod tests {
             FileChange {
                 path: "a.yml".into(),
                 text: "new\n".into(),
+                deleted: false,
             },
             FileChange {
                 path: "users/admin/b.yml".into(),
                 text: "b\n".into(),
+                deleted: false,
             },
         ];
         write_changes(&dir.0, &changes).unwrap();
@@ -287,18 +289,20 @@ mod tests {
     }
 
     #[test]
-    fn empty_text_deletes_the_file() {
+    fn deleted_changes_remove_the_file() {
         let dir = TempDir::new("delete");
         dir.put("environments/Old.yml", b"name: Old\n");
         let changes = vec![
             FileChange {
                 path: "environments/Old.yml".into(),
                 text: String::new(),
+                deleted: true,
             },
             // Already gone: not an error.
             FileChange {
                 path: "environments/Gone.yml".into(),
                 text: String::new(),
+                deleted: true,
             },
         ];
         write_changes(&dir.0, &changes).unwrap();
@@ -322,10 +326,12 @@ mod tests {
                 FileChange {
                     path: "ok.yml".into(),
                     text: "ok\n".into(),
+                    deleted: false,
                 },
                 FileChange {
                     path: bad.into(),
                     text: "x".into(),
+                    deleted: false,
                 },
             ];
             let err = write_changes(&dir.0, &changes).unwrap_err();

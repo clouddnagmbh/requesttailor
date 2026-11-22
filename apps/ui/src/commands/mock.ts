@@ -13,18 +13,26 @@ import type {
   Backend,
   CollectionInfo,
   CompanionStatus,
+  GitApi,
+  ImportApi,
+  RecentCollection,
   SecretsApi,
   SendInput,
   TransportApi,
   TransportMode,
 } from "./backend";
 import { BackendError } from "./backend";
+import { mockGit } from "./mock-git";
+import { MockHistory, mockSearch } from "./mock-history";
+import { mockImports } from "./mock-import";
+import { MockRecent } from "./mock-recent";
 import type {
   Environment,
   FileChange,
   LineSlice,
   Preview,
   RequestSpec,
+  SearchHit,
   SendReport,
   StoredResponse,
   TreeNode,
@@ -128,9 +136,30 @@ export class MockBackend implements Backend {
     for (const [p, s] of this.requests) this.saved.set(p, structuredClone(s));
   }
 
+  // Wave 4 parts, one file per strand (./mock-*.ts).
+  readonly git: GitApi = mockGit();
+  readonly imports: ImportApi = mockImports();
+  readonly history = new MockHistory();
+  readonly recent = new MockRecent();
+
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;
-    return { id: "mock-collection", name: "Demo API", location: "mock://demo" };
+    const info = { id: "mock-collection", name: "Demo API", location: "mock://demo" };
+    this.recent.opened(info);
+    return info;
+  }
+
+  async recentCollections(): Promise<RecentCollection[]> {
+    return this.recent.list();
+  }
+
+  async openRecent(id: string, _interactive: boolean): Promise<CollectionInfo | null> {
+    return id === "mock-collection" ? this.openCollection() : null;
+  }
+
+  async search(query: string, limit: number): Promise<SearchHit[]> {
+    this.ensureOpen();
+    return mockSearch(this.requests, query, limit);
   }
 
   private ensureOpen() {
@@ -198,7 +227,7 @@ export class MockBackend implements Backend {
       const text = `# mock rendering, not OpenCollection\n${JSON.stringify(spec, null, 2)}\n`;
       this.files.set(path, text);
       this.saved.set(path, structuredClone(spec));
-      changes.push({ path, text });
+      changes.push({ path, text, deleted: false });
     }
     for (const name of this.envDirty) {
       const env = this.envs.find((e) => e.name === name);
@@ -206,7 +235,7 @@ export class MockBackend implements Backend {
       // Secret values are never part of an Environment here (value: null).
       const text = env ? `# mock rendering\n${JSON.stringify(env, null, 2)}\n` : "";
       this.files.set(path, text);
-      changes.push({ path, text });
+      changes.push({ path, text, deleted: !env });
     }
     this.envDirty.clear();
     return changes;
@@ -253,6 +282,12 @@ export class MockBackend implements Backend {
   }
 
   async send(path: string, input: SendInput): Promise<StoredResponse> {
+    const result = await this.sendNow(path, input);
+    this.history.record("mock-collection", await this.getRequest(path), result);
+    return result;
+  }
+
+  private async sendNow(path: string, input: SendInput): Promise<StoredResponse> {
     const spec = await this.getRequest(path);
     const env = this.envs.find((e) => e.name === input.environment) ?? null;
     const used: VarUse[] = [];
@@ -367,11 +402,11 @@ export class MockBackend implements Backend {
 
   async filterJson(id: number, expression: string): Promise<string> {
     const s = this.stored(id);
-    if (s.text === null) throw new BackendError("shell", "body too large to filter");
+    if (s.text === null) throw new BackendError("filter", "body too large to filter");
     const value: unknown = JSON.parse(s.text);
     // Minimal JSONPath: `$` and `$.a.b` only.
     if (!/^\$(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(expression)) {
-      throw new BackendError("shell", `mock supports only $.a.b paths: ${expression}`);
+      throw new BackendError("filter", `mock supports only $.a.b paths: ${expression}`);
     }
     let cur: unknown = value;
     for (const key of expression.split(".").slice(1)) {

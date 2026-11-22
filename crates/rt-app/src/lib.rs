@@ -14,13 +14,21 @@
 //! into the send snapshot.
 //!
 //! Module owners in wave 3: `workspace` (strand F), `response` (strand C), `secrets` (strand D).
+//! Wave 4: `git` (strands A1/A2), `import` (strand B), `history` and `search` (strand E).
 //! Changes to the public types here are interface changes (working rule 1).
 
+pub mod git;
+pub mod history;
+pub mod import;
 pub mod response;
+pub mod search;
 pub mod secrets;
 mod workspace;
 
+pub use history::{History, HistoryEntry};
+pub use import::{ImportPlan, Imports};
 pub use response::{LineSlice, ResponseStore, StoredResponse};
+pub use search::{SearchField, SearchHit};
 pub use secrets::{SecretKey, SecretStore};
 pub use workspace::{Preview, PreviewVar, SendInput, SendSnapshot, Workspace};
 
@@ -44,12 +52,15 @@ pub enum TreeNode {
     },
 }
 
-/// A file the shell must write, relative to the collection root, `/`-separated.
+/// A file the shell must write (or delete), relative to the collection root, `/`-separated.
 /// Collection files are UTF-8 YAML, so the content is text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileChange {
     pub path: String,
+    /// New content; empty when `deleted`.
     pub text: String,
+    /// The shell deletes the file (a file that is already gone is fine).
+    pub deleted: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, Serialize, Deserialize)]
@@ -66,6 +77,21 @@ pub enum AppError {
     ResponseNotFound(u64),
     #[error("environment not found: {0}")]
     EnvironmentNotFound(String),
+    /// A JSONPath filter failed (bad expression, body not JSON).
+    #[error("{0}")]
+    Filter(String),
+    /// An import failed (unknown or invalid file).
+    #[error("{0}")]
+    Import(String),
+    /// A Git operation failed or was refused (unsaved changes, not a repository, ...).
+    #[error("{0}")]
+    Git(String),
+    /// The remote asked for credentials, or rejected them; the value is the host.
+    #[error("authentication required for {0}")]
+    GitAuth(String),
+    /// The command is not available in this shell (yet).
+    #[error("{0}")]
+    Unsupported(String),
     /// Anything the shell failed at (I/O, keychain, ...), passed through for display.
     #[error("{0}")]
     Shell(String),
