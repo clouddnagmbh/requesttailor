@@ -91,9 +91,10 @@ describe("formatJson", () => {
     const big = JSON.stringify(Array.from({ length: 50_000 }, (_, i) => ({ id: i, name: `n${i}`, tags: ["a", "b"] })));
     const t = performance.now();
     const out = formatJson(big);
-    expect(performance.now() - t).toBeLessThan(2000);
-    expect(JSON.parse(out!)).toEqual(JSON.parse(big));
-  });
+    // Generous: guards against quadratic behaviour, not a benchmark (machines and CI runners vary).
+    expect(performance.now() - t).toBeLessThan(10_000);
+    expect(JSON.stringify(JSON.parse(out!))).toBe(big);
+  }, 30_000);
 });
 
 describe("formatXml", () => {
@@ -168,9 +169,10 @@ describe("formatXml", () => {
     const big = `<items>${Array.from({ length: 50_000 }, (_, i) => `<item id="${i}"><name>n${i}</name><tags><t>a</t><t>b</t></tags></item>`).join("")}</items>`;
     const t = performance.now();
     const out = formatXml(big);
-    expect(performance.now() - t).toBeLessThan(2000);
+    // Generous: guards against quadratic behaviour, not a benchmark (machines and CI runners vary).
+    expect(performance.now() - t).toBeLessThan(10_000);
     expect(out!.split("\n")).toHaveLength(2 + 50_000 * 7);
-  });
+  }, 30_000);
 
   it("is idempotent", () => {
     idempotent(formatXml, '<?xml version="1.0"?><a><b x="1"><c>t</c><!-- k --></b><d/><m>a<i>b</i>c</m></a>');
