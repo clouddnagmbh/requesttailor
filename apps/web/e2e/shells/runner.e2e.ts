@@ -129,7 +129,6 @@ test("the command layer runs and plans like the UI", async ({ page }) => {
 });
 
 test("declarative assertions count in the run", async ({ page }) => {
-  test.skip(true, "wave 7: needs strand C");
   await setup(page, true);
   await runApiWithData(page);
   const summary = page.getByTestId("runner-summary");

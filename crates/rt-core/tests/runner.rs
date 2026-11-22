@@ -1015,7 +1015,6 @@ fn run_uses_the_platform_sleep_and_measures_the_duration() {
 // assertions (declarative, strand C's evaluator)
 
 #[test]
-#[ignore = "wave 7: needs strand C"]
 fn assertions_count_in_the_summary_and_fail_the_step() {
     let mut c = collection();
     let assertion = |value: &str| Assertion {

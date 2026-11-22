@@ -839,7 +839,6 @@ fn failing_tests_exit_4_and_no_scripts_skips_them() {
 }
 
 #[test]
-#[ignore = "wave 7: needs strands C, D"]
 fn failing_assertions_exit_4() {
     let (_server, base) = server();
     let tmp = TempDir::new("assert");
