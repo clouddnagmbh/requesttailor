@@ -34,13 +34,15 @@ export class PluginsState {
 
 const states = new WeakMap<Backend, PluginsState>();
 
-/** The plugin state of `backend`, loaded on first use. */
-export function pluginsState(backend: Backend): PluginsState {
+/** The plugin state of `backend`, loaded on first use unless `load` is false. Components
+ *  that are mounted from the start (dialogs) pass `false` and refresh when they open: listing
+ *  plugins loads the web core, which must not happen before a collection is opened. */
+export function pluginsState(backend: Backend, load = true): PluginsState {
   let s = states.get(backend);
   if (!s) {
     s = new PluginsState(backend);
     states.set(backend, s);
   }
-  void s.ensure();
+  if (load) void s.ensure();
   return s;
 }

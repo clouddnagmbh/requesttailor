@@ -15,7 +15,7 @@
 
   let { open, onclose }: { open: boolean; onclose: () => void } = $props();
   const app = getApp();
-  const plugins = pluginsState(app.backend);
+  const plugins = pluginsState(app.backend, false);
 
   let error = $state<string | null>(null);
   let busy = $state(false);

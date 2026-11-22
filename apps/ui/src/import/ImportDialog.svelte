@@ -22,7 +22,7 @@
 
   /** A built-in format, or `plugin:<plugin>/<importer>` (wave 5). */
   let format = $state<ImportFormat | "auto" | `plugin:${string}`>("auto");
-  const plugins = pluginsState(app.backend);
+  const plugins = pluginsState(app.backend, false);
   const importers = $derived(pluginImporters(plugins.list));
   let text = $state("");
   let dragging = $state(false);
