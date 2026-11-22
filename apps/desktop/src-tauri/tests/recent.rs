@@ -190,6 +190,6 @@ fn a_folder_that_is_gone_is_dropped_from_the_list() {
     std::fs::remove_dir_all(&gone.id).unwrap();
 
     assert_eq!(open_recent_in(&core, &gone.id).unwrap(), None);
-    assert_eq!(ids(&core.recent), [keep.id.clone()]);
+    assert_eq!(ids(&core.recent), [keep.id.as_str()]);
     assert_eq!(open_recent_in(&core, &keep.id).unwrap(), Some(keep));
 }
