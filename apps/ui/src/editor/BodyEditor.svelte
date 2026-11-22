@@ -1,8 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- Request body: none, raw (json, xml, text, sparql), form-url-encoded, multipart, file. -->
+<!-- Request body: none, raw (json, xml, text, sparql), form-url-encoded, multipart, file,
+     GraphQL (wave 8, strand B: `../graphql/GraphQlEditor.svelte`). -->
 <script lang="ts">
   import type { Body, MultipartPart, PartKind, RawKind } from "../commands/types";
+  import GraphQlEditor from "../graphql/GraphQlEditor.svelte";
   import CodeField from "./CodeField.svelte";
   import type { Language } from "./codemirror";
   import KeyValueTable, { type Row } from "./KeyValueTable.svelte";
@@ -34,6 +36,7 @@
     ["form-url-encoded", "Form URL encoded"],
     ["multipart", "Multipart form"],
     ["file", "File"],
+    ["graphql", "GraphQL"],
   ];
   const RAW: RawKind[] = ["json", "xml", "text", "sparql"];
 
@@ -54,6 +57,7 @@
       "form-url-encoded": { type: "form-url-encoded", fields: [] },
       multipart: { type: "multipart", parts: [] },
       file: { type: "file", path: "", content_type: null },
+      graphql: { type: "graphql", query: "", variables: "" },
     };
     onchange(kept ?? fresh[next], false);
   }
@@ -162,6 +166,13 @@
         />
       {/snippet}
     </KeyValueTable>
+  {:else if body.type === "graphql"}
+    <GraphQlEditor
+      query={body.query}
+      variables={body.variables}
+      {lookup}
+      onchange={(query, variables, typing) => onchange({ type: "graphql", query, variables }, typing)}
+    />
   {:else if body.type === "file"}
     <div class="file">
       <label>
