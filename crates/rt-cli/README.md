@@ -1,13 +1,18 @@
 # rt
 
-The RequestTailor command line: `rt send`, `rt run`, `rt import`, `rt scan`, the MCP server
-`rt mcp` and the companion `rt agent` (below).
+The RequestTailor command line: `rt send`, `rt run`, `rt import`, `rt scan`, Git for APIs
+(`rt diff`, `rt merge-driver`, `rt bisect`, `rt changelog`), the MCP server `rt mcp` and the
+companion `rt agent` (below).
 
 ```sh
 rt send <request-file> [--env NAME] [--var NAME=VALUE]... [--body-limit BYTES] [--pretty]
 rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAME[=FILE]]...
 rt import <file>... --out DIR [--format FORMAT] [--json]
 rt scan [PATH]... [--json]
+rt diff [<rev> | <rev>..<rev>] [--json] [<collection>]
+rt merge-driver <base> <ours> <theirs> [<path>]
+rt bisect --good <rev> --bad <rev> [--env NAME] [--json] [<folder>]
+rt changelog <rev>..<rev> [<collection>] [--out FILE]
 rt mcp [<collection>] [--var NAME=VALUE]... [--env-default NAME]
 rt mcp-test [<path>...] [--env NAME] [--var NAME=VALUE]...
 rt approvals [--json] | rt approve <id> | rt deny <id>
@@ -330,6 +335,91 @@ exec rt scan $files
 
 The hook scans the files in the working tree; stage them as they are before committing. In
 a pipeline, `rt scan path/to/collection` fails the job on findings.
+
+## Git for APIs
+
+These commands read the collection straight from Git's object store (no checkout, the working
+folder is never touched) and work on the request model, not on YAML lines. A revision is a
+commit id (full or abbreviated), a branch (`main`, `origin/main`), a ref or `HEAD`, each
+optionally followed by `~<n>` or `^`. `<collection>` defaults to the current folder.
+
+### Semantic diff: `rt diff`
+
+```sh
+rt diff                      # saved files against HEAD
+rt diff HEAD                 # a commit against its first parent
+rt diff main..feature        # two revisions (a.. means a..HEAD, ..b means HEAD..b)
+rt diff HEAD~3..HEAD --json  # the CollectionDiff as JSON
+```
+
+One block per changed request, folder, environment or collection: `added`, `removed`,
+`modified` or `moved` (a rename, matched by content), with one line per changed field
+(`url`, `method`, `headers.Accept`, `body`, `auth`, `scripts.before-request`, ...) and its old
+and new value. Secret values never appear, neither in text nor in JSON: a changed secret shows
+as `<secret>`. Changes the model does not show are listed under "Not fully covered" (see `git diff` for them; the app shows their line diff). An argument
+that is an existing folder is the collection, anything else is a revision. Exit code 0, also
+when there are differences; 2 for bad arguments, an unreadable collection or an unknown
+revision.
+
+### Merge driver: `rt merge-driver`
+
+Git merges collection files field by field when the driver is set up once per repository:
+
+```sh
+git config merge.requesttailor.driver "rt merge-driver %O %A %B %P"
+echo "*.yml merge=requesttailor" >> .gitattributes
+```
+
+`git config` is per clone (every contributor runs it once); `.gitattributes` is committed.
+Git then calls the driver for every `*.yml` file both sides changed, in `git merge`, `git
+pull`, `git rebase` and `git cherry-pick`. Two branches that change different fields of one
+request (say the URL on one, a header on the other) merge cleanly. Only when both sides change
+the same field differently is it a conflict: exit 1, the file keeps our value in each
+conflicted field with a YAML comment above it that shows theirs, everything else merged, and
+stderr names the fields. Resolve it in the app (Git panel, per field) or by hand, then `git
+add` as usual. Untouched parts of a file stay byte for byte as they were. Files outside a
+collection merge line by line, like Git's own text merge.
+
+### Bisect: `rt bisect`
+
+```sh
+rt bisect --good v1.4.0 --bad HEAD --env Staging api/orders
+```
+
+Finds the first commit between `--good` (excluded) and `--bad` at which a request, test or
+assertion of the collection (or of `<folder>`) fails. The candidates are the first-parent
+chain; each tested commit runs its own requests with today's environments and secrets (the
+working folder's and the keychain's, as for `rt run`), halving the range each time, so 50
+commits take at most 7 runs. A commit whose collection cannot be read is skipped. Progress
+goes to stderr (`tested <id> good|bad|skip`, with what failed), the result to stdout
+(`--json`: the `BisectOutcome`). Options of `rt run` apply: `--var`, `--no-scripts`,
+`--no-plugins`, `--no-prompt`, `--body-limit`.
+
+| Code | Meaning |
+| --- | --- |
+| 0 | The first bad commit was found |
+| 1 | No network stack |
+| 2 | Usage error: unknown revision, environment or folder, not a collection or repository |
+| 3 | Secrets or plugins could not be set up |
+| 4 | No failing commit: `--bad` passes, or only skipped commits are left |
+
+`rt bisect`, like `rt run`, keeps no results per commit; runs in the app's compare and bisect
+do (see the request history in the app).
+
+### API changelog: `rt changelog`
+
+```sh
+rt changelog v1.4.0..HEAD > CHANGELOG-api.md
+```
+
+Writes a Markdown changelog for a range: the changes of the OpenAPI spec, with a section
+"Breaking changes" (removed operation or field, changed type, new required parameter) and the
+requests each change affects, then the changes of the collection. The spec is the one
+`opencollection.yml` names in `extensions.requesttailor.contract.spec` (a path relative to the
+collection, or to the repository root with a leading `/`), otherwise the first of
+`openapi.yaml`, `openapi.yml`, `openapi.json` next to the collection, then at the repository
+root. `--out FILE` writes to a file instead of stdout. Exit code 0 when written, 2 for usage
+errors, an unknown revision or a spec that cannot be read.
 
 ## MCP server: `rt mcp`
 

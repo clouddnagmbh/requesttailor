@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="The rt command line: send requests from a collection with a JSON report, import other tools&#x27; exports, scan for credentials, and the rt agent companion.">
+<meta name="description" content="The rt command line: send requests from a collection with a JSON report, import other tools&#x27; exports, scan for credentials, diff, merge and bisect collections in Git, and the rt agent companion.">
 <title>Command line: rt · RequestTailor</title>
 <link rel="stylesheet" href="../../assets/site.css">
 </head>
@@ -51,6 +51,10 @@ green in the pipeline.</p>
 rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAME[=FILE]]...
 rt import &lt;file&gt;... --out DIR [--format FORMAT] [--json]
 rt scan [PATH]... [--json]
+rt diff [REV | REV..REV] [--json] [COLLECTION]
+rt merge-driver BASE OURS THEIRS [PATH]
+rt bisect --good REV --bad REV [--env NAME] [--json] [FOLDER]
+rt changelog REV..REV [COLLECTION] [--out FILE]
 rt mcp [COLLECTION] [--var NAME=VALUE]... [--env-default NAME]
 rt agent [--port PORT] [--allow-origin ORIGIN]... [--allow-secrets]
 rt --help</code></pre>
@@ -126,6 +130,42 @@ pre-commit hook:</p>
 files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.yml' '*.yaml' '*.json')
 [ -z "$files" ] &amp;&amp; exit 0
 exec rt scan $files</code></pre>
+
+<h2 id="git">Git for APIs</h2>
+<p>These commands read the collection from Git without a checkout and compare requests field
+by field, not line by line. A revision is a commit id, a branch, a ref or <code>HEAD</code>,
+optionally with <code>~N</code> or <code>^</code>.</p>
+
+<h3 id="diff">rt diff</h3>
+<pre><code>rt diff                  # saved files against HEAD
+rt diff HEAD             # a commit against its parent
+rt diff main..feature --json</code></pre>
+<p>One line per changed field (URL, method, header, parameter, body, auth, script, assertion,
+setting) of each request, folder and environment; renames show as moved. Secret values never
+appear. Exit code 0, also when there are differences.</p>
+
+<h3 id="merge-driver">rt merge-driver</h3>
+<p>Lets Git merge collection files field by field. Set it up once per repository:</p>
+<pre><code>git config merge.requesttailor.driver "rt merge-driver %O %A %B %P"
+echo "*.yml merge=requesttailor" &gt;&gt; .gitattributes</code></pre>
+<p>Two branches that change different fields of one request then merge cleanly in
+<code>git merge</code>, <code>pull</code>, <code>rebase</code> and <code>cherry-pick</code>.
+Only the same field changed differently on both sides is a conflict (exit 1): the file keeps
+your value with theirs in a comment above it, and the app resolves it per field.</p>
+
+<h3 id="bisect">rt bisect</h3>
+<pre><code>rt bisect --good v1.4.0 --bad HEAD --env Staging</code></pre>
+<p>Finds the first commit at which a request, test or assertion fails, running each candidate
+from Git with today's environments and secrets. 50 commits take at most 7 runs. Exit code 0
+when found, 4 when nothing fails.</p>
+
+<h3 id="changelog">rt changelog</h3>
+<pre><code>rt changelog v1.4.0..HEAD &gt; CHANGELOG-api.md</code></pre>
+<p>Markdown with the changes of the OpenAPI spec between two revisions, breaking changes first
+with the requests they affect, then the changes of the collection. The spec is
+<code>openapi.yaml</code> (or <code>.yml</code>, <code>.json</code>) next to the collection or
+at the repository root, or the path in <code>extensions.requesttailor.contract.spec</code> of
+<code>opencollection.yml</code>.</p>
 
 <h2 id="mcp">rt mcp</h2>
 <p>Offers a collection to AI agents over the Model Context Protocol. See

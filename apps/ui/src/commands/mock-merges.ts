@@ -11,8 +11,6 @@
 // without field conflicts is in `clean`; a request deleted on one side and changed on the
 // other is a text conflict (a file choice). `resolve` writes the merged request and marks
 // it resolved; the next commit concludes the merge.
-//
-// The mock Git keeps its commits private; `revisions` reads them (see the note there).
 
 import { BackendError, type MergeApi } from "./backend";
 import type { MockGit } from "./mock-git";
@@ -21,22 +19,11 @@ import type { ConflictChoice, DiffValue, FieldConflict, FieldPath, MergeState, R
 
 type Tree = Map<string, RequestSpec>;
 
-/** The commits of the merge in progress. The mock Git has no public accessor for a
- *  revision's specs (only their YAML text), so this reads its private store; the mock is the
- *  only user. */
+/** The commits of the merge in progress, as models (`MockGit.mergeCommits`, `specsAt`). */
 function revisions(git: MockGit): { base: Tree; ours: Tree; theirs: Tree } | null {
-  const g = git as unknown as {
-    mergeHead: string | null;
-    head(): string | null;
-    baseOf(a: string, b: string): string | null;
-    store: Map<string, { tree: Tree }>;
-  };
-  const theirs = g.mergeHead;
-  const ours = g.head();
-  if (!theirs || !ours) return null;
-  const base = g.baseOf(ours, theirs);
-  const tree = (oid: string | null): Tree => (oid ? (g.store.get(oid)?.tree ?? new Map()) : new Map());
-  return { base: tree(base), ours: tree(ours), theirs: tree(theirs) };
+  const c = git.mergeCommits();
+  if (!c) return null;
+  return { base: c.base ? git.specsAt(c.base) : new Map(), ours: git.specsAt(c.ours), theirs: git.specsAt(c.theirs) };
 }
 
 const text = (t: string): DiffValue => ({ kind: "text", text: t });

@@ -44,6 +44,10 @@ describe("mock revisions", () => {
     expect(git.specAt("HEAD", "missing.yml")).toBeNull();
     git.specAt("HEAD", "health.yml")!.url = "changed";
     expect(git.specAt("HEAD", "health.yml")?.url).toBe("{{baseUrl}}/up");
+    const all = git.specsAt(first);
+    expect(all.get("health.yml")?.url).toBe("{{baseUrl}}/health");
+    expect(all.size).toBeGreaterThan(1);
+    expect(git.mergeCommits()).toBeNull();
 
     expect(await git.mergeBase("HEAD", first)).toBe(first);
     expect((await git.commits(first, "HEAD", 10)).map((c) => c.oid)).toEqual([second.oid]);

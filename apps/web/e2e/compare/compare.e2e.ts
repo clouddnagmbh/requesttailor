@@ -136,6 +136,22 @@ test("bisect finds the commit that broke the check, in few runs", async ({ page 
   expect(outcome.steps).toEqual(outcome.outcome.steps.map((s) => s.verdict));
   expect(outcome.outcome.steps[0]!.failed[0]).toMatch(/^Check: res\.status eq 200/);
 
+  // Each tested commit's run went to the time travel under that commit (IndexedDB).
+  const recorded = await page.evaluate(async (oids) => {
+    const b = (window as unknown as W).__rt.backend;
+    for (let i = 0; i < 50; i++) {
+      const all = await Promise.all(oids.map((oid) => b.timeline.results(oid)));
+      if (all.every((r) => r.length > 0)) return all;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return Promise.all(oids.map((oid) => b.timeline.results(oid)));
+  }, outcome.outcome.steps.map((s) => s.commit.oid));
+  for (const records of recorded) {
+    expect(records.some((r) => r.source === "bisect")).toBe(true);
+  }
+  const atHead = recorded[0]!.find((r) => r.request === "check.yml");
+  expect(atHead).toMatchObject({ passed: false, status: 500, source: "bisect" });
+
   // The same in the view.
   await page.keyboard.press(`${MOD}+k`);
   const dialog = page.getByRole("dialog", { name: "Command palette" });
