@@ -1,0 +1,11 @@
+info:
+  name: GET {{api}}/customers
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{api}}/customers"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}

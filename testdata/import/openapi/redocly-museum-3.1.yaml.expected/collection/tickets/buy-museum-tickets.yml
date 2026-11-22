@@ -1,0 +1,57 @@
+info:
+  name: Buy museum tickets
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/tickets"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "ticketType": "general",
+        "ticketDate": "2023-09-07",
+        "email": "todd@example.com"
+      }
+  auth: inherit
+
+docs: Purchase museum tickets for general entry or special events.
+
+examples:
+  - name: 201 general_entry
+    response:
+      status: 201
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "message": "Museum general entry ticket purchased",
+            "ticketId": "382c0820-0530-4f4b-99af-13811ad0f17a",
+            "ticketType": "general",
+            "ticketDate": "2023-09-07",
+            "confirmationCode": "ticket-general-e5e5c6-dce78"
+          }
+  - name: 201 event_entry
+    response:
+      status: 201
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "message": "Museum special event ticket purchased",
+            "ticketId": "b811f723-17b2-44f7-8952-24b03e43d8a9",
+            "eventName": "Mermaid Treasure Identification and Analysis",
+            "ticketType": "event",
+            "ticketDate": "2023-09-05",
+            "confirmationCode": "ticket-event-9c55eg-8v82a"
+          }

@@ -1,0 +1,9 @@
+info:
+  name: test certificate manipulation with tagged url
+  type: http
+  seq: 22
+
+http:
+  method: POST
+  url: "{{ _['serverURL'] }}/echo"
+  auth: inherit

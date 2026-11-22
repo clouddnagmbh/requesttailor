@@ -1,0 +1,17 @@
+{
+  "collectionName": "httpsnippet-custom-indentation",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "9 more URLs in the command not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "POST @--url"
+      }
+    ],
+    "requests": 1
+  }
+}

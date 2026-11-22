@@ -1,0 +1,8 @@
+name: Insomnia Environment
+variables:
+  - name: base_path
+    value: ""
+  - name: scheme
+    value: http
+  - name: host
+    value: 127.0.0.1:4010

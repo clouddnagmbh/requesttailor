@@ -1,0 +1,6 @@
+info:
+  name: Convert to Box Note
+  type: folder
+  seq: 3
+
+docs: Create Box Notes from supported source content (for example Markdown).

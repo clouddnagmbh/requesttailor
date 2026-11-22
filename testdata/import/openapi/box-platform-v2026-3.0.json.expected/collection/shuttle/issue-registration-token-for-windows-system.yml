@@ -1,0 +1,23 @@
+info:
+  name: Issue registration token for Windows system
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseUrl}}/shuttle_systems/:shuttle_system_id/issue_registration_token"
+  params:
+    - name: shuttle_system_id
+      value: 6a315c0754833bfc5df067bf
+      type: path
+      description: The unique identifier for the shuttle system.
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+  auth: inherit
+
+docs: |-
+  Issues a new installation token for the Windows shuttle system identified
+  by its ID. Paste the returned token into the Windows agent installer to
+  register the agent with this system.

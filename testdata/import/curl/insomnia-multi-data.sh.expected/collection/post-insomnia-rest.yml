@@ -1,0 +1,21 @@
+info:
+  name: POST insomnia.rest
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://insomnia.rest/
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: form-urlencoded
+    data:
+      - name: foo
+        value: bar
+      - name: baz
+        value: qux
+
+settings:
+  followRedirects: false

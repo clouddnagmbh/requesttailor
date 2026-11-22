@@ -1,0 +1,17 @@
+{
+  "collectionName": "curlconverter-j-patch-file-with-data",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "file `./test/fixtures/curl_commands/delete.sh` for `file1` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "PATCH localhost:28139/patch"
+      }
+    ],
+    "requests": 1
+  }
+}

@@ -1,0 +1,8 @@
+info:
+  name: Document Split
+  type: folder
+  seq: 4
+
+docs: |-
+  A set of endpoints used to split a paginated source document into multiple
+  files based on user-defined or AI-generated page ranges.

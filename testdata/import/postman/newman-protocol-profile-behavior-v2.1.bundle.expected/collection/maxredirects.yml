@@ -1,0 +1,13 @@
+info:
+  name: maxRedirects
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: localhost:4042/11
+  auth: inherit
+
+settings:
+  followRedirects: true
+  maxRedirects: 11

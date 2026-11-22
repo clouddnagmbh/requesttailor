@@ -1,0 +1,18 @@
+info:
+  name: POST {{api}}/orders/{{orderId}}/parcels/{{parcelId}}
+  type: http
+  seq: 26
+
+http:
+  method: POST
+  url: "{{api}}/orders/{{orderId}}/parcels/{{parcelId}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+      }

@@ -1,0 +1,24 @@
+info:
+  name: PATCH localhost:28139/patch
+  type: http
+  seq: 1
+
+http:
+  method: PATCH
+  url: http://localhost:28139/patch
+  body:
+    type: multipart-form
+    data:
+      - name: file1
+        type: file
+        value:
+          - ./test/fixtures/curl_commands/delete.sh
+      - name: form1
+        type: text
+        value: form+data+1
+      - name: form2
+        type: text
+        value: form_data_2
+
+settings:
+  followRedirects: false

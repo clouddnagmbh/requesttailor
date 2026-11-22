@@ -1,0 +1,11 @@
+info:
+  name: Query KSeF Tokens
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:8082/token/query
+  headers:
+    - name: Authorization
+      value: "{{token}}"

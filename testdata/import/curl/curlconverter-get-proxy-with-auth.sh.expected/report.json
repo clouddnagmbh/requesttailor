@@ -1,0 +1,23 @@
+{
+  "collectionName": "curlconverter-get-proxy-with-auth",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "option `--proxy` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET localhost:28139"
+      },
+      {
+        "detail": "option `-U` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET localhost:28139"
+      }
+    ],
+    "requests": 1
+  }
+}

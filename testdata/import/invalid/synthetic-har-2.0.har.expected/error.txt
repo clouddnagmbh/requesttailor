@@ -1,0 +1,1 @@
+HAR version 2.0 is not supported

@@ -1,0 +1,14 @@
+info:
+  name: Delete the event just created
+  type: http
+  seq: 6
+
+http:
+  method: DELETE
+  url: http://localhost:4000/api/events/{{eventId}}
+  body:
+    type: text
+    data: |-
+      # =======================================================
+      # Feedback api
+      # =======================================================

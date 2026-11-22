@@ -1,0 +1,25 @@
+opencollection: "1.0.0"
+
+info:
+  name: Test API Collection v5 with Environments
+
+request:
+  variables:
+    - name: base_url
+      value: https://api.example.com
+    - name: auth_token
+      value: your_auth_token_here
+    - name: user.name
+      value: admin
+    - name: user.id
+      value: "123"
+    - name: user.roles
+      value: '["admin","user"]'
+    - name: config.timeout
+      value: "30000"
+    - name: config.retries
+      value: "3"
+    - name: config.debug
+      value: "true"
+
+bundled: false

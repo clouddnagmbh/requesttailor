@@ -1,0 +1,29 @@
+info:
+  name: require external modules and built-in lodash
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "atob": {{atob}},
+        "btoa": {{btoa}},
+        "chai": {{chai}},
+        "cheerio": {{cheerio}},
+        "crypto": {{crypto}},
+        "csv": {{csv}},
+        "lodash": {{lodash}},
+        "moment": {{moment}},
+        "tv4": {{tv4}},
+        "uuid": {{uuid}},
+        "xml2js": {{xml2js}},
+        "builtInLodash": {{builtInLodash}}
+      }
+  auth: inherit

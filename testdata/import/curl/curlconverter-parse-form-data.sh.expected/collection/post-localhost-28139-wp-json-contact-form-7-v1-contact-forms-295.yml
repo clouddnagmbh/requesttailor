@@ -1,0 +1,125 @@
+info:
+  name: POST localhost:28139/wp-json/contact-form-7/v1/contact-forms/295/feedback
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:28139/wp-json/contact-form-7/v1/contact-forms/295/feedback
+  headers:
+    - name: authority
+      value: sgg.ae
+    - name: accept
+      value: application/json, text/javascript, */*; q=0.01
+    - name: accept-language
+      value: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7
+    - name: content-type
+      value: multipart/form-data; boundary=----WebKitFormBoundaryXSzdE07OT2MkeOO7
+    - name: cookie
+      value: pll_language=en
+    - name: origin
+      value: https://sgg.ae
+    - name: referer
+      value: https://sgg.ae/contact-us/
+    - name: sec-ch-ua
+      value: '"Chromium";v="106", "Google Chrome";v="106", "Not;A=Brand";v="99"'
+    - name: sec-ch-ua-mobile
+      value: ?0
+    - name: sec-ch-ua-platform
+      value: '"Windows"'
+    - name: sec-fetch-dest
+      value: empty
+    - name: sec-fetch-mode
+      value: cors
+    - name: sec-fetch-site
+      value: same-origin
+    - name: user-agent
+      value: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36
+    - name: x-requested-with
+      value: XMLHttpRequest
+  body:
+    type: text
+    data: "------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"_wpcf7\"\r
+
+      \r
+
+      295\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"_wpcf7_version\"\r
+
+      \r
+
+      5.1.4\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"_wpcf7_locale\"\r
+
+      \r
+
+      en_US\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"_wpcf7_unit_tag\"\r
+
+      \r
+
+      wpcf7-f295-o1\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"_wpcf7_container_post\"\r
+
+      \r
+
+      0\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"your-name\"\r
+
+      \r
+
+      test\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"your-email\"; filename=hhhhhhhh\r
+
+      \r
+
+      example@example.com\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"your-subject\"\r
+
+      \r
+
+      test\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"your-message\"\r
+
+      \r
+
+      test\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7\r
+
+      Content-Disposition: form-data; name=\"send_c[]\"\r
+
+      \r
+
+      Send copy to yourself\r
+
+      ------WebKitFormBoundaryXSzdE07OT2MkeOO7--\r\n"
+
+settings:
+  followRedirects: false

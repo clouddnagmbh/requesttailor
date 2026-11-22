@@ -1,0 +1,4 @@
+name: Production (2)
+variables:
+  - name: base_url
+    value: https://eu.shop.example.com

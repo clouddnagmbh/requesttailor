@@ -1,0 +1,25 @@
+info:
+  name: POST api.example.com/users
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.example.com/users?source=cli
+  params:
+    - name: source
+      value: cli
+      type: query
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Accept
+      value: application/json
+  body:
+    type: json
+    data: '{"name": "alice"}'
+
+settings:
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 3

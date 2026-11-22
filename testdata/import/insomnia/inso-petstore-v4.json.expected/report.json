@@ -1,0 +1,29 @@
+{
+  "collectionName": "Swagger Petstore 1.0.0",
+  "report": {
+    "environments": 1,
+    "folders": 1,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "1 cookie of the cookie jar not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "collection"
+      },
+      {
+        "detail": "API design document not imported; import it as an OpenAPI file",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "unit test suite (2 tests) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "ExampleSuite"
+      }
+    ],
+    "requests": 13
+  }
+}

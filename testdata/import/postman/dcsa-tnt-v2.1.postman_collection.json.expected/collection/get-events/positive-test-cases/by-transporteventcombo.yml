@@ -1,0 +1,22 @@
+info:
+  name: BY TransportEventCombo
+  type: http
+  seq: 16
+
+http:
+  method: GET
+  url: "{{BASE_URL}}{{TNT_CONTEXT_PATH}}/events?eventType=TRANSPORT&transportCallID=123e4567-e89b-12d3-a456-426614174000&vesselIMONumber=9321483&carrierVoyageNumber=TNT1E"
+  params:
+    - name: eventType
+      value: TRANSPORT
+      type: query
+    - name: transportCallID
+      value: 123e4567-e89b-12d3-a456-426614174000
+      type: query
+    - name: vesselIMONumber
+      value: "9321483"
+      type: query
+    - name: carrierVoyageNumber
+      value: TNT1E
+      type: query
+  auth: inherit

@@ -1,0 +1,15 @@
+info:
+  name: Stream pet events (Server-Sent Events)
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/pets/:petId/events"
+  params:
+    - name: petId
+      value: ""
+      type: path
+  auth: inherit
+
+docs: Stream pet events (Server-Sent Events)

@@ -1,0 +1,53 @@
+{
+  "collectionName": "synthetic-features",
+  "report": {
+    "environments": 0,
+    "folders": 2,
+    "format": "har",
+    "losses": [
+      {
+        "detail": "multipart body kept as recorded text; its boundary must match the Content-Type header",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST shop.example.com/raw"
+      },
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Shop home / GET shop.example.com/products"
+      },
+      {
+        "detail": "file `photo.jpg` for `photo` was not recorded; put it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "page_2 / POST shop.example.com/upload"
+      },
+      {
+        "detail": "recorded binary response kept as base64 text",
+        "effect": "approximated",
+        "kind": "example",
+        "location": "page_2 / POST shop.example.com/upload"
+      },
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "page_2 / PUT shop.example.com/blob"
+      },
+      {
+        "detail": "base64-encoded (binary) request body not imported",
+        "effect": "dropped",
+        "kind": "body",
+        "location": "page_2 / PUT shop.example.com/blob"
+      },
+      {
+        "detail": "recorded response body is stored in the separate file `blob-response.html`; not imported",
+        "effect": "dropped",
+        "kind": "example",
+        "location": "page_2 / PUT shop.example.com/blob"
+      }
+    ],
+    "requests": 5
+  }
+}

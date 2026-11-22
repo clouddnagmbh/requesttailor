@@ -1,0 +1,33 @@
+info:
+  name: Create user
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/users"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{name}}"
+      }
+  auth: inherit
+
+examples:
+  - name: Created
+    request:
+      url: "{{baseUrl}}/users"
+      method: POST
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Location
+          value: /users/43
+      body:
+        type: text
+        data: created

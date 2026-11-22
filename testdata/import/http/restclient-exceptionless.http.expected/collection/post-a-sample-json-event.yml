@@ -1,0 +1,19 @@
+info:
+  name: post a sample JSON event
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{apiUrl}}/projects/{{projectId}}/events"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+          "message": "Hello World!"
+      }

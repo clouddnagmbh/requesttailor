@@ -1,0 +1,25 @@
+info:
+  name: POST {{api}}/vehicles
+  type: http
+  seq: 37
+
+http:
+  method: POST
+  url: "{{api}}/vehicles"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "brand": "Brand",
+        "model": "Model",
+        "description": "Vehicle description",
+        "payloadCapacity": 1000,
+        "loadingCapacity": 1000,
+        "pricePerService": 100,
+        "variants": 1
+      }

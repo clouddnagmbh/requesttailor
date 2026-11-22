@@ -1,0 +1,33 @@
+info:
+  name: Request Tag
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://127.0.0.1:4010/echo?foo=bar
+  params:
+    - name: foo
+      value: bar
+      type: query
+  headers:
+    - name: Content-Type
+      value: text/plain
+    - name: User-Agent
+      value: insomnia/11.1.0
+  body:
+    type: text
+    data: |+
+      {% request 'name', '', '' %}
+      {% request 'folder', '', '' %}
+      {% request 'url', '', '' %}
+      {% request 'parameter', 'foo', '' %}
+      {% request 'cookie', 'from', '' %}
+
+  auth:
+    type: oauth2
+    flow: authorization_code
+    credentials:
+      placement: basic_auth_header
+    pkce:
+      disabled: true

@@ -1,0 +1,11 @@
+info:
+  name: HEAD localhost:28139/page
+  type: http
+  seq: 1
+
+http:
+  method: HEAD
+  url: http://localhost:28139/page
+
+settings:
+  followRedirects: false

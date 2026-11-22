@@ -1,0 +1,22 @@
+info:
+  name: POST api.example.com/upload
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: https://api.example.com/upload
+  body:
+    type: multipart-form
+    data:
+      - name: title
+        type: text
+        value: Report
+      - name: file
+        type: file
+        value:
+          - /home/someone/report.pdf
+        contentType: application/pdf
+
+settings:
+  followRedirects: false

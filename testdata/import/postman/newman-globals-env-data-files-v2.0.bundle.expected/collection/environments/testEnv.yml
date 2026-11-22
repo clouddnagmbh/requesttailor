@@ -1,0 +1,14 @@
+name: testEnv
+variables:
+  - name: hKey
+    value: sampleKey
+  - name: hburl
+    value: posts
+  - name: tempKey
+    value: sampleKey2
+  - name: url
+    value: https://postman-echo.com
+  - name: env
+    value: env2
+  - name: data
+    value: env2

@@ -1,0 +1,17 @@
+{
+  "collectionName": "jetbrains-navikt-fakedings",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "POST fakedings.intern.dev.nav.no/fake/custom"
+      }
+    ],
+    "requests": 3
+  }
+}

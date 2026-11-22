@@ -1,0 +1,12 @@
+info:
+  name: Response Trigger Base
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: http://127.0.0.1:4010/pets/1
+  headers:
+    - name: User-Agent
+      value: insomnia/11.1.0
+  auth: inherit

@@ -1,0 +1,16 @@
+info:
+  name: POST api.example.com/from-file
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: https://api.example.com/from-file
+  body:
+    type: file
+    data:
+      - filePath: body.json
+        selected: true
+
+settings:
+  followRedirects: false

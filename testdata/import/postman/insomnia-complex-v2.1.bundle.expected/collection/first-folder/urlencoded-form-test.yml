@@ -1,0 +1,19 @@
+info:
+  name: Urlencoded Form Test
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/users"
+  headers:
+    - name: Authorization
+      value: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
+  body:
+    type: form-urlencoded
+    data:
+      - name: foo
+        value: bar
+  auth: inherit
+
+docs: First Request

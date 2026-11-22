@@ -1,0 +1,30 @@
+info:
+  name: GET
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{url}}/get?global={{global}}&env={{env}}&data={{data}}&prsE={{prsE}}&prsG={{prsG}}"
+  params:
+    - name: global
+      value: "{{global}}"
+      type: query
+    - name: env
+      value: "{{env}}"
+      type: query
+    - name: data
+      value: "{{data}}"
+      type: query
+    - name: prsE
+      value: "{{prsE}}"
+      type: query
+    - name: prsG
+      value: "{{prsG}}"
+      type: query
+  body:
+    type: multipart-form
+    data: []
+  auth: inherit
+
+docs: Similar to postman-echo.com/get. Return GET data.

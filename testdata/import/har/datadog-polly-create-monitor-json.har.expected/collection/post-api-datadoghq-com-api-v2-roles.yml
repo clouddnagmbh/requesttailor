@@ -1,0 +1,28 @@
+info:
+  name: POST api.datadoghq.com/api/v2/roles
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.datadoghq.com/api/v2/roles
+  headers:
+    - name: accept
+      value: application/json
+    - name: content-type
+      value: application/json
+  body:
+    type: json
+    data: '{"data":{"attributes":{"name":"Test-Create_a_monitor_returns_OK_response-1652348780"},"type":"roles"}}'
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: content-type
+          value: application/json
+      body:
+        type: json
+        data: '{"data":{"type":"roles","id":"61162af2-d1d8-11ec-ad3d-da7ad0900002","attributes":{"name":"Test-Create_a_monitor_returns_OK_response-1652348780","created_at":"2022-05-12T09:46:21.361812+00:00","modified_at":"2022-05-12T09:46:21.408035+00:00"},"relationships":{"permissions":{"data":[{"type":"permissions","id":"d90f6830-d3d8-11e9-a77a-b3404e5e9ee2"},{"type":"permissions","id":"4441648c-d8b1-11e9-a77a-1b899a04b304"},{"type":"permissions","id":"417ba636-2dce-11eb-84c0-6bce5b0d9de0"},{"type":"permissions","id":"12efc20e-d36c-11eb-a9b8-da7ad0900002"},{"type":"permissions","id":"97971c1c-e895-11eb-b13c-da7ad0900002"},{"type":"permissions","id":"7605ef24-f376-11eb-b90b-da7ad0900002"},{"type":"permissions","id":"b6bf9ac6-9a59-11ec-8480-da7ad0900002"}]}}}}'

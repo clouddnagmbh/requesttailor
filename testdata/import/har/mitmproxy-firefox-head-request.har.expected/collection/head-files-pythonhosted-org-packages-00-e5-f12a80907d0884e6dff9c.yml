@@ -1,0 +1,74 @@
+info:
+  name: HEAD files.pythonhosted.org/packages/00/e5/f12a80907d0884e6dff9c16d0c0114d81b8cd07dc3ae54c5e962cc83037e/tqdm-4.66.1-py3-none-
+  type: http
+  seq: 1
+
+http:
+  method: HEAD
+  url: https://files.pythonhosted.org/packages/00/e5/f12a80907d0884e6dff9c16d0c0114d81b8cd07dc3ae54c5e962cc83037e/tqdm-4.66.1-py3-none-any.whl
+  headers:
+    - name: accept
+      value: "*/*"
+    - name: user-agent
+      value: puffin
+    - name: accept-encoding
+      value: gzip, br
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      headers:
+        - name: last-modified
+          value: Thu, 10 Aug 2023 11:39:00 GMT
+        - name: etag
+          value: '"a296c6e224c118b0d08cd77e8c08f4b1"'
+        - name: x-amz-request-id
+          value: aeb4d3335548af85
+        - name: x-amz-id-2
+          value: aN65jxTFgNrlm8zEJMNdk7mYLYwUwTzh0
+        - name: x-amz-version-id
+          value: 4_z179c51e67f11a0ad8f6c0018_f10789ff3151435c8_d20230810_m113900_c005_v0501001_t0045_u01691667540984
+        - name: content-type
+          value: application/octet-stream
+        - name: cache-control
+          value: max-age=365000000, immutable, public
+        - name: accept-ranges
+          value: bytes
+        - name: date
+          value: Tue, 12 Dec 2023 16:23:16 GMT
+        - name: age
+          value: "2335275"
+        - name: x-served-by
+          value: cache-iad-kcgs7200038-IAD, cache-lck10926-LCK
+        - name: x-cache
+          value: HIT, HIT
+        - name: x-cache-hits
+          value: 21459, 139679
+        - name: x-timer
+          value: S1702398196.107663,VS0,VE0
+        - name: strict-transport-security
+          value: max-age=31536000; includeSubDomains; preload
+        - name: x-frame-options
+          value: deny
+        - name: x-xss-protection
+          value: 1; mode=block
+        - name: x-content-type-options
+          value: nosniff
+        - name: x-permitted-cross-domain-policies
+          value: none
+        - name: x-robots-header
+          value: noindex
+        - name: x-pypi-file-python-version
+          value: py3
+        - name: x-pypi-file-version
+          value: 4.66.1
+        - name: x-pypi-file-package-type
+          value: bdist_wheel
+        - name: x-pypi-file-project
+          value: tqdm
+        - name: content-length
+          value: "78258"
+      body:
+        type: text
+        data: ""

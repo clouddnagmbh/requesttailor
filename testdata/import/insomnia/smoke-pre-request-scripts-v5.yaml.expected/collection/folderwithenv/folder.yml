@@ -1,0 +1,9 @@
+info:
+  name: FolderWithEnv
+  type: folder
+  seq: 12
+
+request:
+  variables:
+    - name: folderEnv
+      value: fromFolder

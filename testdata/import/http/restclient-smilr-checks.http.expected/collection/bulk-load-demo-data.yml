@@ -1,0 +1,17 @@
+info:
+  name: Bulk load demo data
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: http://localhost:4000/api/bulk
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: file
+    data:
+      - filePath: etc/demodata.json
+        contentType: application/json
+        selected: true

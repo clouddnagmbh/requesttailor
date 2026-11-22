@@ -1,0 +1,11 @@
+info:
+  name: getAppsV1APIResources
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/apis/apps/v1/"
+  auth: inherit
+
+docs: get available resources

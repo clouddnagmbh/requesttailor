@@ -1,0 +1,16 @@
+name: api.server.test/v1
+variables:
+  - name: baseUrl
+    value: https://api.server.test/v1
+  - name: username
+    value: ""
+  - secret: true
+    name: password
+  - secret: true
+    name: token
+  - secret: true
+    name: apiKey
+  - name: clientId
+    value: ""
+  - secret: true
+    name: clientSecret

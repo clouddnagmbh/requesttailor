@@ -1,0 +1,59 @@
+{
+  "collectionName": "HTTP requests",
+  "report": {
+    "environments": 3,
+    "folders": 2,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "caep / Create Stream (Poll)"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "caep / Create Stream (Push)"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "caep / Get Stream"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "ssf-stream-management / Create Stream with POLL method"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "ssf-stream-management / Create Stream with PUSH method"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "ssf-stream-management / Get Stream by StreamId"
+      },
+      {
+        "detail": "response handler script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "ssf-stream-management / Poll Stream"
+      },
+      {
+        "detail": "dynamic variable {{$.pollingResponseSetsArray}} kept as text; RequestTailor does not generate dynamic values yet",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "ssf-stream-management / Poll Stream / ack all events"
+      }
+    ],
+    "requests": 22
+  }
+}

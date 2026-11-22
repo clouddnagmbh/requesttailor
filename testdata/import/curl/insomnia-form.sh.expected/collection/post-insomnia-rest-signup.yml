@@ -1,0 +1,24 @@
+info:
+  name: POST insomnia.rest/signup
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://insomnia.rest/signup
+  body:
+    type: multipart-form
+    data:
+      - name: file
+        type: file
+        value:
+          - /home/user/file.txt
+      - name: foo
+        type: text
+        value: bar
+      - name: baz
+        type: text
+        value: qux
+
+settings:
+  followRedirects: false

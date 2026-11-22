@@ -1,0 +1,8 @@
+info:
+  name: GET /key/cookie
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{baseUrl}}/key/cookie"

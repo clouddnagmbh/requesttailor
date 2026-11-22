@@ -1,0 +1,17 @@
+{
+  "collectionName": "jetbrains-ksef-token",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "response handler script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Generate KSeF Token"
+      }
+    ],
+    "requests": 4
+  }
+}

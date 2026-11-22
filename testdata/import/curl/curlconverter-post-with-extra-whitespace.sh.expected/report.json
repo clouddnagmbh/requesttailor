@@ -1,0 +1,17 @@
+{
+  "collectionName": "curlconverter-post-with-extra-whitespace",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "file `47.htz` for `files` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST localhost:28139/api/library"
+      }
+    ],
+    "requests": 1
+  }
+}

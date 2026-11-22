@@ -1,0 +1,74 @@
+info:
+  name: GET s3-us-west-2.amazonaws.com/snapshots.mitmproxy.org
+  type: http
+  seq: 12
+
+http:
+  method: GET
+  url: https://s3-us-west-2.amazonaws.com/snapshots.mitmproxy.org?delimiter=/&prefix=
+  params:
+    - name: delimiter
+      value: /
+      type: query
+    - name: prefix
+      value: ""
+      type: query
+  headers:
+    - name: Host
+      value: s3-us-west-2.amazonaws.com
+    - name: User-Agent
+      value: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0
+    - name: Accept
+      value: "*/*"
+    - name: Accept-Language
+      value: en-US,en;q=0.5
+    - name: Accept-Encoding
+      value: gzip, deflate, br
+    - name: Referer
+      value: https://mitmproxy.org/
+    - name: Origin
+      value: https://mitmproxy.org
+    - name: DNT
+      value: "1"
+    - name: Connection
+      value: keep-alive
+    - name: Sec-Fetch-Dest
+      value: empty
+    - name: Sec-Fetch-Mode
+      value: cors
+    - name: Sec-Fetch-Site
+      value: cross-site
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: x-amz-id-2
+          value: Wea5PituXz4XdzoNJ+QC6XDgoU/3V7l0magzJrS+LUtCBaNXHc1HwMDB2zvhYirPY8+6SfU08Bk=
+        - name: x-amz-request-id
+          value: 299PK1CFMV40HV7M
+        - name: Date
+          value: Wed, 29 Mar 2023 23:59:00 GMT
+        - name: Access-Control-Allow-Origin
+          value: "*"
+        - name: Access-Control-Allow-Methods
+          value: GET
+        - name: Access-Control-Max-Age
+          value: "3000"
+        - name: Vary
+          value: Origin, Access-Control-Request-Headers, Access-Control-Request-Method
+        - name: x-amz-bucket-region
+          value: us-west-2
+        - name: Content-Type
+          value: application/xml
+        - name: Transfer-Encoding
+          value: chunked
+        - name: Server
+          value: AmazonS3
+      body:
+        type: xml
+        data: |-
+          <?xml version="1.0" encoding="UTF-8"?>
+          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>snapshots.mitmproxy.org</Name><Prefix></Prefix><Marker></Marker><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>error.html</Key><LastModified>2018-03-07T22:33:17.000Z</LastModified><ETag>&quot;f5abfbae6b5f0fbf3002d22a00804488&quot;</ETag><Size>426</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>index.html</Key><LastModified>2018-03-07T22:33:11.000Z</LastModified><ETag>&quot;f5abfbae6b5f0fbf3002d22a00804488&quot;</ETag><Size>426</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>list.js</Key><LastModified>2018-03-07T22:33:14.000Z</LastModified><ETag>&quot;2662f70064b002b56bd6768e017efaa9&quot;</ETag><Size>6790</Size><StorageClass>STANDARD</StorageClass></Contents><CommonPrefixes><Prefix>0.15/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>0.16/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>0.17.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>0.17/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>0.18.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>0.18.2/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>0.18.3/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>0.18/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>0.19/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>1.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>1.0.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>1.0.2/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>2.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>2.0.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>2.0.2/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>3.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>3.0.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>3.0.2/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>3.0.3/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>3.0.4/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>4.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>4.0.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>4.0.2/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>4.0.3/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>4.0.4/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>5.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>5.0.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>5.1.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>5.1.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>5.2/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>5.3.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>6.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>6.0.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>6.0.2/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>7.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>7.0.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>7.0.2/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>7.0.3/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>7.0.4/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>8.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>8.1.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>8.1.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>9.0.0/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>9.0.1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>branches/</Prefix></CommonPrefixes></ListBucketResult>

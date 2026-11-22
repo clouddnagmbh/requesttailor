@@ -1,0 +1,41 @@
+info:
+  name: List pets
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/pets"
+  params:
+    - name: limit
+      value: "20"
+      type: query
+      description: page size
+      disabled: true
+  headers:
+    - name: X-Trace
+      value: abc
+      disabled: true
+    - name: Cookie
+      value: session=
+      disabled: true
+  auth: inherit
+
+docs: Lists all pets.
+
+examples:
+  - name: 200 OK
+    response:
+      status: 200
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": 1,
+              "name": "Rex"
+            }
+          ]

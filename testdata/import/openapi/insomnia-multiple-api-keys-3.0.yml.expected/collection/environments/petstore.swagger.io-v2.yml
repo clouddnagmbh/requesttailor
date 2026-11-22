@@ -1,0 +1,6 @@
+name: petstore.swagger.io/v2
+variables:
+  - name: baseUrl
+    value: https://petstore.swagger.io/v2
+  - secret: true
+    name: apiKey

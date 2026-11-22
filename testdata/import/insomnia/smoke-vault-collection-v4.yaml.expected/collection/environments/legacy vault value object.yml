@@ -1,0 +1,6 @@
+name: legacy vault value object
+variables:
+  - name: vault.v1
+    value: secv1
+  - name: vault.v2
+    value: secv2

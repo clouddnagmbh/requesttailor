@@ -1,0 +1,21 @@
+info:
+  name: POST mockbin.com/har
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://mockbin.com/har
+  headers:
+    - name: content-type
+      value: multipart/form-data
+  body:
+    type: multipart-form
+    data:
+      - name: foo
+        type: file
+        value:
+          - test/fixtures/files/hello.txt
+
+settings:
+  followRedirects: false

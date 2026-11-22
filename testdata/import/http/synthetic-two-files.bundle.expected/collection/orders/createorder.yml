@@ -1,0 +1,14 @@
+info:
+  name: createOrder
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base}}/orders"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: '{"sku": "A-1"}'

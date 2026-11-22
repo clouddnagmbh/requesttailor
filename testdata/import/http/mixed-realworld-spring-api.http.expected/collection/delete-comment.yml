@@ -1,0 +1,11 @@
+info:
+  name: Delete comment
+  type: http
+  seq: 17
+
+http:
+  method: DELETE
+  url: "{{host_api}}/articles/{{article_slug}}/comments/1"
+  headers:
+    - name: Authorization
+      value: Token {{token}}

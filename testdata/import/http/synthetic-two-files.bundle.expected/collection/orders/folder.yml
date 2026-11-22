@@ -1,0 +1,9 @@
+info:
+  name: orders
+  type: folder
+  seq: 1
+
+request:
+  variables:
+    - name: base
+      value: https://orders.example.com

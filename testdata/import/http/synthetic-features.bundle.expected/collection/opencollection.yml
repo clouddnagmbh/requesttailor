@@ -1,0 +1,15 @@
+opencollection: "1.0.0"
+
+info:
+  name: api
+
+request:
+  variables:
+    - name: host
+      value: api.example.com
+    - name: token
+      value: "{{login.response.body.$.token}}"
+    - name: region
+      value: eu
+
+bundled: false

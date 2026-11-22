@@ -1,0 +1,2651 @@
+opencollection: "1.0.0"
+
+info:
+  name: DCSA-TNT
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost:9090
+    - name: TNT_SPEC_VERSION
+      value: 3.0.0
+    - name: ERROR_SCHEMA
+      value: '{"required":["errorDateTime","errors","httpMethod","requestUri","statusCode","statusCodeText"],"type":"object","properties":{"httpMethod":{"type":"string","description":"The http request method type e.g. GET, POST\n","enum":["GET","HEAD","POST","PUT","DELETE","OPTION","PATCH"]},"requestUri":{"type":"string","description":"The request URI as it was sent\n"},"statusCode":{"type":"integer","description":"The HTTP status code\n"},"statusCodeText":{"type":"string","description":"The textual representation of the status code\n"},"errorMessage":{"maxLength":200,"type":"string","description":"Other error information\n"},"providerCorrelationID":{"type":"string","description":"A unique identifier for the transaction, e.g. a UUID\n"},"errorDateTime":{"type":"string","description":"The date and time (in ISO 8601 format) the error occurred.\n","format":"date-time"},"errors":{"minItems":1,"type":"array","description":"List of detailed errors, e.g. fields that could not pass validation\n","items":{"allOf":[{"required":["message","reason"],"type":"object","properties":{"errorCode":{"maximum":7999,"minimum":7000,"type":"integer","description":"Standard error code see http://dcsa.org/error-codes (to be created). Examples: 7003 â€“ out or range value, 7004 -  invalid type\n"},"field":{"type":"string","description":"The field that caused the error, e.g. a failed validation\n"},"value":{"type":"string","description":"The value that of the field that caused the error\n"},"reason":{"type":"string","description":"High level error message\n"},"message":{"type":"string","description":"Additional information as to why the error occured\n"}},"$schema":"http://json-schema.org/schema#"}]}}},"$schema":"http://json-schema.org/schema#"}'
+    - name: TNT_CONTEXT_PATH
+      value: /tnt/v3
+    - name: EVENTS_SCHEMA
+      value: |-
+        {
+            "type": "array",
+            "items": {
+              "required": [
+                "metadata"
+              ],
+              "type": "object",
+              "description": "The Event consists of 2 elements\n\n- metadata\n- payload\n\nThe metadata object is common for all `eventTypes` and is mandatory. The payload can be `Shipment`, `Equipment` or `Transport` related and is conditional\n",
+              "properties": {
+                "metadata": {
+                  "required": [
+                    "eventCreatedDateTime",
+                    "eventID",
+                    "eventType"
+                  ],
+                  "type": "object",
+                  "description": "The metadata of the event \n",
+                  "properties": {
+                    "eventID": {
+                      "type": "string",
+                      "description": "The unique identifier for this event (*the message - not the source*).\n"
+                    },
+                    "eventCreatedDateTime": {
+                      "type": "string",
+                      "description": "The timestamp of when the event was created.\n"
+                    },
+                    "retractedEventID": {
+                      "type": "string",
+                      "description": "Reference to an Event that is to be retracted. If provided, the payload of the event **MUST not** be included.\n"
+                    },
+                    "eventType": {
+                      "type": "string",
+                      "description": "The type of the Event - to be used as a discriminator. Possible values are\n\n- SHIPMENT (A Shippment event)\n- EQUIPMENT (An Equipment event)\n- TRANSPORT (A Transport event)\n",
+                      "enum": [
+                        "SHIPMENT",
+                        "EQUIPMENT",
+                        "TRANSPORT"
+                      ]
+                    }
+                  }
+                },
+                "payload": {
+                  "description": "This is a conditional object - if `retractedEventID` is **not** provided in the `metadata` then this `payload` object is mandatory\n",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "description": "The business attributes related to the `ShipmentEvent`.\n",
+                      "required": [
+                        "documentReference",
+                        "documentTypeCode",
+                        "eventClassifierCode",
+                        "eventDateTime",
+                        "shipmentEventTypeCode"
+                      ],
+                      "properties": {
+                        "eventClassifierCode": {
+                          "type": "string",
+                          "description": "Code for the event classifier. Values can vary depending on eventType\n",
+                          "enum": [
+                            "ACT"
+                          ]
+                        },
+                        "eventDateTime": {
+                          "type": "string",
+                          "description": "The local date and time, when the event took place or when the event will take place, in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.\n"
+                        },
+                        "shipmentEventTypeCode": {
+                          "type": "string",
+                          "description": "The status of the document in the process. Possible values are\n- RECE (Received)\n- DRFT (Drafted)\n- PENA (Pending Approval)\n- PENU (Pending Update)\n- PENC (Pending Confirmation)\n- CONF (Confirmed)\n- REJE (Rejected)\n- APPR (Approved)\n- ISSU (Issued)\n- SURR (Surrendered)\n- SUBM (Submitted)\n- VOID (Void)\n- REQS (Requested)\n- CMPL (Completed)\n- HOLD (On Hold)\n- RELS (Released)\n- CANC (Cancelled)\n\nMore details can be found on [GitHub](https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/shipmenteventtypecodes.csv)\n",
+                          "enum": [
+                            "RECE",
+                            "DRFT",
+                            "PENA",
+                            "PENU",
+                            "PENC",
+                            "CONF",
+                            "REJE",
+                            "APPR",
+                            "ISSU",
+                            "SURR",
+                            "SUBM",
+                            "VOID",
+                            "REQS",
+                            "CMPL",
+                            "HOLD",
+                            "RELS",
+                            "CANC"
+                          ]
+                        },
+                        "documentTypeCode": {
+                          "maxLength": 3,
+                          "type": "string",
+                          "description": "The `documentTypeCode` is used to identify the type of information `documentReference` points to. Can be one of the following values\n- CBR (Carrier Booking Request)\n- BKG (Booking)\n- SHI (Shipping Instruction)\n- TRD (Transport Document)\n- DEI (Delivery Instructions)\n- DEO (Delivery Order)\n- TRO (Transport Order)\n- CRO (Container Release Order)\n- ARN (Arrival Notice)\n- VGM (Verified Gross Mass)\n- CAS (Cargo Survey)\n- CUC (Customs Clearance)\n- DGD (Dangerous Goods Declaration)\n- OOG (Out of Gauge)\n- CQU (Contract Quotation)\n- INV (Invoice)\n- HCE (Health Certificate)\n- PCE (Phytosanitary Certificate)\n- VCE (Veterinary Certificate)\n- FCE (Fumigation Certificate)\n- ICE (Inspection Certificate)\n- CEA (Certificate of Analysis)\n- CEO (Certificate of Origin)\n\nMore details can be found on [GitHub](https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/documenttypecodes.csv)\n",
+                          "enum": [
+                            "CBR",
+                            "BKG",
+                            "SHI",
+                            "TRD",
+                            "DEI",
+                            "DEO",
+                            "TRO",
+                            "CRO",
+                            "ARN",
+                            "VGM",
+                            "CAS",
+                            "CUC",
+                            "DGD",
+                            "OOG",
+                            "CQU",
+                            "INV",
+                            "HCE",
+                            "PCE",
+                            "VCE",
+                            "FCE",
+                            "ICE",
+                            "CEA",
+                            "CEO"
+                          ]
+                        },
+                        "documentReference": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The reference of the object defined by the `documentTypeCode`\n"
+                        },
+                        "reason": {
+                          "maxLength": 250,
+                          "type": "string",
+                          "description": "This field can be used to explain why a specific `ShipmentEvent` has been sent.\n"
+                        },
+                        "relatedDocumentReferences": {
+                          "type": "array",
+                          "description": "An optional list of key-value (`type`-`value`) pairs representing links to objects relevant to the event. The `type`-field is used to describe where the `value`-field is pointing to.\n",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "description": "Describes where the `value` is pointing to. Can be one of the following values\n- CBR (Carrier Booking Request Reference)\n- BKG (Carrier Booking Reference)\n- SHI (Shipping Instruction Reference)\n- TRD (Transport Document Reference)\n",
+                                "enum": [
+                                  "CBR",
+                                  "BKG",
+                                  "SHI",
+                                  "TRD"
+                                ]
+                              },
+                              "value": {
+                                "maxLength": 100,
+                                "type": "string",
+                                "description": "The reference to the object described by `type`\n"
+                              }
+                            }
+                          }
+                        },
+                        "references": {
+                          "required": [
+                            "type",
+                            "value"
+                          ],
+                          "type": "array",
+                          "description": "References provided by the shipper or freight forwarder at the time of booking or at the time of providing shipping instruction. Carriers share it back when providing track and trace event updates, some are also printed on the B/L. Customers can use these references to track shipments in their internal systems.\n\nIn addition to the References provided by the shipper or freight forwarder - the carrier can provide an extra `type` called `EQ` which is a reference to an Equipment.\n",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "description": "The reference type codes defined by DCSA.\n- FF (Freight ForwarderÔÇÖs Reference)\n- SI (ShipperÔÇÖs Reference)\n- PO (Purchase Order Reference)\n- CR (CustomerÔÇÖs Reference)\n- AAO (ConsigneeÔÇÖs Reference)\n- ECR (Empty container release reference)\n- CSI (Customer shipment ID)\n- BPR (Booking party reference number)\n- BID (Booking Request ID)\n- EQ (Equipment Reference)\n- RUC (Registro ├Ünico del Contribuyente)\n- DUE (Declara├º├úo ├Ünica de Exporta├º├úo)\n- CER (Canadian Export Reporting System)\n- AES (Automated Export System)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/referencetypes.csv\">GitHub</a>.\n",
+                                "enum": [
+                                  "FF",
+                                  "SI",
+                                  "PO",
+                                  "CR",
+                                  "AAO",
+                                  "ECR",
+                                  "CSI",
+                                  "BPR",
+                                  "BID",
+                                  "EQ",
+                                  "RUC",
+                                  "DUE",
+                                  "CER",
+                                  "AES"
+                                ]
+                              },
+                              "value": {
+                                "maxLength": 100,
+                                "type": "string",
+                                "description": "The actual value of the reference."
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "description": "The business attributes related to the `EquipmentEvent`.\n",
+                      "required": [
+                        "emptyIndicatorCode",
+                        "equipmentEventTypeCode",
+                        "eventClassifierCode",
+                        "eventDateTime"
+                      ],
+                      "properties": {
+                        "eventClassifierCode": {
+                          "type": "string",
+                          "description": "Code for the event classifier. Values can vary depending on eventType\n",
+                          "enum": [
+                            "ACT",
+                            "PLN",
+                            "EST"
+                          ]
+                        },
+                        "eventDateTime": {
+                          "type": "string",
+                          "description": "The local date and time, when the event took place or when the event will take place, in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.\n"
+                        },
+                        "equipmentEventTypeCode": {
+                          "type": "string",
+                          "description": "Unique identifier for `equipmentEventTypeCode` - can be one of the following values\n- LOAD (Loaded)\n- DISC (Discharged)\n- GTIN (Gated in)\n- GTOT (Gated out)\n- STUF (Stuffed)\n- STRP (Stripped)\n- PICK (Pick-up)\n- AVPU (Available for Pick-up)\n- DROP (Drop-off)\n- AVDO (Available for Drop-off)\n- INSP (Inspected)\n- RSEA (Resealed)\n- RMVD (Removed)\n- CUSS (Customs Selected for Scan)\n- CUSI (Customs Selected for Inspection)\n- CUSR (Customs Released)\n- CROS (Crossed)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/equipmenteventtypecodes.csv\">GitHub</a>\n",
+                          "enum": [
+                            "LOAD",
+                            "DISC",
+                            "GTIN",
+                            "GTOT",
+                            "STUF",
+                            "STRP",
+                            "AVPU",
+                            "PICK",
+                            "AVDO",
+                            "DROP",
+                            "INSP",
+                            "RSEA",
+                            "RMVD",
+                            "CUSS",
+                            "CUSI",
+                            "CUSR",
+                            "CROS"
+                          ]
+                        },
+                        "equipmentReference": {
+                          "maxLength": 15,
+                          "type": "string",
+                          "description": "The unique identifier for the equipment, which should follow the BIC ISO Container Identification Number where possible.\nAccording to ISO 6346, a container identification code consists of a 4-letter prefix and a 7-digit number (composed of a 3-letter owner code, a category identifier, a serial number, and a check-digit). If a container does not comply with ISO 6346, it is suggested to follow Recommendation #2 ÔÇ£Container with non-ISO identificationÔÇØ from SMDG.\n"
+                        },
+                        "ISOEquipmentCode": {
+                          "maxLength": 4,
+                          "type": "string",
+                          "description": "Unique code for the different equipment size/type used for transporting commodities. The code is a concatenation of ISO Equipment Size Code and ISO Equipment Type Code A and follows the ISO 6346 standard."
+                        },
+                        "emptyIndicatorCode": {
+                          "type": "string",
+                          "description": "Code to denote whether the equipment is empty or laden.",
+                          "enum": [
+                            "EMPTY",
+                            "LADEN"
+                          ]
+                        },
+                        "isTransshipmentMove": {
+                          "type": "boolean",
+                          "description": "Indicates whether this event is originated in relation to an ocean transshipment or inter terminal move. `isTransshipmentMove` can be set to true in combination with one of the following `equipmentEventTypeCodes`:\n\n- `LOAD` (Load)\n- `DISC` (Discharge)\n- `GTIN` (Gate In)\n- `GTOT` (Gate Out)\n- `PICK` (Pick-up)\n- `DROP` (Drop-off)\n"
+                        },
+                        "eventLocation": {
+                          "description": "General purpose object to capture the location in the `EquipmentEvent` whenever it is **not** associated with a `TransportCall` (this could be stuffing and stripping). The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+                          "anyOf": [
+                            {
+                              "required": [
+                                "facilityCode",
+                                "facilityCodeListProvider"
+                              ],
+                              "type": "object",
+                              "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                              "properties": {
+                                "locationName": {
+                                  "maxLength": 100,
+                                  "type": "string",
+                                  "description": "The name of the location."
+                                },
+                                "UNLocationCode": {
+                                  "maxLength": 5,
+                                  "type": "string",
+                                  "description": "The UN Location code specifying where the place is located."
+                                },
+                                "facilityCode": {
+                                  "maxLength": 6,
+                                  "type": "string",
+                                  "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                                },
+                                "facilityCodeListProvider": {
+                                  "type": "string",
+                                  "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                                  "enum": [
+                                    "BIC",
+                                    "SMDG"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "required": [
+                                "UNLocationCode"
+                              ],
+                              "type": "object",
+                              "description": "An interface used to express a location using a `Un Location Code`\n",
+                              "properties": {
+                                "locationName": {
+                                  "maxLength": 100,
+                                  "type": "string",
+                                  "description": "The name of the location."
+                                },
+                                "UNLocationCode": {
+                                  "maxLength": 5,
+                                  "type": "string",
+                                  "description": "The UN Location code specifying where the place is located."
+                                }
+                              }
+                            },
+                            {
+                              "required": [
+                                "address"
+                              ],
+                              "type": "object",
+                              "description": "An interface used to express a location using an `Address` object\n",
+                              "properties": {
+                                "locationName": {
+                                  "maxLength": 100,
+                                  "type": "string",
+                                  "description": "The name of the location."
+                                },
+                                "address": {
+                                  "description": "Address related information",
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                      "description": "Name of the address"
+                                    },
+                                    "street": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                      "description": "The name of the street of the partyÔÇÖs address."
+                                    },
+                                    "streetNumber": {
+                                      "maxLength": 50,
+                                      "type": "string",
+                                      "description": "The number of the street of the partyÔÇÖs address."
+                                    },
+                                    "floor": {
+                                      "maxLength": 50,
+                                      "type": "string",
+                                      "description": "The floor of the partyÔÇÖs street number."
+                                    },
+                                    "postCode": {
+                                      "maxLength": 50,
+                                      "type": "string",
+                                      "description": "The post code of the partyÔÇÖs address."
+                                    },
+                                    "city": {
+                                      "maxLength": 65,
+                                      "type": "string",
+                                      "description": "The city name of the partyÔÇÖs address."
+                                    },
+                                    "stateRegion": {
+                                      "maxLength": 65,
+                                      "type": "string",
+                                      "description": "The state/region of the partyÔÇÖs address."
+                                    },
+                                    "country": {
+                                      "maxLength": 75,
+                                      "type": "string",
+                                      "description": "The country of the partyÔÇÖs address."
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "transportCall": {
+                          "required": [
+                            "modeOfTransport",
+                            "transportCallReference"
+                          ],
+                          "type": "object",
+                          "properties": {
+                            "transportCallReference": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "A carrier definied reference to a TransportCall.\n\nIn the case the Means of Transport is a `Vessel` and the facility is a `Port`/`Terminal` - this reference should be considered a **Terminal Call Reference**\n"
+                            },
+                            "transportCallSequenceNumber": {
+                              "type": "integer",
+                              "description": "Transport operator&apos;s key that uniquely identifies each individual call. This key is essential to distinguish between two separate calls at the same location within one voyage.\n"
+                            },
+                            "modeOfTransport": {
+                              "type": "string",
+                              "description": "The mode of transport as defined by DCSA.\n",
+                              "enum": [
+                                "VESSEL",
+                                "RAIL",
+                                "TRUCK",
+                                "BARGE"
+                              ]
+                            },
+                            "location": {
+                              "description": "General purpose object to capture the location of the `TransportCall`. The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+                              "anyOf": [
+                                {
+                                  "required": [
+                                    "facilityCode",
+                                    "facilityCodeListProvider"
+                                  ],
+                                  "type": "object",
+                                  "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                                  "properties": {
+                                    "locationName": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                      "description": "The name of the location."
+                                    },
+                                    "UNLocationCode": {
+                                      "maxLength": 5,
+                                      "type": "string",
+                                      "description": "The UN Location code specifying where the place is located."
+                                    },
+                                    "facilityCode": {
+                                      "maxLength": 6,
+                                      "type": "string",
+                                      "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                                    },
+                                    "facilityCodeListProvider": {
+                                      "type": "string",
+                                      "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                                      "enum": [
+                                        "BIC",
+                                        "SMDG"
+                                      ]
+                                    }
+                                  }
+                                },
+                                {
+                                  "required": [
+                                    "UNLocationCode"
+                                  ],
+                                  "type": "object",
+                                  "description": "An interface used to express a location using a `Un Location Code`\n",
+                                  "properties": {
+                                    "locationName": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                      "description": "The name of the location."
+                                    },
+                                    "UNLocationCode": {
+                                      "maxLength": 5,
+                                      "type": "string",
+                                      "description": "The UN Location code specifying where the place is located."
+                                    }
+                                  }
+                                },
+                                {
+                                  "required": [
+                                    "address"
+                                  ],
+                                  "type": "object",
+                                  "description": "An interface used to express a location using an `Address` object\n",
+                                  "properties": {
+                                    "locationName": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                      "description": "The name of the location."
+                                    },
+                                    "address": {
+                                      "description": "Address related information",
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "maxLength": 100,
+                                          "type": "string",
+                                          "description": "Name of the address"
+                                        },
+                                        "street": {
+                                          "maxLength": 100,
+                                          "type": "string",
+                                          "description": "The name of the street of the partyÔÇÖs address."
+                                        },
+                                        "streetNumber": {
+                                          "maxLength": 50,
+                                          "type": "string",
+                                          "description": "The number of the street of the partyÔÇÖs address."
+                                        },
+                                        "floor": {
+                                          "maxLength": 50,
+                                          "type": "string",
+                                          "description": "The floor of the partyÔÇÖs street number."
+                                        },
+                                        "postCode": {
+                                          "maxLength": 50,
+                                          "type": "string",
+                                          "description": "The post code of the partyÔÇÖs address."
+                                        },
+                                        "city": {
+                                          "maxLength": 65,
+                                          "type": "string",
+                                          "description": "The city name of the partyÔÇÖs address."
+                                        },
+                                        "stateRegion": {
+                                          "maxLength": 65,
+                                          "type": "string",
+                                          "description": "The state/region of the partyÔÇÖs address."
+                                        },
+                                        "country": {
+                                          "maxLength": 75,
+                                          "type": "string",
+                                          "description": "The country of the partyÔÇÖs address."
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "facilityTypeCode": {
+                          "type": "string",
+                          "description": "The code to identify the specific type of facility. The code indicates which role the facility plays if this `EquipmentEvent` is related to *stuffing*/*stipping* (in case the event does not have a `transportCall`). Possible values\n- BORD (Border)\n- CLOC (Customer location)\n- COFS (Container freight station)\n- OFFD (Off dock storage)\n- DEPO (Depot)\n- INTE (Inland terminal)\n- POTE (Port terminal)\n- RAMP (Ramp)\n- WAYP (Waypoint)\n",
+                          "enum": [
+                            "BORD",
+                            "CLOC",
+                            "COFS",
+                            "OFFD",
+                            "DEPO",
+                            "INTE",
+                            "POTE",
+                            "RAMP",
+                            "WAYP"
+                          ]
+                        },
+                        "relatedDocumentReferences": {
+                          "type": "array",
+                          "description": "An optional list of key-value (`type`-`value`) pairs representing links to objects relevant to the event. The `type`-field is used to describe where the `value`-field is pointing to.\n",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "description": "Describes where the `value` is pointing to. Can be one of the following values\n- CBR (Carrier Booking Request Reference)\n- BKG (Carrier Booking Reference)\n- SHI (Shipping Instruction Reference)\n- TRD (Transport Document Reference)\n",
+                                "enum": [
+                                  "CBR",
+                                  "BKG",
+                                  "SHI",
+                                  "TRD"
+                                ]
+                              },
+                              "value": {
+                                "maxLength": 100,
+                                "type": "string",
+                                "description": "The reference to the object described by `type`\n"
+                              }
+                            }
+                          }
+                        },
+                        "references": {
+                          "required": [
+                            "type",
+                            "value"
+                          ],
+                          "type": "array",
+                          "description": "References provided by the shipper or freight forwarder at the time of booking or at the time of providing shipping instruction. Carriers share it back when providing track and trace event updates, some are also printed on the B/L. Customers can use these references to track shipments in their internal systems.\n\nIn addition to the References provided by the shipper or freight forwarder - the carrier can provide an extra `type` called `EQ` which is a reference to an Equipment.\n",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "description": "The reference type codes defined by DCSA.\n- FF (Freight ForwarderÔÇÖs Reference)\n- SI (ShipperÔÇÖs Reference)\n- PO (Purchase Order Reference)\n- CR (CustomerÔÇÖs Reference)\n- AAO (ConsigneeÔÇÖs Reference)\n- ECR (Empty container release reference)\n- CSI (Customer shipment ID)\n- BPR (Booking party reference number)\n- BID (Booking Request ID)\n- EQ (Equipment Reference)\n- RUC (Registro ├Ünico del Contribuyente)\n- DUE (Declara├º├úo ├Ünica de Exporta├º├úo)\n- CER (Canadian Export Reporting System)\n- AES (Automated Export System)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/referencetypes.csv\">GitHub</a>.\n",
+                                "enum": [
+                                  "FF",
+                                  "SI",
+                                  "PO",
+                                  "CR",
+                                  "AAO",
+                                  "ECR",
+                                  "CSI",
+                                  "BPR",
+                                  "BID",
+                                  "EQ",
+                                  "RUC",
+                                  "DUE",
+                                  "CER",
+                                  "AES"
+                                ]
+                              },
+                              "value": {
+                                "maxLength": 100,
+                                "type": "string",
+                                "description": "The actual value of the reference."
+                              }
+                            }
+                          }
+                        },
+                        "seals": {
+                          "type": "array",
+                          "items": {
+                            "required": [
+                              "number"
+                            ],
+                            "type": "object",
+                            "description": "addresses the seal-related information associated with the shipment equipment. A seal is put on a shipment equipment once it is loaded. This seal is meant to stay on until the shipment equipment reaches its final destination.",
+                            "properties": {
+                              "number": {
+                                "maxLength": 15,
+                                "type": "string",
+                                "description": "Identifies a seal affixed to the container."
+                              },
+                              "source": {
+                                "type": "string",
+                                "description": "The source of the seal, namely who has affixed the seal. This attribute links to the Seal Source ID defined in the Seal Source reference data entity.\n- CAR (Carrier)\n- SHI (Shipper)\n- PHY (Phytosanitary)\n- VET (Veterinary)\n- CUS (Customs)\n",
+                                "enum": [
+                                  "CAR",
+                                  "SHI",
+                                  "PHY",
+                                  "VET",
+                                  "CUS"
+                                ]
+                              },
+                              "type": {
+                                "type": "string",
+                                "description": "The type of seal. This attribute links to the Seal Type ID defined in the Seal Type reference data entity.\n- KLP (Keyless padlock)\n- BLT (Bolt)\n- WIR (Wire)\n",
+                                "enum": [
+                                  "KLP",
+                                  "BLT",
+                                  "WIR"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "description": "The business attributes related to the `TransportEvent`.\n",
+                      "required": [
+                        "eventClassifierCode",
+                        "eventDateTime",
+                        "transportCall",
+                        "transportEventTypeCode"
+                      ],
+                      "properties": {
+                        "eventClassifierCode": {
+                          "type": "string",
+                          "description": "Code for the event classifier. Values can vary depending on eventType\n",
+                          "enum": [
+                            "ACT",
+                            "PLN",
+                            "EST"
+                          ]
+                        },
+                        "eventDateTime": {
+                          "type": "string",
+                          "description": "The local date and time, when the event took place or when the event will take place, in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.\n"
+                        },
+                        "transportEventTypeCode": {
+                          "type": "string",
+                          "description": "Identifier for type of `transportEvent`\n- ARRI (Arrived)\n- DEPA (Departed)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/transporteventtypecodes.csv\">GitHub</a>\n",
+                          "enum": [
+                            "ARRI",
+                            "DEPA"
+                          ]
+                        },
+                        "delayReasonCode": {
+                          "maxLength": 3,
+                          "type": "string",
+                          "description": "Reason code for the delay. See SMDG [Code list DELAY](https://smdg.org/documents/smdg-code-lists/delay-reason-and-port-call-activity/) for a list of valid codes to be used for this attribute.\n"
+                        },
+                        "changeRemark": {
+                          "maxLength": 250,
+                          "type": "string",
+                          "description": "Free text field to provide information as to why the `TransportEvent` was sent\n"
+                        },
+                        "transportCall": {
+                          "required": [
+                            "modeOfTransport",
+                            "transportCallReference"
+                          ],
+                          "type": "object",
+                          "properties": {
+                            "transportCallReference": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "A carrier definied reference to a TransportCall.\n\nIn the case the Means of Transport is a `Vessel` and the facility is a `Port`/`Terminal` - this reference should be considered a **Terminal Call Reference**\n"
+                            },
+                            "transportCallSequenceNumber": {
+                              "type": "integer",
+                              "description": "Transport operator&apos;s key that uniquely identifies each individual call. This key is essential to distinguish between two separate calls at the same location within one voyage.\n"
+                            },
+                            "modeOfTransport": {
+                              "type": "string",
+                              "description": "The mode of transport as defined by DCSA.\n",
+                              "enum": [
+                                "VESSEL",
+                                "RAIL",
+                                "TRUCK",
+                                "BARGE"
+                              ]
+                            },
+                            "location": {
+                              "description": "General purpose object to capture the location of the `TransportCall`. The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+                              "anyOf": [
+                                {
+                                  "required": [
+                                    "facilityCode",
+                                    "facilityCodeListProvider"
+                                  ],
+                                  "type": "object",
+                                  "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                                  "properties": {
+                                    "locationName": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                      "description": "The name of the location."
+                                    },
+                                    "UNLocationCode": {
+                                      "maxLength": 5,
+                                      "type": "string",
+                                      "description": "The UN Location code specifying where the place is located."
+                                    },
+                                    "facilityCode": {
+                                      "maxLength": 6,
+                                      "type": "string",
+                                      "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                                    },
+                                    "facilityCodeListProvider": {
+                                      "type": "string",
+                                      "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                                      "enum": [
+                                        "BIC",
+                                        "SMDG"
+                                      ]
+                                    }
+                                  }
+                                },
+                                {
+                                  "required": [
+                                    "UNLocationCode"
+                                  ],
+                                  "type": "object",
+                                  "description": "An interface used to express a location using a `Un Location Code`\n",
+                                  "properties": {
+                                    "locationName": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                      "description": "The name of the location."
+                                    },
+                                    "UNLocationCode": {
+                                      "maxLength": 5,
+                                      "type": "string",
+                                      "description": "The UN Location code specifying where the place is located."
+                                    }
+                                  }
+                                },
+                                {
+                                  "required": [
+                                    "address"
+                                  ],
+                                  "type": "object",
+                                  "description": "An interface used to express a location using an `Address` object\n",
+                                  "properties": {
+                                    "locationName": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                      "description": "The name of the location."
+                                    },
+                                    "address": {
+                                      "description": "Address related information",
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "maxLength": 100,
+                                          "type": "string",
+                                          "description": "Name of the address"
+                                        },
+                                        "street": {
+                                          "maxLength": 100,
+                                          "type": "string",
+                                          "description": "The name of the street of the partyÔÇÖs address."
+                                        },
+                                        "streetNumber": {
+                                          "maxLength": 50,
+                                          "type": "string",
+                                          "description": "The number of the street of the partyÔÇÖs address."
+                                        },
+                                        "floor": {
+                                          "maxLength": 50,
+                                          "type": "string",
+                                          "description": "The floor of the partyÔÇÖs street number."
+                                        },
+                                        "postCode": {
+                                          "maxLength": 50,
+                                          "type": "string",
+                                          "description": "The post code of the partyÔÇÖs address."
+                                        },
+                                        "city": {
+                                          "maxLength": 65,
+                                          "type": "string",
+                                          "description": "The city name of the partyÔÇÖs address."
+                                        },
+                                        "stateRegion": {
+                                          "maxLength": 65,
+                                          "type": "string",
+                                          "description": "The state/region of the partyÔÇÖs address."
+                                        },
+                                        "country": {
+                                          "maxLength": 75,
+                                          "type": "string",
+                                          "description": "The country of the partyÔÇÖs address."
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "relatedDocumentReferences": {
+                          "type": "array",
+                          "description": "An optional list of key-value (`type`-`value`) pairs representing links to objects relevant to the event. The `type`-field is used to describe where the `value`-field is pointing to.\n",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "description": "Describes where the `value` is pointing to. Can be one of the following values\n- CBR (Carrier Booking Request Reference)\n- BKG (Carrier Booking Reference)\n- SHI (Shipping Instruction Reference)\n- TRD (Transport Document Reference)\n",
+                                "enum": [
+                                  "CBR",
+                                  "BKG",
+                                  "SHI",
+                                  "TRD"
+                                ]
+                              },
+                              "value": {
+                                "maxLength": 100,
+                                "type": "string",
+                                "description": "The reference to the object described by `type`\n"
+                              }
+                            }
+                          }
+                        },
+                        "references": {
+                          "required": [
+                            "type",
+                            "value"
+                          ],
+                          "type": "array",
+                          "description": "References provided by the shipper or freight forwarder at the time of booking or at the time of providing shipping instruction. Carriers share it back when providing track and trace event updates, some are also printed on the B/L. Customers can use these references to track shipments in their internal systems.\n\nIn addition to the References provided by the shipper or freight forwarder - the carrier can provide an extra `type` called `EQ` which is a reference to an Equipment.\n",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "description": "The reference type codes defined by DCSA.\n- FF (Freight ForwarderÔÇÖs Reference)\n- SI (ShipperÔÇÖs Reference)\n- PO (Purchase Order Reference)\n- CR (CustomerÔÇÖs Reference)\n- AAO (ConsigneeÔÇÖs Reference)\n- ECR (Empty container release reference)\n- CSI (Customer shipment ID)\n- BPR (Booking party reference number)\n- BID (Booking Request ID)\n- EQ (Equipment Reference)\n- RUC (Registro ├Ünico del Contribuyente)\n- DUE (Declara├º├úo ├Ünica de Exporta├º├úo)\n- CER (Canadian Export Reporting System)\n- AES (Automated Export System)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/referencetypes.csv\">GitHub</a>.\n",
+                                "enum": [
+                                  "FF",
+                                  "SI",
+                                  "PO",
+                                  "CR",
+                                  "AAO",
+                                  "ECR",
+                                  "CSI",
+                                  "BPR",
+                                  "BID",
+                                  "EQ",
+                                  "RUC",
+                                  "DUE",
+                                  "CER",
+                                  "AES"
+                                ]
+                              },
+                              "value": {
+                                "maxLength": 100,
+                                "type": "string",
+                                "description": "The actual value of the reference."
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+    - name: TNT_SHIPMENT_EVENTS_PAYLOAD_SCHEMA
+      value: |-
+        {
+          "type": "object",
+          "description": "The business attributes related to the `ShipmentEvent`.\n",
+          "required": [
+            "documentReference",
+            "documentTypeCode",
+            "eventClassifierCode",
+            "eventDateTime",
+            "shipmentEventTypeCode"
+          ],
+          "properties": {
+            "eventClassifierCode": {
+              "type": "string",
+              "description": "Code for the event classifier. Values can vary depending on eventType\n",
+              "enum": [
+                "ACT"
+              ]
+            },
+            "eventDateTime": {
+              "type": "string",
+              "description": "The local date and time, when the event took place or when the event will take place, in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.\n"
+            },
+            "shipmentEventTypeCode": {
+              "type": "string",
+              "description": "The status of the document in the process. Possible values are\n- RECE (Received)\n- DRFT (Drafted)\n- PENA (Pending Approval)\n- PENU (Pending Update)\n- PENC (Pending Confirmation)\n- CONF (Confirmed)\n- REJE (Rejected)\n- APPR (Approved)\n- ISSU (Issued)\n- SURR (Surrendered)\n- SUBM (Submitted)\n- VOID (Void)\n- REQS (Requested)\n- CMPL (Completed)\n- HOLD (On Hold)\n- RELS (Released)\n- CANC (Cancelled)\n\nMore details can be found on [GitHub](https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/shipmenteventtypecodes.csv)\n",
+              "enum": [
+                "RECE",
+                "DRFT",
+                "PENA",
+                "PENU",
+                "PENC",
+                "CONF",
+                "REJE",
+                "APPR",
+                "ISSU",
+                "SURR",
+                "SUBM",
+                "VOID",
+                "REQS",
+                "CMPL",
+                "HOLD",
+                "RELS",
+                "CANC"
+              ]
+            },
+            "documentTypeCode": {
+              "maxLength": 3,
+              "type": "string",
+              "description": "The `documentTypeCode` is used to identify the type of information `documentReference` points to. Can be one of the following values\n- CBR (Carrier Booking Request)\n- BKG (Booking)\n- SHI (Shipping Instruction)\n- TRD (Transport Document)\n- DEI (Delivery Instructions)\n- DEO (Delivery Order)\n- TRO (Transport Order)\n- CRO (Container Release Order)\n- ARN (Arrival Notice)\n- VGM (Verified Gross Mass)\n- CAS (Cargo Survey)\n- CUC (Customs Clearance)\n- DGD (Dangerous Goods Declaration)\n- OOG (Out of Gauge)\n- CQU (Contract Quotation)\n- INV (Invoice)\n- HCE (Health Certificate)\n- PCE (Phytosanitary Certificate)\n- VCE (Veterinary Certificate)\n- FCE (Fumigation Certificate)\n- ICE (Inspection Certificate)\n- CEA (Certificate of Analysis)\n- CEO (Certificate of Origin)\n\nMore details can be found on [GitHub](https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/documenttypecodes.csv)\n",
+              "enum": [
+                "CBR",
+                "BKG",
+                "SHI",
+                "TRD",
+                "DEI",
+                "DEO",
+                "TRO",
+                "CRO",
+                "ARN",
+                "VGM",
+                "CAS",
+                "CUC",
+                "DGD",
+                "OOG",
+                "CQU",
+                "INV",
+                "HCE",
+                "PCE",
+                "VCE",
+                "FCE",
+                "ICE",
+                "CEA",
+                "CEO"
+              ]
+            },
+            "documentReference": {
+              "maxLength": 100,
+              "type": "string",
+              "description": "The reference of the object defined by the `documentTypeCode`\n"
+            },
+            "reason": {
+              "maxLength": 250,
+              "type": "string",
+              "description": "This field can be used to explain why a specific `ShipmentEvent` has been sent.\n"
+            },
+            "relatedDocumentReferences": {
+              "type": "array",
+              "description": "An optional list of key-value (`type`-`value`) pairs representing links to objects relevant to the event. The `type`-field is used to describe where the `value`-field is pointing to.\n",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "Describes where the `value` is pointing to. Can be one of the following values\n- CBR (Carrier Booking Request Reference)\n- BKG (Carrier Booking Reference)\n- SHI (Shipping Instruction Reference)\n- TRD (Transport Document Reference)\n",
+                    "enum": [
+                      "CBR",
+                      "BKG",
+                      "SHI",
+                      "TRD"
+                    ]
+                  },
+                  "value": {
+                    "maxLength": 100,
+                    "type": "string",
+                    "description": "The reference to the object described by `type`\n"
+                  }
+                }
+              }
+            },
+            "references": {
+              "required": [
+                "type",
+                "value"
+              ],
+              "type": "array",
+              "description": "References provided by the shipper or freight forwarder at the time of booking or at the time of providing shipping instruction. Carriers share it back when providing track and trace event updates, some are also printed on the B/L. Customers can use these references to track shipments in their internal systems.\n\nIn addition to the References provided by the shipper or freight forwarder - the carrier can provide an extra `type` called `EQ` which is a reference to an Equipment.\n",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "The reference type codes defined by DCSA.\n- FF (Freight ForwarderÔÇÖs Reference)\n- SI (ShipperÔÇÖs Reference)\n- PO (Purchase Order Reference)\n- CR (CustomerÔÇÖs Reference)\n- AAO (ConsigneeÔÇÖs Reference)\n- ECR (Empty container release reference)\n- CSI (Customer shipment ID)\n- BPR (Booking party reference number)\n- BID (Booking Request ID)\n- EQ (Equipment Reference)\n- RUC (Registro ├Ünico del Contribuyente)\n- DUE (Declara├º├úo ├Ünica de Exporta├º├úo)\n- CER (Canadian Export Reporting System)\n- AES (Automated Export System)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/referencetypes.csv\">GitHub</a>.\n",
+                    "enum": [
+                      "FF",
+                      "SI",
+                      "PO",
+                      "CR",
+                      "AAO",
+                      "ECR",
+                      "CSI",
+                      "BPR",
+                      "BID",
+                      "EQ",
+                      "RUC",
+                      "DUE",
+                      "CER",
+                      "AES"
+                    ]
+                  },
+                  "value": {
+                    "maxLength": 100,
+                    "type": "string",
+                    "description": "The actual value of the reference."
+                  }
+                }
+              }
+            }
+          }
+        }
+    - name: TNT_EQUIPMENT_EVENTS_PAYLOAD_SCHEMA
+      value: |-
+        {
+          "type": "object",
+          "description": "The business attributes related to the `EquipmentEvent`.\n",
+          "required": [
+            "emptyIndicatorCode",
+            "equipmentEventTypeCode",
+            "eventClassifierCode",
+            "eventDateTime"
+          ],
+          "properties": {
+            "eventClassifierCode": {
+              "type": "string",
+              "description": "Code for the event classifier. Values can vary depending on eventType\n",
+              "enum": [
+                "ACT",
+                "PLN",
+                "EST"
+              ]
+            },
+            "eventDateTime": {
+              "type": "string",
+              "description": "The local date and time, when the event took place or when the event will take place, in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.\n"
+            },
+            "equipmentEventTypeCode": {
+              "type": "string",
+              "description": "Unique identifier for `equipmentEventTypeCode` - can be one of the following values\n- LOAD (Loaded)\n- DISC (Discharged)\n- GTIN (Gated in)\n- GTOT (Gated out)\n- STUF (Stuffed)\n- STRP (Stripped)\n- PICK (Pick-up)\n- AVPU (Available for Pick-up)\n- DROP (Drop-off)\n- AVDO (Available for Drop-off)\n- INSP (Inspected)\n- RSEA (Resealed)\n- RMVD (Removed)\n- CUSS (Customs Selected for Scan)\n- CUSI (Customs Selected for Inspection)\n- CUSR (Customs Released)\n- CROS (Crossed)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/equipmenteventtypecodes.csv\">GitHub</a>\n",
+              "enum": [
+                "LOAD",
+                "DISC",
+                "GTIN",
+                "GTOT",
+                "STUF",
+                "STRP",
+                "AVPU",
+                "PICK",
+                "AVDO",
+                "DROP",
+                "INSP",
+                "RSEA",
+                "RMVD",
+                "CUSS",
+                "CUSI",
+                "CUSR",
+                "CROS"
+              ]
+            },
+            "equipmentReference": {
+              "maxLength": 15,
+              "type": "string",
+              "description": "The unique identifier for the equipment, which should follow the BIC ISO Container Identification Number where possible.\nAccording to ISO 6346, a container identification code consists of a 4-letter prefix and a 7-digit number (composed of a 3-letter owner code, a category identifier, a serial number, and a check-digit). If a container does not comply with ISO 6346, it is suggested to follow Recommendation #2 ÔÇ£Container with non-ISO identificationÔÇØ from SMDG.\n"
+            },
+            "ISOEquipmentCode": {
+              "maxLength": 4,
+              "type": "string",
+              "description": "Unique code for the different equipment size/type used for transporting commodities. The code is a concatenation of ISO Equipment Size Code and ISO Equipment Type Code A and follows the ISO 6346 standard."
+            },
+            "emptyIndicatorCode": {
+              "type": "string",
+              "description": "Code to denote whether the equipment is empty or laden.",
+              "enum": [
+                "EMPTY",
+                "LADEN"
+              ]
+            },
+            "isTransshipmentMove": {
+              "type": "boolean",
+              "description": "Indicates whether this event is originated in relation to an ocean transshipment or inter terminal move. `isTransshipmentMove` can be set to true in combination with one of the following `equipmentEventTypeCodes`:\n\n- `LOAD` (Load)\n- `DISC` (Discharge)\n- `GTIN` (Gate In)\n- `GTOT` (Gate Out)\n- `PICK` (Pick-up)\n- `DROP` (Drop-off)\n"
+            },
+            "eventLocation": {
+              "description": "General purpose object to capture the location in the `EquipmentEvent` whenever it is **not** associated with a `TransportCall` (this could be stuffing and stripping). The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+              "anyOf": [
+                {
+                  "required": [
+                    "facilityCode",
+                    "facilityCodeListProvider"
+                  ],
+                  "type": "object",
+                  "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                  "properties": {
+                    "locationName": {
+                      "maxLength": 100,
+                      "type": "string",
+                      "description": "The name of the location."
+                    },
+                    "UNLocationCode": {
+                      "maxLength": 5,
+                      "type": "string",
+                      "description": "The UN Location code specifying where the place is located."
+                    },
+                    "facilityCode": {
+                      "maxLength": 6,
+                      "type": "string",
+                      "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                    },
+                    "facilityCodeListProvider": {
+                      "type": "string",
+                      "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                      "enum": [
+                        "BIC",
+                        "SMDG"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "required": [
+                    "UNLocationCode"
+                  ],
+                  "type": "object",
+                  "description": "An interface used to express a location using a `Un Location Code`\n",
+                  "properties": {
+                    "locationName": {
+                      "maxLength": 100,
+                      "type": "string",
+                      "description": "The name of the location."
+                    },
+                    "UNLocationCode": {
+                      "maxLength": 5,
+                      "type": "string",
+                      "description": "The UN Location code specifying where the place is located."
+                    }
+                  }
+                },
+                {
+                  "required": [
+                    "address"
+                  ],
+                  "type": "object",
+                  "description": "An interface used to express a location using an `Address` object\n",
+                  "properties": {
+                    "locationName": {
+                      "maxLength": 100,
+                      "type": "string",
+                      "description": "The name of the location."
+                    },
+                    "address": {
+                      "description": "Address related information",
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "Name of the address"
+                        },
+                        "street": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the street of the partyÔÇÖs address."
+                        },
+                        "streetNumber": {
+                          "maxLength": 50,
+                          "type": "string",
+                          "description": "The number of the street of the partyÔÇÖs address."
+                        },
+                        "floor": {
+                          "maxLength": 50,
+                          "type": "string",
+                          "description": "The floor of the partyÔÇÖs street number."
+                        },
+                        "postCode": {
+                          "maxLength": 50,
+                          "type": "string",
+                          "description": "The post code of the partyÔÇÖs address."
+                        },
+                        "city": {
+                          "maxLength": 65,
+                          "type": "string",
+                          "description": "The city name of the partyÔÇÖs address."
+                        },
+                        "stateRegion": {
+                          "maxLength": 65,
+                          "type": "string",
+                          "description": "The state/region of the partyÔÇÖs address."
+                        },
+                        "country": {
+                          "maxLength": 75,
+                          "type": "string",
+                          "description": "The country of the partyÔÇÖs address."
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "transportCall": {
+              "required": [
+                "modeOfTransport",
+                "transportCallReference"
+              ],
+              "type": "object",
+              "properties": {
+                "transportCallReference": {
+                  "maxLength": 100,
+                  "type": "string",
+                  "description": "A carrier definied reference to a TransportCall.\n\nIn the case the Means of Transport is a `Vessel` and the facility is a `Port`/`Terminal` - this reference should be considered a **Terminal Call Reference**\n"
+                },
+                "transportCallSequenceNumber": {
+                  "type": "integer",
+                  "description": "Transport operator&apos;s key that uniquely identifies each individual call. This key is essential to distinguish between two separate calls at the same location within one voyage.\n"
+                },
+                "modeOfTransport": {
+                  "type": "string",
+                  "description": "The mode of transport as defined by DCSA.\n",
+                  "enum": [
+                    "VESSEL",
+                    "RAIL",
+                    "TRUCK",
+                    "BARGE"
+                  ]
+                },
+                "location": {
+                  "description": "General purpose object to capture the location of the `TransportCall`. The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+                  "anyOf": [
+                    {
+                      "required": [
+                        "facilityCode",
+                        "facilityCodeListProvider"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "UNLocationCode": {
+                          "maxLength": 5,
+                          "type": "string",
+                          "description": "The UN Location code specifying where the place is located."
+                        },
+                        "facilityCode": {
+                          "maxLength": 6,
+                          "type": "string",
+                          "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                        },
+                        "facilityCodeListProvider": {
+                          "type": "string",
+                          "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                          "enum": [
+                            "BIC",
+                            "SMDG"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "required": [
+                        "UNLocationCode"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using a `Un Location Code`\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "UNLocationCode": {
+                          "maxLength": 5,
+                          "type": "string",
+                          "description": "The UN Location code specifying where the place is located."
+                        }
+                      }
+                    },
+                    {
+                      "required": [
+                        "address"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using an `Address` object\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "address": {
+                          "description": "Address related information",
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "Name of the address"
+                            },
+                            "street": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the street of the partyÔÇÖs address."
+                            },
+                            "streetNumber": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The number of the street of the partyÔÇÖs address."
+                            },
+                            "floor": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The floor of the partyÔÇÖs street number."
+                            },
+                            "postCode": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The post code of the partyÔÇÖs address."
+                            },
+                            "city": {
+                              "maxLength": 65,
+                              "type": "string",
+                              "description": "The city name of the partyÔÇÖs address."
+                            },
+                            "stateRegion": {
+                              "maxLength": 65,
+                              "type": "string",
+                              "description": "The state/region of the partyÔÇÖs address."
+                            },
+                            "country": {
+                              "maxLength": 75,
+                              "type": "string",
+                              "description": "The country of the partyÔÇÖs address."
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "facilityTypeCode": {
+              "type": "string",
+              "description": "The code to identify the specific type of facility. The code indicates which role the facility plays if this `EquipmentEvent` is related to *stuffing*/*stipping* (in case the event does not have a `transportCall`). Possible values\n- BORD (Border)\n- CLOC (Customer location)\n- COFS (Container freight station)\n- OFFD (Off dock storage)\n- DEPO (Depot)\n- INTE (Inland terminal)\n- POTE (Port terminal)\n- RAMP (Ramp)\n- WAYP (Waypoint)\n",
+              "enum": [
+                "BORD",
+                "CLOC",
+                "COFS",
+                "OFFD",
+                "DEPO",
+                "INTE",
+                "POTE",
+                "RAMP",
+                "WAYP"
+              ]
+            },
+            "relatedDocumentReferences": {
+              "type": "array",
+              "description": "An optional list of key-value (`type`-`value`) pairs representing links to objects relevant to the event. The `type`-field is used to describe where the `value`-field is pointing to.\n",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "Describes where the `value` is pointing to. Can be one of the following values\n- CBR (Carrier Booking Request Reference)\n- BKG (Carrier Booking Reference)\n- SHI (Shipping Instruction Reference)\n- TRD (Transport Document Reference)\n",
+                    "enum": [
+                      "CBR",
+                      "BKG",
+                      "SHI",
+                      "TRD"
+                    ]
+                  },
+                  "value": {
+                    "maxLength": 100,
+                    "type": "string",
+                    "description": "The reference to the object described by `type`\n"
+                  }
+                }
+              }
+            },
+            "references": {
+              "required": [
+                "type",
+                "value"
+              ],
+              "type": "array",
+              "description": "References provided by the shipper or freight forwarder at the time of booking or at the time of providing shipping instruction. Carriers share it back when providing track and trace event updates, some are also printed on the B/L. Customers can use these references to track shipments in their internal systems.\n\nIn addition to the References provided by the shipper or freight forwarder - the carrier can provide an extra `type` called `EQ` which is a reference to an Equipment.\n",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "The reference type codes defined by DCSA.\n- FF (Freight ForwarderÔÇÖs Reference)\n- SI (ShipperÔÇÖs Reference)\n- PO (Purchase Order Reference)\n- CR (CustomerÔÇÖs Reference)\n- AAO (ConsigneeÔÇÖs Reference)\n- ECR (Empty container release reference)\n- CSI (Customer shipment ID)\n- BPR (Booking party reference number)\n- BID (Booking Request ID)\n- EQ (Equipment Reference)\n- RUC (Registro ├Ünico del Contribuyente)\n- DUE (Declara├º├úo ├Ünica de Exporta├º├úo)\n- CER (Canadian Export Reporting System)\n- AES (Automated Export System)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/referencetypes.csv\">GitHub</a>.\n",
+                    "enum": [
+                      "FF",
+                      "SI",
+                      "PO",
+                      "CR",
+                      "AAO",
+                      "ECR",
+                      "CSI",
+                      "BPR",
+                      "BID",
+                      "EQ",
+                      "RUC",
+                      "DUE",
+                      "CER",
+                      "AES"
+                    ]
+                  },
+                  "value": {
+                    "maxLength": 100,
+                    "type": "string",
+                    "description": "The actual value of the reference."
+                  }
+                }
+              }
+            },
+            "seals": {
+              "type": "array",
+              "items": {
+                "required": [
+                  "number"
+                ],
+                "type": "object",
+                "description": "addresses the seal-related information associated with the shipment equipment. A seal is put on a shipment equipment once it is loaded. This seal is meant to stay on until the shipment equipment reaches its final destination.",
+                "properties": {
+                  "number": {
+                    "maxLength": 15,
+                    "type": "string",
+                    "description": "Identifies a seal affixed to the container."
+                  },
+                  "source": {
+                    "type": "string",
+                    "description": "The source of the seal, namely who has affixed the seal. This attribute links to the Seal Source ID defined in the Seal Source reference data entity.\n- CAR (Carrier)\n- SHI (Shipper)\n- PHY (Phytosanitary)\n- VET (Veterinary)\n- CUS (Customs)\n",
+                    "enum": [
+                      "CAR",
+                      "SHI",
+                      "PHY",
+                      "VET",
+                      "CUS"
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "The type of seal. This attribute links to the Seal Type ID defined in the Seal Type reference data entity.\n- KLP (Keyless padlock)\n- BLT (Bolt)\n- WIR (Wire)\n",
+                    "enum": [
+                      "KLP",
+                      "BLT",
+                      "WIR"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+    - name: TNT_TRANSPORT_EVENTS_PAYLOAD_SCHEMA
+      value: |-
+        {
+          "type": "object",
+          "description": "The business attributes related to the `TransportEvent`.\n",
+          "required": [
+            "eventClassifierCode",
+            "eventDateTime",
+            "transportCall",
+            "transportEventTypeCode"
+          ],
+          "properties": {
+            "eventClassifierCode": {
+              "type": "string",
+              "description": "Code for the event classifier. Values can vary depending on eventType\n",
+              "enum": [
+                "ACT",
+                "PLN",
+                "EST"
+              ]
+            },
+            "eventDateTime": {
+              "type": "string",
+              "description": "The local date and time, when the event took place or when the event will take place, in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.\n"
+            },
+            "transportEventTypeCode": {
+              "type": "string",
+              "description": "Identifier for type of `transportEvent`\n- ARRI (Arrived)\n- DEPA (Departed)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/transporteventtypecodes.csv\">GitHub</a>\n",
+              "enum": [
+                "ARRI",
+                "DEPA"
+              ]
+            },
+            "delayReasonCode": {
+              "maxLength": 3,
+              "type": "string",
+              "description": "Reason code for the delay. See SMDG [Code list DELAY](https://smdg.org/documents/smdg-code-lists/delay-reason-and-port-call-activity/) for a list of valid codes to be used for this attribute.\n"
+            },
+            "changeRemark": {
+              "maxLength": 250,
+              "type": "string",
+              "description": "Free text field to provide information as to why the `TransportEvent` was sent\n"
+            },
+            "transportCall": {
+              "required": [
+                "modeOfTransport",
+                "transportCallReference"
+              ],
+              "type": "object",
+              "properties": {
+                "transportCallReference": {
+                  "maxLength": 100,
+                  "type": "string",
+                  "description": "A carrier definied reference to a TransportCall.\n\nIn the case the Means of Transport is a `Vessel` and the facility is a `Port`/`Terminal` - this reference should be considered a **Terminal Call Reference**\n"
+                },
+                "transportCallSequenceNumber": {
+                  "type": "integer",
+                  "description": "Transport operator&apos;s key that uniquely identifies each individual call. This key is essential to distinguish between two separate calls at the same location within one voyage.\n"
+                },
+                "modeOfTransport": {
+                  "type": "string",
+                  "description": "The mode of transport as defined by DCSA.\n",
+                  "enum": [
+                    "VESSEL",
+                    "RAIL",
+                    "TRUCK",
+                    "BARGE"
+                  ]
+                },
+                "location": {
+                  "description": "General purpose object to capture the location of the `TransportCall`. The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+                  "anyOf": [
+                    {
+                      "required": [
+                        "facilityCode",
+                        "facilityCodeListProvider"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "UNLocationCode": {
+                          "maxLength": 5,
+                          "type": "string",
+                          "description": "The UN Location code specifying where the place is located."
+                        },
+                        "facilityCode": {
+                          "maxLength": 6,
+                          "type": "string",
+                          "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                        },
+                        "facilityCodeListProvider": {
+                          "type": "string",
+                          "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                          "enum": [
+                            "BIC",
+                            "SMDG"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "required": [
+                        "UNLocationCode"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using a `Un Location Code`\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "UNLocationCode": {
+                          "maxLength": 5,
+                          "type": "string",
+                          "description": "The UN Location code specifying where the place is located."
+                        }
+                      }
+                    },
+                    {
+                      "required": [
+                        "address"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using an `Address` object\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "address": {
+                          "description": "Address related information",
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "Name of the address"
+                            },
+                            "street": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the street of the partyÔÇÖs address."
+                            },
+                            "streetNumber": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The number of the street of the partyÔÇÖs address."
+                            },
+                            "floor": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The floor of the partyÔÇÖs street number."
+                            },
+                            "postCode": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The post code of the partyÔÇÖs address."
+                            },
+                            "city": {
+                              "maxLength": 65,
+                              "type": "string",
+                              "description": "The city name of the partyÔÇÖs address."
+                            },
+                            "stateRegion": {
+                              "maxLength": 65,
+                              "type": "string",
+                              "description": "The state/region of the partyÔÇÖs address."
+                            },
+                            "country": {
+                              "maxLength": 75,
+                              "type": "string",
+                              "description": "The country of the partyÔÇÖs address."
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "relatedDocumentReferences": {
+              "type": "array",
+              "description": "An optional list of key-value (`type`-`value`) pairs representing links to objects relevant to the event. The `type`-field is used to describe where the `value`-field is pointing to.\n",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "Describes where the `value` is pointing to. Can be one of the following values\n- CBR (Carrier Booking Request Reference)\n- BKG (Carrier Booking Reference)\n- SHI (Shipping Instruction Reference)\n- TRD (Transport Document Reference)\n",
+                    "enum": [
+                      "CBR",
+                      "BKG",
+                      "SHI",
+                      "TRD"
+                    ]
+                  },
+                  "value": {
+                    "maxLength": 100,
+                    "type": "string",
+                    "description": "The reference to the object described by `type`\n"
+                  }
+                }
+              }
+            },
+            "references": {
+              "required": [
+                "type",
+                "value"
+              ],
+              "type": "array",
+              "description": "References provided by the shipper or freight forwarder at the time of booking or at the time of providing shipping instruction. Carriers share it back when providing track and trace event updates, some are also printed on the B/L. Customers can use these references to track shipments in their internal systems.\n\nIn addition to the References provided by the shipper or freight forwarder - the carrier can provide an extra `type` called `EQ` which is a reference to an Equipment.\n",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "The reference type codes defined by DCSA.\n- FF (Freight ForwarderÔÇÖs Reference)\n- SI (ShipperÔÇÖs Reference)\n- PO (Purchase Order Reference)\n- CR (CustomerÔÇÖs Reference)\n- AAO (ConsigneeÔÇÖs Reference)\n- ECR (Empty container release reference)\n- CSI (Customer shipment ID)\n- BPR (Booking party reference number)\n- BID (Booking Request ID)\n- EQ (Equipment Reference)\n- RUC (Registro ├Ünico del Contribuyente)\n- DUE (Declara├º├úo ├Ünica de Exporta├º├úo)\n- CER (Canadian Export Reporting System)\n- AES (Automated Export System)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/referencetypes.csv\">GitHub</a>.\n",
+                    "enum": [
+                      "FF",
+                      "SI",
+                      "PO",
+                      "CR",
+                      "AAO",
+                      "ECR",
+                      "CSI",
+                      "BPR",
+                      "BID",
+                      "EQ",
+                      "RUC",
+                      "DUE",
+                      "CER",
+                      "AES"
+                    ]
+                  },
+                  "value": {
+                    "maxLength": 100,
+                    "type": "string",
+                    "description": "The actual value of the reference."
+                  }
+                }
+              }
+            }
+          }
+        }
+    - name: TNT_ONE_OF_TRANPORT_EQUIPMENT_EVENTS_PAYLOAD_SCHEMA
+      value: |-
+        {
+          "description": "This is a conditional object - if `retractedEventID` is **not** provided in the `metadata` then this `payload` object is mandatory\n",
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "The business attributes related to the `EquipmentEvent`.\n",
+              "required": [
+                "emptyIndicatorCode",
+                "equipmentEventTypeCode",
+                "eventClassifierCode",
+                "eventDateTime"
+              ],
+              "properties": {
+                "eventClassifierCode": {
+                  "type": "string",
+                  "description": "Code for the event classifier. Values can vary depending on eventType\n",
+                  "enum": [
+                    "ACT",
+                    "PLN",
+                    "EST"
+                  ]
+                },
+                "eventDateTime": {
+                  "type": "string",
+                  "description": "The local date and time, when the event took place or when the event will take place, in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.\n"
+                },
+                "equipmentEventTypeCode": {
+                  "type": "string",
+                  "description": "Unique identifier for `equipmentEventTypeCode` - can be one of the following values\n- LOAD (Loaded)\n- DISC (Discharged)\n- GTIN (Gated in)\n- GTOT (Gated out)\n- STUF (Stuffed)\n- STRP (Stripped)\n- PICK (Pick-up)\n- AVPU (Available for Pick-up)\n- DROP (Drop-off)\n- AVDO (Available for Drop-off)\n- INSP (Inspected)\n- RSEA (Resealed)\n- RMVD (Removed)\n- CUSS (Customs Selected for Scan)\n- CUSI (Customs Selected for Inspection)\n- CUSR (Customs Released)\n- CROS (Crossed)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/equipmenteventtypecodes.csv\">GitHub</a>\n",
+                  "enum": [
+                    "LOAD",
+                    "DISC",
+                    "GTIN",
+                    "GTOT",
+                    "STUF",
+                    "STRP",
+                    "AVPU",
+                    "PICK",
+                    "AVDO",
+                    "DROP",
+                    "INSP",
+                    "RSEA",
+                    "RMVD",
+                    "CUSS",
+                    "CUSI",
+                    "CUSR",
+                    "CROS"
+                  ]
+                },
+                "equipmentReference": {
+                  "maxLength": 15,
+                  "type": "string",
+                  "description": "The unique identifier for the equipment, which should follow the BIC ISO Container Identification Number where possible.\nAccording to ISO 6346, a container identification code consists of a 4-letter prefix and a 7-digit number (composed of a 3-letter owner code, a category identifier, a serial number, and a check-digit). If a container does not comply with ISO 6346, it is suggested to follow Recommendation #2 ÔÇ£Container with non-ISO identificationÔÇØ from SMDG.\n"
+                },
+                "ISOEquipmentCode": {
+                  "maxLength": 4,
+                  "type": "string",
+                  "description": "Unique code for the different equipment size/type used for transporting commodities. The code is a concatenation of ISO Equipment Size Code and ISO Equipment Type Code A and follows the ISO 6346 standard."
+                },
+                "emptyIndicatorCode": {
+                  "type": "string",
+                  "description": "Code to denote whether the equipment is empty or laden.",
+                  "enum": [
+                    "EMPTY",
+                    "LADEN"
+                  ]
+                },
+                "isTransshipmentMove": {
+                  "type": "boolean",
+                  "description": "Indicates whether this event is originated in relation to an ocean transshipment or inter terminal move. `isTransshipmentMove` can be set to true in combination with one of the following `equipmentEventTypeCodes`:\n\n- `LOAD` (Load)\n- `DISC` (Discharge)\n- `GTIN` (Gate In)\n- `GTOT` (Gate Out)\n- `PICK` (Pick-up)\n- `DROP` (Drop-off)\n"
+                },
+                "eventLocation": {
+                  "description": "General purpose object to capture the location in the `EquipmentEvent` whenever it is **not** associated with a `TransportCall` (this could be stuffing and stripping). The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+                  "anyOf": [
+                    {
+                      "required": [
+                        "facilityCode",
+                        "facilityCodeListProvider"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "UNLocationCode": {
+                          "maxLength": 5,
+                          "type": "string",
+                          "description": "The UN Location code specifying where the place is located."
+                        },
+                        "facilityCode": {
+                          "maxLength": 6,
+                          "type": "string",
+                          "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                        },
+                        "facilityCodeListProvider": {
+                          "type": "string",
+                          "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                          "enum": [
+                            "BIC",
+                            "SMDG"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "required": [
+                        "UNLocationCode"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using a `Un Location Code`\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "UNLocationCode": {
+                          "maxLength": 5,
+                          "type": "string",
+                          "description": "The UN Location code specifying where the place is located."
+                        }
+                      }
+                    },
+                    {
+                      "required": [
+                        "address"
+                      ],
+                      "type": "object",
+                      "description": "An interface used to express a location using an `Address` object\n",
+                      "properties": {
+                        "locationName": {
+                          "maxLength": 100,
+                          "type": "string",
+                          "description": "The name of the location."
+                        },
+                        "address": {
+                          "description": "Address related information",
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "Name of the address"
+                            },
+                            "street": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the street of the partyÔÇÖs address."
+                            },
+                            "streetNumber": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The number of the street of the partyÔÇÖs address."
+                            },
+                            "floor": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The floor of the partyÔÇÖs street number."
+                            },
+                            "postCode": {
+                              "maxLength": 50,
+                              "type": "string",
+                              "description": "The post code of the partyÔÇÖs address."
+                            },
+                            "city": {
+                              "maxLength": 65,
+                              "type": "string",
+                              "description": "The city name of the partyÔÇÖs address."
+                            },
+                            "stateRegion": {
+                              "maxLength": 65,
+                              "type": "string",
+                              "description": "The state/region of the partyÔÇÖs address."
+                            },
+                            "country": {
+                              "maxLength": 75,
+                              "type": "string",
+                              "description": "The country of the partyÔÇÖs address."
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "transportCall": {
+                  "required": [
+                    "modeOfTransport",
+                    "transportCallReference"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "transportCallReference": {
+                      "maxLength": 100,
+                      "type": "string",
+                      "description": "A carrier definied reference to a TransportCall.\n\nIn the case the Means of Transport is a `Vessel` and the facility is a `Port`/`Terminal` - this reference should be considered a **Terminal Call Reference**\n"
+                    },
+                    "transportCallSequenceNumber": {
+                      "type": "integer",
+                      "description": "Transport operator&apos;s key that uniquely identifies each individual call. This key is essential to distinguish between two separate calls at the same location within one voyage.\n"
+                    },
+                    "modeOfTransport": {
+                      "type": "string",
+                      "description": "The mode of transport as defined by DCSA.\n",
+                      "enum": [
+                        "VESSEL",
+                        "RAIL",
+                        "TRUCK",
+                        "BARGE"
+                      ]
+                    },
+                    "location": {
+                      "description": "General purpose object to capture the location of the `TransportCall`. The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+                      "anyOf": [
+                        {
+                          "required": [
+                            "facilityCode",
+                            "facilityCodeListProvider"
+                          ],
+                          "type": "object",
+                          "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                          "properties": {
+                            "locationName": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the location."
+                            },
+                            "UNLocationCode": {
+                              "maxLength": 5,
+                              "type": "string",
+                              "description": "The UN Location code specifying where the place is located."
+                            },
+                            "facilityCode": {
+                              "maxLength": 6,
+                              "type": "string",
+                              "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                            },
+                            "facilityCodeListProvider": {
+                              "type": "string",
+                              "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                              "enum": [
+                                "BIC",
+                                "SMDG"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "required": [
+                            "UNLocationCode"
+                          ],
+                          "type": "object",
+                          "description": "An interface used to express a location using a `Un Location Code`\n",
+                          "properties": {
+                            "locationName": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the location."
+                            },
+                            "UNLocationCode": {
+                              "maxLength": 5,
+                              "type": "string",
+                              "description": "The UN Location code specifying where the place is located."
+                            }
+                          }
+                        },
+                        {
+                          "required": [
+                            "address"
+                          ],
+                          "type": "object",
+                          "description": "An interface used to express a location using an `Address` object\n",
+                          "properties": {
+                            "locationName": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the location."
+                            },
+                            "address": {
+                              "description": "Address related information",
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "maxLength": 100,
+                                  "type": "string",
+                                  "description": "Name of the address"
+                                },
+                                "street": {
+                                  "maxLength": 100,
+                                  "type": "string",
+                                  "description": "The name of the street of the partyÔÇÖs address."
+                                },
+                                "streetNumber": {
+                                  "maxLength": 50,
+                                  "type": "string",
+                                  "description": "The number of the street of the partyÔÇÖs address."
+                                },
+                                "floor": {
+                                  "maxLength": 50,
+                                  "type": "string",
+                                  "description": "The floor of the partyÔÇÖs street number."
+                                },
+                                "postCode": {
+                                  "maxLength": 50,
+                                  "type": "string",
+                                  "description": "The post code of the partyÔÇÖs address."
+                                },
+                                "city": {
+                                  "maxLength": 65,
+                                  "type": "string",
+                                  "description": "The city name of the partyÔÇÖs address."
+                                },
+                                "stateRegion": {
+                                  "maxLength": 65,
+                                  "type": "string",
+                                  "description": "The state/region of the partyÔÇÖs address."
+                                },
+                                "country": {
+                                  "maxLength": 75,
+                                  "type": "string",
+                                  "description": "The country of the partyÔÇÖs address."
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "facilityTypeCode": {
+                  "type": "string",
+                  "description": "The code to identify the specific type of facility. The code indicates which role the facility plays if this `EquipmentEvent` is related to *stuffing*/*stipping* (in case the event does not have a `transportCall`). Possible values\n- BORD (Border)\n- CLOC (Customer location)\n- COFS (Container freight station)\n- OFFD (Off dock storage)\n- DEPO (Depot)\n- INTE (Inland terminal)\n- POTE (Port terminal)\n- RAMP (Ramp)\n- WAYP (Waypoint)\n",
+                  "enum": [
+                    "BORD",
+                    "CLOC",
+                    "COFS",
+                    "OFFD",
+                    "DEPO",
+                    "INTE",
+                    "POTE",
+                    "RAMP",
+                    "WAYP"
+                  ]
+                },
+                "relatedDocumentReferences": {
+                  "type": "array",
+                  "description": "An optional list of key-value (`type`-`value`) pairs representing links to objects relevant to the event. The `type`-field is used to describe where the `value`-field is pointing to.\n",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "description": "Describes where the `value` is pointing to. Can be one of the following values\n- CBR (Carrier Booking Request Reference)\n- BKG (Carrier Booking Reference)\n- SHI (Shipping Instruction Reference)\n- TRD (Transport Document Reference)\n",
+                        "enum": [
+                          "CBR",
+                          "BKG",
+                          "SHI",
+                          "TRD"
+                        ]
+                      },
+                      "value": {
+                        "maxLength": 100,
+                        "type": "string",
+                        "description": "The reference to the object described by `type`\n"
+                      }
+                    }
+                  }
+                },
+                "references": {
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "array",
+                  "description": "References provided by the shipper or freight forwarder at the time of booking or at the time of providing shipping instruction. Carriers share it back when providing track and trace event updates, some are also printed on the B/L. Customers can use these references to track shipments in their internal systems.\n\nIn addition to the References provided by the shipper or freight forwarder - the carrier can provide an extra `type` called `EQ` which is a reference to an Equipment.\n",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "description": "The reference type codes defined by DCSA.\n- FF (Freight ForwarderÔÇÖs Reference)\n- SI (ShipperÔÇÖs Reference)\n- PO (Purchase Order Reference)\n- CR (CustomerÔÇÖs Reference)\n- AAO (ConsigneeÔÇÖs Reference)\n- ECR (Empty container release reference)\n- CSI (Customer shipment ID)\n- BPR (Booking party reference number)\n- BID (Booking Request ID)\n- EQ (Equipment Reference)\n- RUC (Registro ├Ünico del Contribuyente)\n- DUE (Declara├º├úo ├Ünica de Exporta├º├úo)\n- CER (Canadian Export Reporting System)\n- AES (Automated Export System)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/referencetypes.csv\">GitHub</a>.\n",
+                        "enum": [
+                          "FF",
+                          "SI",
+                          "PO",
+                          "CR",
+                          "AAO",
+                          "ECR",
+                          "CSI",
+                          "BPR",
+                          "BID",
+                          "EQ",
+                          "RUC",
+                          "DUE",
+                          "CER",
+                          "AES"
+                        ]
+                      },
+                      "value": {
+                        "maxLength": 100,
+                        "type": "string",
+                        "description": "The actual value of the reference."
+                      }
+                    }
+                  }
+                },
+                "seals": {
+                  "type": "array",
+                  "items": {
+                    "required": [
+                      "number"
+                    ],
+                    "type": "object",
+                    "description": "addresses the seal-related information associated with the shipment equipment. A seal is put on a shipment equipment once it is loaded. This seal is meant to stay on until the shipment equipment reaches its final destination.",
+                    "properties": {
+                      "number": {
+                        "maxLength": 15,
+                        "type": "string",
+                        "description": "Identifies a seal affixed to the container."
+                      },
+                      "source": {
+                        "type": "string",
+                        "description": "The source of the seal, namely who has affixed the seal. This attribute links to the Seal Source ID defined in the Seal Source reference data entity.\n- CAR (Carrier)\n- SHI (Shipper)\n- PHY (Phytosanitary)\n- VET (Veterinary)\n- CUS (Customs)\n",
+                        "enum": [
+                          "CAR",
+                          "SHI",
+                          "PHY",
+                          "VET",
+                          "CUS"
+                        ]
+                      },
+                      "type": {
+                        "type": "string",
+                        "description": "The type of seal. This attribute links to the Seal Type ID defined in the Seal Type reference data entity.\n- KLP (Keyless padlock)\n- BLT (Bolt)\n- WIR (Wire)\n",
+                        "enum": [
+                          "KLP",
+                          "BLT",
+                          "WIR"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "description": "The business attributes related to the `TransportEvent`.\n",
+              "required": [
+                "eventClassifierCode",
+                "eventDateTime",
+                "transportCall",
+                "transportEventTypeCode"
+              ],
+              "properties": {
+                "eventClassifierCode": {
+                  "type": "string",
+                  "description": "Code for the event classifier. Values can vary depending on eventType\n",
+                  "enum": [
+                    "ACT",
+                    "PLN",
+                    "EST"
+                  ]
+                },
+                "eventDateTime": {
+                  "type": "string",
+                  "description": "The local date and time, when the event took place or when the event will take place, in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.\n"
+                },
+                "transportEventTypeCode": {
+                  "type": "string",
+                  "description": "Identifier for type of `transportEvent`\n- ARRI (Arrived)\n- DEPA (Departed)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/transporteventtypecodes.csv\">GitHub</a>\n",
+                  "enum": [
+                    "ARRI",
+                    "DEPA"
+                  ]
+                },
+                "delayReasonCode": {
+                  "maxLength": 3,
+                  "type": "string",
+                  "description": "Reason code for the delay. See SMDG [Code list DELAY](https://smdg.org/documents/smdg-code-lists/delay-reason-and-port-call-activity/) for a list of valid codes to be used for this attribute.\n"
+                },
+                "changeRemark": {
+                  "maxLength": 250,
+                  "type": "string",
+                  "description": "Free text field to provide information as to why the `TransportEvent` was sent\n"
+                },
+                "transportCall": {
+                  "required": [
+                    "modeOfTransport",
+                    "transportCallReference"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "transportCallReference": {
+                      "maxLength": 100,
+                      "type": "string",
+                      "description": "A carrier definied reference to a TransportCall.\n\nIn the case the Means of Transport is a `Vessel` and the facility is a `Port`/`Terminal` - this reference should be considered a **Terminal Call Reference**\n"
+                    },
+                    "transportCallSequenceNumber": {
+                      "type": "integer",
+                      "description": "Transport operator&apos;s key that uniquely identifies each individual call. This key is essential to distinguish between two separate calls at the same location within one voyage.\n"
+                    },
+                    "modeOfTransport": {
+                      "type": "string",
+                      "description": "The mode of transport as defined by DCSA.\n",
+                      "enum": [
+                        "VESSEL",
+                        "RAIL",
+                        "TRUCK",
+                        "BARGE"
+                      ]
+                    },
+                    "location": {
+                      "description": "General purpose object to capture the location of the `TransportCall`. The location can be specified in **any** of the following ways: `UN Location Code`, `Facility` and/or an `Address`.\n",
+                      "anyOf": [
+                        {
+                          "required": [
+                            "facilityCode",
+                            "facilityCodeListProvider"
+                          ],
+                          "type": "object",
+                          "description": "An interface used to express a location using a `Facility`. The facility can either be expressed using a `BIC` code or a `SMDG` code. The `facilityCode` does not contain the `UNLocationCode` - this should be provided in the `UnLocationCode` attribute.\n",
+                          "properties": {
+                            "locationName": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the location."
+                            },
+                            "UNLocationCode": {
+                              "maxLength": 5,
+                              "type": "string",
+                              "description": "The UN Location code specifying where the place is located."
+                            },
+                            "facilityCode": {
+                              "maxLength": 6,
+                              "type": "string",
+                              "description": "The code used for identifying the specific facility. This code does <b>not</b> include the UN Location Code.\n"
+                            },
+                            "facilityCodeListProvider": {
+                              "type": "string",
+                              "description": "The provider used for identifying the facility Code. Some facility codes are only defined in combination with an `UN Location Code`\n- BIC (Requires a UN Location Code)\n- SMDG (Requires a UN Location Code)\n",
+                              "enum": [
+                                "BIC",
+                                "SMDG"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "required": [
+                            "UNLocationCode"
+                          ],
+                          "type": "object",
+                          "description": "An interface used to express a location using a `Un Location Code`\n",
+                          "properties": {
+                            "locationName": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the location."
+                            },
+                            "UNLocationCode": {
+                              "maxLength": 5,
+                              "type": "string",
+                              "description": "The UN Location code specifying where the place is located."
+                            }
+                          }
+                        },
+                        {
+                          "required": [
+                            "address"
+                          ],
+                          "type": "object",
+                          "description": "An interface used to express a location using an `Address` object\n",
+                          "properties": {
+                            "locationName": {
+                              "maxLength": 100,
+                              "type": "string",
+                              "description": "The name of the location."
+                            },
+                            "address": {
+                              "description": "Address related information",
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "maxLength": 100,
+                                  "type": "string",
+                                  "description": "Name of the address"
+                                },
+                                "street": {
+                                  "maxLength": 100,
+                                  "type": "string",
+                                  "description": "The name of the street of the partyÔÇÖs address."
+                                },
+                                "streetNumber": {
+                                  "maxLength": 50,
+                                  "type": "string",
+                                  "description": "The number of the street of the partyÔÇÖs address."
+                                },
+                                "floor": {
+                                  "maxLength": 50,
+                                  "type": "string",
+                                  "description": "The floor of the partyÔÇÖs street number."
+                                },
+                                "postCode": {
+                                  "maxLength": 50,
+                                  "type": "string",
+                                  "description": "The post code of the partyÔÇÖs address."
+                                },
+                                "city": {
+                                  "maxLength": 65,
+                                  "type": "string",
+                                  "description": "The city name of the partyÔÇÖs address."
+                                },
+                                "stateRegion": {
+                                  "maxLength": 65,
+                                  "type": "string",
+                                  "description": "The state/region of the partyÔÇÖs address."
+                                },
+                                "country": {
+                                  "maxLength": 75,
+                                  "type": "string",
+                                  "description": "The country of the partyÔÇÖs address."
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "relatedDocumentReferences": {
+                  "type": "array",
+                  "description": "An optional list of key-value (`type`-`value`) pairs representing links to objects relevant to the event. The `type`-field is used to describe where the `value`-field is pointing to.\n",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "description": "Describes where the `value` is pointing to. Can be one of the following values\n- CBR (Carrier Booking Request Reference)\n- BKG (Carrier Booking Reference)\n- SHI (Shipping Instruction Reference)\n- TRD (Transport Document Reference)\n",
+                        "enum": [
+                          "CBR",
+                          "BKG",
+                          "SHI",
+                          "TRD"
+                        ]
+                      },
+                      "value": {
+                        "maxLength": 100,
+                        "type": "string",
+                        "description": "The reference to the object described by `type`\n"
+                      }
+                    }
+                  }
+                },
+                "references": {
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "array",
+                  "description": "References provided by the shipper or freight forwarder at the time of booking or at the time of providing shipping instruction. Carriers share it back when providing track and trace event updates, some are also printed on the B/L. Customers can use these references to track shipments in their internal systems.\n\nIn addition to the References provided by the shipper or freight forwarder - the carrier can provide an extra `type` called `EQ` which is a reference to an Equipment.\n",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "description": "The reference type codes defined by DCSA.\n- FF (Freight ForwarderÔÇÖs Reference)\n- SI (ShipperÔÇÖs Reference)\n- PO (Purchase Order Reference)\n- CR (CustomerÔÇÖs Reference)\n- AAO (ConsigneeÔÇÖs Reference)\n- ECR (Empty container release reference)\n- CSI (Customer shipment ID)\n- BPR (Booking party reference number)\n- BID (Booking Request ID)\n- EQ (Equipment Reference)\n- RUC (Registro ├Ünico del Contribuyente)\n- DUE (Declara├º├úo ├Ünica de Exporta├º├úo)\n- CER (Canadian Export Reporting System)\n- AES (Automated Export System)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/referencetypes.csv\">GitHub</a>.\n",
+                        "enum": [
+                          "FF",
+                          "SI",
+                          "PO",
+                          "CR",
+                          "AAO",
+                          "ECR",
+                          "CSI",
+                          "BPR",
+                          "BID",
+                          "EQ",
+                          "RUC",
+                          "DUE",
+                          "CER",
+                          "AES"
+                        ]
+                      },
+                      "value": {
+                        "maxLength": 100,
+                        "type": "string",
+                        "description": "The actual value of the reference."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+    - name: EVENT_SUBSCRIPTION_SCHEMA
+      value: |-
+        {
+            "type": "object",
+            "required": [
+              "callbackUrl"
+            ],
+            "properties": {
+              "subscriptionID": {
+                "type": "string",
+                "description": "The carrier issues a unique ID to the shipper or consignee for that subscription\n"
+              },
+              "subscriptionCreatedDateTime": {
+                "type": "string",
+                "description": "The date and time when the subscription was created\n"
+              },
+              "subscriptionUpdatedDateTime": {
+                "type": "string",
+                "description": "The date and time when the subscription was last updated\n"
+              },
+              "callbackUrl": {
+                "type": "string",
+                "description": "The endPoint where a Carrier whould send back events to the Shipper. The callback can contain query parameters uniquely identifying the originator of the events.\n"
+              },
+              "eventTypes": {
+                "type": "array",
+                "description": "List of `eventType` to filter by. If multiple values are selected - the **OR**-operator will be used.\n\nPossible values are\n- SHIPMENT (Shipment events)\n- TRANSPORT (Transport events)\n- EQUIPMENT (Equipment events)\n\nDefault is none as it will not filter on `eventType` if not specified.\n",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "SHIPMENT",
+                    "TRANSPORT",
+                    "EQUIPMENT"
+                  ]
+                }
+              },
+              "shipmentEventTypeCodes": {
+                "type": "array",
+                "description": "List of `shipmentEventTypeCode` to filter by. If multiple values are selected - the **OR**-operator will be used.\n\nDefault is none as it will not filter on `shipmentEventTypeCode` if not specified.\n",
+                "items": {
+                  "type": "string",
+                  "description": "The status of the document in the process. Possible values are\n- RECE (Received)\n- DRFT (Drafted)\n- PENA (Pending Approval)\n- PENU (Pending Update)\n- PENC (Pending Confirmation)\n- CONF (Confirmed)\n- REJE (Rejected)\n- APPR (Approved)\n- ISSU (Issued)\n- SURR (Surrendered)\n- SUBM (Submitted)\n- VOID (Void)\n- REQS (Requested)\n- CMPL (Completed)\n- HOLD (On Hold)\n- RELS (Released)\n- CANC (Cancelled)\n\nMore details can be found on [GitHub](https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/shipmenteventtypecodes.csv)\n",
+                  "enum": [
+                    "RECE",
+                    "DRFT",
+                    "PENA",
+                    "PENU",
+                    "PENC",
+                    "CONF",
+                    "REJE",
+                    "APPR",
+                    "ISSU",
+                    "SURR",
+                    "SUBM",
+                    "VOID",
+                    "REQS",
+                    "CMPL",
+                    "HOLD",
+                    "RELS",
+                    "CANC"
+                  ]
+                }
+              },
+              "documentTypeCodes": {
+                "type": "array",
+                "description": "List of `documentTypeCode` to filter by. If multiple values are selected - the **OR**-operator will be used.\n\nDefault is none as it will not filter on `documentTypeCode` if not specified.\n",
+                "items": {
+                  "maxLength": 3,
+                  "type": "string",
+                  "description": "The `documentTypeCode` is used to identify the type of information `documentReference` points to. Can be one of the following values\n- CBR (Carrier Booking Request)\n- BKG (Booking)\n- SHI (Shipping Instruction)\n- TRD (Transport Document)\n- DEI (Delivery Instructions)\n- DEO (Delivery Order)\n- TRO (Transport Order)\n- CRO (Container Release Order)\n- ARN (Arrival Notice)\n- VGM (Verified Gross Mass)\n- CAS (Cargo Survey)\n- CUC (Customs Clearance)\n- DGD (Dangerous Goods Declaration)\n- OOG (Out of Gauge)\n- CQU (Contract Quotation)\n- INV (Invoice)\n- HCE (Health Certificate)\n- PCE (Phytosanitary Certificate)\n- VCE (Veterinary Certificate)\n- FCE (Fumigation Certificate)\n- ICE (Inspection Certificate)\n- CEA (Certificate of Analysis)\n- CEO (Certificate of Origin)\n\nMore details can be found on [GitHub](https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/documenttypecodes.csv)\n",
+                  "enum": [
+                    "CBR",
+                    "BKG",
+                    "SHI",
+                    "TRD",
+                    "DEI",
+                    "DEO",
+                    "TRO",
+                    "CRO",
+                    "ARN",
+                    "VGM",
+                    "CAS",
+                    "CUC",
+                    "DGD",
+                    "OOG",
+                    "CQU",
+                    "INV",
+                    "HCE",
+                    "PCE",
+                    "VCE",
+                    "FCE",
+                    "ICE",
+                    "CEA",
+                    "CEO"
+                  ]
+                }
+              },
+              "documentReference": {
+                "maxLength": 100,
+                "type": "string",
+                "description": "The reference of the object defined by the `documentTypeCode`\n"
+              },
+              "equipmentReference": {
+                "maxLength": 15,
+                "type": "string",
+                "description": "The unique identifier for the equipment, which should follow the BIC ISO Container Identification Number where possible.\nAccording to ISO 6346, a container identification code consists of a 4-letter prefix and a 7-digit number (composed of a 3-letter owner code, a category identifier, a serial number, and a check-digit). If a container does not comply with ISO 6346, it is suggested to follow Recommendation #2 ÔÇ£Container with non-ISO identificationÔÇØ from SMDG.\n"
+              },
+              "transportEventTypeCodes": {
+                "type": "array",
+                "description": "List of `transportEventTypeCode` to filter by. If multiple values are selected - the **OR**-operator will be used.\n\nDefault is none as it will not filter on `transportEventTypeCode` if not specified.\n",
+                "items": {
+                  "type": "string",
+                  "description": "Identifier for type of `transportEvent`\n- ARRI (Arrived)\n- DEPA (Departed)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/transporteventtypecodes.csv\">GitHub</a>\n",
+                  "enum": [
+                    "ARRI",
+                    "DEPA"
+                  ]
+                }
+              },
+              "transportCallReference": {
+                "maxLength": 100,
+                "type": "string",
+                "description": "A carrier definied reference to a TransportCall.\n\nIn the case the Means of Transport is a `Vessel` and the facility is a `Port`/`Terminal` - this reference should be considered a **Terminal Call Reference**\n"
+              },
+              "vesselIMONumber": {
+                "maxLength": 7,
+                "type": "string",
+                "description": "The unique reference for a registered Vessel. The reference is the International Maritime Organisation (IMO) number, also sometimes known as the Lloyd&apos;s register code, which does not change during the lifetime of the vessel\n"
+              },
+              "carrierExportVoyageNumber": {
+                "maxLength": 50,
+                "type": "string",
+                "description": "The identifier of an export voyage. The vessel operator-specific identifier of the export Voyage.\n"
+              },
+              "universalExportVoyageReference": {
+                "pattern": "\\d{2}[0-9A-Z]{2}[NEWS]",
+                "type": "string",
+                "description": "A global unique voyage reference for the export Voyage, as per DCSA standard, agreed by VSA partners for the voyage. The voyage reference must match the regular expression pattern: `\\d{2}[0-9A-Z]{2}[NEWS]`\n- `2 digits` for the year\n- `2 alphanumeric characters` for the sequence number of the voyage\n- `1 character` for the direction/haul (`N`orth, `E`ast, `W`est or `S`outh).\n"
+              },
+              "carrierServiceCode": {
+                "maxLength": 11,
+                "type": "string",
+                "description": "The Carrier specific code of the service for which the schedule details are published.\n"
+              },
+              "universalServiceReference": {
+                "maxLength": 8,
+                "pattern": "SR\\d{5}[A-Z]",
+                "type": "string",
+                "description": "A global unique service reference, as per DCSA standard, agreed by VSA partners for the service. The service reference must match the regular expression pattern: `SR\\d{5}[A-Z]`. The letters `SR` followed by `5 digits`, followed by a checksum-character as a capital letter from `A to Z`.\n"
+              },
+              "UNLocationCode": {
+                "maxLength": 5,
+                "type": "string",
+                "description": "The UN Location code specifying where the place is located."
+              },
+              "equipmentEventTypeCodes": {
+                "type": "array",
+                "description": "List of `equipmentEventTypeCode` to filter by. If multiple values are selected - the **OR**-operator will be used.\n\nDefault is none as it will not filter on `equipmentEventTypeCode` if not specified.\n",
+                "items": {
+                  "type": "string",
+                  "description": "Unique identifier for `equipmentEventTypeCode` - can be one of the following values\n- LOAD (Loaded)\n- DISC (Discharged)\n- GTIN (Gated in)\n- GTOT (Gated out)\n- STUF (Stuffed)\n- STRP (Stripped)\n- PICK (Pick-up)\n- AVPU (Available for Pick-up)\n- DROP (Drop-off)\n- AVDO (Available for Drop-off)\n- INSP (Inspected)\n- RSEA (Resealed)\n- RMVD (Removed)\n- CUSS (Customs Selected for Scan)\n- CUSI (Customs Selected for Inspection)\n- CUSR (Customs Released)\n- CROS (Crossed)\n\nMore details can be found on <a href=\"https://github.com/dcsaorg/DCSA-Information-Model/blob/master/datamodel/referencedata.d/equipmenteventtypecodes.csv\">GitHub</a>\n",
+                  "enum": [
+                    "LOAD",
+                    "DISC",
+                    "GTIN",
+                    "GTOT",
+                    "STUF",
+                    "STRP",
+                    "AVPU",
+                    "PICK",
+                    "AVDO",
+                    "DROP",
+                    "INSP",
+                    "RSEA",
+                    "RMVD",
+                    "CUSS",
+                    "CUSI",
+                    "CUSR",
+                    "CROS"
+                  ]
+                }
+              }
+            }
+          }
+
+bundled: false

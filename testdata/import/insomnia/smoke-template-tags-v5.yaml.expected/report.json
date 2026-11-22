@@ -1,0 +1,143 @@
+{
+  "collectionName": "Template Tag Collection",
+  "report": {
+    "environments": 0,
+    "folders": 1,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "1 cookie of the cookie jar not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "collection"
+      },
+      {
+        "detail": "template tag `{% base64 %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% faker %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% file %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% hash %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% os %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% jsonpath %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% now %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% uuid %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% cookie %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Common Tag"
+      },
+      {
+        "detail": "template tag `{% cookie %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Cookie Tag Error"
+      },
+      {
+        "detail": "template tag `{% vault %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "External Vault Tag"
+      },
+      {
+        "detail": "template tag `{% file %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "File Tag Error"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "FolderWithRequest / Request Tag"
+      },
+      {
+        "detail": "template tag `{% request %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "FolderWithRequest / Request Tag"
+      },
+      {
+        "detail": "template tag `{% prompt %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Prompt Tag"
+      },
+      {
+        "detail": "template tag `{% prompt %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Prompt Tag Masked"
+      },
+      {
+        "detail": "template tag `{% response %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Response Tag"
+      },
+      {
+        "detail": "template tag `{% response %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Response Trigger Always"
+      },
+      {
+        "detail": "template tag `{% response %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Response Trigger Never"
+      },
+      {
+        "detail": "template tag `{% response %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Response Trigger No History"
+      },
+      {
+        "detail": "template tag `{% response %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Response Trigger When Expired"
+      }
+    ],
+    "requests": 14
+  }
+}

@@ -1,0 +1,16 @@
+info:
+  name: PUT localhost:28139
+  type: http
+  seq: 1
+
+http:
+  method: PUT
+  url: http://localhost:28139
+  body:
+    type: file
+    data:
+      - filePath: myfile.jpg
+        selected: true
+
+settings:
+  followRedirects: false

@@ -1,0 +1,11 @@
+info:
+  name: Users
+  type: folder
+  seq: 1
+
+request:
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+docs: User endpoints.

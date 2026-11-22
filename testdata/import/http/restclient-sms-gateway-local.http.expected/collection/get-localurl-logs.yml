@@ -1,0 +1,15 @@
+info:
+  name: GET {{localUrl}}/logs
+  type: http
+  seq: 16
+
+http:
+  method: GET
+  url: "{{localUrl}}/logs?from=2025-02-05T20:39:46.190%2B07:00"
+  params:
+    - name: from
+      value: 2025-02-05T20:39:46.190%2B07:00
+      type: query
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}

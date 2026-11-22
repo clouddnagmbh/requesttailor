@@ -1,0 +1,49 @@
+info:
+  name: POST httpbin.org/get
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: https://httpbin.org/get
+  headers:
+    - name: user-agent
+      value: curl/7.86.0
+    - name: accept
+      value: "*/*"
+    - name: content-type
+      value: application/x-www-form-urlencoded
+  body:
+    type: form-urlencoded
+    data:
+      - name: key1
+        value: value1
+      - name: key2
+        value: value2
+
+examples:
+  - name: Recorded response
+    response:
+      status: 405
+      headers:
+        - name: date
+          value: Tue, 25 Jul 2023 11:07:59 GMT
+        - name: content-type
+          value: text/html
+        - name: content-length
+          value: "178"
+        - name: server
+          value: gunicorn/19.9.0
+        - name: allow
+          value: GET, HEAD, OPTIONS
+        - name: access-control-allow-origin
+          value: "*"
+        - name: access-control-allow-credentials
+          value: "true"
+      body:
+        type: html
+        data: |
+          <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+          <title>405 Method Not Allowed</title>
+          <h1>Method Not Allowed</h1>
+          <p>The method is not allowed for the requested URL.</p>

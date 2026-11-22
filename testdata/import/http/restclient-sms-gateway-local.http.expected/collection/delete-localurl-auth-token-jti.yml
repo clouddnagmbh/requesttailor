@@ -1,0 +1,11 @@
+info:
+  name: DELETE {{localUrl}}/auth/token/{{jti}}
+  type: http
+  seq: 21
+
+http:
+  method: DELETE
+  url: "{{localUrl}}/auth/token/{{jti}}"
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}

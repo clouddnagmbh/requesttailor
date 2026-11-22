@@ -1,0 +1,24 @@
+info:
+  name: DELETE /pets/{petId}
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/pets/:petId"
+  params:
+    - name: petId
+      value: ""
+      type: path
+  auth:
+    type: oauth2
+    flow: authorization_code
+    authorizationUrl: https://id.example.com/authorize
+    accessTokenUrl: https://id.example.com/token
+    credentials:
+      clientId: "{{clientId}}"
+      clientSecret: "{{clientSecret}}"
+      placement: basic_auth_header
+    scope: pets:write
+    pkce:
+      disabled: true

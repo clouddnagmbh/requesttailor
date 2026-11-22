@@ -1,0 +1,23 @@
+{
+  "collectionName": "curlconverter-get-digest-auth",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "Digest auth settings kept in the file, but RequestTailor cannot send with Digest auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET localhost:28139"
+      },
+      {
+        "detail": "Digest auth password stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET localhost:28139"
+      }
+    ],
+    "requests": 1
+  }
+}

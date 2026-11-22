@@ -1,0 +1,24 @@
+info:
+  name: Filter articles
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: "{{host_api}}/articles?tag=&author=&favorited=&offset=0&limit=100"
+  params:
+    - name: tag
+      value: ""
+      type: query
+    - name: author
+      value: ""
+      type: query
+    - name: favorited
+      value: ""
+      type: query
+    - name: offset
+      value: "0"
+      type: query
+    - name: limit
+      value: "100"
+      type: query

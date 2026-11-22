@@ -1,0 +1,17 @@
+opencollection: "1.0.0"
+
+info:
+  name: environments
+
+request:
+  variables:
+    - name: exampleString
+      value: baseenv0
+    - name: exampleNumber
+      value: "1001"
+    - name: exampleObject.anotherString
+      value: baseenv1
+    - name: exampleObject.anotherNumber
+      value: "1001"
+
+bundled: false

@@ -1,0 +1,23 @@
+info:
+  name: POST {{api}}/deliveries/{{deliveryId}}/registrations
+  type: http
+  seq: 20
+
+http:
+  method: POST
+  url: "{{api}}/deliveries/{{deliveryId}}/registrations"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "{{deliveryId}}",
+        "description": "Delivery registration description",
+        "dateTime": "2019-10-10"
+      }
+
+      # ============== OPERATIONS ==================== #

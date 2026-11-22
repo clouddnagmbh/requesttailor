@@ -1,0 +1,41 @@
+{
+  "collectionName": "Pet Store (OpenAPI 3.2 sample)",
+  "report": {
+    "environments": 1,
+    "folders": 2,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "collection"
+      },
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "1 webhook not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "collection"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "pets / Create a pet"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "pets / Search pets with a request body"
+      }
+    ],
+    "requests": 7
+  }
+}

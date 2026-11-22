@@ -1,0 +1,143 @@
+{
+  "collectionName": "OAuth Testing",
+  "report": {
+    "environments": 0,
+    "folders": 4,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "OAuth 2.0 settings not imported: `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Authorization Code / No PKCE"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Authorization Code / No PKCE"
+      },
+      {
+        "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Authorization Code / No PKCE"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Authorization Code / PKCE Plain"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Authorization Code / PKCE Plain"
+      },
+      {
+        "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Authorization Code / PKCE Plain"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Authorization Code / PKCE SHA256"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Authorization Code / PKCE SHA256"
+      },
+      {
+        "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Authorization Code / PKCE SHA256"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Client Credentials"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Client Credentials"
+      },
+      {
+        "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Client Credentials"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Folder Level Auth Code"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Folder Level Auth Code"
+      },
+      {
+        "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Folder Level Auth Code"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Implicit / ID Token"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Implicit / ID Token"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Implicit / ID and Access Token"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Implicit / ID and Access Token"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Resource Owner Password Credentials"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Resource Owner Password Credentials"
+      },
+      {
+        "detail": "OAuth 2.0 clientSecret, password stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Resource Owner Password Credentials"
+      }
+    ],
+    "requests": 8
+  }
+}

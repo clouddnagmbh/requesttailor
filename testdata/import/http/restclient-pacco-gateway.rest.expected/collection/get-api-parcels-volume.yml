@@ -1,0 +1,15 @@
+info:
+  name: GET {{api}}/parcels/volume
+  type: http
+  seq: 31
+
+http:
+  method: GET
+  url: '{{api}}/parcels/volume?parcelIds=["{{parcelId}}"]'
+  params:
+    - name: parcelIds
+      value: '["{{parcelId}}"]'
+      type: query
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}

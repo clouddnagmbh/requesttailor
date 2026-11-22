@@ -1,0 +1,19 @@
+info:
+  name: signup
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{apiUrl}}/auth/signup"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+          "name": "Test Tester",
+          "email": "new-user@exceptionless.test",
+          "password": "{{password}}"
+      }

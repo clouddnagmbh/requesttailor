@@ -1,0 +1,19 @@
+info:
+  name: mergePullRequest
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseUrl}}/2.0/repositories/:username/:slug/pullrequests/:pid/merge"
+  params:
+    - name: username
+      value: ""
+      type: path
+    - name: slug
+      value: ""
+      type: path
+    - name: pid
+      value: ""
+      type: path
+  auth: inherit

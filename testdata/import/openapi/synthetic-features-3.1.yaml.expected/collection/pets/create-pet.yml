@@ -1,0 +1,29 @@
+info:
+  name: Create pet
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pets"
+  headers:
+    - name: X-Trace
+      value: abc
+      disabled: true
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": 0,
+        "name": "Rex",
+        "tags": [
+          "string"
+        ],
+        "callbackUrl": "https://example.com"
+      }
+  auth:
+    type: basic
+    username: "{{username}}"
+    password: "{{password}}"

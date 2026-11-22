@@ -1,0 +1,13 @@
+info:
+  name: By DocumentReferenceCBR
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{BASE_URL}}{{TNT_CONTEXT_PATH}}/events?documentReference=cbr-b83765166707812c8ff4"
+  params:
+    - name: documentReference
+      value: cbr-b83765166707812c8ff4
+      type: query
+  auth: inherit

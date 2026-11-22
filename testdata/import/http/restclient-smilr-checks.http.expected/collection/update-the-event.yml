@@ -1,0 +1,24 @@
+info:
+  name: Update the event
+  type: http
+  seq: 5
+
+http:
+  method: PUT
+  url: http://localhost:4000/api/events/{{eventId}}
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "title": "Updated event",
+        "type": "lab",
+        "start": "2010-01-01",
+        "end": "2030-12-30",
+        "topics": [
+          { "id": 1, "desc": "Topic A" },
+          { "id": 2, "desc": "Topic B" }
+        ]
+      }

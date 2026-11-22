@@ -1,0 +1,28 @@
+info:
+  name: POST api.datadoghq.com/api/v1/monitor
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: https://api.datadoghq.com/api/v1/monitor
+  headers:
+    - name: accept
+      value: application/json
+    - name: content-type
+      value: application/json
+  body:
+    type: json
+    data: '{"message":"some message Notify: @hipchat-channel","name":"Test-Create_a_monitor_returns_OK_response-1652348780","priority":3,"query":"logs(\"service:foo AND type:error\").index(\"main\").rollup(\"count\").by(\"source\").last(\"5m\") > 2","restricted_roles":["61162af2-d1d8-11ec-ad3d-da7ad0900002"],"tags":["test:testcreateamonitorreturnsokresponse1652348780","env:ci"],"type":"log alert"}'
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: content-type
+          value: application/json
+      body:
+        type: json
+        data: '{"restricted_roles":["61162af2-d1d8-11ec-ad3d-da7ad0900002"],"tags":["test:testcreateamonitorreturnsokresponse1652348780","env:ci"],"deleted":null,"query":"logs(\"service:foo AND type:error\").index(\"main\").rollup(\"count\").by(\"source\").last(\"5m\") > 2","message":"some message Notify: @hipchat-channel","id":71310040,"multi":true,"name":"Test-Create_a_monitor_returns_OK_response-1652348780","created":"2022-05-12T09:46:21.924878+00:00","created_at":1652348781000,"creator":{"id":1445416,"handle":"frog@datadoghq.com","name":null,"email":"frog@datadoghq.com"},"org_id":321813,"modified":"2022-05-12T09:46:21.924878+00:00","priority":3,"overall_state_modified":null,"overall_state":"No Data","type":"log alert","options":{"notify_audit":false,"silenced":{},"include_tags":true,"new_host_delay":300,"notify_no_data":false,"groupby_simple_monitor":false}}'

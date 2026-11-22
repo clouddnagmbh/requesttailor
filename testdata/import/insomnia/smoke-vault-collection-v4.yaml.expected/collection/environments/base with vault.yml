@@ -1,0 +1,4 @@
+name: base with vault
+variables:
+  - name: vault
+    value: hello

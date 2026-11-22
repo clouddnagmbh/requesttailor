@@ -1,0 +1,8 @@
+info:
+  name: AI Sessions
+  type: folder
+  seq: 1
+
+docs: |-
+  Endpoints for listing and deleting AI sessions, which hold the conversation
+  state for interactions with Box AI agents.

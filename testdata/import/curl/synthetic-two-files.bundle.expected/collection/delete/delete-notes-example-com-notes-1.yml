@@ -1,0 +1,11 @@
+info:
+  name: DELETE notes.example.com/notes/1
+  type: http
+  seq: 1
+
+http:
+  method: DELETE
+  url: https://notes.example.com/notes/1
+
+settings:
+  followRedirects: false

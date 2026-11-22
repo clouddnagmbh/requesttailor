@@ -1,0 +1,13 @@
+info:
+  name: "followOriginalHttpMethod: false"
+  type: http
+  seq: 2
+
+http:
+  method: DELETE
+  url: localhost:4042/1
+  auth: inherit
+
+settings:
+  followRedirects: true
+  maxRedirects: 10

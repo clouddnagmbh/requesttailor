@@ -1,0 +1,11 @@
+info:
+  name: GET {{api}}/vehicles/{{vehicleId}}
+  type: http
+  seq: 36
+
+http:
+  method: GET
+  url: "{{api}}/vehicles/{{vehicleId}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}

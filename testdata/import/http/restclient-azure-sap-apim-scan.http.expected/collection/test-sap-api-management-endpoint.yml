@@ -1,0 +1,11 @@
+info:
+  name: Test SAP API Management endpoint
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{sapApimResourceUrl}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}

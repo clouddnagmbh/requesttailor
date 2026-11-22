@@ -1,0 +1,23 @@
+{
+  "collectionName": "restclient-endatix-api",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "file variables refer to other requests' responses, kept as text: {{login.response.body.$.accessToken}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      },
+      {
+        "detail": "references to other requests' responses kept as text: {{login.response.body.$.refreshToken}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "refresh"
+      }
+    ],
+    "requests": 7
+  }
+}

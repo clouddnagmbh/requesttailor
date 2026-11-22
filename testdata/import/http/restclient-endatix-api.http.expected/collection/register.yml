@@ -1,0 +1,19 @@
+info:
+  name: register
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{apiBaseUrl}}/auth/register"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+          "email": "{{validEmail}}",
+          "password": "{{validPassword}}",
+          "confirmPassword": "{{validPassword}}"
+      }

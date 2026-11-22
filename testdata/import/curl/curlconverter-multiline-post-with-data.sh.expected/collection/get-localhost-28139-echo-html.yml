@@ -1,0 +1,21 @@
+info:
+  name: GET localhost:28139/echo/html
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:28139/echo/html/
+  headers:
+    - name: Origin
+      value: http://fiddle.jshell.net
+  body:
+    type: form-urlencoded
+    data:
+      - name: msg1
+        value: value1
+      - name: msg2
+        value: value2
+
+settings:
+  followRedirects: false

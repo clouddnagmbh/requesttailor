@@ -1,0 +1,17 @@
+info:
+  name: POST httpbin.org/post
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: https://httpbin.org/post
+  body:
+    type: form-urlencoded
+    data:
+      - name: text
+        value: Check out these cute pictures
+      - name: link
+        value: http://example.com/image
+      - name: link
+        value: http://example.com/image

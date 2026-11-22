@@ -1,0 +1,15 @@
+info:
+  name: AWS Signature
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://insomnia.rest
+  auth:
+    type: awsv4
+    accessKeyId: aws-access-key
+    secretAccessKey: aws-secret-key
+    sessionToken: aws-session-token
+    service: aws-service-name
+    region: aws-region

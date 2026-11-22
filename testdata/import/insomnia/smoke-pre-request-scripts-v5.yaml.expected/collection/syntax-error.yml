@@ -1,0 +1,12 @@
+info:
+  name: Syntax error
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: User-Agent
+      value: insomnia/8.6.1
+  auth: inherit

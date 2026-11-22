@@ -1,0 +1,27 @@
+info:
+  name: POST shop.example.com/login
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: https://shop.example.com/login
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: form-urlencoded
+    data:
+      - name: user
+        value: alice
+      - name: next
+        value: /home
+
+examples:
+  - name: Recorded response
+    response:
+      status: 302
+      statusText: Found
+      headers:
+        - name: Location
+          value: /home

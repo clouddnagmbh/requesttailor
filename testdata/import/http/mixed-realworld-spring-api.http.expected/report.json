@@ -1,0 +1,35 @@
+{
+  "collectionName": "mixed-realworld-spring-api",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Create article"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Login user1"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Register user1"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Register user2"
+      }
+    ],
+    "requests": 20
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "collectionName": "notes.example.com",
+  "report": {
+    "environments": 0,
+    "folders": 2,
+    "format": "curl",
+    "losses": [],
+    "requests": 2
+  }
+}

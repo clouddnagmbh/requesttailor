@@ -1,0 +1,16 @@
+info:
+  name: https://api.example.com/header?x={{page_size}}
+  type: http
+  seq: 13
+
+http:
+  method: GET
+  url: https://api.example.com/header?x={{page_size}}
+  params:
+    - name: x
+      value: "{{page_size}}"
+      type: query
+  headers:
+    - name: Authorization
+      value: Token typed-token
+  auth: inherit

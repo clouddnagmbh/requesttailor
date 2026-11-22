@@ -1,0 +1,8 @@
+info:
+  name: GET test.loadimpact.com/path
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://test.loadimpact.com/path

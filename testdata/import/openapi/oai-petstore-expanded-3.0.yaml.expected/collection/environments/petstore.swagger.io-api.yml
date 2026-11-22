@@ -1,0 +1,4 @@
+name: petstore.swagger.io/api
+variables:
+  - name: baseUrl
+    value: http://petstore.swagger.io/api

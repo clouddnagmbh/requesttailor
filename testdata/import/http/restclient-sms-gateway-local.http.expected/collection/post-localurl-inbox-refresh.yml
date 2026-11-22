@@ -1,0 +1,20 @@
+info:
+  name: POST {{localUrl}}/inbox/refresh
+  type: http
+  seq: 24
+
+http:
+  method: POST
+  url: "{{localUrl}}/inbox/refresh"
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "since": "2026-01-01T00:00:00.000Z",
+        "until": "2026-12-31T23:59:59Z"
+      }

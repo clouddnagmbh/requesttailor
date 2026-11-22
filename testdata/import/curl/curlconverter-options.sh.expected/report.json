@@ -1,0 +1,10 @@
+{
+  "collectionName": "curlconverter-options",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [],
+    "requests": 1
+  }
+}

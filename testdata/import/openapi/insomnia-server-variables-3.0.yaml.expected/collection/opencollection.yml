@@ -1,0 +1,24 @@
+opencollection: "1.0.0"
+
+info:
+  name: File and Storage API
+
+request:
+  variables:
+    - name: baseUrl
+      value: "{{protocol}}://{{host}}:{{port}}/{{basePath}}"
+    - name: protocol
+      value: https
+    - name: port
+      value: "8080"
+    - name: host
+      value: localhost
+    - name: basePath
+      value: filemanagement
+
+docs: |-
+  Version 0.1.0
+
+  This API is for administrating files and file storages.
+
+bundled: false

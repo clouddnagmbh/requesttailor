@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Test API Collection v4
+
+request:
+  variables:
+    - name: baseUrl
+      value: https://api.example.com
+
+docs: Test collection for Insomnia v4 format
+
+bundled: false

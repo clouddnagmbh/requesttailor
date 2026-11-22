@@ -1,0 +1,9 @@
+info:
+  name: Place an order for a pet
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{base_url}}/store/order"
+  auth: inherit

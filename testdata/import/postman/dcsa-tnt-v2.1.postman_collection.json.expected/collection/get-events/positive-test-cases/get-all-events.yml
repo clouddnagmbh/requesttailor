@@ -1,0 +1,9 @@
+info:
+  name: GET All Events
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{BASE_URL}}{{TNT_CONTEXT_PATH}}/events"
+  auth: inherit

@@ -1,0 +1,329 @@
+{
+  "collectionName": "Kubernetes",
+  "report": {
+    "environments": 0,
+    "folders": 1,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "the description names no server; set `baseUrl` in the collection variables",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      },
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / createAppsV1NamespacedControllerRevision"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / createAppsV1NamespacedDaemonSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / createAppsV1NamespacedDeployment"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / createAppsV1NamespacedReplicaSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / createAppsV1NamespacedStatefulSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1CollectionNamespacedControllerRevision"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1CollectionNamespacedDaemonSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1CollectionNamespacedDeployment"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1CollectionNamespacedReplicaSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1CollectionNamespacedStatefulSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1NamespacedControllerRevision"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1NamespacedDaemonSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1NamespacedDeployment"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1NamespacedReplicaSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / deleteAppsV1NamespacedStatefulSet"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedControllerRevision"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedControllerRevision"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDaemonSet"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDaemonSet"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDaemonSetStatus"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDaemonSetStatus"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDeployment"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDeployment"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDeploymentScale"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDeploymentScale"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDeploymentStatus"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedDeploymentStatus"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedReplicaSet"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedReplicaSet"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedReplicaSetScale"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedReplicaSetScale"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedReplicaSetStatus"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedReplicaSetStatus"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedStatefulSet"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedStatefulSet"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedStatefulSetScale"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedStatefulSetScale"
+      },
+      {
+        "detail": "body imported as `application/json-patch+json`; other media types not imported: `application/apply-patch+cbor`, `application/apply-patch+yaml`, `application/merge-patch+json`, `application/strategic-merge-patch+json`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedStatefulSetStatus"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / patchAppsV1NamespacedStatefulSetStatus"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedControllerRevision"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedDaemonSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedDaemonSetStatus"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedDeployment"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedDeploymentScale"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedDeploymentStatus"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedReplicaSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedReplicaSetScale"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedReplicaSetStatus"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedStatefulSet"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedStatefulSetScale"
+      },
+      {
+        "detail": "`*/*` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "apps_v1 / replaceAppsV1NamespacedStatefulSetStatus"
+      }
+    ],
+    "requests": 77
+  }
+}

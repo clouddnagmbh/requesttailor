@@ -1,0 +1,10 @@
+name: Staging
+variables:
+  - name: baseUrl
+    value: https://staging-api.example.com
+  - name: user.name
+    value: staging_admin
+  - name: config.timeout
+    value: "60000"
+  - name: config.debug
+    value: "false"

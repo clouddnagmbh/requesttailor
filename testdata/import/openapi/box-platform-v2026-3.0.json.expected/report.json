@@ -1,0 +1,47 @@
+{
+  "collectionName": "Box Platform API",
+  "report": {
+    "environments": 1,
+    "folders": 6,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "collection"
+      },
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Automate Workflows / Start Automate workflow"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Convert to Box Note / Convert content to Box Note"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Query / Box Query"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Query / Create insights for Box items"
+      }
+    ],
+    "requests": 49
+  }
+}

@@ -1,0 +1,23 @@
+info:
+  name: OAuth 2
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: https://api.example.com/oauth2
+  auth:
+    type: oauth2
+    flow: authorization_code
+    authorizationUrl: https://id.example.com/auth
+    accessTokenUrl: https://id.example.com/token
+    callbackUrl: https://app.example.com/cb
+    credentials:
+      clientId: app
+      clientSecret: "{{client_secret}}"
+      placement: basic_auth_header
+    scope: read
+    state: s
+    pkce:
+      disabled: false
+      method: S256

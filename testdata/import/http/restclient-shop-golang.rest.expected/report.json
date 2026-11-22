@@ -1,0 +1,29 @@
+{
+  "collectionName": "restclient-shop-golang",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "references to other requests' responses kept as text: {{Token.response.body.access_token}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Create"
+      },
+      {
+        "detail": "references to other requests' responses kept as text: {{Token.response.body.access_token}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Update"
+      },
+      {
+        "detail": "references to other requests' responses kept as text: {{Token.response.body.access_token}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Validate-Token"
+      }
+    ],
+    "requests": 6
+  }
+}

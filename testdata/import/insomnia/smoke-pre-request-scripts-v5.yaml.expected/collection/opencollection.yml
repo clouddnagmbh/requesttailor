@@ -1,0 +1,17 @@
+opencollection: "1.0.0"
+
+info:
+  name: Pre-request Scripts
+
+request:
+  variables:
+    - name: fromUrlValue
+      value: fromUrlValue
+    - name: fromEditorValue
+      value: fromEditorValue
+    - name: examplehost
+      value: http://127.0.0.1:4010/echo
+    - name: a.b.c.url
+      value: http://127.0.0.1:4010/echo
+
+bundled: false

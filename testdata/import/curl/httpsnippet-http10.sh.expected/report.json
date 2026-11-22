@@ -1,0 +1,17 @@
+{
+  "collectionName": "httpsnippet-http10",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "option `--http1.0` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET mockbin.com/request"
+      }
+    ],
+    "requests": 1
+  }
+}

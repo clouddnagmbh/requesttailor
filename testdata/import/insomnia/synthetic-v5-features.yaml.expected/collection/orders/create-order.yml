@@ -1,0 +1,18 @@
+info:
+  name: Create order
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/orders"
+  body:
+    type: json
+    data: "{\"sku\": \"{{sku}}\", \"id\": \"{% faker 'randomUUID' %}\"}"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: false
+  followRedirects: false

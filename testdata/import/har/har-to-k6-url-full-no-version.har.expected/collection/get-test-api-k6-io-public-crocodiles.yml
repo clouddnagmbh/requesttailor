@@ -1,0 +1,8 @@
+info:
+  name: GET test-api.k6.io/public/crocodiles
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://test-api.k6.io/public/crocodiles/

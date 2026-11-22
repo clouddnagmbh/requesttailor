@@ -1,0 +1,19 @@
+info:
+  name: POST {{api}}/orders/{{orderId}}/vehicles/{{vehicleId}}
+  type: http
+  seq: 27
+
+http:
+  method: POST
+  url: "{{api}}/orders/{{orderId}}/vehicles/{{vehicleId}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "deliveryDate": "{{deliveryDate}}"
+      }

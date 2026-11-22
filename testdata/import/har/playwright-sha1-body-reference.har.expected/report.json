@@ -1,0 +1,17 @@
+{
+  "collectionName": "playwright-sha1-body-reference",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "har",
+    "losses": [
+      {
+        "detail": "recorded response body is stored in the separate file `har-sha1-main-response.txt`; not imported",
+        "effect": "dropped",
+        "kind": "example",
+        "location": "GET no.playwright"
+      }
+    ],
+    "requests": 1
+  }
+}

@@ -1,0 +1,17 @@
+info:
+  name: POST mockbin.com/har
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://mockbin.com/har
+  headers:
+    - name: content-type
+      value: application/json
+  body:
+    type: json
+    data: '{  "foo": "bar"}'
+
+settings:
+  followRedirects: false

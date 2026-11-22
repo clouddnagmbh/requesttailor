@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: restclient-smilr-checks
+
+request:
+  variables:
+    - name: filterTime
+      value: future
+    - name: eventId
+      value: "{{create.response.body.$._id}}"
+
+bundled: false

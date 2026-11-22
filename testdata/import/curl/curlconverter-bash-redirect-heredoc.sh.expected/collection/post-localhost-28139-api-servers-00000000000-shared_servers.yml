@@ -1,0 +1,24 @@
+info:
+  name: POST localhost:28139/api/servers/00000000000/shared_servers
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:28139/api/servers/00000000000/shared_servers/
+  headers:
+    - name: "'Accept'"
+      value: "'application/json'"
+    - name: Authorization
+      value: Bearer 000000000000000-0000
+    - name: Content-Type
+      value: application/json
+  body:
+    type: file
+    data:
+      - filePath: "-"
+        contentType: application/json
+        selected: true
+
+settings:
+  followRedirects: false

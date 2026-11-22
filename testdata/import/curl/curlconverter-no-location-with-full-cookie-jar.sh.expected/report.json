@@ -1,0 +1,35 @@
+{
+  "collectionName": "curlconverter-no-location-with-full-cookie-jar",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "option `--location-trusted` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET localhost:28139"
+      },
+      {
+        "detail": "cookie file `cookies.txt` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET localhost:28139"
+      },
+      {
+        "detail": "unknown option `--no-location` ignored",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "GET localhost:28139"
+      },
+      {
+        "detail": "unknown option `--no-location-trusted` ignored",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "GET localhost:28139"
+      }
+    ],
+    "requests": 1
+  }
+}

@@ -1,0 +1,19 @@
+info:
+  name: simple log
+  type: http
+  seq: 27
+
+http:
+  method: POST
+  url: http://127.0.0.1:4010/echo?simple=true
+  params:
+    - name: simple
+      value: "true"
+      type: query
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: "{}"
+  auth: inherit

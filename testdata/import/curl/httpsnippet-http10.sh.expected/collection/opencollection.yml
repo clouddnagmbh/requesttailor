@@ -1,0 +1,6 @@
+opencollection: "1.0.0"
+
+info:
+  name: httpsnippet-http10
+
+bundled: false

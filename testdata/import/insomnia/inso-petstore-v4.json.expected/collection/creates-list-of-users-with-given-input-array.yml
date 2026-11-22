@@ -1,0 +1,9 @@
+info:
+  name: Creates list of users with given input array
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{base_url}}/user/createWithArray"
+  auth: inherit

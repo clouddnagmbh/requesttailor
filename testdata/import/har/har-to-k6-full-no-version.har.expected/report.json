@@ -1,0 +1,23 @@
+{
+  "collectionName": "har-to-k6-full-no-version",
+  "report": {
+    "environments": 0,
+    "folders": 3,
+    "format": "har",
+    "losses": [
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Dynamic / GET httpbin.org/get"
+      },
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Dynamic / POST httpbin.org/post"
+      }
+    ],
+    "requests": 8
+  }
+}

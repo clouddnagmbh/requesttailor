@@ -1,0 +1,14 @@
+info:
+  name: GET insomnia.rest
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://insomnia.rest
+  headers:
+    - name: X-Something
+      value: "foo: bar:baz"
+
+settings:
+  followRedirects: false

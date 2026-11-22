@@ -1,0 +1,10 @@
+name: Main API server
+variables:
+  - name: baseUrl
+    value: https://{{env}}.example.com/v1
+  - name: env
+    value: api
+  - name: clientId
+    value: ""
+  - secret: true
+    name: clientSecret

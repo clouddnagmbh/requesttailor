@@ -1,0 +1,24 @@
+info:
+  name: Create article
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: "{{host_api}}/articles"
+  headers:
+    - name: Authorization
+      value: Token {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "article": {
+          "title": "How to train your dragon",
+          "description": "Ever wonder how?",
+          "body": "You have to believe",
+          "tagList": ["dragons", "training"]
+        }
+      }

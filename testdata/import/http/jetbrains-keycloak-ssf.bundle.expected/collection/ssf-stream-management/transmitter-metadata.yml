@@ -1,0 +1,8 @@
+info:
+  name: Transmitter Metadata
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{transmitterConfigUrl}}"

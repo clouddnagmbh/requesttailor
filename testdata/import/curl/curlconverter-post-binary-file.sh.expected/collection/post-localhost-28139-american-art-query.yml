@@ -1,0 +1,22 @@
+info:
+  name: POST localhost:28139/american-art/query
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:28139/american-art/query
+  headers:
+    - name: Content-type
+      value: application/sparql-query
+    - name: Accept
+      value: application/sparql-results+json
+  body:
+    type: file
+    data:
+      - filePath: ./sample.sparql
+        contentType: application/sparql-query
+        selected: true
+
+settings:
+  followRedirects: false

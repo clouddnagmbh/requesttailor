@@ -1,0 +1,20 @@
+info:
+  name: POST {{api}}/deliveries/{{deliveryId}}/fail
+  type: http
+  seq: 18
+
+http:
+  method: POST
+  url: "{{api}}/deliveries/{{deliveryId}}/fail"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "{{deliveryId}}",
+        "reason": "Delivery failed"
+      }

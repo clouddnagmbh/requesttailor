@@ -1,0 +1,17 @@
+{
+  "collectionName": "HTTP requests",
+  "report": {
+    "environments": 0,
+    "folders": 2,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "references to other requests' responses kept as text: {{createOrder.response.body.$.id}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "orders / GET {{base}}/orders/{{createOrder.response.body.$.id}}"
+      }
+    ],
+    "requests": 3
+  }
+}

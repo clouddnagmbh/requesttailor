@@ -1,0 +1,11 @@
+opencollection: "1.0.0"
+
+info:
+  name: synthetic-lossless
+
+request:
+  variables:
+    - name: baseUrl
+      value: https://notes.example.com
+
+bundled: false

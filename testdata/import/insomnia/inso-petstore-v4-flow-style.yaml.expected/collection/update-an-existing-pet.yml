@@ -1,0 +1,33 @@
+info:
+  name: Update an existing pet
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: "{{base_url}}/pet"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": 0,
+        "category": {
+          "id": 0,
+          "name": "string"
+        },
+        "name": "doggie",
+        "photoUrls": [
+          "string"
+        ],
+        "tags": [
+          {
+            "id": 0,
+            "name": "string"
+          }
+        ],
+        "status": "string"
+      }
+  auth: inherit

@@ -1,0 +1,24 @@
+info:
+  name: Enable Stream
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{issuer}}/ssf/streams/status?stream_id={{ stream_id }}"
+  params:
+    - name: stream_id
+      value: "{{ stream_id }}"
+      type: query
+  headers:
+    - name: Authorization
+      value: Bearer {{keycloakToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "stream_id": "{{ stream_id }}",
+        "status": "enabled"
+      }

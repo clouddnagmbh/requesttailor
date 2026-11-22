@@ -1,0 +1,21 @@
+opencollection: "1.0.0"
+
+info:
+  name: restclient-azure-sap-apim-scan
+
+request:
+  variables:
+    - name: sapApimTokenUrl
+      value: <https://<your-sap-btp-service-instance-name>.authentication.<btp-region>.hana.ondemand.com/oauth/token>
+    - name: sapApimDiscoveryUrl
+      value: <https://<btp-region>devportal.cfapps.<btp-region>.hana.ondemand.com/apidiscovery/v1/apis>
+    - name: sapApimResourceUrl
+      value: <https://<btp-region>devportal.cfapps.<btp-region>.hana.ondemand.com/odata/1.0/data.svc/APIMgmt.APIResourceDocumentations('yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyyy')/content/$value>
+    - name: clientId
+      value: <client id from SAP BTP service key>
+    - name: clientSecret
+      value: <client secret from SAP BTP service key>
+    - name: accessToken
+      value: "{{consumerToken.response.body.$.access_token}}"
+
+bundled: false

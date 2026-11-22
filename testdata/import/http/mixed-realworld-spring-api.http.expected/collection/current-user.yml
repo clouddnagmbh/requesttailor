@@ -1,0 +1,11 @@
+info:
+  name: Current user
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{host_api}}/user"
+  headers:
+    - name: Authorization
+      value: Token {{token}}

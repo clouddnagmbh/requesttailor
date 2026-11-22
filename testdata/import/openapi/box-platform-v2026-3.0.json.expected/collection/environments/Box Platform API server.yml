@@ -1,0 +1,8 @@
+name: Box Platform API server.
+variables:
+  - name: baseUrl
+    value: https://api.box.com/2.0
+  - name: clientId
+    value: ""
+  - secret: true
+    name: clientSecret

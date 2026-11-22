@@ -1,0 +1,9 @@
+name: Key value
+variables:
+  - name: plain
+    value: "{{base_url}}/v2"
+  - name: off
+    value: x
+    disabled: true
+  - secret: true
+    name: hidden

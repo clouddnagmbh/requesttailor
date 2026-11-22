@@ -1,0 +1,15 @@
+info:
+  name: Delete Stream
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: "{{transmitterIssuer}}/ssf/streams?stream_id={{ stream_id }}"
+  params:
+    - name: stream_id
+      value: "{{ stream_id }}"
+      type: query
+  headers:
+    - name: Authorization
+      value: Bearer {{transmitterToken}}

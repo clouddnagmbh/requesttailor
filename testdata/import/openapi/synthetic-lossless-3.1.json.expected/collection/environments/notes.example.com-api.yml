@@ -1,0 +1,4 @@
+name: notes.example.com/api
+variables:
+  - name: baseUrl
+    value: https://notes.example.com/api

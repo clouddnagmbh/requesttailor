@@ -1,0 +1,22 @@
+info:
+  name: Update User
+  type: http
+  seq: 5
+
+http:
+  method: PUT
+  url: "{{host_api}}/user"
+  headers:
+    - name: Authorization
+      value: Token {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "user": {
+          "bio": "I like to skateboard",
+          "image": "https://i.stack.imgur.com/xHWGW.png"
+        }
+      }

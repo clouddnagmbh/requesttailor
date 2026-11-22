@@ -1,0 +1,4 @@
+name: Sub Environment 2
+variables:
+  - name: sub2
+    value: "2"

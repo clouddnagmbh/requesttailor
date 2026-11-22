@@ -1,0 +1,53 @@
+{
+  "collectionName": "httpsnippet-jsonobj-with-singlequotes",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "body file `-` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST mockbin.com/har"
+      },
+      {
+        "detail": "1 more URL in the command not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "POST mockbin.com/har"
+      },
+      {
+        "detail": "`{` is not a curl command; not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "httpsnippet-jsonobj-with-singlequotes.sh"
+      },
+      {
+        "detail": "`number:` is not a curl command; not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "httpsnippet-jsonobj-with-singlequotes.sh"
+      },
+      {
+        "detail": "`string:` is not a curl command; not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "httpsnippet-jsonobj-with-singlequotes.sh"
+      },
+      {
+        "detail": "`}` is not a curl command; not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "httpsnippet-jsonobj-with-singlequotes.sh"
+      },
+      {
+        "detail": "`EOF` is not a curl command; not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "httpsnippet-jsonobj-with-singlequotes.sh"
+      }
+    ],
+    "requests": 1
+  }
+}

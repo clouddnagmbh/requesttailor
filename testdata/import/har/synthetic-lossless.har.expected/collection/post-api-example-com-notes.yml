@@ -1,0 +1,26 @@
+info:
+  name: POST api.example.com/notes
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.example.com/notes
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: '{"text":"Buy milk"}'
+
+examples:
+  - name: Recorded response
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: '{"id":1}'

@@ -1,0 +1,17 @@
+{
+  "collectionName": "restclient-exceptionless",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "file variables refer to other requests' responses, kept as text: {{login.response.body.$.token}}, {{projects.response.body.$[0].id}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      }
+    ],
+    "requests": 8
+  }
+}

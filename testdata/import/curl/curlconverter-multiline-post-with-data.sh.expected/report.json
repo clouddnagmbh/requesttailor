@@ -1,0 +1,10 @@
+{
+  "collectionName": "curlconverter-multiline-post-with-data",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [],
+    "requests": 1
+  }
+}

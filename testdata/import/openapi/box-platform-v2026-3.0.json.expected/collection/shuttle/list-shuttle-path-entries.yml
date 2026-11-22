@@ -1,0 +1,67 @@
+info:
+  name: List shuttle path entries
+  type: http
+  seq: 35
+
+http:
+  method: GET
+  url: "{{baseUrl}}/shuttle_path_entries?job_id=6a3ba68e810d9156194530a1&side=source"
+  params:
+    - name: job_id
+      value: 6a3ba68e810d9156194530a1
+      type: query
+      description: The unique identifier of the shuttle job whose path entries to list.
+    - name: side
+      value: source
+      type: query
+      description: The side of the migration to browse.
+    - name: path
+      value: /Shared Documents/Projects
+      type: query
+      description: |-
+        The human-readable parent path whose children are returned. This can
+        be used with or without `path_id`. Omit both, or pass `/` as `path`,
+        to list root entries.
+      disabled: true
+    - name: path_id
+      value: 01ABCDEF23456789
+      type: query
+      description: |-
+        The `path_id` value of the parent entry whose children are
+        returned. This can be used with or without `path`. It distinguishes
+        paths with identical names on systems that support stable identifiers.
+      disabled: true
+    - name: account_email
+      value: user@example.com
+      type: query
+      description: |-
+        The email of the account whose path entries are returned. This is a
+        system-native identifier and is not always an RFC 5322 address.
+      disabled: true
+    - name: marker
+      value: JV9IRGZmieiBasejOG9yDCRNgd2ymoZIbjsxbJMjIs3kioVii
+      type: query
+      description: |-
+        Defines the position marker at which to begin returning results. This is
+        used when paginating using marker-based pagination.
+
+        This requires `usemarker` to be set to `true`.
+      disabled: true
+    - name: limit
+      value: "1000"
+      type: query
+      description: The maximum number of items to return per page.
+      disabled: true
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+  auth: inherit
+
+docs: |-
+  Returns a paginated list of source or target path entries for a shuttle
+  job. Call with only `job_id` and `side` to list the roots, then browse one
+  level at a time using `path`, `path_id`, or both. Each entry includes
+  `path`, `path_id`, `is_directory`, and a `scope` object (`account` or
+  `shared_space`) so a mapping can be created from that row without extra
+  browse state. Valid values depend on the selected system.

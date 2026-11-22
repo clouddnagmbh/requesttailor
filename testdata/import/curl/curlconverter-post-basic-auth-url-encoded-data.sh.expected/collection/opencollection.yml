@@ -1,0 +1,6 @@
+opencollection: "1.0.0"
+
+info:
+  name: curlconverter-post-basic-auth-url-encoded-data
+
+bundled: false

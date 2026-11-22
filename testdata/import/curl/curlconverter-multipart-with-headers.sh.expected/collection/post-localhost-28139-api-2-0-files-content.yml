@@ -1,0 +1,26 @@
+info:
+  name: POST localhost:28139/api/2.0/files/content
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:28139/api/2.0/files/content
+  headers:
+    - name: Authorization
+      value: Bearer ACCESS_TOKEN
+    - name: X-Nice
+      value: Header
+  body:
+    type: multipart-form
+    data:
+      - name: attributes
+        type: text
+        value: '{"name":"tigers.jpeg", "parent":{"id":"11446498"}}'
+      - name: file
+        type: file
+        value:
+          - myfile.jpg
+
+settings:
+  followRedirects: false

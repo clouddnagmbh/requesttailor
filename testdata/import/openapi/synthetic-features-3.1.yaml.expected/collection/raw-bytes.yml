@@ -1,0 +1,14 @@
+info:
+  name: Raw bytes
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/raw"
+  body:
+    type: file
+    data:
+      - filePath: ""
+        contentType: application/octet-stream
+        selected: true

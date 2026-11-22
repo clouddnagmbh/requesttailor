@@ -1,0 +1,16 @@
+info:
+  name: POST insomnia.rest
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://insomnia.rest
+  body:
+    type: form-urlencoded
+    data:
+      - name: id
+        value: "1234"
+
+settings:
+  followRedirects: false

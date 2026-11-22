@@ -1,0 +1,17 @@
+info:
+  name: DELETE api.datadoghq.com/api/v2/users/6409ce70-d1d9-11ec-ad3d-da7ad0900002
+  type: http
+  seq: 2
+
+http:
+  method: DELETE
+  url: https://api.datadoghq.com/api/v2/users/6409ce70-d1d9-11ec-ad3d-da7ad0900002
+  headers:
+    - name: accept
+      value: "*/*"
+
+examples:
+  - name: Recorded response
+    response:
+      status: 204
+      statusText: No Content

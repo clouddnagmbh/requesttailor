@@ -1,0 +1,18 @@
+info:
+  name: Acknowledge processed events, don't fetch any events
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{transmitterIssuer}}/ssf/streams/poll"
+  headers:
+    - name: Authorization
+      value: Bearer {{transmitterToken}}
+    - name: Content-Type
+      value: application/json
+    - name: Accept
+      value: application/json
+  body:
+    type: json
+    data: '{"returnImmediately":true,"maxEvents":0, "ack":  ["NDdmYjQ3NzctOTY5NC00YjEyLWJjOTktMTNjM2FmZWI3MDJi", "YTQ2YjFmODAtNGVkMy00MjBmLTk2MmEtNDdiMDZlZDQyMDli"]}'

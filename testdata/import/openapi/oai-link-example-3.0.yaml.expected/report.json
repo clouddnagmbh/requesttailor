@@ -1,0 +1,23 @@
+{
+  "collectionName": "Link Example",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "the description names no server; set `baseUrl` in the collection variables",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      },
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      }
+    ],
+    "requests": 6
+  }
+}

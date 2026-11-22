@@ -1,0 +1,8 @@
+info:
+  name: Get SSF Metadata
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{transmitterIssuer}}/.well-known/ssf-configuration"

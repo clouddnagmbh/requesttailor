@@ -1,0 +1,11 @@
+info:
+  name: DELETE {{api}}/availability/resources/{{resourceId}}/reservations/{{dateTime}}
+  type: http
+  seq: 14
+
+http:
+  method: DELETE
+  url: "{{api}}/availability/resources/{{resourceId}}/reservations/{{dateTime}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}

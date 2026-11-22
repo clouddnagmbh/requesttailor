@@ -1,0 +1,12 @@
+info:
+  name: Prompted
+  type: http
+  seq: 7
+
+http:
+  method: GET
+  url: https://{{host}}/otp?code={{otp}}
+  params:
+    - name: code
+      value: "{{otp}}"
+      type: query

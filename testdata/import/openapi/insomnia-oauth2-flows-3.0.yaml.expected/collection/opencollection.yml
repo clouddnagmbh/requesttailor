@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Endpoint Security
+
+request:
+  variables:
+    - name: baseUrl
+      value: https://api.server.test/v1
+
+docs: Version 1.2
+
+bundled: false

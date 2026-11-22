@@ -1,0 +1,13 @@
+info:
+  name: By shipmentEventTypeCode RECE
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{BASE_URL}}{{TNT_CONTEXT_PATH}}/events?shipmentEventTypeCode=RECE"
+  params:
+    - name: shipmentEventTypeCode
+      value: RECE
+      type: query
+  auth: inherit

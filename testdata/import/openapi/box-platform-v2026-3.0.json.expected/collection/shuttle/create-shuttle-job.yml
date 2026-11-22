@@ -1,0 +1,27 @@
+info:
+  name: Create shuttle job
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{baseUrl}}/shuttle_jobs"
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Q4 SharePoint to Box",
+        "job_type": "transfer",
+        "source_system_id": "6a3ba68e810d9156194530a1"
+      }
+  auth: inherit
+
+docs: |-
+  Creates a new shuttle job that describes a migration from the given source
+  system into Box.

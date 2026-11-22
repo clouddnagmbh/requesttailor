@@ -1,0 +1,89 @@
+{
+  "collectionName": "Synthetic v5",
+  "report": {
+    "environments": 3,
+    "folders": 1,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "2 cookies of the cookie jar not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "collection"
+      },
+      {
+        "detail": "gRPC request not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "Call"
+      },
+      {
+        "detail": "WebSocket request not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "Feed"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Orders"
+      },
+      {
+        "detail": "after-response script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Orders"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Orders"
+      },
+      {
+        "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Orders"
+      },
+      {
+        "detail": "bearer prefix `Token` not imported; `Bearer` is sent",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Orders / Create order"
+      },
+      {
+        "detail": "template tag `{% faker %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Orders / Create order"
+      },
+      {
+        "detail": "request settings not imported: do not send cookies, do not store cookies, do not render the body, do not rebuild the path",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "Orders / Create order"
+      },
+      {
+        "detail": "item of unknown kind not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "Something else"
+      },
+      {
+        "detail": "secret value of `token` not imported; set it in Environments",
+        "effect": "dropped",
+        "kind": "variable",
+        "location": "environment Local secrets"
+      },
+      {
+        "detail": "secret value of `order_id` not imported; set it in Environments",
+        "effect": "dropped",
+        "kind": "variable",
+        "location": "environment Local secrets"
+      }
+    ],
+    "requests": 3
+  }
+}

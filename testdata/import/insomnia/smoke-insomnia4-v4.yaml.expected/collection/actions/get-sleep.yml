@@ -1,0 +1,9 @@
+info:
+  name: Get Sleep
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{base_url}}/sleep"
+  auth: inherit

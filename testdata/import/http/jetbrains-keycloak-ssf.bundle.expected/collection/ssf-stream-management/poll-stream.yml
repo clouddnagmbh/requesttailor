@@ -1,0 +1,22 @@
+info:
+  name: Poll Stream
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: "{{issuer}}/ssf/streams/poll?stream_id={{ stream_id }}"
+  params:
+    - name: stream_id
+      value: "{{ stream_id }}"
+      type: query
+  headers:
+    - name: Authorization
+      value: Bearer {{keycloakToken}}
+    - name: Content-Type
+      value: application/json
+    - name: Accept
+      value: application/json
+  body:
+    type: json
+    data: '{"returnImmediately":true, "maxEvents":100}'

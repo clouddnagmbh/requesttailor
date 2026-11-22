@@ -1,0 +1,17 @@
+info:
+  name: Upload a picture
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/uploads"
+  body:
+    type: file
+    data:
+      - filePath: ""
+        contentType: application/octet-stream
+        selected: true
+  auth: inherit
+
+docs: Upload a picture

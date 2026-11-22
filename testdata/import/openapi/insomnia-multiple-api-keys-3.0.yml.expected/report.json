@@ -1,0 +1,35 @@
+{
+  "collectionName": "Swagger Petstore",
+  "report": {
+    "environments": 1,
+    "folders": 1,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "alternative security schemes not imported: `appSecret`",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "pet / Add a new pet to the store"
+      },
+      {
+        "detail": "additional required security schemes not imported: `appId`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "pet / Add a new pet to the store"
+      },
+      {
+        "detail": "alternative security schemes not imported: `appId`, `appSecret`",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "pet / Finds Pets by status"
+      }
+    ],
+    "requests": 2
+  }
+}

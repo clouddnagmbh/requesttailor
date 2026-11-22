@@ -1,0 +1,31 @@
+info:
+  name: POST localhost:28139
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:28139
+  headers:
+    - name: A
+      value: "''a'"
+    - name: B
+      value: '"'
+    - name: Cookie
+      value: x=1'; y=2"
+  body:
+    type: form-urlencoded
+    data:
+      - name: a
+        value: b
+      - name: c
+        value: '"'
+      - name: d
+        value: "'"
+  auth:
+    type: basic
+    username: ol'
+    password: asd"
+
+settings:
+  followRedirects: false

@@ -1,0 +1,14 @@
+info:
+  name: Get feedback for event & topic
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: http://localhost:4000/api/feedback/{{eventId}}/1
+  body:
+    type: text
+    data: |-
+      # =======================================================
+      # Other API
+      # =======================================================

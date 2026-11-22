@@ -1,0 +1,17 @@
+info:
+  name: Upload
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/upload"
+  body:
+    type: multipart-form
+    data:
+      - name: title
+        type: text
+        value: Report
+      - name: file
+        type: file
+        value: []

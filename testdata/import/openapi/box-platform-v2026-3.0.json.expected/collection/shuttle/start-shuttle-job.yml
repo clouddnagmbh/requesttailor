@@ -1,0 +1,30 @@
+info:
+  name: Start shuttle job
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: "{{baseUrl}}/shuttle_jobs/:shuttle_job_id/start"
+  params:
+    - name: shuttle_job_id
+      value: 6a3ba68e810d9156194530a1
+      type: path
+      description: The unique identifier for the shuttle job.
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "mode": "simulation"
+      }
+  auth: inherit
+
+docs: |-
+  Starts the job in the given mode. When no body is provided the job runs in
+  simulation mode.

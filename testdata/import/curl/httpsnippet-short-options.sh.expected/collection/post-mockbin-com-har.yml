@@ -1,0 +1,36 @@
+info:
+  name: POST mockbin.com/har
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://mockbin.com/har?foo=bar&foo=baz&baz=abc&key=value
+  params:
+    - name: foo
+      value: bar
+      type: query
+    - name: foo
+      value: baz
+      type: query
+    - name: baz
+      value: abc
+      type: query
+    - name: key
+      value: value
+      type: query
+  headers:
+    - name: accept
+      value: application/json
+    - name: content-type
+      value: application/x-www-form-urlencoded
+    - name: Cookie
+      value: foo=bar; bar=baz
+  body:
+    type: form-urlencoded
+    data:
+      - name: foo
+        value: bar
+
+settings:
+  followRedirects: false

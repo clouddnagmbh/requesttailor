@@ -1,0 +1,10 @@
+{
+  "collectionName": "har-to-k6-url-full-no-version",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "har",
+    "losses": [],
+    "requests": 5
+  }
+}

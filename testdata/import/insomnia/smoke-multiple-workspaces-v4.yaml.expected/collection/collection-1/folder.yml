@@ -1,0 +1,9 @@
+info:
+  name: Collection 1
+  type: folder
+  seq: 1
+
+request:
+  variables:
+    - name: base1
+      value: "1"

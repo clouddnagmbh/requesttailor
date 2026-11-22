@@ -1,0 +1,4 @@
+info:
+  name: "Test: create ESWithSecretTO, update and retrieve it"
+  type: folder
+  seq: 3

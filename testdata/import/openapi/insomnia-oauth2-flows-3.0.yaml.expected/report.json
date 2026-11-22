@@ -1,0 +1,35 @@
+{
+  "collectionName": "Endpoint Security",
+  "report": {
+    "environments": 1,
+    "folders": 0,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /oauth2/authorization-code"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /oauth2/authorization-code-read"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /oauth2/authorization-code-read-write"
+      }
+    ],
+    "requests": 3
+  }
+}

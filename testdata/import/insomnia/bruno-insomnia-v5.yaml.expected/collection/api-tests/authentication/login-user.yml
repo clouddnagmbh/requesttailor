@@ -1,0 +1,21 @@
+info:
+  name: Login User
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/api/auth/login"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: User-Agent
+      value: insomnia/10.3.1
+  body:
+    type: json
+    data: |-
+      {
+        "username": "testuser",
+        "password": "testpass123"
+      }
+  auth: inherit

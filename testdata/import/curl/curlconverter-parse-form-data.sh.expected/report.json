@@ -1,0 +1,17 @@
+{
+  "collectionName": "curlconverter-parse-form-data",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "POST localhost:28139/wp-json/contact-form-7/v1/contact-forms/295/feedback"
+      }
+    ],
+    "requests": 1
+  }
+}

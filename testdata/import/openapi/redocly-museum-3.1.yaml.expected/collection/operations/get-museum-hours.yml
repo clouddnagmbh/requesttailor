@@ -1,0 +1,90 @@
+info:
+  name: Get museum hours
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/museum-hours"
+  params:
+    - name: startDate
+      value: 2023-02-23
+      type: query
+      description: Starting date to retrieve future operating hours from. Defaults to today's date.
+      disabled: true
+    - name: page
+      value: "2"
+      type: query
+      description: Page number to retrieve.
+      disabled: true
+    - name: limit
+      value: "15"
+      type: query
+      description: Number of days per page.
+      disabled: true
+  auth: inherit
+
+docs: Get upcoming museum operating hours.
+
+examples:
+  - name: 200 default_example
+    response:
+      status: 200
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "date": "2023-09-11",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-12",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-13",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-14",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-15",
+              "timeOpen": "10:00",
+              "timeClose": "16:00"
+            },
+            {
+              "date": "2023-09-18",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-19",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-20",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-21",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-22",
+              "timeOpen": "10:00",
+              "timeClose": "16:00"
+            }
+          ]

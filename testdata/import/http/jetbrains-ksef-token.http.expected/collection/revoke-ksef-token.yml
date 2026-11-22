@@ -1,0 +1,15 @@
+info:
+  name: Revoke KSeF Token
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: http://localhost:8082/token/revoke?referenceNumber={{tokenReferenceNumber}}
+  params:
+    - name: referenceNumber
+      value: "{{tokenReferenceNumber}}"
+      type: query
+  headers:
+    - name: Authorization
+      value: "{{token}}"

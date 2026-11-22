@@ -1,0 +1,29 @@
+{
+  "collectionName": "jetbrains-ksef-certificate",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "certificate enrollment process"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "certificate enrollment process status"
+      },
+      {
+        "detail": "response handler script (4 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "certificate get enrollment info"
+      }
+    ],
+    "requests": 6
+  }
+}

@@ -1,0 +1,30 @@
+info:
+  name: Delete AI session
+  type: http
+  seq: 2
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/ai_sessions/:ai_session_id"
+  params:
+    - name: ai_session_id
+      value: "23489723"
+      type: path
+      description: |-
+        The unique identifier of the AI session. This is the same value returned as
+        `id` by the list endpoint and used as the A2A `contextId`.
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+  auth: inherit
+
+docs: |-
+  Deletes an AI session created through the Box public API, together with its
+  agent tasks. The session's agent-generated files and uploaded files are
+  moved to the trash. Files attached as sources from elsewhere in Box are not
+  affected. Deleting a session does not stop a running task or notify the
+  agent.
+
+  The access token must have both the `ai.readwrite` and `root_readwrite`
+  scopes.

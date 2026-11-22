@@ -1,0 +1,23 @@
+{
+  "collectionName": "curlconverter-multipart-with-headers",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "POST localhost:28139/api/2.0/files/content"
+      },
+      {
+        "detail": "file `myfile.jpg` for `file` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST localhost:28139/api/2.0/files/content"
+      }
+    ],
+    "requests": 1
+  }
+}

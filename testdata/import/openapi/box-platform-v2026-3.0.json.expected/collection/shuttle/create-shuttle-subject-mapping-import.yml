@@ -1,0 +1,53 @@
+info:
+  name: Create shuttle subject mapping import
+  type: http
+  seq: 28
+
+http:
+  method: POST
+  url: "{{baseUrl}}/shuttle_subject_mapping_imports"
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "job_id": "6a3ba68e810d9156194530a1",
+        "file_id": "12345678901"
+      }
+  auth: inherit
+
+docs: |-
+  Accepts a spreadsheet of subject (user and group) mappings, already stored
+  in Box, and replaces the job's subject mappings.
+  A file that is not a subject-mapping workbook, or that exceeds the size or
+  row limits (10 MiB Box download limit; 50,000 mapping rows), returns `400`
+  synchronously and leaves the job unchanged.
+  An accepted import always replaces every subject mapping on the job. When
+  all rows are valid the workbook is deployed in full. When any row is
+  invalid the job ends with no subject mappings and `mapping_state` becomes
+  `subjects_import_rejected` until the next import or the next manual
+  subject-mapping change. Row problems are listed by
+  `GET /shuttle_mapping_errors?job_id=…` with category `subject_import`,
+  messages of the form `Row N: …`, at most 500 entries plus one overflow
+  entry.
+  Validation and deployment are asynchronous after acceptance. Poll
+  `GET /shuttle_jobs/{shuttle_job_id}` while `mapping_state` is
+  `importing_subjects`. Only one import may be in flight per job. The job
+  must map subjects (`account_mapping` enabled) and its source scan must be
+  finished; otherwise the request returns `409`.
+
+  Expected workbook format (API clients cannot download the UI template):
+  sheets `Users` and/or `Groups` (a sheet named `Subjects` is also accepted).
+  Columns are `Source User <Key>`, `Target User <Key>`, `Skip` on `Users`,
+  and `Source Group <Key>`, `Target Group <Key>`, `Skip` on `Groups`, where
+  `<Key>` is the primary identifier for that role and system:
+  - Users: `Email` for most systems; `ID` for `SharePoint` (2007/2010/2013);
+    `Name` for Windows (`windows_union`, stored as the user id).
+  - Groups: `Name` for most systems; `Email` for Google Drive admin groups.
+  Source rows for a template can be taken from
+  `GET /shuttle_discovered_subjects`.

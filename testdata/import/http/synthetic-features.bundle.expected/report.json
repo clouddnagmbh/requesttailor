@@ -1,0 +1,107 @@
+{
+  "collectionName": "api",
+  "report": {
+    "environments": 2,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "file variables refer to other requests' responses, kept as text: {{login.response.body.$.token}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      },
+      {
+        "detail": "Digest auth settings kept in the file, but RequestTailor cannot send with Digest auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Digest"
+      },
+      {
+        "detail": "Digest auth password stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Digest"
+      },
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Literal header token"
+      },
+      {
+        "detail": "response redirection `>> ./out/me.json` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "Literal header token"
+      },
+      {
+        "detail": "prompt variable `otp` not asked for; set it as variables before sending",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Prompted"
+      },
+      {
+        "detail": "WEBSOCKET request not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "Socket"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Upload a file"
+      },
+      {
+        "detail": "body file `./report.pdf` is read relative to the collection folder; copy it there",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Upload a file"
+      },
+      {
+        "detail": "shared environment values imported as collection variables",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "environment $shared"
+      },
+      {
+        "detail": "secret value of `password` not imported; set it in Environments",
+        "effect": "dropped",
+        "kind": "variable",
+        "location": "environment dev"
+      },
+      {
+        "detail": "`SSLConfiguration` (an object, e.g. auth or SSL configuration) not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "environment dev"
+      },
+      {
+        "detail": "secret value of `password` not imported; set it in Environments",
+        "effect": "dropped",
+        "kind": "variable",
+        "location": "environment prod"
+      },
+      {
+        "detail": "response handler script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "login"
+      },
+      {
+        "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "login"
+      },
+      {
+        "detail": "dynamic variable {{$timestamp}} kept as text; RequestTailor does not generate dynamic values yet",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "login"
+      }
+    ],
+    "requests": 8
+  }
+}

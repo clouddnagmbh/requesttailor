@@ -1,0 +1,11 @@
+info:
+  name: Follow profile
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{host_api}}/profiles/user1/follow"
+  headers:
+    - name: Authorization
+      value: Token {{token}}

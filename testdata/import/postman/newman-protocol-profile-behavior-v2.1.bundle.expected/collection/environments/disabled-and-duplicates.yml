@@ -1,0 +1,12 @@
+name: disabled-and-duplicates
+variables:
+  - name: justDisabled
+    value: "1"
+  - name: oneDisabled
+    value: "1"
+  - name: oneDisabled
+    value: "2"
+  - name: duplicate
+    value: "1"
+  - name: duplicate
+    value: "2"

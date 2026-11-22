@@ -1,0 +1,28 @@
+info:
+  name: "{{base_url}}/api/users"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/api/users"
+  headers:
+    - name: Authorization
+      value: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
+  body:
+    type: multipart-form
+    data:
+      - name: file
+        type: file
+        value:
+          - /home/user/test.txt
+      - name: foo
+        type: text
+        value: bar
+      - name: baz
+        type: text
+        value: disabled
+        disabled: true
+  auth: inherit
+
+docs: First Request

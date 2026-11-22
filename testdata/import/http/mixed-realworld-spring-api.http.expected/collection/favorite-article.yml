@@ -1,0 +1,11 @@
+info:
+  name: Favorite article
+  type: http
+  seq: 18
+
+http:
+  method: POST
+  url: "{{host_api}}/articles/{{article_slug}}/favorite"
+  headers:
+    - name: Authorization
+      value: Token {{token}}

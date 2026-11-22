@@ -1,0 +1,29 @@
+info:
+  name: Convert content to Box Note
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/notes/convert"
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "content": "# My note\\n\\nHello from Markdown.",
+        "content_format": "markdown",
+        "parent": {
+          "type": "folder",
+          "id": "42037322"
+        },
+        "name": "Quarterly plan"
+      }
+  auth: inherit
+
+docs: Creates a Box Note (`.boxnote` file) from supported source content. See the `content_format` field for supported formats.

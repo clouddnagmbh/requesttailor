@@ -1,0 +1,11 @@
+info:
+  name: HEAD api.example.com/head
+  type: http
+  seq: 11
+
+http:
+  method: HEAD
+  url: https://api.example.com/head
+
+settings:
+  followRedirects: false

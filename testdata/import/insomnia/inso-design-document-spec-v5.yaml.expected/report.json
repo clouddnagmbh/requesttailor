@@ -1,0 +1,17 @@
+{
+  "collectionName": "My Design Document",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "API design document not imported; import it as an OpenAPI file",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      }
+    ],
+    "requests": 0
+  }
+}

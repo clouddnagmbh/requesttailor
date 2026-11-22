@@ -1,0 +1,17 @@
+info:
+  name: PUT shop.example.com/blob
+  type: http
+  seq: 2
+
+http:
+  method: PUT
+  url: https://shop.example.com/blob
+  headers:
+    - name: X-Api-Key
+      value: recorded-key
+
+examples:
+  - name: Recorded response
+    response:
+      status: 204
+      statusText: No Content

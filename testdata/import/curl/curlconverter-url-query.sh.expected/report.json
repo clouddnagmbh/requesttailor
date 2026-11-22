@@ -1,0 +1,17 @@
+{
+  "collectionName": "curlconverter-url-query",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "3 more URLs in the command not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "GET localhost:28139"
+      }
+    ],
+    "requests": 1
+  }
+}

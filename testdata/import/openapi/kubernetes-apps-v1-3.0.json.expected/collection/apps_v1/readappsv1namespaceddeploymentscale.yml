@@ -1,0 +1,25 @@
+info:
+  name: readAppsV1NamespacedDeploymentScale
+  type: http
+  seq: 29
+
+http:
+  method: GET
+  url: "{{baseUrl}}/apis/apps/v1/namespaces/:namespace/deployments/:name/scale"
+  params:
+    - name: pretty
+      value: ""
+      type: query
+      description: If 'true', then the output is pretty printed. Defaults to 'false' unless the user-agent indicates a browser or command-line HTTP tool (curl and wget).
+      disabled: true
+    - name: namespace
+      value: ""
+      type: path
+      description: object name and auth scope, such as for teams and projects
+    - name: name
+      value: ""
+      type: path
+      description: name of the Scale
+  auth: inherit
+
+docs: read scale of the specified Deployment

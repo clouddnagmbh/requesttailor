@@ -1,0 +1,19 @@
+opencollection: "1.0.0"
+
+info:
+  name: restclient-exceptionless
+
+request:
+  variables:
+    - name: apiUrl
+      value: http://localhost:7110/api/v2
+    - name: email
+      value: admin@exceptionless.test
+    - name: password
+      value: tester
+    - name: token
+      value: "{{login.response.body.$.token}}"
+    - name: projectId
+      value: "{{projects.response.body.$[0].id}}"
+
+bundled: false

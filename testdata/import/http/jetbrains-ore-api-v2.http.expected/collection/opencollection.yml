@@ -1,0 +1,6 @@
+opencollection: "1.0.0"
+
+info:
+  name: jetbrains-ore-api-v2
+
+bundled: false

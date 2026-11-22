@@ -1,0 +1,17 @@
+{
+  "collectionName": "httpsnippet-multipart-file",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "file `test/fixtures/files/hello.txt` for `foo` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST mockbin.com/har"
+      }
+    ],
+    "requests": 1
+  }
+}

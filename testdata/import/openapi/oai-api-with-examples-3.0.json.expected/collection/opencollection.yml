@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Simple API overview
+
+request:
+  variables:
+    - name: baseUrl
+      value: ""
+
+docs: Version 2.0.0
+
+bundled: false

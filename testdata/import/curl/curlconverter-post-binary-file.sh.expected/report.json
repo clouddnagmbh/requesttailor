@@ -1,0 +1,17 @@
+{
+  "collectionName": "curlconverter-post-binary-file",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "body file `./sample.sparql` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST localhost:28139/american-art/query"
+      }
+    ],
+    "requests": 1
+  }
+}

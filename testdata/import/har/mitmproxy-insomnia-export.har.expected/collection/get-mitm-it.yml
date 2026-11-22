@@ -1,0 +1,60 @@
+info:
+  name: GET mitm.it
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://mitm.it/
+
+docs: mitmproxy
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: text/html
+        - name: Content-Length
+          value: "250"
+        - name: Connection
+          value: keep-alive
+        - name: Last-Modified
+          value: Mon, 26 Dec 2016 20:04:24 GMT
+        - name: Accept-Ranges
+          value: bytes
+        - name: Server
+          value: AmazonS3
+        - name: Date
+          value: Thu, 30 Mar 2023 04:36:02 GMT
+        - name: Etag
+          value: '"b17c505e5c0969bb21b89e6116530dde"'
+        - name: Vary
+          value: Accept-Encoding
+        - name: Via
+          value: 1.1 6354bde44a975facce9c0ed03828827e.cloudfront.net (CloudFront)
+        - name: Age
+          value: "45929"
+        - name: Cache-Control
+          value: no-store, must-revalidate
+        - name: X-Cache
+          value: Hit from cloudfront
+        - name: X-Amz-Cf-Pop
+          value: SFO53-P1
+        - name: X-Amz-Cf-Id
+          value: uGf_zmZcmVZRcJ8PJQvKXtwrdSIzIupupc51RIAQMdov8FQh755mSQ==
+      body:
+        type: html
+        data: |
+          <div class="container">
+             <h1> If you can see this, traffic is not passing through mitmproxy.</h1>
+
+          <p><center>
+              <a class="btn btn-default btn-large" href="http://docs.mitmproxy.org/">
+              Visit the Documentation
+              </a
+          </center></p>
+
+          </script>

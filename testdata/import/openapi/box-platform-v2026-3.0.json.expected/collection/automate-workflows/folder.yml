@@ -1,0 +1,6 @@
+info:
+  name: Automate Workflows
+  type: folder
+  seq: 2
+
+docs: Endpoints for listing and manually starting Automate workflow actions.

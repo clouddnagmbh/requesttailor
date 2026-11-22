@@ -1,0 +1,23 @@
+{
+  "collectionName": "curlconverter-multiple-commands",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "body file `-` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "PUT localhost:28139/third"
+      },
+      {
+        "detail": "2 more URLs in the command not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "PUT localhost:28139/third"
+      }
+    ],
+    "requests": 3
+  }
+}

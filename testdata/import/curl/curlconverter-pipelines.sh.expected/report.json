@@ -1,0 +1,17 @@
+{
+  "collectionName": "curlconverter-pipelines",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "`echo` is not a curl command; not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "curlconverter-pipelines.sh"
+      }
+    ],
+    "requests": 5
+  }
+}

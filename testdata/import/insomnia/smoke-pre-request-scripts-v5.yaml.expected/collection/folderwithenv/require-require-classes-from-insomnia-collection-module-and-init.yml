@@ -1,0 +1,19 @@
+info:
+  name: require / require classes from insomnia-collection module and init them
+  type: http
+  seq: 18
+
+http:
+  method: POST
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "propJson": {{propJson}},
+        "headerJson": {{headerJson}}
+      }
+  auth: inherit

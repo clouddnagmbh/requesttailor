@@ -1,0 +1,29 @@
+{
+  "collectionName": "Binary body type",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "file `./binary-payload.bin` for `body` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Binary body mode"
+      },
+      {
+        "detail": "request settings not imported: `disableBodyPruning`",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "Binary body mode"
+      },
+      {
+        "detail": "request body (file) of example `Binary upload example` not imported",
+        "effect": "dropped",
+        "kind": "example",
+        "location": "Binary body mode"
+      }
+    ],
+    "requests": 1
+  }
+}

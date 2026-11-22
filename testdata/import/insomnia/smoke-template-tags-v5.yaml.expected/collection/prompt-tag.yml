@@ -1,0 +1,17 @@
+info:
+  name: Prompt Tag
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: text/plain
+    - name: User-Agent
+      value: insomnia/11.1.0
+  body:
+    type: text
+    data: "{% prompt 'prompt test', '', 'test', 'insomnia-test', false, true %}"
+  auth: inherit

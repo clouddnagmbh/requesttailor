@@ -1,0 +1,53 @@
+info:
+  name: Get user
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/users/:id?expand=roles&page={{$randomInt}}"
+  params:
+    - name: expand
+      value: roles
+      type: query
+      description: Related data
+    - name: page
+      value: "{{$randomInt}}"
+      type: query
+    - name: debug
+      value: "1"
+      type: query
+      disabled: true
+    - name: id
+      value: "42"
+      type: path
+      description: User id
+  headers:
+    - name: Accept
+      value: application/json
+      description: Wanted type
+    - name: X-Trace
+      value: "{{$guid}}"
+      disabled: true
+  auth: inherit
+
+docs: Returns one user.
+
+examples:
+  - name: Found
+    request:
+      url: "{{baseUrl}}/users/42"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": 42,
+            "name": "Ada"
+          }

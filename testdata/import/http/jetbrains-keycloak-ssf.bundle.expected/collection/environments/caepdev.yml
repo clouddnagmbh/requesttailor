@@ -1,0 +1,12 @@
+name: caepdev
+variables:
+  - name: issuer
+    value: https://id.acme.test:1443/auth/realms/ssf-demo
+  - name: transmitterIssuer
+    value: https://ssf.caep.dev
+  - name: transmitterUrl
+    value: https://ssf.caep.dev
+  - name: transmitterConfigUrl
+    value: https://ssf.caep.dev/.well-known/ssf-configuration
+  - name: receiverAlias
+    value: caepdev
