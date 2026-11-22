@@ -63,7 +63,7 @@ type Result<T> = std::result::Result<T, String>;
 // ---------------------------------------------------------------------------------------------
 // Rendering model values as new subtrees
 
-fn number(n: f64) -> String {
+pub(crate) fn number(n: f64) -> String {
     if n.fract() == 0.0 && n.abs() < 1e15 {
         format!("{}", n as i64)
     } else {
@@ -77,7 +77,7 @@ fn disabled(entries: &mut Vec<(&'static str, Val)>, enabled: bool) {
     }
 }
 
-fn kv_val(kv: &KeyValue) -> Val {
+pub(crate) fn kv_val(kv: &KeyValue) -> Val {
     let mut e = vec![("name", Val::str(&kv.name)), ("value", Val::str(&kv.value))];
     disabled(&mut e, kv.enabled);
     Val::Map(e)
@@ -129,7 +129,7 @@ fn part_val(p: &MultipartPart) -> Val {
 }
 
 /// A variable as Bruno writes it; a secret one is `secret: true` and a name, never a value.
-fn var_val(v: &Variable) -> Val {
+pub(crate) fn var_val(v: &Variable) -> Val {
     let mut e = Vec::new();
     if v.secret {
         e.push(("secret", Val::bool(true)));
@@ -237,7 +237,7 @@ fn auth_fields(auth: &Auth) -> Vec<(&'static str, String)> {
 }
 
 /// The value of `auth`, or `None` for no auth (written as the absence of `auth`).
-fn auth_val(auth: &Auth) -> Result<Option<Val>> {
+pub(crate) fn auth_val(auth: &Auth) -> Result<Option<Val>> {
     match auth {
         Auth::None => Ok(None),
         Auth::Inherit => Ok(Some(Val::str("inherit"))),
@@ -524,7 +524,7 @@ fn edit_var(m: &mut Map, old: &Variable, new: &Variable, nl: &str) {
     }
 }
 
-fn header_list() -> ListSpec<'static, KeyValue> {
+pub(crate) fn header_list() -> ListSpec<'static, KeyValue> {
     ListSpec {
         key: "headers",
         order: HTTP_ORDER,
@@ -536,7 +536,7 @@ fn header_list() -> ListSpec<'static, KeyValue> {
     }
 }
 
-fn var_list(
+pub(crate) fn var_list(
     key: &'static str,
     order: &'static [&'static str],
     empty: Empty,
@@ -554,7 +554,7 @@ fn var_list(
 
 /// Removes a non-empty `value` from every variable marked secret in the list under `key`
 /// (edited secret variables lose any `value`, see `edit_var`).
-fn strip_secret_values(map: &mut Map, key: &str) {
+pub(crate) fn strip_secret_values(map: &mut Map, key: &str) {
     let Some(seq) = map.get_mut(key).and_then(Node::block_seq_mut) else {
         return;
     };
@@ -880,7 +880,7 @@ fn write_body_in(map: &mut Map, old: &Body, new: &Body, variant: bool, nl: &str)
     }
 }
 
-fn write_auth(http: &mut Map, old: &Auth, new: &Auth, nl: &str) -> Result<()> {
+pub(crate) fn write_auth(http: &mut Map, old: &Auth, new: &Auth, nl: &str) -> Result<()> {
     let Some(val) = auth_val(new)? else {
         http.remove("auth");
         return Ok(());

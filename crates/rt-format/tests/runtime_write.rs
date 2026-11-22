@@ -208,6 +208,11 @@ fn every_corpus_request_can_get_scripts_assertions_and_actions_and_lose_them_aga
             let ctx = format!("{}: {path}", root.display());
             let mut doc = base.clone();
             let before = spec(&doc, &path);
+            // Wave 8: WebSocket and gRPC items have no assertions or actions; their scripts
+            // are covered by their own tests (`tests/websocket.rs`).
+            if !before.protocol.is_http() {
+                continue;
+            }
             let after = edited(&before);
             doc.set_request(&path, &after)
                 .unwrap_or_else(|e| panic!("{ctx}: {e}"));
