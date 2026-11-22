@@ -25,6 +25,8 @@ use rt_core::model::Collection;
 
 mod auth;
 mod edit;
+/// Wave 8, strand F: saved examples and docs of items (read only), for `rt mock` and `rt docs`.
+pub mod examples;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs;
 pub mod import;
