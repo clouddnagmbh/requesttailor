@@ -44,6 +44,8 @@ export interface PreparedSave {
 
 export interface CoreWorkspace {
   name(): string;
+  /** Wave 7: whether the collection (with unsaved changes) has any script. */
+  hasScripts(): boolean;
   tree(): TreeNode;
   request(path: string): RequestSpec;
   createRequest(folder: string, name: string): string;

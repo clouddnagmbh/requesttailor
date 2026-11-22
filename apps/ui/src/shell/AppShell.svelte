@@ -28,6 +28,7 @@
   import WelcomeDialog from "../plugins/WelcomeDialog.svelte";
   import RecentCollections from "../recent/RecentCollections.svelte";
   import { reopenOnStart } from "../recent/startup";
+  import TrustPrompt from "../scripts/TrustPrompt.svelte";
   import SearchPanel from "../search/SearchPanel.svelte";
   import ResponseView from "../response/ResponseView.svelte";
   import { AppState, provideApp } from "../state/app.svelte";
@@ -318,6 +319,7 @@
 
     <main>
       <TabBar panelId="rt-request-panel" />
+      <TrustPrompt />
       {#if showingCollection && collectionTab}
         <CollectionPanel tabs={collectionTabs} active={collectionTab} onselect={(k) => (collectionTab = k)} onclose={() => (collectionTab = null)} />
       {:else if app.active}
