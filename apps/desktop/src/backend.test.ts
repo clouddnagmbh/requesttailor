@@ -165,6 +165,10 @@ describe("TauriBackend", () => {
     await b.diffs.working();
     await b.diffs.commit("abc");
     await b.diffs.between("main", "feature");
+    await b.timeline.history("api/list.yml", 50);
+    await b.timeline.blame("api/list.yml");
+    await b.timeline.version("abc", "users/get.yml");
+    await b.timeline.results("abc");
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -279,6 +283,10 @@ describe("TauriBackend", () => {
       ["diff_working", undefined],
       ["diff_commit", { rev: "abc" }],
       ["diff_between", { from: "main", to: "feature" }],
+      ["timeline_history", { path: "api/list.yml", limit: 50 }],
+      ["timeline_blame", { path: "api/list.yml" }],
+      ["timeline_version", { rev: "abc", path: "users/get.yml" }],
+      ["timeline_results", { rev: "abc" }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS.filter((c) => !PENDING.has(c))));
     for (const c of PENDING) expect(COMMANDS).toContain(c);
