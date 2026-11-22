@@ -181,8 +181,8 @@ fn edited(s: &RequestSpec) -> RequestSpec {
             path: format!("{path}.new"),
             content_type: Some("text/plain".into()),
         },
-        // HTTP items never read as GraphQL.
-        Body::GraphQl { .. } => unreachable!("an http item with a GraphQL body"),
+        // GraphQL items are skipped by the caller.
+        Body::GraphQl { .. } => unreachable!("a GraphQL item"),
         Body::None => Body::Raw {
             kind: RawKind::Json,
             data: "{\n  \"a\": 1\n}".into(),
@@ -229,6 +229,11 @@ fn every_corpus_request_can_be_edited_and_restored() {
             let ctx = format!("{}: {path}", root.display());
             let mut doc = base.clone();
             let before = spec(&doc, &path);
+            // Wave 8: gRPC, WebSocket and GraphQL items have their own edit tests
+            // (`tests/protocols_*.rs`); `edited` changes HTTP fields only.
+            if !before.protocol.is_http() || matches!(before.body, Body::GraphQl { .. }) {
+                continue;
+            }
             let after = edited(&before);
             doc.set_request(&path, &after)
                 .unwrap_or_else(|e| panic!("{ctx}: {e}"));

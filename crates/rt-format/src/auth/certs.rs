@@ -279,7 +279,10 @@ impl CollectionDoc {
         let got = CollectionConfig {
             agents: Default::default(),
             http3: false,
-            protobuf: Default::default(),
+            // Wave 8, strand B: `config.protobuf` is read, not written; a change is refused.
+            protobuf: crate::protocols::grpc::read_protobuf(
+                doc.root.get("config").and_then(|c| c.get("protobuf")),
+            ),
             client_certificates: read(
                 doc.root
                     .get("config")

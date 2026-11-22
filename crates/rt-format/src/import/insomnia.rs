@@ -29,7 +29,7 @@ use super::auth::{self, AwsV4, OAuth1, OAuth2};
 use super::common::{Losses, finish, invalid, location, plural, raw_kind, url_params, utf8};
 use super::out::{AuthOut, CollectionOut, DefaultsOut, FolderOut, ItemOut, RequestOut};
 use super::shims::Dialect;
-use super::value::{Value, parse_any};
+use super::value::{Value, parse_any, parse_json};
 use super::{Import, ImportError, ImportFormat, LossKind, SourceFile, stem};
 
 const F: ImportFormat = ImportFormat::Insomnia;
@@ -474,10 +474,7 @@ impl Cx {
                     )));
                 }
                 "request" => out.push(ItemOut::Request(self.request(*it, &here))),
-                "grpc_request" => {
-                    self.losses
-                        .dropped(&here, LossKind::Protocol, "gRPC request not imported")
-                }
+                "grpc_request" => out.push(ItemOut::Request(self.grpc_request(*it, &here))),
                 "websocket_request" => {
                     self.losses
                         .dropped(&here, LossKind::Protocol, "WebSocket request not imported")
@@ -609,8 +606,7 @@ impl Cx {
                 self.losses
                     .dropped(&here, LossKind::Protocol, "WebSocket request not imported");
             } else if id.starts_with("greq") || it.v.get("protoMethodName").is_some() {
-                self.losses
-                    .dropped(&here, LossKind::Protocol, "gRPC request not imported");
+                out.push(ItemOut::Request(self.grpc_request(it, &here)));
             } else if it.v.get("url").is_some() || it.v.get("method").is_some() {
                 out.push(ItemOut::Request(self.request(it, &here)));
             } else {
@@ -681,6 +677,59 @@ impl Cx {
             docs.push(h.str_of("description").filter(|d| !d.trim().is_empty()));
         }
         (list, docs)
+    }
+
+    /// A gRPC request (wave 8, strand B): URL, method, metadata and the message. Insomnia
+    /// keeps the proto file in its own store and no method type: the request uses server
+    /// reflection (or the collection's proto files) and is unary until the method is picked.
+    fn grpc_request(&mut self, it: Item<'_>, here: &str) -> RequestOut {
+        let v = it.v;
+        let mut headers = Vec::new();
+        for m in v.get("metadata").map(Value::items).unwrap_or_default() {
+            let name = self.template(&m.string("name"), here);
+            if name.is_empty() {
+                continue;
+            }
+            headers.push(KeyValue {
+                name,
+                value: self.template(&m.string("value"), here),
+                enabled: !m.flag("disabled"),
+            });
+        }
+        let message = v.get("body").map(|b| b.string("text")).unwrap_or_default();
+        let message = self.template(&message, here);
+        self.losses.approximated(
+            here,
+            LossKind::Protocol,
+            "gRPC request imported without its proto file and as unary; pick the method \
+             again (proto files or server reflection) to set its type",
+        );
+        let spec = RequestSpec {
+            name: display_name(v),
+            method: "GRPC".into(),
+            url: self.template(&v.string("url"), here),
+            headers,
+            auth: Auth::Inherit,
+            protocol: rt_core::model::Protocol::Grpc(Box::new(rt_core::model::GrpcSpec {
+                method: v.string("protoMethodName"),
+                method_type: rt_core::model::GrpcMethodType::Unary,
+                proto_file: None,
+                messages: if message.trim().is_empty() {
+                    Vec::new()
+                } else {
+                    vec![rt_core::model::MessageVariant {
+                        title: String::new(),
+                        selected: false,
+                        kind: rt_core::model::MessageKind::Json,
+                        data: message,
+                    }]
+                },
+            })),
+            ..RequestSpec::default()
+        };
+        let mut out = RequestOut::new(spec);
+        out.docs = it.description();
+        out
     }
 
     fn request(&mut self, it: Item<'_>, here: &str) -> RequestOut {
@@ -915,14 +964,29 @@ impl Cx {
             };
         }
         if lower.contains("graphql") {
+            let text = self.template(&text, here);
+            // Insomnia keeps `{"query", "variables"}` as JSON text (wave 8: a GraphQL body).
+            if let Ok(Value::Obj(entries)) = parse_json(&text) {
+                let field = |k: &str| entries.iter().find(|(n, _)| n == k).map(|(_, v)| v);
+                if let Some(Value::Str(query)) = field("query") {
+                    let variables = match field("variables") {
+                        None | Some(Value::Null) => String::new(),
+                        Some(v) => v.to_json_pretty(),
+                    };
+                    return Body::GraphQl {
+                        query: query.clone(),
+                        variables,
+                    };
+                }
+            }
             self.losses.approximated(
                 here,
                 LossKind::Body,
-                "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
+                "GraphQL body is not {\"query\", \"variables\"} JSON; imported as a JSON body",
             );
             return Body::Raw {
                 kind: RawKind::Json,
-                data: self.template(&text, here),
+                data: text,
             };
         }
         if text.is_empty() {

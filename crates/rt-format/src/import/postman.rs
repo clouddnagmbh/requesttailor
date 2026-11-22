@@ -699,15 +699,16 @@ impl Cx {
                 let g = b.get("graphql");
                 let query = g.map(|g| g.string("query")).unwrap_or_default();
                 let variables = g.map(|g| g.string("variables")).unwrap_or_default();
-                self.losses.approximated(
-                    here,
-                    LossKind::Body,
-                    "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
-                );
-                Body::Raw {
-                    kind: RawKind::Json,
-                    data: graphql_json(&query, &variables, &mut self.losses, here),
+                // Wave 8: a GraphQL body of its own; invalid variables go as text and the
+                // server reports them.
+                if !variables.trim().is_empty() && parse_json(&variables).is_err() {
+                    self.losses.approximated(
+                        here,
+                        LossKind::Body,
+                        "GraphQL variables are not valid JSON; kept as text",
+                    );
                 }
+                Body::GraphQl { query, variables }
             }
             "" => Body::None,
             other => {
@@ -1193,35 +1194,6 @@ fn build_url(u: &Value) -> String {
         out.push_str(&hash);
     }
     out
-}
-
-/// `{"query": ..., "variables": ...}` for a GraphQL request.
-pub(crate) fn graphql_json(
-    query: &str,
-    variables: &str,
-    losses: &mut Losses,
-    here: &str,
-) -> String {
-    let vars = if variables.trim().is_empty() {
-        None
-    } else {
-        match parse_json(variables) {
-            Ok(v) => Some(v),
-            Err(_) => {
-                losses.dropped(
-                    here,
-                    LossKind::Body,
-                    "GraphQL variables are not valid JSON; not imported",
-                );
-                None
-            }
-        }
-    };
-    let mut entries = vec![("query".to_owned(), Value::Str(query.to_owned()))];
-    if let Some(v) = vars {
-        entries.push(("variables".to_owned(), v));
-    }
-    Value::Obj(entries).to_json_pretty()
 }
 
 /// The name users know an auth type by.

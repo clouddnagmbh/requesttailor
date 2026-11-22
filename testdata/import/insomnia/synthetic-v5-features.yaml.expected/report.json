@@ -12,8 +12,8 @@
         "location": "collection"
       },
       {
-        "detail": "gRPC request not imported",
-        "effect": "dropped",
+        "detail": "gRPC request imported without its proto file and as unary; pick the method again (proto files or server reflection) to set its type",
+        "effect": "approximated",
         "kind": "protocol",
         "location": "Call"
       },
@@ -66,6 +66,6 @@
         "location": "environment Local secrets"
       }
     ],
-    "requests": 3
+    "requests": 4
   }
 }

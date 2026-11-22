@@ -9,8 +9,9 @@
 //!   collection without `auth` therefore has [`Auth::None`]; a folder without `auth` has
 //!   [`Auth::Inherit`], because a folder cannot say "no auth" differently from "nothing set"
 //!   and Bruno's CLI lets such folders pass the parent's auth through.
-//! - Only `http` items become requests. GraphQL, gRPC, WebSocket, script and app items stay
-//!   in the document (and are written back) but are not part of the model.
+//! - `http` items become requests; since wave 8 also `graphql` and `grpc` items (and
+//!   `websocket` with strand A), read in `crate::protocols`. Script and app items stay in the
+//!   document (and are written back) but are not part of the model.
 //! - Body and variable variants (lists with `selected`) map to the selected entry, or the
 //!   first one if none is selected.
 
@@ -32,7 +33,8 @@ pub(crate) const ENVIRONMENTS_DIR: &str = "environments";
 const OTHER_ITEM_TYPES: &[&str] = &["graphql", "grpc", "websocket", "ws", "script", "app"];
 
 pub(crate) struct Builder<'a> {
-    docs: &'a BTreeMap<&'a str, &'a Document>,
+    /// Wave 8: the protocol modules (`crate::protocols`) read their items from here too.
+    pub(crate) docs: &'a BTreeMap<&'a str, &'a Document>,
     pub issues: Vec<FormatError>,
 }
 
@@ -107,7 +109,10 @@ impl<'a> Builder<'a> {
             config: CollectionConfig {
                 agents: Default::default(),
                 http3: false,
-                protobuf: Default::default(),
+                // Wave 8, strand B.
+                protobuf: crate::protocols::grpc::read_protobuf(
+                    root.get("config").and_then(|c| c.get("protobuf")),
+                ),
                 client_certificates: crate::auth::certs::read(
                     root.get("config").and_then(|c| c.get("clientCertificates")),
                 ),

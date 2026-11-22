@@ -1,15 +1,19 @@
 info:
   name: GraphQL request
-  type: http
+  type: graphql
   seq: 2
 
-http:
+graphql:
   method: POST
   url: localhost:4010/graphqlTest
   headers:
     - name: Content-Type
       value: application/json
   body:
-    type: json
-    data: '{"query":"query {\n\thello,\n\tbearer\n}"}'
+    query: |-
+      query {
+      	hello,
+      	bearer
+      }
+    variables: ""
   auth: inherit

@@ -4,26 +4,7 @@
     "environments": 0,
     "folders": 0,
     "format": "insomnia",
-    "losses": [
-      {
-        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
-        "effect": "approximated",
-        "kind": "body",
-        "location": "GraphQL request"
-      },
-      {
-        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
-        "effect": "approximated",
-        "kind": "body",
-        "location": "GraphQL request with number"
-      },
-      {
-        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
-        "effect": "approximated",
-        "kind": "body",
-        "location": "GraphQL request with variables"
-      }
-    ],
+    "losses": [],
     "requests": 3
   }
 }

@@ -389,8 +389,17 @@ fn in_memory_details() {
         [Variable::new("a", "1")]
     );
 
-    // Ordering by seq; the graphql item is not an HTTP request in the model.
-    assert_eq!(names(&c.items), ["m", "r"]);
+    // Ordering by seq; the graphql item is a request with a GraphQL body (wave 8).
+    assert_eq!(names(&c.items), ["g", "m", "r"]);
+    let g = &request(&c, "g.yml").spec;
+    assert_eq!((g.method.as_str(), g.url.as_str()), ("POST", "http://x"));
+    assert_eq!(
+        g.body,
+        Body::GraphQl {
+            query: String::new(),
+            variables: String::new()
+        }
+    );
     let r = &request(&c, "r.yml").spec;
     assert!(!r.headers[0].enabled);
     assert_eq!(r.params[0].kind, ParamKind::Path);
@@ -439,8 +448,9 @@ fn ordering_and_paths() {
 
 #[test]
 fn non_http_items_are_not_requests() {
+    // gRPC items are requests since wave 8 (strand B, `tests/protocols_grpc.rs`).
     let c = corpus("grpc-subpath").model().clone();
-    assert!(c.items.is_empty());
+    assert_eq!(c.items.len(), 5);
     let c = corpus("websockets-multi-message-yml").model().clone();
     fn has_requests(items: &[Item]) -> bool {
         items.iter().any(|i| match i {

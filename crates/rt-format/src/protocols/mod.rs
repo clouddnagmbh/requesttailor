@@ -49,6 +49,12 @@ pub(crate) fn new_text(spec: &RequestSpec) -> Option<String> {
     }
 }
 
+/// Converts the file between `http` and `graphql` when `spec`'s body says the other type
+/// (strand B); `None` when the file already has the right type.
+pub(crate) fn convert(doc: &Document, spec: &RequestSpec) -> Option<Result<Document>> {
+    graphql::convert(doc, item_type(spec))
+}
+
 /// Edits a non-HTTP item; `None` when `spec` is HTTP and the file is an HTTP item.
 pub(crate) fn apply(doc: &Document, path: &str, spec: &RequestSpec) -> Option<Result<Document>> {
     match item_type(spec) {
