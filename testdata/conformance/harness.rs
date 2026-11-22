@@ -374,7 +374,10 @@ fn check_entries(what: &str, want: &[Value], port: u16, got: &Value, f: &mut Vec
                 other => other.clone(),
             };
             if g[key] != value {
-                f.push(format!("{what}[{i}].{key}: expected {value}, got {} in {g}", g[key]));
+                f.push(format!(
+                    "{what}[{i}].{key}: expected {value}, got {} in {g}",
+                    g[key]
+                ));
             }
         }
     }
