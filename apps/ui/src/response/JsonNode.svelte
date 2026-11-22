@@ -88,9 +88,9 @@
     type="button"
     class="pick"
     data-testid="json-set-variable"
-    data-path={path}
-    aria-label="Set {path} as variable"
-    title="Set as variable"
+    data-pick={path}
+    aria-label="Set as variable"
+    title="Set {path} as variable"
     onclick={() => onpick?.(path, value)}>{"{{x}}"}</button
   >
 {/snippet}

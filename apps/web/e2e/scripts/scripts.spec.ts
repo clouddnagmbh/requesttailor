@@ -9,11 +9,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import type { MockBackend, RequestSpec } from "@requesttailor/ui";
 
-declare global {
-  interface Window {
-    __rt: { backend: MockBackend };
-  }
-}
+/** `window.__rt` of the mock shell. */
+type W = { __rt: { backend: MockBackend } };
 
 const HEALTH = "health.yml";
 const LIST = "users/list-users.yml";
@@ -26,7 +23,7 @@ async function open(page: Page, name: string, setup?: { path: string; patch: Par
   await expect(page.getByTestId("tree-request").first()).toBeVisible();
   for (const s of setup ?? []) {
     await page.evaluate(async ({ path, patch }) => {
-      const b = window.__rt.backend;
+      const b = (window as unknown as W).__rt.backend;
       await b.updateRequest(path, { ...(await b.getRequest(path)), ...patch });
     }, s);
   }
@@ -35,7 +32,7 @@ async function open(page: Page, name: string, setup?: { path: string; patch: Par
 }
 
 const backendSpec = (page: Page, path: string) =>
-  page.evaluate((p) => window.__rt.backend.getRequest(p), path) as Promise<RequestSpec>;
+  page.evaluate((p) => (window as unknown as W).__rt.backend.getRequest(p), path) as Promise<RequestSpec>;
 
 async function expectSpec(page: Page, path: string, check: (s: RequestSpec) => unknown, expected: unknown) {
   await expect.poll(async () => check(await backendSpec(page, path))).toEqual(expected);
@@ -101,7 +98,7 @@ test.describe("request editor", () => {
 
     await page.getByTestId("save").click();
     await expect(page.getByTestId("save")).toBeDisabled();
-    const file = await page.evaluate((p) => window.__rt.backend.files.get(p), HEALTH);
+    const file = await page.evaluate((p) => (window as unknown as W).__rt.backend.files.get(p), HEALTH);
     expect(file).toContain("rt.response.status");
   });
 
@@ -164,7 +161,7 @@ test.describe("response", () => {
   test("Tests and Console tabs show script results, logs and notes", async ({ page }) => {
     await open(page, "Health");
     await page.evaluate(() => {
-      window.__rt.backend.scriptOutcome = () => ({
+      (window as unknown as W).__rt.backend.scriptOutcome = () => ({
         tests: [
           { name: "status is 200", passed: true, origin: "request" },
           { name: "has a user", passed: false, error: "expected undefined to exist", origin: "collection" },
@@ -194,7 +191,7 @@ test.describe("response", () => {
   test("a pre-request script error shows clearly, with its console output", async ({ page }) => {
     await open(page, "Health");
     await page.evaluate(() => {
-      window.__rt.backend.scriptOutcome = () => ({
+      (window as unknown as W).__rt.backend.scriptOutcome = () => ({
         error: { kind: "script", message: "ReferenceError: tokn is not defined (request:2)" },
         logs: [{ level: "log", text: "about to sign", origin: "request" }],
       });
@@ -220,7 +217,7 @@ test.describe("chaining", () => {
     await page.getByTestId("tree-request").filter({ hasText: "List users" }).click();
     await send(page);
     const sent = await page.evaluate(async () => {
-      const b = window.__rt.backend;
+      const b = (window as unknown as W).__rt.backend;
       return (await b.send("users/list-users.yml", { environment: "Local", vars: [] })).report.request?.headers;
     });
     expect(sent).toContainEqual(["X-Token", "mock-token-123"]);
@@ -275,7 +272,7 @@ test.describe("chaining", () => {
     // The value is a runtime variable in the editor's preview.
     await page.getByTestId("tab-headers").click();
     await page.evaluate(async () => {
-      const b = window.__rt.backend;
+      const b = (window as unknown as W).__rt.backend;
       const s = await b.getRequest("users/list-users.yml");
       await b.updateRequest("users/list-users.yml", { ...s, url: "{{baseUrl}}/users?t={{authToken}}" });
     });
@@ -304,7 +301,7 @@ test.describe("chaining", () => {
     await expect(dialog.getByTestId("set-variable-value")).toHaveText("7");
     await page.keyboard.press("Enter");
     await expect(dialog).toHaveCount(0);
-    const vars = await page.evaluate(() => window.__rt.backend.scripts.sessionVars("Local"));
+    const vars = await page.evaluate(() => (window as unknown as W).__rt.backend.scripts.sessionVars("Local"));
     expect(vars).toEqual([{ name: "id", value: "7", scope: "runtime" }]);
     // Escape closes without setting.
     await pick.focus();
