@@ -48,9 +48,9 @@ rt {version}: send requests from OpenCollection (YAML) files
 
 Usage:
   rt send <request-file> [options]
-  rt agent [--port <PORT>] [--allow-origin <ORIGIN>]...
+  rt agent [--port <PORT>] [--allow-origin <ORIGIN>]... [--allow-secrets]
   rt import <file>... --out <dir> [--format <FORMAT>] [--json]
-  rt scan [<path>...]
+  rt scan [<path>...] [--json]
   rt --help | --version
 
 Options for send:
@@ -68,6 +68,20 @@ rt agent runs the companion for the web app on 127.0.0.1 until stopped:
       --port <PORT>           Listen on PORT (default {agent_port})
       --allow-origin <ORIGIN> Web app origin that may pair and send; repeatable
                               (default {agent_origins})
+      --allow-secrets         Let paired origins read external secrets (1Password,
+                              Vault, AWS, Azure, Google Cloud) with your CLI logins
+
+rt scan finds credentials typed into collection files (tokens, keys, passwords
+in auth, headers, URLs and bodies), for pipelines and as a pre-commit hook:
+      --json                Print {{\"scanned\": N, \"findings\": [...]}} instead of text
+  Paths are files or folders (default: the current folder). Values that are
+  only {{{{variables}}}} are fine; a line containing `rt-scan:allow` (e.g. as a
+  `# rt-scan:allow` comment) is skipped. Exit code {EXIT_OK} when clean, {scan_found} with
+  findings, {EXIT_USAGE} if a path cannot be read. See crates/rt-cli/README.md for a hook.
+
+External secrets: when the environment of rt send reads secrets from a manager
+(externalSecrets), rt runs its CLI (op, vault, aws, az, gcloud) with your login.
+Variables given with --var are not read from the manager.
 
 rt import converts exports of other tools into a new collection folder:
   -o, --out <DIR>           Folder to create (must not exist, or be empty)
@@ -98,6 +112,7 @@ Exit codes:
         version = env!("CARGO_PKG_VERSION"),
         agent_port = agent::DEFAULT_PORT,
         agent_origins = agent::DEFAULT_ORIGINS.join(" and "),
+        scan_found = scan::EXIT_FOUND,
     )
 }
 
@@ -315,10 +330,11 @@ pub async fn send_request<T: Transport>(
     let options = SendOptions {
         body_limit: args.body_limit,
     };
-    let collection = match secrets::resolve(doc.model(), args.environment.as_deref()).await {
-        Ok(c) => c,
-        Err(e) => return services::failed(request_path, args, SendError::Auth(e)),
-    };
+    let collection =
+        match secrets::resolve(doc.model(), args.environment.as_deref(), &args.vars).await {
+            Ok(c) => c,
+            Err(e) => return services::failed(request_path, args, SendError::Auth(e)),
+        };
     let cli = match services::CliServices::new(args, files.root()) {
         Ok(s) => s,
         Err(e) => return services::failed(request_path, args, SendError::Plugin(e)),

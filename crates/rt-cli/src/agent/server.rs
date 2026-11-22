@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! The companion's HTTP/1.1 server: checks, CORS, the three endpoints.
+//! The companion's HTTP/1.1 server: checks, CORS, the endpoints (status, pair, send, and
+//! secrets with `--allow-secrets`).
 //!
 //! Runs on a current-thread runtime inside a `LocalSet`: the native transport's body stream
 //! is not `Send`, and one thread is plenty for a single user's requests.
@@ -21,8 +22,8 @@ use hyper::header::{self, HeaderMap, HeaderName, HeaderValue};
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::{TokioIo, TokioTimer};
 use rt_core::transport::companion::{
-    HEAD_HEADER, PROTOCOL_VERSION, PairRequest, PairResponse, Status, WireHead, WireRequest,
-    encode_head,
+    HEAD_HEADER, PROTOCOL_VERSION, PairRequest, PairResponse, SecretsError, SecretsRequest,
+    SecretsResponse, Status, WireHead, WireRequest, encode_head,
 };
 use rt_core::transport::native::NativeTransport;
 use rt_core::transport::{BodyStream, HttpRequest, Transport, TransportError};
@@ -34,6 +35,8 @@ use super::pairing::{CODE_TTL, Pairing};
 
 /// Largest accepted `/v1/pair` request.
 const MAX_PAIR_REQUEST: usize = 4 * 1024;
+/// Largest accepted `/v1/secrets` request (references only).
+const MAX_SECRETS_REQUEST: usize = 64 * 1024;
 /// A client must send its request head within this time.
 const HEADER_READ_TIMEOUT: Duration = Duration::from_secs(10);
 /// How long a browser may cache a preflight answer.
@@ -46,6 +49,7 @@ const DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
 const STATUS: &str = "/v1/status";
 const PAIR: &str = "/v1/pair";
 const SEND: &str = "/v1/send";
+const SECRETS: &str = "/v1/secrets";
 
 pub struct Agent {
     port: u16,
@@ -54,10 +58,12 @@ pub struct Agent {
     hosts: [String; 2],
     pairing: RefCell<Pairing>,
     transport: NativeTransport,
+    /// `POST /v1/secrets` is answered (`--allow-secrets`).
+    allow_secrets: bool,
 }
 
 impl Agent {
-    pub fn new(port: u16, origins: Vec<String>) -> Result<Rc<Self>, String> {
+    pub fn new(port: u16, origins: Vec<String>, allow_secrets: bool) -> Result<Rc<Self>, String> {
         let transport = NativeTransport::new().map_err(|e| e.to_string())?;
         Ok(Rc::new(Self {
             port,
@@ -65,6 +71,7 @@ impl Agent {
             hosts: [format!("127.0.0.1:{port}"), format!("localhost:{port}")],
             pairing: RefCell::new(Pairing::new(Instant::now())),
             transport,
+            allow_secrets,
         }))
     }
 
@@ -78,6 +85,11 @@ impl Agent {
             self.port
         );
         println!("Allowed origins: {}", self.origins.join(", "));
+        if self.allow_secrets {
+            println!(
+                "External secrets: on (paired origins can read secrets with your op, vault, aws, az and gcloud logins)"
+            );
+        }
         self.print_code();
         println!("Stop with Ctrl+C.");
     }
@@ -215,7 +227,8 @@ async fn route(
         (Method::GET, STATUS) => status(agent, Some(&origin), req.headers()),
         (Method::POST, PAIR) => pair(agent, body, &origin).await,
         (Method::POST, SEND) => send(agent, req, body, &origin).await,
-        (_, STATUS | PAIR | SEND) => {
+        (Method::POST, SECRETS) => secrets(agent, req, body, &origin).await,
+        (_, STATUS | PAIR | SEND | SECRETS) => {
             text(StatusCode::METHOD_NOT_ALLOWED, "method not allowed", cors)
         }
         _ => text(StatusCode::NOT_FOUND, "not found", cors),
@@ -227,7 +240,7 @@ async fn route(
 fn preflight(req: &Request<()>, path: &str, origin: &str) -> Response<AgentBody> {
     let expected = match path {
         STATUS => "GET",
-        PAIR | SEND => "POST",
+        PAIR | SEND | SECRETS => "POST",
         _ => return text(StatusCode::NOT_FOUND, "not found", Some(origin)),
     };
     let headers = req.headers();
@@ -371,6 +384,78 @@ async fn send(
         Err(e) => {
             log(format_args!("{method} {target} -> {e}"));
             json(StatusCode::BAD_GATEWAY, &e, cors)
+        }
+    }
+}
+
+/// Reads external secrets with the secret managers' CLIs (`rt_app::secret_sources`), on a
+/// blocking thread (a CLI may take seconds, e.g. for a biometric prompt). The log shows the
+/// provider and the number of variables, never values.
+async fn secrets(
+    agent: &Agent,
+    req: &Request<()>,
+    body: &mut Option<Incoming>,
+    origin: &str,
+) -> Response<AgentBody> {
+    use rt_app::secret_sources::{
+        DEFAULT_TIMEOUT, ProcessRunner, active, provider_label, resolve_one,
+    };
+
+    let cors = Some(origin);
+    let authorized =
+        bearer(req.headers()).is_some_and(|t| agent.pairing.borrow().token_valid(origin, t));
+    if !authorized {
+        log(format_args!(
+            "rejected POST {SECRETS} from {origin}: missing or invalid token"
+        ));
+        return text(StatusCode::UNAUTHORIZED, "pairing required", cors);
+    }
+    if !agent.allow_secrets {
+        log(format_args!(
+            "rejected POST {SECRETS} from {origin}: external secrets are off (--allow-secrets)"
+        ));
+        let error = "The companion does not read external secrets. Restart it with \
+                     `rt agent --allow-secrets` and pair again."
+            .to_owned();
+        return json(StatusCode::FORBIDDEN, &SecretsError { error }, cors);
+    }
+    let request: SecretsRequest = match read_json(body, MAX_SECRETS_REQUEST).await {
+        Ok(r) => r,
+        Err(response) => return with_cors(response, origin),
+    };
+    let label = provider_label(request.provider);
+    let result = tokio::task::spawn_blocking(move || {
+        let runner = ProcessRunner::default();
+        let secrets = rt_core::model::ExternalSecrets {
+            provider: request.provider,
+            variables: request.variables,
+        };
+        active(&secrets)
+            .map(|s| {
+                resolve_one(&runner, secrets.provider, s, DEFAULT_TIMEOUT)
+                    .map(|v| (s.name.clone(), v))
+            })
+            .collect::<Result<Vec<_>, String>>()
+    })
+    .await
+    .unwrap_or_else(|e| Err(format!("{label}: reading the secrets failed: {e}")));
+    match result {
+        Ok(values) => {
+            log(format_args!(
+                "read {} secret(s) from {label} for {origin}",
+                values.len()
+            ));
+            json(StatusCode::OK, &SecretsResponse { values }, cors)
+        }
+        Err(error) => {
+            log(format_args!(
+                "reading secrets from {label} for {origin} failed"
+            ));
+            json(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                &SecretsError { error },
+                cors,
+            )
         }
     }
 }

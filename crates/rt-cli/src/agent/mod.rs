@@ -2,7 +2,8 @@
 // Copyright 2026 The RequestTailor Authors
 
 //! `rt agent`: the companion service. The web app hands it requests the browser may not send
-//! (CORS, internal hosts) and it sends them with the native transport.
+//! (CORS, internal hosts) and it sends them with the native transport. With
+//! `--allow-secrets` it also reads external secrets for the web app (wave 5).
 //!
 //! It is a local HTTP server that sends arbitrary requests, so it is built as a security
 //! boundary; the rules are documented in `crates/rt-cli/README.md` ("Companion") and each one
@@ -28,6 +29,9 @@ pub struct AgentArgs {
     pub port: u16,
     /// Normalized (`scheme://host[:port]`), as browsers send them in `Origin`.
     pub origins: Vec<String>,
+    /// `--allow-secrets`: paired origins may read external secrets (`POST /v1/secrets`) with
+    /// the secret managers' CLIs and the user's logins on this machine (wave 5).
+    pub allow_secrets: bool,
 }
 
 /// Parses the arguments after `agent`. `Ok(None)` means `--help`.
@@ -37,9 +41,11 @@ pub fn parse(parser: &mut lexopt::Parser) -> Result<Option<AgentArgs>, String> {
     let err = |e: lexopt::Error| e.to_string();
     let mut port = DEFAULT_PORT;
     let mut origins = Vec::new();
+    let mut allow_secrets = false;
     while let Some(arg) = parser.next().map_err(err)? {
         match arg {
             Short('h') | Long("help") => return Ok(None),
+            Long("allow-secrets") => allow_secrets = true,
             Long("port") => port = parser.value().map_err(err)?.parse().map_err(err)?,
             Long("allow-origin") => {
                 let value = parser.value().map_err(err)?.string().map_err(err)?;
@@ -54,7 +60,11 @@ pub fn parse(parser: &mut lexopt::Parser) -> Result<Option<AgentArgs>, String> {
     if origins.is_empty() {
         origins = DEFAULT_ORIGINS.iter().map(|o| (*o).to_owned()).collect();
     }
-    Ok(Some(AgentArgs { port, origins }))
+    Ok(Some(AgentArgs {
+        port,
+        origins,
+        allow_secrets,
+    }))
 }
 
 /// `https://App.Example:443/` → `https://app.example`: the form browsers send in `Origin`.
@@ -92,8 +102,12 @@ pub fn run(args: AgentArgs, stderr: &mut dyn Write) -> i32 {
         // Loopback only, never 0.0.0.0: nothing outside this machine can reach the companion.
         let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, args.port));
         let listener = tokio::net::TcpListener::bind(addr).await?;
-        let agent = server::Agent::new(listener.local_addr()?.port(), args.origins)
-            .map_err(std::io::Error::other)?;
+        let agent = server::Agent::new(
+            listener.local_addr()?.port(),
+            args.origins,
+            args.allow_secrets,
+        )
+        .map_err(std::io::Error::other)?;
         agent.print_banner();
         server::serve(listener, agent).await
     });
@@ -123,6 +137,13 @@ mod tests {
         let a = parse_args(&[]).unwrap().unwrap();
         assert_eq!(a.port, DEFAULT_PORT);
         assert_eq!(a.origins, DEFAULT_ORIGINS);
+        assert!(!a.allow_secrets);
+        assert!(
+            parse_args(&["--allow-secrets"])
+                .unwrap()
+                .unwrap()
+                .allow_secrets
+        );
     }
 
     #[test]
