@@ -263,7 +263,7 @@ export class MockBackend implements Backend {
   }
 
   async preview(path: string, input: SendInput): Promise<Preview> {
-    const r = (await this.send(path, input)).report;
+    const r = (await this.sendNow(path, input)).report;
     const env = this.envs.find((e) => e.name === input.environment);
     return {
       url: r.request?.url ?? null,
