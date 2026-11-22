@@ -7,7 +7,7 @@
 // notes to sends against rt-testserver, renders its tabs and imports; disabled it does
 // nothing, removed it is gone.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { expect, test, type Page } from "@playwright/test";
@@ -126,4 +126,35 @@ test("in the UI: install with confirmation, see the notes and the plugin tab", a
   await expect(page.getByTestId("send-note").first()).toContainText("Demo plugin added X-Demo-Plugin");
   await page.getByTestId("tab-plugin-demo/demo-request").click();
   await expect(page.getByTestId("request-editor").getByTestId("plugin-view")).toBeVisible();
+});
+
+// Wave 5 gate: the official example plugin (plugins/example, built by
+// `node scripts/build-plugins.mjs`) runs unchanged in the browser, as on the desktop and in
+// the CLI.
+const EXAMPLE = fileURLToPath(new URL("../../../../target/plugins/example.wasm", import.meta.url));
+
+test("the example plugin runs unchanged in the browser", async ({ page }) => {
+  test.skip(!existsSync(EXAMPLE), "run `node scripts/build-plugins.mjs` first");
+  await setup(page);
+  await page.evaluate(async (bytes) => {
+    const b = (window as unknown as Rt).__rt.backend;
+    await b.plugins.install({ name: "example.wasm", data: new Uint8Array(bytes) });
+  }, [...readFileSync(EXAMPLE)]);
+  await open(page);
+  const result = await page.evaluate(async () => {
+    const b = (window as unknown as Rt).__rt.backend;
+    const sent = await b.send("health.yml", { environment: "Local", vars: [] });
+    const header = sent.report.request?.headers.find(([n]) => n === "X-Request-ID")?.[1] ?? "";
+    const tab = await b.plugins.renderTab("example", "summary", { request_path: "health.yml", response_id: sent.response_id }, null);
+    return {
+      status: sent.report.response?.status,
+      header,
+      sources: (sent.report.notes ?? []).map((n) => n.source),
+      blocks: tab.view.blocks.length,
+    };
+  });
+  expect(result.status).toBe(200);
+  expect(result.header).toMatch(/^rt-/);
+  expect(result.sources).toEqual(["plugin:example", "plugin:example"]);
+  expect(result.blocks).toBeGreaterThan(0);
 });

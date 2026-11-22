@@ -531,6 +531,67 @@ mod tests {
         dir
     }
 
+    /// Wave 5 gate: the official example plugin (`plugins/example`, built by
+    /// `node scripts/build-plugins.mjs`) runs unchanged here, as in the web app and the CLI.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_example_plugin_runs_unchanged() {
+        let path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../target/plugins/example.wasm");
+        let Ok(wasm) = std::fs::read(&path) else {
+            eprintln!(
+                "SKIPPED the_example_plugin_runs_unchanged: run `node scripts/build-plugins.mjs` first"
+            );
+            return;
+        };
+        let addr = rt_testserver::spawn_local().await;
+        let dir = collection(&format!("http://{addr}"));
+        let core = Core::new(MemorySecrets::default()).unwrap();
+        core.open(&dir).unwrap();
+        let info = core.services.plugins.install(&wasm).unwrap();
+        assert_eq!(info.manifest.id, "example");
+
+        let stored = core
+            .send(
+                "get.yml",
+                SendInput {
+                    environment: None,
+                    vars: Vec::new(),
+                    secrets: Vec::new(),
+                },
+            )
+            .await
+            .unwrap();
+        let sent = stored.report.request.as_ref().unwrap();
+        assert!(
+            sent.headers
+                .iter()
+                .any(|(n, v)| n == "X-Request-ID" && v.starts_with("rt-"))
+        );
+        let notes: Vec<_> = stored
+            .report
+            .notes
+            .iter()
+            .map(|n| n.source.as_str())
+            .collect();
+        assert_eq!(notes, ["plugin:example", "plugin:example"]);
+
+        let target = TabTarget {
+            request_path: "get.yml".into(),
+            response_id: stored.response_id,
+        };
+        let view = render_tab(
+            &core,
+            "example".into(),
+            "summary".into(),
+            None,
+            target,
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(!view.view.blocks.is_empty());
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn sends_run_plugins_and_tabs_see_the_response() {
         let addr = rt_testserver::spawn_local().await;

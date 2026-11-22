@@ -44,6 +44,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ${{ env.TAURI_LINUX_DEPS }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --all-targets --locked
+      # The example plugin for the wave 5 gate test in rt-desktop ("runs unchanged"); the
+      # runners' preinstalled Node runs the build script.
+      - name: Build the example plugin
+        run: |
+          rustup target add wasm32-unknown-unknown
+          node scripts/build-plugins.mjs
       - run: cargo test --workspace --locked
 
   # The desktop app as it ships (release, frontend embedded), without installer bundles.
@@ -358,6 +364,7 @@ jobs:
       - name: Build the core for the web app, rt and rt-testserver
         run: |
           node scripts/build-wasm.mjs
+          node scripts/build-plugins.mjs
           cargo build -p rt-cli -p rt-testserver --locked
       # Uses the Google Chrome preinstalled on GitHub's ubuntu runners (channel "chrome").
       # Runs the UI tests (mock backend) and the shell tests (e2e/shells, real core). With
