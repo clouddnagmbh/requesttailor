@@ -15,8 +15,8 @@
 //!
 //! Module owners in wave 3: `workspace` (strand F), `response` (strand C), `secrets` (strand D).
 //! Wave 4: `git` (strands A1/A2), `import` (strand B), `history` and `search` (strand E).
-//! Wave 5: `plugins` (strand A), `auth` (strand C), `cookies` (strand D), `secret_scan`
-//! (strand E).
+//! Wave 5: `plugins` (strand A), `auth` (strand C), `cookies` (strand D), `secret_scan` and
+//! `secret_sources` (strand E).
 //! Changes to the public types here are interface changes (working rule 1).
 
 pub mod auth;
@@ -28,6 +28,7 @@ pub mod plugins;
 pub mod response;
 pub mod search;
 pub mod secret_scan;
+pub mod secret_sources;
 pub mod secrets;
 mod workspace;
 

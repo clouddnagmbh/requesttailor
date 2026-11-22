@@ -16,6 +16,10 @@
 //!   the scheme of `rt_git::credentials`.
 //! - The app's own author identity (for when the Git configuration has none) is a JSON file
 //!   in `Core::data_dir`.
+//! - `commit` first runs the secret scanner (`rt_app::secret_scan`, wave 5) over the files
+//!   it would take and refuses with `AppError::SecretsFound` when it finds credentials;
+//!   `scan` lists them for the commit dialog. There is no way around it except marking a
+//!   line with `# rt-scan:allow`.
 
 use std::path::{Path, PathBuf};
 
@@ -23,6 +27,7 @@ use rt_app::git::{
     GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution,
     GitStatus,
 };
+use rt_app::secret_scan::{self, SecretFinding};
 use rt_app::{AppError, SecretStore};
 use rt_git::{Options, Repo, StoreCredentials};
 use tauri_plugin_dialog::DialogExt;
@@ -66,11 +71,44 @@ pub fn diff<S: SecretStore>(core: &Core<S>, path: &str) -> Result<GitDiff> {
     repo(core)?.diff(path)
 }
 
+/// Credentials typed into `paths` (relative to the collection root), as the files are in the
+/// working tree. Deleted files are skipped, as are binary files and files over 4 MiB.
+pub fn scan<S: SecretStore>(core: &Core<S>, paths: &[String]) -> Result<Vec<SecretFinding>> {
+    let root = root(core)?;
+    let mut texts = Vec::new();
+    for path in paths {
+        let relative = Path::new(path);
+        if relative.is_absolute()
+            || relative
+                .components()
+                .any(|c| !matches!(c, std::path::Component::Normal(_)))
+        {
+            return Err(AppError::Git(format!(
+                "not a path in the collection: {path}"
+            )));
+        }
+        let bytes = match std::fs::read(root.join(relative)) {
+            Ok(bytes) => bytes,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(AppError::Shell(format!("cannot read {path}: {e}"))),
+        };
+        if let Some(text) = secret_scan::text_of(&bytes) {
+            texts.push((path.as_str(), text.to_owned()));
+        }
+    }
+    let files: Vec<(&str, &str)> = texts.iter().map(|(p, t)| (*p, t.as_str())).collect();
+    Ok(secret_scan::scan(&files))
+}
+
 pub fn commit<S: SecretStore>(
     core: &Core<S>,
     message: &str,
     paths: &[String],
 ) -> Result<GitCommit> {
+    let findings = scan(core, paths)?;
+    if !findings.is_empty() {
+        return Err(AppError::SecretsFound(secret_scan::refusal(&findings)));
+    }
     let fallback = app_identity(core)?;
     repo(core)?.commit(message, paths, fallback.as_ref())
 }
@@ -348,14 +386,12 @@ pub async fn git_delete_credentials(
     blocking(app, move |core| delete_credentials(core, &host)).await
 }
 
-/// Credentials typed into `paths` of the collection (wave 5, strand E: `rt_app::secret_scan`;
-/// `git_commit` refuses with `secrets-found` when this finds any). Interface commit: the
-/// scanner finds nothing.
+/// Credentials typed into `paths` of the collection (wave 5, strand E: [`scan`];
+/// `git_commit` refuses with `secrets-found` when this finds any).
 #[tauri::command]
 pub async fn git_scan(
     app: tauri::AppHandle,
     paths: Vec<String>,
-) -> Result<Vec<rt_app::secret_scan::SecretFinding>, CommandError> {
-    let _ = (app, paths);
-    Ok(Vec::new())
+) -> Result<Vec<SecretFinding>, CommandError> {
+    blocking(app, move |core| scan(core, &paths)).await
 }

@@ -4583,6 +4583,7 @@ dependencies = [
  "similar",
  "thiserror 2.0.21",
  "tokio",
+ "web-time",
 ]
 
 [[package]]
@@ -4596,6 +4597,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "lexopt",
+ "rt-app",
  "rt-core",
  "rt-format",
  "rt-testserver",

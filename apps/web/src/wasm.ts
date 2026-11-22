@@ -17,6 +17,7 @@ import {
   type Preview,
   type RequestSpec,
   type SearchHit,
+  type SecretFinding,
   type SendReport,
   type StoredResponse,
   type TreeNode,
@@ -85,6 +86,10 @@ export interface CoreModule {
   send(files: CoreFiles, requestPath: string, options?: Record<string, unknown>): Promise<SendReport>;
   Importer: new () => CoreImporter;
   textDiff(path: string, old: Uint8Array | null, current: Uint8Array | null): GitDiff;
+  /** `rt_app::secret_scan::scan` of `[path, text]` pairs (wave 5). */
+  scanSecrets(files: [string, string][]): SecretFinding[];
+  /** The message of a refused commit (`AppError::SecretsFound`); `findings` not empty. */
+  secretRefusal(findings: SecretFinding[]): string;
 }
 
 // An absolute URL: Vite's dev server would otherwise mark the import as a module import and

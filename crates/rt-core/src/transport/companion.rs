@@ -16,6 +16,14 @@
 //!     streamed;
 //!   - transport failure: `502`, JSON [`TransportError`];
 //!   - bad or missing token: `401`.
+//! - `POST /v1/secrets` with `Authorization: Bearer <token>` and JSON [`SecretsRequest`]
+//!   (wave 5): the companion reads the external secrets with the secret managers' CLIs on
+//!   this machine (`rt_app::secret_sources`) →
+//!   - success: `200` JSON [`SecretsResponse`];
+//!   - a secret could not be read (CLI missing, not signed in, timeout): `422` JSON
+//!     [`SecretsError`];
+//!   - the companion was started without `--allow-secrets`: `403` JSON [`SecretsError`];
+//!   - bad or missing token: `401`.
 //!
 //! The pairing flow and the origin/host checks are owned by the companion (wave 3, strand G)
 //! and documented in `crates/rt-cli/README.md`.
@@ -29,6 +37,7 @@ use base64::engine::general_purpose::STANDARD as B64;
 use serde::{Deserialize, Serialize};
 
 use super::{HttpBody, HttpRequest, HttpVersion, Redirect, ResponseHead, SendOptions, Timing};
+use crate::model::{ExternalSecret, SecretProvider};
 
 /// Protocol version spoken by this build.
 pub const PROTOCOL_VERSION: u32 = 1;
@@ -65,6 +74,26 @@ pub struct WireRequest {
     pub timeout_ms: Option<u64>,
     pub follow_redirects: bool,
     pub max_redirects: u32,
+}
+
+/// Body of `POST /v1/secrets`: the references of one environment's external secrets (never
+/// values). Only enabled entries are read.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SecretsRequest {
+    pub provider: SecretProvider,
+    pub variables: Vec<ExternalSecret>,
+}
+
+/// Answer of `POST /v1/secrets`: `(variable, value)` for each enabled entry of the request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SecretsResponse {
+    pub values: Vec<(String, String)>,
+}
+
+/// Error answer of `POST /v1/secrets` (`403`, `422`): what went wrong and how to fix it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SecretsError {
+    pub error: String,
 }
 
 /// [`ResponseHead`] on the wire.
