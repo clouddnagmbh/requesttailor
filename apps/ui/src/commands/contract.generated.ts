@@ -3820,10 +3820,14 @@ export const rescueResult: RescueResult = {
       "name": "main",
       "new": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "old": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "pushed": true
+      "pushed": true,
+      "remote": "origin"
     }
   ],
-  "rewritten": 12
+  "rewritten": 12,
+  "tags": [
+    "v1.0"
+  ]
 };
 
 export const wave12RequestSpec: RequestSpec = {
