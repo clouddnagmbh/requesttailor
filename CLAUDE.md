@@ -164,6 +164,13 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 8 (unten). Änderungen daran sind Sc
 - KI-Assistent `rt_app::ai`: `AiProvider` (`anthropic` mit eigenem Schlüssel, `openai-compatible` für lokale Modelle), kein Anbieter fest verdrahtet, aus bis konfiguriert, Aufrufe über den eigenen `Transport`. Vor jedem Aufruf `redact` mit allen Secret-Werten; Antworten sind Vorschläge (ungespeichert).
 - `Backend` hat `streams`, `grpc`, `graphql`, `agents`, `ai`, `mcp`. Dateien je Strang: Mock `commands/mock-{streams,grpc,graphql,agents,mcp-client,ai}.ts`, Web und Desktop `src/{streams,grpc,graphql,agents,mcp-client,ai}.ts`; CLI `crates/rt-cli/src/{mcp,approvals,mcp_test,mock,docs}.rs`.
 
+### Distributionen (ab Welle 9)
+
+- Eine Distribution baut aus diesem Repo eigene Binaries mit zusätzlichen, einkompilierten Erweiterungen; die Builds dieses Repos haben keine. Erweiterungen sind kein Ersatz für Plugins (WASM, zur Laufzeit).
+- Desktop: `rt_desktop::builder()` liefert den fertig konfigurierten `tauri::Builder` (Plugins, Zustand, Befehle); `run()` ist `builder().run(generate_context!())`. Eine Distribution hängt eigene Tauri-Plugins mit `.plugin(…)` an und läuft mit dem Kontext ihrer eigenen `tauri.conf.json` und eigener Capability-Datei.
+- UI: `startApp(target, backend, { extensions })` mit `AppExtension` aus `apps/ui/src/extensions.ts` (Palette-Befehle `commands`, Kopfzeilen-Element `header`, `overlay`, `start` nach dem ersten Frame; `ExtensionContext` = Backend und `AppState`). Die Hüllen exportieren ihr Backend: `@requesttailor/desktop/backend` (`TauriBackend`), `@requesttailor/web/backend` (`createWebBackend`).
+- CLI: `rt_cli::run_with(args, stdout, stderr, &[CliExtension])`; ein erstes Argument mit dem Namen einer Erweiterung startet sie, `rt --help` listet sie unter „More commands“. `run` ist `run_with` ohne Erweiterungen.
+
 ## Befehle
 
 Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit. Einmalig: `rustup target add wasm32-unknown-unknown aarch64-apple-ios`. Linux braucht für jeden Workspace-Build `libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev build-essential` (Tauri).

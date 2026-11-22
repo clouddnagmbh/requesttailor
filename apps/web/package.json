@@ -5,6 +5,9 @@
   "license": "Apache-2.0",
   "description": "Web app (core as WebAssembly).",
   "type": "module",
+  "exports": {
+    "./backend": "./src/web-backend.ts"
+  },
   "scripts": {
     "dev": "node ../../scripts/build-wasm.mjs --optional && vite",
     "build": "node ../../scripts/build-wasm.mjs && vite build && npm run bundle-plugins",

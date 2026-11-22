@@ -483,6 +483,49 @@ pub fn render(report: &SendReport, pretty: bool) -> String {
 }
 
 /// The whole program: parses `args` (without the program name), runs, returns the exit code.
+/// A subcommand a distribution adds to `rt` (wave 9). The builds of this repository add none.
+pub struct CliExtension {
+    /// The subcommand, e.g. `example`; must not shadow a built-in one.
+    pub name: &'static str,
+    /// One line for `rt --help`.
+    pub summary: &'static str,
+    /// Gets the arguments after the subcommand and returns the exit code.
+    pub run: fn(Vec<OsString>, &mut dyn Write, &mut dyn Write) -> i32,
+}
+
+/// `rt` with the subcommands of a distribution: a first argument naming an extension runs it,
+/// everything else is [`run`]. `rt --help` lists the extensions after the built-in commands.
+pub fn run_with<I>(
+    args: I,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+    extensions: &[CliExtension],
+) -> i32
+where
+    I: IntoIterator,
+    I::Item: Into<OsString>,
+{
+    let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
+    if let Some(x) = args
+        .first()
+        .and_then(|first| extensions.iter().find(|x| first.as_os_str() == x.name))
+    {
+        return (x.run)(args[1..].to_vec(), stdout, stderr);
+    }
+    let wants_help =
+        matches!(args.first().and_then(|a| a.to_str()), Some("-h" | "--help")) && args.len() == 1;
+    if wants_help && !extensions.is_empty() {
+        let mut text = help();
+        text.push_str("\nMore commands:\n");
+        for x in extensions {
+            text.push_str(&format!("  rt {:<12} {}\n", x.name, x.summary));
+        }
+        let _ = stdout.write_all(text.as_bytes());
+        return EXIT_OK;
+    }
+    run(args, stdout, stderr)
+}
+
 pub fn run<I>(args: I, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
 where
     I: IntoIterator,
@@ -645,6 +688,35 @@ mod tests {
         assert_eq!(parse_args(["-V"]), Ok(Command::Version));
         assert_eq!(parse_args(["-h"]), Ok(Command::Help));
         assert_eq!(parse_args(["send", "--help"]), Ok(Command::Help));
+    }
+
+    #[test]
+    fn extensions_run_their_subcommand_and_appear_in_help() {
+        fn hello(args: Vec<OsString>, out: &mut dyn Write, _: &mut dyn Write) -> i32 {
+            let _ = write!(out, "hello {}", args.len());
+            7
+        }
+        let x = [CliExtension {
+            name: "hello",
+            summary: "say hello",
+            run: hello,
+        }];
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        assert_eq!(run_with(["hello", "a", "b"], &mut out, &mut err, &x), 7);
+        assert_eq!(String::from_utf8(out).unwrap(), "hello 2");
+
+        let mut out = Vec::new();
+        assert_eq!(run_with(["--help"], &mut out, &mut err, &x), EXIT_OK);
+        let help = String::from_utf8(out).unwrap();
+        assert!(help.starts_with(&super::help()));
+        assert!(help.contains("rt hello"), "{help}");
+        assert!(help.contains("say hello"), "{help}");
+
+        // Without extensions `rt` is unchanged.
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        assert_eq!(run_with(["--help"], &mut a, &mut err, &[]), EXIT_OK);
+        run(["--help"], &mut b, &mut err);
+        assert_eq!(a, b);
     }
 
     #[test]

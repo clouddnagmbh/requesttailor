@@ -6,6 +6,7 @@
 import { mount } from "svelte";
 
 import type { Backend } from "./commands/backend";
+import type { StartOptions } from "./extensions";
 import AppShell from "./shell/AppShell.svelte";
 import "./styles/tokens.css";
 
@@ -14,7 +15,12 @@ export type * from "./commands/types";
 export { BackendError } from "./commands/backend";
 export { MockBackend } from "./commands/mock";
 
-/** Mounts the app into `target` with the given backend. */
-export function startApp(target: HTMLElement, backend: Backend) {
-  return mount(AppShell, { target, props: { backend } });
+export type * from "./extensions";
+
+/**
+ * Mounts the app into `target` with the given backend. A distribution passes its extensions in
+ * `options` (wave 9, `./extensions`); the builds of this repository pass none.
+ */
+export function startApp(target: HTMLElement, backend: Backend, options: StartOptions = {}) {
+  return mount(AppShell, { target, props: { backend, extensions: options.extensions ?? [] } });
 }

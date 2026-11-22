@@ -41,6 +41,16 @@ pub use crate::core::{CollectionInfo, Core};
 
 /// Starts the app. Returns when the last window is closed.
 pub fn run() {
+    builder()
+        .run(tauri::generate_context!())
+        .expect("error while running the RequestTailor desktop app");
+}
+
+/// The configured app (plugins, state, commands) without its context, for a distribution that
+/// builds its own binary from this crate: it adds its Tauri plugins with `.plugin(…)` and runs
+/// with the context of its own `tauri.conf.json` (wave 9). Its plugins' commands need their own
+/// capability file; the app's commands keep `capabilities/default.json`.
+pub fn builder() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -170,6 +180,4 @@ pub fn run() {
             mcp_client::mcp_save_test,
             mcp_client::mcp_run_test,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running the RequestTailor desktop app");
 }

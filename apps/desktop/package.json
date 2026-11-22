@@ -5,6 +5,9 @@
   "license": "Apache-2.0",
   "description": "Tauri 2 desktop shell.",
   "type": "module",
+  "exports": {
+    "./backend": "./src/backend.ts"
+  },
   "scripts": {
     "dev": "tauri dev",
     "build": "npm run bundle-plugins && tauri build --no-bundle",

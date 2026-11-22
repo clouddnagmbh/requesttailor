@@ -24,6 +24,7 @@
   import { agentCommands } from "../agents/ui.svelte";
   import AuthPromptDialog from "../auth/AuthPromptDialog.svelte";
   import type { Backend, CollectionInfo } from "../commands/backend";
+  import type { AppExtension, ExtensionContext } from "../extensions";
   import CookiesDialog from "../cookies/CookiesDialog.svelte";
   import { formatAvailable, requestFormat } from "../editor/format-body";
   import RequestEditor from "../editor/RequestEditor.svelte";
@@ -64,10 +65,13 @@
   import { Theme } from "./theme.svelte";
   import { requestPaths, tabElementId } from "./tree";
 
-  let { backend }: { backend: Backend } = $props();
+  let { backend, extensions = [] }: { backend: Backend; extensions?: readonly AppExtension[] } = $props();
   // The backend is fixed for the lifetime of the shell.
   // svelte-ignore state_referenced_locally
   const app = provideApp(new AppState(backend));
+  // Wave 9: extensions of a distribution (none in the builds of this repository); fixed like the backend.
+  // svelte-ignore state_referenced_locally
+  const extensionContext: ExtensionContext = { backend, app };
   const sessions = provideSessions(new SessionsState(app));
   // A session lives while its request's tab is open.
   $effect(() => {
@@ -175,6 +179,11 @@
   const adoptCollection = (info: CollectionInfo) => openWith(() => app.adopt(info));
 
   onMount(() => {
+    for (const x of extensions) {
+      Promise.resolve()
+        .then(() => x.start?.(extensionContext))
+        .catch((e: unknown) => console.warn(`RequestTailor: extension ${x.id} failed to start:`, e));
+    }
     reopenOnStart(app).then(
       (info) => {
         if (info && !app.collection) void adoptCollection(info);
@@ -281,6 +290,9 @@
     ...aiCommands(app, ai),
     ...agentCommands(app),
     ...(app.collection ? [{ id: "mcp", label: "Test an MCP server", run: () => openMcp() }] : []),
+    ...extensions.flatMap((x) =>
+      (x.commands?.(extensionContext) ?? []).map((c) => ({ id: `${x.id}:${c.id}`, label: c.label, run: c.run })),
+    ),
   ]);
 
   // Capture phase: runs before inputs and code editors handle the key, so Mod+Enter and Mod+S
@@ -346,6 +358,11 @@
       onclick={() => app.save()}
       disabled={app.dirty.length === 0}>Save</button
     >
+    {#each extensions as x (x.id)}
+      {#if x.header}
+        <x.header ctx={extensionContext} />
+      {/if}
+    {/each}
     <button
       class="button"
       data-testid="palette-button"
@@ -473,6 +490,11 @@
 </div>
 
 <CommandPalette bind:open={paletteOpen} {commands} />
+{#each extensions as x (x.id)}
+  {#if x.overlay}
+    <x.overlay ctx={extensionContext} />
+  {/if}
+{/each}
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
 <ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
 <PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />
