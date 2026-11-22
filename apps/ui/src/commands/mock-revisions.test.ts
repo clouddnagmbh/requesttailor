@@ -38,6 +38,12 @@ describe("mock revisions", () => {
     expect(tree.files["health.yml"]).toContain("{{baseUrl}}/health");
     expect(await git.show("HEAD", "health.yml")).toContain("{{baseUrl}}/up");
     expect(await git.show("HEAD", "missing.yml")).toBeNull();
+    // The model of a request at a revision (a copy), for mocks that work on models.
+    expect(git.specAt(first, "health.yml")?.url).toBe("{{baseUrl}}/health");
+    expect(git.specAt("HEAD", "/health.yml")?.url).toBe("{{baseUrl}}/up");
+    expect(git.specAt("HEAD", "missing.yml")).toBeNull();
+    git.specAt("HEAD", "health.yml")!.url = "changed";
+    expect(git.specAt("HEAD", "health.yml")?.url).toBe("{{baseUrl}}/up");
 
     expect(await git.mergeBase("HEAD", first)).toBe(first);
     expect((await git.commits(first, "HEAD", 10)).map((c) => c.oid)).toEqual([second.oid]);

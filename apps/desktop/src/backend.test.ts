@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 import { COMMANDS, TauriBackend, type Command, type Invoke } from "./backend";
 import { packImport, packPluginImport } from "./import";
 // Wave 12: commands registered by the interface that no method calls yet (one list per strand).
-import { PENDING as COMPARE_PENDING } from "./compare";
 import { PENDING as CONTRACT_PENDING } from "./contract";
 import { PENDING as DIFFS_PENDING } from "./diffs";
 import { PENDING as MERGES_PENDING } from "./merges";
@@ -20,7 +19,6 @@ import { PENDING as TIMELINE_PENDING } from "./timeline";
 const PENDING = new Set<Command>([
   ...DIFFS_PENDING,
   ...MERGES_PENDING,
-  ...COMPARE_PENDING,
   ...TIMELINE_PENDING,
   ...REVIEW_PENDING,
   ...CONTRACT_PENDING,
@@ -33,7 +31,7 @@ function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown)
     calls.push([cmd, args]);
     return answer(cmd, args);
   };
-  return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel"), calls };
+  return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel", () => "step-channel"), calls };
 }
 
 describe("TauriBackend", () => {
@@ -174,6 +172,10 @@ describe("TauriBackend", () => {
     await b.timeline.blame("api/list.yml");
     await b.timeline.version("abc", "users/get.yml");
     await b.timeline.results("abc");
+    await b.compare.run({ rev: "main", folder: "api" }, { environment: "Local", vars: [] });
+    await b.compare.compare({ from: "main", to: "feature" }, { environment: "Local", vars: [] });
+    await b.compare.bisect({ good: "v1", bad: "HEAD" }, { environment: "Local", vars: [] }, () => {});
+    await b.compare.cancel();
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -296,6 +298,10 @@ describe("TauriBackend", () => {
       ["timeline_blame", { path: "api/list.yml" }],
       ["timeline_version", { rev: "abc", path: "users/get.yml" }],
       ["timeline_results", { rev: "abc" }],
+      ["compare_run", { request: { rev: "main", folder: "api" }, input: { environment: "Local", vars: [] } }],
+      ["compare_revisions", { request: { from: "main", to: "feature" }, input: { environment: "Local", vars: [] } }],
+      ["compare_bisect", { request: { good: "v1", bad: "HEAD" }, input: { environment: "Local", vars: [] }, onStep: "step-channel" }],
+      ["compare_cancel", undefined],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS.filter((c) => !PENDING.has(c))));
     for (const c of PENDING) expect(COMMANDS).toContain(c);

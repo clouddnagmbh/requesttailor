@@ -293,6 +293,8 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
                 &transport,
                 &options,
                 &services,
+                // Like `rt run`, `rt bisect` records no results per commit (wave 12).
+                &mut |_| {},
                 &|| false,
             )
             .await

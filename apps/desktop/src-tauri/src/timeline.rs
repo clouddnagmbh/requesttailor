@@ -11,6 +11,9 @@
 //! commit, nothing is unsaved in the app and no `*.yml` file of the collection is changed,
 //! new or deleted in the working tree. Only then it keeps the finished requests (no bodies, no
 //! header values) and writes them under `HEAD`'s commit when the run ends.
+//!
+//! Runs at a revision (compare, bisect; `compare.rs`) used exactly that commit's request files,
+//! so [`RevisionRecorder`] writes them under the commit they ran at.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -122,6 +125,33 @@ impl RunRecorder {
                 // Recording is a convenience: a full disk must not fail the run.
                 let _ = t.results.append(&t.oid, &all);
             }
+        }
+    }
+}
+
+/// Records runs at a revision (compare and bisect, `compare.rs`) under the commit they ran
+/// at, with their source.
+pub struct RevisionRecorder {
+    results: ResultsDir,
+    collection: String,
+    source: RecordSource,
+}
+
+impl RevisionRecorder {
+    pub fn new(results: ResultsDir, collection: String, source: RecordSource) -> Self {
+        Self {
+            results,
+            collection,
+            source,
+        }
+    }
+
+    /// The finished requests of one run at `oid` (skipped ones are left out).
+    pub fn record(&self, oid: &str, steps: &[rt_core::runner::RunStep]) {
+        let records = timeline::records_of_steps(&self.collection, now(), self.source, steps);
+        if !records.is_empty() {
+            // Recording is a convenience: a full disk must not fail the compare or bisect.
+            let _ = self.results.append(oid, &records);
         }
     }
 }

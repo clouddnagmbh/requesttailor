@@ -7,26 +7,31 @@
 //! Git work (trees, commits) stays in the shell and is passed in.
 //!
 //! ```text
-//! Workspace.runAtRevision(request, commit, tree, input, companion, services, cancelled)
-//!     -> Promise<RevisionRun>
+//! Workspace.runAtRevision(request, commit, tree, input, companion, services, cancelled,
+//!     onRecords) -> Promise<RevisionRun>
 //! Workspace.compareRevisions(request, fromCommit, fromTree, toCommit, toTree, input,
-//!     companion, services, cancelled) -> Promise<RunComparison>
-//! Workspace.bisect(request, candidates, treeAt, input, companion, services, onStep, cancelled)
-//!     -> Promise<BisectOutcome>
+//!     companion, services, cancelled, onRecords) -> Promise<RunComparison>
+//! Workspace.bisect(request, candidates, treeAt, input, companion, services, onStep, cancelled,
+//!     onRecords) -> Promise<BisectOutcome>
 //! ```
 //!
 //! `request` is a `RevisionRunRequest`, `CompareRequest` or `BisectRequest`, `commit` a
 //! `GitCommit`, `tree` a `GitTree`, `candidates` the `GitCommit`s newest first (what
 //! `GitApi.commits(good, bad)` returns), `treeAt(oid)` returns a promise of the commit's
 //! `GitTree` (a rejection makes that commit `skip`). `onStep(step)` gets every `BisectStep`;
-//! `cancelled()` is polled before each request and test. Rejects with the usual shell errors
-//! (`format` when the collection cannot be read at the revision).
+//! `cancelled()` is polled before each request and test. `onRecords(oid, records)` (optional)
+//! gets the `TestRecord`s of every finished run under the commit it ran at, for the time
+//! travel (`rt_app::timeline`, source `compare` or `bisect`, collection `""`: the web app's
+//! collection is the repository root). Rejects with the usual shell errors (`format` when the
+//! collection cannot be read at the revision).
 
 use js_sys::{Function, Promise};
 use rt_app::SendInput;
 use rt_app::bisect::{BisectRequest, BisectStep, search, test_revision};
 use rt_app::compare::{CompareRequest, RevisionRunRequest, compare_revisions, run_revision};
 use rt_app::git::{GitCommit, GitTree};
+use rt_app::timeline::{RecordSource, records_of_steps};
+use rt_core::runner::RunStep;
 use rt_core::send::SendOptions;
 use rt_core::transport::Transport;
 use rt_core::transport::companion::CompanionTransport;
@@ -57,6 +62,23 @@ fn options() -> SendOptions {
     }
 }
 
+/// Hands the records of a run at `oid` to `onRecords`, if there is one.
+fn record(on_records: &JsValue, source: RecordSource, oid: &str, steps: &[RunStep]) {
+    let Some(f) = on_records.dyn_ref::<Function>() else {
+        return;
+    };
+    // Wall-clock seconds, as the native recorder.
+    let time = (js_sys::Date::now() / 1000.0) as i64;
+    let records = records_of_steps("", time, source, steps);
+    if records.is_empty() {
+        return;
+    }
+    if let Ok(value) = to_js(&records) {
+        // Recording is a convenience: a throwing listener must not fail the run.
+        let _ = f.call2(&JsValue::NULL, &JsValue::from_str(oid), &value);
+    }
+}
+
 fn stop(cancelled: &Function) -> bool {
     cancelled
         .call0(&JsValue::NULL)
@@ -68,6 +90,7 @@ fn stop(cancelled: &Function) -> bool {
 impl WorkspaceJs {
     /// Runs the requests of `request` at one revision; see the module documentation.
     #[wasm_bindgen(js_name = runAtRevision)]
+    #[allow(clippy::too_many_arguments)] // one argument per value of the JS signature
     pub fn run_at_revision(
         &self,
         request: JsValue,
@@ -77,6 +100,7 @@ impl WorkspaceJs {
         companion: JsValue,
         services: JsValue,
         cancelled: Function,
+        #[wasm_bindgen(js_name = onRecords)] on_records: JsValue,
     ) -> Result<Promise, JsValue> {
         let request: RevisionRunRequest = from_js(&request, "request")?;
         let commit: GitCommit = from_js(&commit, "commit")?;
@@ -120,12 +144,20 @@ impl WorkspaceJs {
                     .await
                 }
             };
-            to_js(&run.map_err(app_error)?)
+            let run = run.map_err(app_error)?;
+            record(
+                &on_records,
+                RecordSource::Compare,
+                &run.commit.oid,
+                &run.steps,
+            );
+            to_js(&run)
         }))
     }
 
     /// Runs the same requests at two revisions and compares them; see the module documentation.
     #[wasm_bindgen(js_name = compareRevisions)]
+    #[allow(clippy::too_many_arguments)] // one argument per value of the JS signature
     pub fn compare_revisions_js(
         &self,
         request: JsValue,
@@ -137,6 +169,7 @@ impl WorkspaceJs {
         companion: JsValue,
         services: JsValue,
         cancelled: Function,
+        #[wasm_bindgen(js_name = onRecords)] on_records: JsValue,
     ) -> Result<Promise, JsValue> {
         let request: CompareRequest = from_js(&request, "request")?;
         let from: (GitCommit, GitTree) = (
@@ -154,6 +187,9 @@ impl WorkspaceJs {
         Ok(wasm_bindgen_futures::future_to_promise(async move {
             let services = parts.services();
             let cancelled = || stop(&cancelled);
+            let mut on_run = |commit: &GitCommit, run: &rt_app::compare::RevisionOutcome| {
+                record(&on_records, RecordSource::Compare, &commit.oid, &run.steps);
+            };
             let cmp = match companion {
                 Some(c) => {
                     let t = CompanionTransport::new(c.url, c.token);
@@ -165,6 +201,7 @@ impl WorkspaceJs {
                         &t,
                         &options(),
                         &services,
+                        &mut on_run,
                         &cancelled,
                     )
                     .await
@@ -179,6 +216,7 @@ impl WorkspaceJs {
                         &t,
                         &options(),
                         &services,
+                        &mut on_run,
                         &cancelled,
                     )
                     .await
@@ -190,6 +228,7 @@ impl WorkspaceJs {
 
     /// Bisects the candidates; see the module documentation.
     #[wasm_bindgen(js_name = bisect)]
+    #[allow(clippy::too_many_arguments)] // one argument per value of the JS signature
     pub fn bisect_js(
         &self,
         request: JsValue,
@@ -200,6 +239,7 @@ impl WorkspaceJs {
         services: JsValue,
         #[wasm_bindgen(js_name = onStep)] on_step: Function,
         cancelled: Function,
+        #[wasm_bindgen(js_name = onRecords)] on_records: JsValue,
     ) -> Result<Promise, JsValue> {
         let request: BisectRequest = from_js(&request, "request")?;
         let candidates: Vec<GitCommit> = from_js(&candidates, "candidates")?;
@@ -213,14 +253,30 @@ impl WorkspaceJs {
                 Some(c) => {
                     let t = CompanionTransport::new(c.url, c.token);
                     bisect_with(
-                        &today, &request, candidates, &tree_at, &t, &services, &on_step, &cancelled,
+                        &today,
+                        &request,
+                        candidates,
+                        &tree_at,
+                        &t,
+                        &services,
+                        &on_step,
+                        &cancelled,
+                        &on_records,
                     )
                     .await
                 }
                 None => {
                     let t = FetchTransport::new();
                     bisect_with(
-                        &today, &request, candidates, &tree_at, &t, &services, &on_step, &cancelled,
+                        &today,
+                        &request,
+                        candidates,
+                        &tree_at,
+                        &t,
+                        &services,
+                        &on_step,
+                        &cancelled,
+                        &on_records,
                     )
                     .await
                 }
@@ -240,6 +296,7 @@ async fn bisect_with<T: Transport>(
     services: &rt_core::services::Services<'_>,
     on_step: &Function,
     cancelled: &Function,
+    on_records: &JsValue,
 ) -> rt_app::bisect::BisectOutcome {
     let options = options();
     let folder = request.folder.as_deref().filter(|f| !f.is_empty());
@@ -248,7 +305,17 @@ async fn bisect_with<T: Transport>(
         candidates,
         async |commit: &GitCommit| {
             let tree = fetch_tree(tree_at, &commit.oid).await;
-            test_revision(today, tree, folder, transport, &options, services, &cancel).await
+            test_revision(
+                today,
+                tree,
+                folder,
+                transport,
+                &options,
+                services,
+                &mut |run| record(on_records, RecordSource::Bisect, &commit.oid, &run.steps),
+                &cancel,
+            )
+            .await
         },
         &mut |step: &BisectStep| {
             if let Ok(value) = to_js(step) {

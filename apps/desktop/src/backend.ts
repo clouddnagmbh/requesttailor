@@ -11,6 +11,7 @@ import {
   type Backend,
   type CollectionInfo,
   type CompanionStatus,
+  type CompareApi,
   type CookieApi,
   type RunnerApi,
   type StreamsApi,
@@ -44,7 +45,7 @@ import { tauriAgents } from "./agents";
 import { tauriMcp } from "./mcp-client";
 import { tauriAi } from "./ai";
 // Wave 12: one file per strand.
-import { tauriCompare } from "./compare";
+import { tauriCompare, type MakeStepChannel } from "./compare";
 import { tauriContract } from "./contract";
 import { tauriDiffs } from "./diffs";
 import { tauriMerges } from "./merges";
@@ -260,7 +261,7 @@ export class TauriBackend implements Backend {
   /** Wave 12 (one file per strand). */
   readonly diffs = tauriDiffs((cmd, args) => this.call(cmd, args));
   readonly merges = tauriMerges((cmd, args) => this.call(cmd, args));
-  readonly compare = tauriCompare((cmd, args) => this.call(cmd, args));
+  readonly compare: CompareApi;
   readonly timeline = tauriTimeline((cmd, args) => this.call(cmd, args));
   readonly review = tauriReview((cmd, args) => this.call(cmd, args));
   readonly contract = tauriContract((cmd, args) => this.call(cmd, args));
@@ -271,6 +272,8 @@ export class TauriBackend implements Backend {
     makeChannel?: MakeChannel,
     /** Wave 8: the channel of `streams.open` (injectable for tests, like `makeChannel`). */
     makeStreamChannel?: MakeStreamChannel,
+    /** Wave 12: the channel of `compare.bisect` steps (injectable for tests, like `makeChannel`). */
+    makeStepChannel?: MakeStepChannel,
   ) {
     const call: Call = (cmd, args) => this.call(cmd, args);
     this.git = tauriGit(call);
@@ -282,6 +285,7 @@ export class TauriBackend implements Backend {
     this.scripts = tauriScripts(call);
     this.runner = tauriRunner(call, makeChannel);
     this.streams = tauriStreams(call, makeStreamChannel);
+    this.compare = tauriCompare(call, makeStepChannel);
     this.secrets = {
       has: (environment, variable) => this.call("secret_has", { environment, variable }),
       get: (environment, variable) => this.call("secret_get", { environment, variable }),

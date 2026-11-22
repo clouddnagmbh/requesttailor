@@ -292,6 +292,21 @@ pub fn record_of_step(
     }
 }
 
+/// The records of a finished run at a revision (compare, bisect): one per request that was
+/// not skipped. The run used exactly the commit's request files, so they belong under it.
+pub fn records_of_steps(
+    collection: &str,
+    time: i64,
+    source: RecordSource,
+    steps: &[rt_core::runner::RunStep],
+) -> Vec<TestRecord> {
+    steps
+        .iter()
+        .filter(|s| !s.skipped)
+        .map(|s| record_of_step(collection, time, source, s))
+        .collect()
+}
+
 /// The records of a run, from its events: one per finished request that was not skipped.
 /// Collect with [`RunRecords::observe`]; `finish` gives them once the run has ended.
 #[derive(Debug, Default)]

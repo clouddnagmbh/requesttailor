@@ -10,6 +10,8 @@
 //! values (keychain and external secrets, never the webview's), cookies, plugins and scripts
 //! are today's, as for a send. One compare or bisect at a time (`COMPARES`, cancelled by
 //! `compare_cancel` before the next request or commit). Variable changes stay in the run.
+//! Each run's test results are recorded under the commit it ran at (`timeline.rs`,
+//! `RecordSource::Compare`/`Bisect`).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -27,8 +29,11 @@ use rt_git::{Options, Repo};
 use tauri::State;
 use tauri::ipc::Channel;
 
+use rt_app::timeline::RecordSource;
+
 use crate::commands::{AppCore, CommandError};
 use crate::core::{BODY_LIMIT, Core};
+use crate::timeline::{ResultsDir, RevisionRecorder};
 
 /// The compare or bisect in progress (its cancel flag), if any.
 #[derive(Default)]
@@ -79,6 +84,10 @@ static COMPARES: std::sync::LazyLock<Compares> = std::sync::LazyLock::new(Compar
 fn open_repo(root: Option<std::path::PathBuf>) -> Result<Repo, AppError> {
     let root = root.ok_or_else(|| AppError::Shell("no collection is open".into()))?;
     Repo::require(&root, &Options::default())
+}
+
+fn recorder(repo: &Repo, results: ResultsDir, source: RecordSource) -> RevisionRecorder {
+    RevisionRecorder::new(results, repo.collection_prefix(), source)
 }
 
 /// The commit `rev` names, with its tree.
@@ -152,13 +161,15 @@ pub async fn run<S: SecretStore>(
     input: SendInput,
 ) -> Result<RevisionRun, AppError> {
     let root = core.root();
+    let results = ResultsDir::new(core.data_dir.as_deref());
     with_run(
         core,
         compares,
         input,
         move |today, transport, options, services, cancelled, runtime| {
-            let (commit, tree) = at(&open_repo(root)?, &request.rev)?;
-            runtime.block_on(run_revision(
+            let repo = open_repo(root)?;
+            let (commit, tree) = at(&repo, &request.rev)?;
+            let run = runtime.block_on(run_revision(
                 today,
                 commit,
                 &tree,
@@ -168,7 +179,9 @@ pub async fn run<S: SecretStore>(
                 services,
                 &mut |_| {},
                 cancelled,
-            ))
+            ))?;
+            recorder(&repo, results, RecordSource::Compare).record(&run.commit.oid, &run.steps);
+            Ok(run)
         },
     )
     .await
@@ -182,12 +195,14 @@ pub async fn compare<S: SecretStore>(
     input: SendInput,
 ) -> Result<RunComparison, AppError> {
     let root = core.root();
+    let results = ResultsDir::new(core.data_dir.as_deref());
     with_run(
         core,
         compares,
         input,
         move |today, transport, options, services, cancelled, runtime| {
             let repo = open_repo(root)?;
+            let record = recorder(&repo, results, RecordSource::Compare);
             let (from_commit, from_tree) = at(&repo, &request.from)?;
             let (to_commit, to_tree) = at(&repo, &request.to)?;
             runtime.block_on(compare_runs(
@@ -198,6 +213,7 @@ pub async fn compare<S: SecretStore>(
                 transport,
                 options,
                 services,
+                &mut |commit, run| record.record(&commit.oid, &run.steps),
                 cancelled,
             ))
         },
@@ -215,20 +231,31 @@ pub async fn bisect<S: SecretStore>(
     on_step: impl Fn(BisectStep) + Send + 'static,
 ) -> Result<BisectOutcome, AppError> {
     let root = core.root();
+    let results = ResultsDir::new(core.data_dir.as_deref());
     with_run(
         core,
         compares,
         input,
         move |today, transport, options, services, cancelled, runtime| {
             let repo = open_repo(root)?;
+            let record = recorder(&repo, results, RecordSource::Bisect);
             let candidates = repo.commits(Some(&request.good), &request.bad, u32::MAX)?;
             let folder = request.folder.as_deref().filter(|f| !f.is_empty());
             Ok(runtime.block_on(search(
                 candidates,
                 async |commit: &GitCommit| {
                     let tree = repo.tree_at(&commit.oid).map_err(|e| e.to_string());
-                    test_revision(today, tree, folder, transport, options, services, cancelled)
-                        .await
+                    test_revision(
+                        today,
+                        tree,
+                        folder,
+                        transport,
+                        options,
+                        services,
+                        &mut |run| record.record(&commit.oid, &run.steps),
+                        cancelled,
+                    )
+                    .await
                 },
                 &mut |step| on_step(step.clone()),
                 cancelled,
@@ -515,6 +542,85 @@ mod tests {
             "{:?}",
             steps[0].failed
         );
+    }
+
+    /// Runs at a revision go to the time travel under the commit they ran at: compare and
+    /// bisect with their own source, nothing in the repository.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn records_the_runs_under_the_commits_they_ran_at() {
+        let addr = rt_testserver::spawn_local().await;
+        let tmp = TempDir::new("record");
+        let (root, ids) = repo(&tmp.0, &format!("http://{addr}"));
+        let data = tmp.0.join("data");
+        let core = Core::with_data_dir(MemorySecrets::default(), Some(data.clone())).unwrap();
+        core.open(&root).unwrap();
+        core.secret_set("Local", "token", "kc-secret").unwrap();
+        let results = ResultsDir::new(Some(&data));
+        let compares = Compares::default();
+
+        run(
+            &core,
+            &compares,
+            RevisionRunRequest {
+                rev: ids[0].clone(),
+                folder: None,
+                paths: None,
+            },
+            local(),
+        )
+        .await
+        .unwrap();
+        let first = results.read(&ids[0]);
+        assert_eq!(first.len(), 2, "{first:?}");
+        assert!(
+            first
+                .iter()
+                .all(|r| r.source == RecordSource::Compare && r.passed)
+        );
+
+        compare(
+            &core,
+            &compares,
+            CompareRequest {
+                from: ids[1].clone(),
+                to: ids[3].clone(),
+                folder: None,
+                paths: None,
+            },
+            local(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(results.read(&ids[1]).len(), 2);
+        let last = results.read(&ids[3]);
+        let check = last.iter().find(|r| r.request == "check.yml").unwrap();
+        assert_eq!((check.passed, check.status), (false, Some(500)));
+
+        let outcome = bisect(
+            &core,
+            &compares,
+            BisectRequest {
+                good: ids[0].clone(),
+                bad: "HEAD".into(),
+                folder: None,
+            },
+            local(),
+            |_| {},
+        )
+        .await
+        .unwrap();
+        for step in &outcome.steps {
+            let records = results.read(&step.commit.oid);
+            assert!(
+                records.iter().any(|r| r.source == RecordSource::Bisect),
+                "{records:?}"
+            );
+        }
+        // No secret value in a record, nothing in the repository.
+        let all =
+            std::fs::read_to_string(data.join(rt_app::timeline::results_file(&ids[3]))).unwrap();
+        assert!(!all.contains("kc-secret"));
+        assert_eq!(git(&root, &["status", "--porcelain"]), "");
     }
 
     #[tokio::test(flavor = "multi_thread")]

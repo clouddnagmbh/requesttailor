@@ -182,6 +182,25 @@ async function headIfClean(w: Wave12Host, session: Session): Promise<string | nu
   }
 }
 
+/** Writes of `recordAtRevision`, one after the other. */
+let revisionWrites: Promise<void> = Promise.resolve();
+
+/** Keeps the records of a run at a revision (compare, bisect: ./compare.ts) under the commit
+ *  it ran at; the core made them (`onRecords` of rt-wasm's compare functions). */
+export function recordAtRevision(oid: string, records: TestRecord[]): void {
+  const now = current;
+  if (!now || records.length === 0) return;
+  const { w, store } = now;
+  // One write after the other: a compare of a commit with itself records twice under it.
+  // Recording is a convenience: it never fails the compare or bisect.
+  revisionWrites = revisionWrites
+    .then(async () => {
+      const core = (await w.host.deps.loadCore()) as unknown as CoreTimelineModule;
+      await store.set(oid, core.timelineMergeRecords(await store.get(oid), records));
+    })
+    .catch(() => undefined);
+}
+
 /** Watches one run of the open collection; created before the run starts. When the run ends
  *  it keeps the finished requests under `HEAD` if the run used exactly `HEAD`'s files. */
 export function runRecorder(session: Session): (event: RunEvent) => void {

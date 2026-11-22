@@ -11,7 +11,15 @@ import type { GitApi, GitFileCommit, RunEvent, RunStep, TestRecord } from "@requ
 import { describe, expect, it } from "vitest";
 
 import { fill, memoryFolder } from "./git/fake-handle.test-util";
-import { memoryResultsStore, runRecorder, webTimeline, type CoreTimelineModule, type ProbedVersion } from "./timeline";
+import { webCompare } from "./compare";
+import {
+  memoryResultsStore,
+  recordAtRevision,
+  runRecorder,
+  webTimeline,
+  type CoreTimelineModule,
+  type ProbedVersion,
+} from "./timeline";
 import type { Wave12Host } from "./wave12";
 import type { Session } from "./web-backend";
 
@@ -163,5 +171,73 @@ describe("runRecorder", () => {
       await settle();
       expect(await store.get(HEAD)).toBe("");
     }
+  });
+});
+
+describe("runs at a revision (compare, bisect)", () => {
+  const record = (request: string, source: TestRecord["source"]): TestRecord => ({
+    collection: "",
+    request,
+    environment: "Local",
+    time: 3,
+    source,
+    passed: true,
+    status: 200,
+    tests: [],
+  });
+
+  it("keeps the core's records under the commit they ran at", async () => {
+    const core = fakeCore();
+    const { w } = host(core, {});
+    const store = memoryResultsStore();
+    webTimeline(w, store);
+    recordAtRevision("c1", [record("a.yml", "compare")]);
+    recordAtRevision("c1", [record("b.yml", "bisect")]);
+    recordAtRevision("c2", []);
+    await settle();
+    const rows = core.timelineParseRecords(await store.get("c1"));
+    expect(rows.map((r) => [r.request, r.source])).toEqual([
+      ["a.yml", "compare"],
+      ["b.yml", "bisect"],
+    ]);
+    expect(await store.get("c2")).toBe("");
+  });
+
+  it("hands the core a recorder for every compare and bisect", async () => {
+    const seen: [string, TestRecord[]][] = [];
+    type Ws = Record<string, (...args: unknown[]) => Promise<unknown>>;
+    const ws: Ws = {
+      runAtRevision: async (...args) => {
+        (args[7] as (oid: string, r: TestRecord[]) => void)("c1", [record("a.yml", "compare")]);
+        return {};
+      },
+      compareRevisions: async (...args) => {
+        (args[9] as (oid: string, r: TestRecord[]) => void)("c2", [record("a.yml", "compare")]);
+        return {};
+      },
+      bisect: async (...args) => {
+        (args[8] as (oid: string, r: TestRecord[]) => void)("c3", [record("a.yml", "bisect")]);
+        return {};
+      },
+    };
+    const git = {
+      treeAt: async (rev: string) => ({ oid: rev, files: {} }),
+      commits: async (_from: string | null, to: string) => [{ oid: to, summary: "", author: "", time: 0 }],
+    };
+    const w = {
+      host: { session: () => ({ ws }) },
+      git,
+      sendContext: async () => ({ input: {}, companion: null, services: null }),
+    } as unknown as Wave12Host;
+    const api = webCompare(w, (oid, records) => seen.push([oid, records]));
+    const input = { environment: "Local", vars: [] };
+    await api.run({ rev: "c1" }, input);
+    await api.compare({ from: "c1", to: "c2" }, input);
+    await api.bisect({ good: "c0", bad: "c3" }, input, () => {});
+    expect(seen.map(([oid, r]) => [oid, r[0]!.source])).toEqual([
+      ["c1", "compare"],
+      ["c2", "compare"],
+      ["c3", "bisect"],
+    ]);
   });
 });

@@ -204,7 +204,8 @@ fn failure(step: &RunStep) -> Option<String> {
 }
 
 /// Tests one commit: runs the folder (or the whole collection) at `tree`. A commit whose
-/// collection cannot be read, or that has nothing to run, is `Skip`.
+/// collection cannot be read, or that has nothing to run, is `Skip`. `on_run` gets the
+/// finished run (the time travel records it under the commit, `rt_app::timeline`).
 #[allow(clippy::too_many_arguments)]
 pub async fn test_revision<T: Transport>(
     today: &RunSnapshot,
@@ -213,6 +214,7 @@ pub async fn test_revision<T: Transport>(
     transport: &T,
     options: &SendOptions,
     services: &Services<'_>,
+    on_run: &mut dyn FnMut(&RevisionOutcome),
     cancelled: &dyn Fn() -> bool,
 ) -> (BisectVerdict, Vec<String>) {
     let Ok(tree) = tree else {
@@ -235,5 +237,6 @@ pub async fn test_revision<T: Transport>(
         cancelled,
     )
     .await;
+    on_run(&outcome);
     verdict_of(&outcome)
 }

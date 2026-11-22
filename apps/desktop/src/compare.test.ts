@@ -7,8 +7,8 @@
 import type { BisectStep } from "@requesttailor/ui";
 import { describe, expect, it } from "vitest";
 
-import { COMMANDS, type Command } from "./backend";
-import { PENDING, tauriCompare } from "./compare";
+import type { Command } from "./backend";
+import { tauriCompare } from "./compare";
 
 type Call = [Command, Record<string, unknown> | undefined];
 
@@ -47,9 +47,6 @@ describe("tauriCompare", () => {
       ],
       ["compare_cancel", undefined],
     ]);
-    // All four commands are covered here.
-    expect(new Set(calls.map(([c]) => c))).toEqual(new Set(PENDING));
-    for (const c of PENDING) expect(COMMANDS).toContain(c);
   });
 
   it("delivers the steps of a bisect from the channel", async () => {

@@ -9,11 +9,13 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
+use rt_app::bisect::{BisectVerdict, test_revision};
 use rt_app::compare::{
     CompareRequest, RevisionRunRequest, compare_revisions, run_revision, snapshot_at,
 };
 use rt_app::git::{GitCommit, GitTree};
 use rt_app::runner::RunSnapshot;
+use rt_app::timeline::{RecordSource, TestRecord, records_of_steps};
 use rt_core::send::SendOptions;
 use rt_core::services::Services;
 use rt_core::transport::{
@@ -240,6 +242,7 @@ fn compares_status_headers_body_tests_and_errors() {
             request("added", 6, "/same", false),
         ],
     );
+    let mut runs: Vec<(String, Vec<TestRecord>)> = Vec::new();
     let cmp = block_on(compare_revisions(
         &today(),
         (commit("a"), &from),
@@ -253,9 +256,23 @@ fn compares_status_headers_body_tests_and_errors() {
         &Wire,
         &SendOptions::default(),
         &Services::none(),
+        &mut |c, run| {
+            let records = records_of_steps("", 7, RecordSource::Compare, &run.steps);
+            runs.push((c.oid.clone(), records));
+        },
         &never,
     ))
     .unwrap();
+    // Each side's run goes to the time travel under its own commit.
+    assert_eq!(runs.len(), 2);
+    assert_eq!((runs[0].0.as_str(), runs[1].0.as_str()), ("a", "b"));
+    let api_before = runs[0].1.iter().find(|r| r.request == "api.yml").unwrap();
+    assert!(api_before.passed && api_before.source == RecordSource::Compare);
+    assert_eq!(api_before.status, Some(200));
+    let api_after = runs[1].1.iter().find(|r| r.request == "api.yml").unwrap();
+    assert!(!api_after.passed);
+    assert_eq!(api_after.tests[0].name, "res.status eq 200");
+    assert!(!api_after.tests[0].passed);
     let by = |p: &str| cmp.requests.iter().find(|r| r.path == p).unwrap();
 
     let api = by("api.yml");
@@ -336,10 +353,63 @@ fn a_folder_limits_the_comparison() {
         &Wire,
         &SendOptions::default(),
         &Services::none(),
+        &mut |_, _| {},
         &never,
     ))
     .unwrap();
     assert_eq!(cmp.requests.len(), 1);
     assert_eq!(cmp.requests[0].path, "api/in.yml");
     assert!(cmp.requests[0].same);
+}
+
+/// Bisect hands each tested commit's run to the time travel (`RecordSource::Bisect`); a
+/// skipped commit ran nothing and records nothing.
+#[test]
+fn a_bisect_test_hands_its_run_to_the_time_travel() {
+    let at = tree(
+        &"c".repeat(40),
+        &[
+            request("api", 1, "/v2/x", true),
+            request("same", 2, "/same", false),
+        ],
+    );
+    let mut records = Vec::new();
+    let (verdict, failed) = block_on(test_revision(
+        &today(),
+        Ok(at),
+        None,
+        &Wire,
+        &SendOptions::default(),
+        &Services::none(),
+        &mut |run| records.extend(records_of_steps("", 9, RecordSource::Bisect, &run.steps)),
+        &never,
+    ));
+    assert_eq!(verdict, BisectVerdict::Bad, "{failed:?}");
+    assert_eq!(records.len(), 2);
+    let api = records.iter().find(|r| r.request == "api.yml").unwrap();
+    assert_eq!(
+        (api.passed, api.status, api.source, api.time),
+        (false, Some(404), RecordSource::Bisect, 9)
+    );
+    assert!(
+        records
+            .iter()
+            .find(|r| r.request == "same.yml")
+            .unwrap()
+            .passed
+    );
+
+    let mut ran = false;
+    let (verdict, _) = block_on(test_revision(
+        &today(),
+        Err("not readable".into()),
+        None,
+        &Wire,
+        &SendOptions::default(),
+        &Services::none(),
+        &mut |_| ran = true,
+        &never,
+    ));
+    assert_eq!(verdict, BisectVerdict::Skip);
+    assert!(!ran);
 }

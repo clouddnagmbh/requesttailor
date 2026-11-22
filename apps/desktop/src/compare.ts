@@ -8,7 +8,7 @@
 import { Channel } from "@tauri-apps/api/core";
 import type { BisectStep, CompareApi } from "@requesttailor/ui";
 
-import type { Call, Command } from "./backend";
+import type { Call } from "./backend";
 
 /** Creates the channel the steps arrive on; injectable for tests (Tauri's needs a window). */
 export type MakeStepChannel = (onStep: (step: BisectStep) => void) => unknown;
@@ -32,12 +32,3 @@ export function tauriCompare(call: Call, makeChannel: MakeStepChannel = tauriCha
     cancel: () => call("compare_cancel"),
   };
 }
-
-/** Commands the shared mapping test in backend.test.ts leaves out: its call list is one
- *  sequence every strand would edit. `compare.test.ts` checks all four instead. */
-export const PENDING: readonly Command[] = [
-  "compare_run",
-  "compare_revisions",
-  "compare_bisect",
-  "compare_cancel",
-];

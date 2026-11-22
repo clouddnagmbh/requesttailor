@@ -87,8 +87,7 @@ export interface MockTimeline extends TimelineApi {
 
 export function mockTimeline(host: MockWave12Host): MockTimeline {
   const records = new Map<string, TestRecord[]>();
-  const store = () => (host.git() as unknown as { store: Map<string, { tree: Map<string, RequestSpec> }> }).store;
-  const specAt = (oid: string, path: string): RequestSpec | null => store().get(oid)?.tree.get(path) ?? null;
+  const specAt = (oid: string, path: string): RequestSpec | null => host.git().specAt(oid, path);
   const versions = async (path: string, limit: number): Promise<{ entry: GitFileCommit; spec: RequestSpec | null }[]> => {
     const git: MockGit = host.git();
     return (await git.fileLog(path, limit)).map((entry) => ({
@@ -130,7 +129,7 @@ export function mockTimeline(host: MockWave12Host): MockTimeline {
       const oid = await host.git().revParse(rev);
       const spec = specAt(oid, path);
       if (!spec) throw new BackendError("git", `${path} does not exist at ${rev}.`);
-      return structuredClone(spec);
+      return spec;
     },
     results: async (rev) => {
       const oid = await host.git().revParse(rev);

@@ -248,7 +248,8 @@ pub async fn run_revision<T: Transport>(
 }
 
 /// Runs the same requests at two revisions and compares the answers (`CompareApi.compare`).
-/// Without `paths`, the requests are those of the folder at either revision.
+/// Without `paths`, the requests are those of the folder at either revision. `on_run` gets
+/// each finished run with its commit (the time travel records it, `rt_app::timeline`).
 #[allow(clippy::too_many_arguments)]
 pub async fn compare_revisions<T: Transport>(
     today: &RunSnapshot,
@@ -258,6 +259,7 @@ pub async fn compare_revisions<T: Transport>(
     transport: &T,
     options: &SendOptions,
     services: &Services<'_>,
+    on_run: &mut dyn FnMut(&GitCommit, &RevisionOutcome),
     cancelled: &dyn Fn() -> bool,
 ) -> Result<RunComparison, AppError> {
     let old = snapshot_at(today, from.1)?;
@@ -289,6 +291,7 @@ pub async fn compare_revisions<T: Transport>(
         .await
     };
     let before = run(&old).await;
+    on_run(&from.0, &before);
     let after = if cancelled() {
         RevisionOutcome {
             steps: Vec::new(),
@@ -298,7 +301,9 @@ pub async fn compare_revisions<T: Transport>(
             },
         }
     } else {
-        run(&new).await
+        let after = run(&new).await;
+        on_run(&to.0, &after);
+        after
     };
     Ok(RunComparison {
         from: from.0,
