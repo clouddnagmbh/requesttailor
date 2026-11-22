@@ -454,12 +454,14 @@ impl PluginHost {
             .map(|t| t.place)
             .ok_or_else(|| PluginError::NotFound(format!("{plugin}/{tab}")))?;
         let call = match action {
+            // `context` (wave 6, strand F): the shells pass none yet.
             None => Call::RenderTab {
                 tab: tab.to_owned(),
                 target,
                 spec,
                 response,
                 state,
+                context: None,
             },
             Some((action, input)) => Call::Action {
                 tab: tab.to_owned(),
@@ -469,6 +471,7 @@ impl PluginHost {
                 response,
                 state,
                 input,
+                context: None,
             },
         };
         let reply = self.run(i, &call, None, &Masker::default()).await?;
@@ -591,9 +594,12 @@ impl Scope<'_> {
                     .map_or(0, |d| d.as_millis() as u64);
                 ok(json!(ms))
             }
+            // `session` (wave 6, strand F): the cookie jar is not wired yet; until then the
+            // call runs without the session's cookies.
             HostCall::Http {
                 request,
                 credentials,
+                session: _,
             } => match self.http(&request, credentials).await {
                 Ok(response) => ok(serde_json::to_value(response).expect("JSON")),
                 Err(e) => error(self.masker.text(&e)),

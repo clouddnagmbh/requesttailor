@@ -79,6 +79,9 @@ pub struct Tab {
     pub response: Option<PluginResponse>,
     /// The last [`ViewReply::state`] of this tab, `None` the first time.
     pub state: Option<serde_json::Value>,
+    /// Selected environment and non-secret variables (variables need the `variables`
+    /// permission); `None` from hosts older than wave 6.
+    pub context: Option<PluginContext>,
 }
 
 /// The `action` call: like [`Tab`], plus the action id and the form values.
@@ -93,6 +96,8 @@ pub struct Action {
     pub state: Option<serde_json::Value>,
     /// Form values by field name (forms only).
     pub input: Vec<(String, String)>,
+    /// As for [`Tab::context`].
+    pub context: Option<PluginContext>,
 }
 
 impl Action {

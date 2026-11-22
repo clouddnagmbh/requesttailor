@@ -268,8 +268,13 @@ export function webPlugins(host: WebHost, openStore: () => Promise<PluginStore> 
         plugins.setEnabled(id, enabled);
         await (await modules()).putModule({ ...m, enabled });
       }),
+    // `environment` (wave 6, strand F): not passed to the plugin's context yet.
     renderTab: (plugin, t, target, state) => tab(plugin, t, null, target, state, []),
     action: (plugin, t, action, target, state, input) => tab(plugin, t, action, target, state, input),
+    // Wave 6, strand F: bundled plugins and the first-start question. Interface commit:
+    // answered already, so no dialog shows.
+    welcome: async () => ({ done: true, choices: [] }),
+    chooseWelcome: async () => {},
     forSend: async (collectionId) => {
       try {
         await core();

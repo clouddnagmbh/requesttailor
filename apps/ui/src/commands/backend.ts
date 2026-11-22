@@ -29,6 +29,7 @@ import type {
   Manifest,
   PluginInfo,
   Preview,
+  WelcomeState,
   RequestSpec,
   SearchHit,
   SecretFinding,
@@ -181,8 +182,16 @@ export interface PluginApi {
   install(file: ImportSource): Promise<PluginInfo>;
   remove(id: string): Promise<void>;
   setEnabled(id: string, enabled: boolean): Promise<void>;
-  /** Renders a plugin tab for `target` (unsaved request state included). */
-  renderTab(plugin: string, tab: string, target: TabTarget, state: unknown): Promise<ViewReply>;
+  /** Renders a plugin tab for `target` (unsaved request state included). Collection tabs
+   *  (wave 6) have `target.request_path` "". `environment`: the selected one, for the
+   *  plugin's context (wave 6). */
+  renderTab(
+    plugin: string,
+    tab: string,
+    target: TabTarget,
+    state: unknown,
+    environment?: string | null,
+  ): Promise<ViewReply>;
   /** Runs an action of a plugin tab (button, tree item, form submit with `input`). */
   action(
     plugin: string,
@@ -191,7 +200,14 @@ export interface PluginApi {
     target: TabTarget,
     state: unknown,
     input: [string, string][],
+    environment?: string | null,
   ): Promise<ViewReply>;
+  /** The first-start question (wave 6): which bundled plugins to enable. Bundled plugins
+   *  ship with the app and are installed but disabled until chosen. */
+  welcome(): Promise<WelcomeState>;
+  /** Answers the question: enables the chosen bundled plugins (`[]`: none, e.g. "REST
+   *  only" or skipped) and never asks again. */
+  chooseWelcome(plugins: string[]): Promise<void>;
 }
 
 /** OAuth 2.0 tokens of the open collection and the prompts of running flows. Tokens are

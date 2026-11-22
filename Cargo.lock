@@ -5030,6 +5030,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rt-odata-testserver"
+version = "0.0.0"
+dependencies = [
+ "bytes",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "rt-plugin"
 version = "0.0.0"
 dependencies = [
@@ -5051,6 +5063,16 @@ version = "0.0.0"
 dependencies = [
  "rt-format",
  "rt-plugin-sdk",
+ "serde_json",
+]
+
+[[package]]
+name = "rt-plugin-odata"
+version = "0.0.0"
+dependencies = [
+ "rt-format",
+ "rt-plugin-sdk",
+ "serde",
  "serde_json",
 ]
 

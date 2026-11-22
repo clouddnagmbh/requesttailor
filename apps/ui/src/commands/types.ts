@@ -508,7 +508,8 @@ export interface Permissions {
   variables: boolean;
 }
 
-export type TabPlace = "request" | "response";
+/** `collection`: a panel next to the request tree, `request_path` is "" (wave 6). */
+export type TabPlace = "request" | "response" | "collection";
 
 export interface TabContribution {
   id: string;
@@ -528,6 +529,13 @@ export interface Contributions {
   response: boolean;
   tabs: TabContribution[];
   importers: ImporterContribution[];
+  /** First-start choice of a bundled plugin (wave 6). */
+  welcome: WelcomeChoice | null;
+}
+
+export interface WelcomeChoice {
+  label: string;
+  description: string;
 }
 
 export interface Manifest {
@@ -596,6 +604,35 @@ export interface ViewReply {
   state: unknown;
   /** Replaces the request in the editor (unsaved). */
   update_request: RequestSpec | null;
+  /** New requests for the collection (unsaved; wave 6). */
+  create_requests: NewRequest[];
+  /** New environments, non-secret values only (unsaved; wave 6). */
+  add_environments: PluginEnvironment[];
+}
+
+export interface NewRequest {
+  folder: string;
+  name: string;
+  spec: RequestSpec;
+}
+
+export interface PluginEnvironment {
+  name: string;
+  variables: PluginVariable[];
+}
+
+export interface PluginVariable {
+  name: string;
+  value: string;
+  secret: boolean;
+}
+
+/** The first-start question (wave 6): bundled plugins that offer a `welcome` choice. */
+export interface WelcomeState {
+  /** The user has answered (or skipped) the question already. */
+  done: boolean;
+  /** Bundled plugins with their choice. */
+  choices: { plugin: string; choice: WelcomeChoice }[];
 }
 
 // ---- auth, cookies, secret scan (rt_app; wave 5) ----

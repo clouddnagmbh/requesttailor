@@ -70,9 +70,17 @@ export interface Contributions {
   response?: boolean;
   tabs?: TabContribution[];
   importers?: ImporterContribution[];
+  /** First-start choice (bundled plugins only). Wave 6. */
+  welcome?: WelcomeChoice | null;
 }
 
-export type TabPlace = "request" | "response";
+export interface WelcomeChoice {
+  label: string;
+  description?: string;
+}
+
+/** `collection`: a panel next to the request tree; `target.request_path` is "". Wave 6. */
+export type TabPlace = "request" | "response" | "collection";
 
 export interface TabContribution {
   id: string;
@@ -146,6 +154,8 @@ export type Call =
       spec: RequestSpec;
       response?: PluginResponse | null;
       state?: unknown;
+      /** Wave 6; older hosts send none. */
+      context?: PluginContext | null;
     }
   | {
       hook: "action";
@@ -157,6 +167,8 @@ export type Call =
       state?: unknown;
       /** Form values by field name (forms only). */
       input?: Pairs;
+      /** Wave 6; older hosts send none. */
+      context?: PluginContext | null;
     }
   | { hook: "detect"; importer: string; files: PluginFile[] }
   | { hook: "import"; importer: string; files: PluginFile[] };
@@ -194,6 +206,29 @@ export interface ViewReply {
   state?: unknown;
   /** Replaces the request in the editor (request tabs only). */
   update_request?: RequestSpec | null;
+  /** New requests for the collection. Wave 6. */
+  create_requests?: NewRequest[];
+  /** New environments, non-secret values only. Wave 6. */
+  add_environments?: PluginEnvironment[];
+}
+
+export interface NewRequest {
+  /** Relative to the collection root, "" for the root. */
+  folder?: string;
+  name: string;
+  spec: RequestSpec;
+}
+
+export interface PluginEnvironment {
+  name: string;
+  variables?: PluginVariable[];
+}
+
+export interface PluginVariable {
+  name: string;
+  value?: string;
+  /** A secret without a value; the user sets it in Environments. */
+  secret?: boolean;
 }
 
 export interface DetectReply {
@@ -253,7 +288,7 @@ export interface ActionButton {
 
 export type HostCall =
   | { op: "log"; level: NoteLevel; message: string }
-  | { op: "http"; request: PluginRequest; credentials?: boolean }
+  | { op: "http"; request: PluginRequest; credentials?: boolean; session?: boolean }
   | { op: "storage-get"; key: string }
   | { op: "storage-set"; key: string; value: unknown }
   | { op: "storage-delete"; key: string }

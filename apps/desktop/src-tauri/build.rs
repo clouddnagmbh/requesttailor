@@ -62,6 +62,8 @@ const COMMANDS: &[&str] = &[
     "plugin_set_enabled",
     "plugin_render_tab",
     "plugin_action",
+    "plugin_welcome",
+    "plugin_choose_welcome",
     "auth_tokens",
     "auth_fetch_token",
     "auth_clear_tokens",

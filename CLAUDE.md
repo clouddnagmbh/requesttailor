@@ -85,7 +85,9 @@ apps/ui            gemeinsame Oberfläche (Svelte 5, TypeScript, CodeMirror 6)
 apps/desktop       Tauri-2-Hülle; Crate `rt-desktop` in `apps/desktop/src-tauri` (nur Desktop, nicht wasm32/iOS)
 apps/web           Web-App
 plugins/example    Beispiel-Plugin (Rust); Anleitung „Ein Plugin schreiben“ in `plugins/README.md`
-plugins/odata      OData V2/V4, CSRF, $batch (Welle 6)
+plugins/odata      OData-Plugin (Welle 6): Module je Strang (`metadata`, `query`, `write`, `landscape`), Modell `edm.rs`, `service.rs`; `API-WUENSCHE.md`
+plugins/odata/testdata   synthetische S/4- (V2, V4 RAP) und CAP-Dienste (V4, V2), Herkunft in SOURCES.md
+plugins/odata/testserver OData-Testdienst `rt-odata-testserver` (Port 47830, nur nativ)
 sdk/typescript     TypeScript-Typen der Plugin-API und Test-Host (TS→WASM-Build noch offen)
 ci/canary          absichtlich verbotene Abhängigkeiten; die Lizenz-Gates müssen sie ablehnen
 scripts            Prüfskripte ohne Abhängigkeiten (Lizenzen, Köpfe, DCO, Performance)
@@ -131,6 +133,13 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 5 (unten). Änderungen daran sind Sc
 - Client-Zertifikate nur nativ; Browser und Begleitdienst verweigern mit klarem TLS-Fehler. Cookies je Collection und Umgebung, Werte im Report maskiert.
 - OAuth-Tokens: nativ im Schlüsselbund (Desktop und CLI teilen die Einträge), im Web im verschlüsselten Browser-Speicher; die UI sieht nur `TokenInfo`.
 
+### SAP und OData (ab Welle 6)
+
+- OData und SAP leben nur im Plugin `plugins/odata` auf der öffentlichen Plugin-API; der Kern bleibt ohne SAP-Wissen. Fehlt ein Erweiterungspunkt, steht der Bedarf in `plugins/odata/API-WUENSCHE.md`, nicht im Kern.
+- API-Ergänzungen (additiv, `API_VERSION` bleibt 1, Eintrag in `crates/rt-plugin/CHANGELOG.md`): `contributes.welcome`, Tab-Ort `collection` (`request_path` ist `""`), `context` in `render-tab`/`action`, `ViewReply.create_requests` und `add_environments` (Secrets ohne Wert, ungespeichert), `http` mit `session: true` (Cookie-Jar des Sendens).
+- Mitgelieferte Plugins: im Datenordner installiert, aber deaktiviert, bis der Nutzer sie beim ersten Start wählt (`PluginApi.welcome`/`chooseWelcome`, Desktop `plugin_welcome`/`plugin_choose_welcome`). Wer SAP nicht wählt, sieht kein SAP.
+- Testdaten nur synthetisch (kein `@sap/cds`, keine Hub-Daten); Testdienst `rt-odata-testserver` mit CSRF, ETag, `$batch`, Drafts, `sap-client`.
+
 ## Befehle
 
 Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit. Einmalig: `rustup target add wasm32-unknown-unknown aarch64-apple-ios`. Linux braucht für jeden Workspace-Build `libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev build-essential` (Tauri).
@@ -138,7 +147,7 @@ Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit
 ```sh
 cargo build --workspace --all-targets --locked
 cargo test --workspace --locked
-cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-desktop --exclude rt-git --target wasm32-unknown-unknown --locked
+cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-odata-testserver --exclude rt-desktop --exclude rt-git --target wasm32-unknown-unknown --locked
 cargo check --workspace --exclude rt-desktop --all-targets --target aarch64-apple-ios --locked
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -157,6 +166,7 @@ node scripts/check-license-headers.mjs
 node scripts/check-dco.mjs origin/main..HEAD
 node scripts/check-perf-budgets.mjs
 node scripts/build-plugins.mjs                       # Beispiel-Plugins nach target/plugins/<id>.wasm (Manifest eingebettet, Importe geprüft)
+cargo run -p rt-odata-testserver                     # OData-Testdienst auf 47830 (S/4 V2/V4, CAP V4/V2)
 npm run check -w sdk/typescript && npm test -w sdk/typescript   # TS-Typen gegen die Rust-JSON, ABI-Test des gebauten Plugins
 testdata/idp/idp.sh start && RT_IDP_URL=http://localhost:8180 cargo test -p rt-core --test oauth2_idp; testdata/idp/idp.sh stop  # OAuth gegen Keycloak (Docker)
 gitleaks git --no-banner --redact --config .gitleaks.toml .

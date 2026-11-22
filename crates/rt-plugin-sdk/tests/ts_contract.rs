@@ -105,6 +105,7 @@ fn manifest() -> Manifest {
             variables: true,
         },
         contributes: Contributions {
+            welcome: None,
             prepare: true,
             response: true,
             tabs: vec![
@@ -142,6 +143,7 @@ fn calls() -> Vec<Call> {
             context: context(),
         },
         Call::RenderTab {
+            context: None,
             tab: "summary".into(),
             target: target(),
             spec: spec(),
@@ -149,6 +151,7 @@ fn calls() -> Vec<Call> {
             state: Some(json!({"stats": true})),
         },
         Call::RenderTab {
+            context: None,
             tab: "builder".into(),
             target: TabTarget {
                 request_path: "a.yml".into(),
@@ -159,6 +162,7 @@ fn calls() -> Vec<Call> {
             state: None,
         },
         Call::Action {
+            context: None,
             tab: "builder".into(),
             action: "apply".into(),
             target: target(),
@@ -259,6 +263,7 @@ fn host_calls() -> Vec<HostCall> {
             message: "hi".into(),
         },
         HostCall::Http {
+            session: false,
             request: PluginRequest {
                 body: None,
                 ..request()
@@ -325,6 +330,8 @@ fn fixtures() -> Vec<(&'static str, &'static str, Value)> {
             "viewReply",
             "ViewReply",
             j(ViewReply {
+                add_environments: Vec::new(),
+                create_requests: Vec::new(),
                 view: view(),
                 state: Some(json!({"stats": false})),
                 update_request: Some(spec()),

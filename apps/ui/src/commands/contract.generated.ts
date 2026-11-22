@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AppError, Auth, AuthPrompt, Body, CookieInfo, Environment, FileChange, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, PluginInfo, Preview, ReportBody, RequestSpec, SearchHit, SecretFinding, SecretKey, SecretProvider, SendError, SendReport, StoredResponse, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, ViewReply } from "./types";
+import type { AppError, Auth, AuthPrompt, Body, CookieInfo, Environment, FileChange, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, PluginInfo, Preview, ReportBody, RequestSpec, SearchHit, SecretFinding, SecretKey, SecretProvider, SendError, SendReport, StoredResponse, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "auth": {
@@ -1331,8 +1331,18 @@ export const pluginInfo: PluginInfo = {
           "id": "builder",
           "place": "request",
           "title": "Query"
+        },
+        {
+          "content_types": [],
+          "id": "entities",
+          "place": "collection",
+          "title": "Entities"
         }
-      ]
+      ],
+      "welcome": {
+        "description": "",
+        "label": "OData"
+      }
     },
     "description": "Shows JWT claims.",
     "homepage": null,
@@ -1352,6 +1362,50 @@ export const pluginInfo: PluginInfo = {
 };
 
 export const viewReply: ViewReply = {
+  "add_environments": [
+    {
+      "name": "DEV",
+      "variables": [
+        {
+          "name": "client",
+          "secret": false,
+          "value": "100"
+        },
+        {
+          "name": "password",
+          "secret": true,
+          "value": ""
+        }
+      ]
+    }
+  ],
+  "create_requests": [
+    {
+      "folder": "Books",
+      "name": "Read Books",
+      "spec": {
+        "auth": {
+          "type": "inherit"
+        },
+        "body": {
+          "type": "none"
+        },
+        "headers": [],
+        "method": "",
+        "name": "",
+        "params": [],
+        "seq": null,
+        "settings": {
+          "encode_url": null,
+          "follow_redirects": null,
+          "max_redirects": null,
+          "timeout_ms": null
+        },
+        "url": "",
+        "vars": []
+      }
+    }
+  ],
   "state": {
     "page": 2
   },
@@ -1518,11 +1572,26 @@ export const viewReply: ViewReply = {
 };
 
 export const viewReplyEmpty: ViewReply = {
+  "add_environments": [],
+  "create_requests": [],
   "state": null,
   "update_request": null,
   "view": {
     "blocks": []
   }
+};
+
+export const welcomeState: WelcomeState = {
+  "choices": [
+    {
+      "choice": {
+        "description": "V2 and V4 services",
+        "label": "OData"
+      },
+      "plugin": "odata"
+    }
+  ],
+  "done": false
 };
 
 export const tabTargets: TabTarget[] = [

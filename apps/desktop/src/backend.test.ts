@@ -79,8 +79,10 @@ describe("TauriBackend", () => {
     await b.plugins.install(wasm);
     await b.plugins.remove("odata");
     await b.plugins.setEnabled("odata", false);
-    await b.plugins.renderTab("odata", "query", target, null);
+    await b.plugins.renderTab("odata", "query", target, null, "Local");
     await b.plugins.action("odata", "query", "run", target, { a: 1 }, [["top", "5"]]);
+    await b.plugins.welcome();
+    await b.plugins.chooseWelcome(["odata"]);
     await b.auth.tokens();
     await b.auth.fetchToken("a.yml", { environment: "Local", vars: [] });
     await b.auth.clearTokens(null);
@@ -142,8 +144,10 @@ describe("TauriBackend", () => {
       ["plugin_install", wasm.data],
       ["plugin_remove", { id: "odata" }],
       ["plugin_set_enabled", { id: "odata", enabled: false }],
-      ["plugin_render_tab", { plugin: "odata", tab: "query", target, state: null }],
-      ["plugin_action", { plugin: "odata", tab: "query", action: "run", target, state: { a: 1 }, input: [["top", "5"]] }],
+      ["plugin_render_tab", { plugin: "odata", tab: "query", target, state: null, environment: "Local" }],
+      ["plugin_action", { plugin: "odata", tab: "query", action: "run", target, state: { a: 1 }, input: [["top", "5"]], environment: null }],
+      ["plugin_welcome", undefined],
+      ["plugin_choose_welcome", { plugins: ["odata"] }],
       ["auth_tokens", undefined],
       ["auth_fetch_token", { path: "a.yml", input: { environment: "Local", vars: [] } }],
       ["auth_clear_tokens", { key: null }],

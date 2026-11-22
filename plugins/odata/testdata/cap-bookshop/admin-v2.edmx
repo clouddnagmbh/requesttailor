@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<!-- Synthetic OData V2 view of the same AdminService, in the layout of a CAP V2 adapter (no drafts in V2 here); written by hand, no CAP code. -->
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata" xmlns:sap="http://www.sap.com/Protocols/SAPData">
+  <edmx:DataServices m:DataServiceVersion="2.0">
+    <Schema Namespace="AdminService" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+      <EntityContainer Name="EntityContainer" m:IsDefaultEntityContainer="true">
+        <EntitySet Name="Books" EntityType="AdminService.Books"/>
+        <EntitySet Name="Authors" EntityType="AdminService.Authors"/>
+        <EntitySet Name="Genres" EntityType="AdminService.Genres"/>
+        <AssociationSet Name="Books_author" Association="AdminService.Books_author">
+          <End Role="Books" EntitySet="Books"/>
+          <End Role="Authors" EntitySet="Authors"/>
+        </AssociationSet>
+        <FunctionImport Name="booksInStock" ReturnType="Collection(AdminService.Books)" EntitySet="Books" m:HttpMethod="GET">
+          <Parameter Name="min" Type="Edm.Int32" Mode="In"/>
+        </FunctionImport>
+      </EntityContainer>
+      <EntityType Name="Books">
+        <Key>
+          <PropertyRef Name="ID"/>
+        </Key>
+        <Property Name="ID" Type="Edm.Int32" Nullable="false"/>
+        <Property Name="createdAt" Type="Edm.DateTimeOffset"/>
+        <Property Name="modifiedAt" Type="Edm.DateTimeOffset" ConcurrencyMode="Fixed"/>
+        <Property Name="title" Type="Edm.String" MaxLength="111" sap:label="Title"/>
+        <Property Name="descr" Type="Edm.String" MaxLength="1111"/>
+        <Property Name="author_ID" Type="Edm.Int32"/>
+        <Property Name="genre_ID" Type="Edm.Int32"/>
+        <Property Name="stock" Type="Edm.Int32"/>
+        <Property Name="price" Type="Edm.Decimal" Precision="9" Scale="2"/>
+        <Property Name="currency_code" Type="Edm.String" MaxLength="3"/>
+        <NavigationProperty Name="author" Relationship="AdminService.Books_author" FromRole="Books" ToRole="Authors"/>
+      </EntityType>
+      <EntityType Name="Authors">
+        <Key>
+          <PropertyRef Name="ID"/>
+        </Key>
+        <Property Name="ID" Type="Edm.Int32" Nullable="false"/>
+        <Property Name="name" Type="Edm.String" MaxLength="111"/>
+        <Property Name="dateOfBirth" Type="Edm.DateTime" sap:display-format="Date"/>
+        <Property Name="placeOfBirth" Type="Edm.String"/>
+        <NavigationProperty Name="books" Relationship="AdminService.Books_author" FromRole="Authors" ToRole="Books"/>
+      </EntityType>
+      <EntityType Name="Genres">
+        <Key>
+          <PropertyRef Name="ID"/>
+        </Key>
+        <Property Name="ID" Type="Edm.Int32" Nullable="false"/>
+        <Property Name="name" Type="Edm.String" MaxLength="255"/>
+      </EntityType>
+      <Association Name="Books_author">
+        <End Role="Books" Type="AdminService.Books" Multiplicity="*"/>
+        <End Role="Authors" Type="AdminService.Authors" Multiplicity="0..1"/>
+        <ReferentialConstraint>
+          <Principal Role="Authors">
+            <PropertyRef Name="ID"/>
+          </Principal>
+          <Dependent Role="Books">
+            <PropertyRef Name="author_ID"/>
+          </Dependent>
+        </ReferentialConstraint>
+      </Association>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

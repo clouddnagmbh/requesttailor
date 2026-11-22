@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<!-- Synthetic OData V4 service in the style of an S/4HANA RAP business object with draft (not SAP data). -->
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Core.V1.xml">
+    <edmx:Include Namespace="Org.OData.Core.V1" Alias="Core"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Capabilities.V1.xml">
+    <edmx:Include Namespace="Org.OData.Capabilities.V1" Alias="Capabilities"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/Common.xml">
+    <edmx:Include Namespace="com.sap.vocabularies.Common.v1" Alias="Common"/>
+  </edmx:Reference>
+  <edmx:DataServices>
+    <Schema Namespace="com.example.zrt_salesorder" Alias="SAP__self" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityType Name="SalesOrderType">
+        <Key>
+          <PropertyRef Name="SalesOrderUUID"/>
+          <PropertyRef Name="IsActiveEntity"/>
+        </Key>
+        <Property Name="SalesOrderUUID" Type="Edm.Guid" Nullable="false"/>
+        <Property Name="SalesOrderID" Type="Edm.String" MaxLength="10"/>
+        <Property Name="CustomerID" Type="Edm.String" MaxLength="10"/>
+        <Property Name="GrossAmount" Type="Edm.Decimal" Precision="15" Scale="2"/>
+        <Property Name="Currency" Type="Edm.String" MaxLength="5"/>
+        <Property Name="OverallStatus" Type="Edm.String" MaxLength="1"/>
+        <Property Name="LastChangedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+        <Property Name="IsActiveEntity" Type="Edm.Boolean" Nullable="false" DefaultValue="true"/>
+        <Property Name="HasActiveEntity" Type="Edm.Boolean" Nullable="false" DefaultValue="false"/>
+        <Property Name="HasDraftEntity" Type="Edm.Boolean" Nullable="false" DefaultValue="false"/>
+        <NavigationProperty Name="_Item" Type="Collection(com.example.zrt_salesorder.SalesOrderItemType)" Partner="_SalesOrder"/>
+        <NavigationProperty Name="SiblingEntity" Type="com.example.zrt_salesorder.SalesOrderType"/>
+      </EntityType>
+      <EntityType Name="SalesOrderItemType">
+        <Key>
+          <PropertyRef Name="ItemUUID"/>
+          <PropertyRef Name="IsActiveEntity"/>
+        </Key>
+        <Property Name="ItemUUID" Type="Edm.Guid" Nullable="false"/>
+        <Property Name="SalesOrderUUID" Type="Edm.Guid"/>
+        <Property Name="ProductID" Type="Edm.String" MaxLength="10"/>
+        <Property Name="Quantity" Type="Edm.Decimal" Precision="13" Scale="3"/>
+        <Property Name="QuantityUnit" Type="Edm.String" MaxLength="3"/>
+        <Property Name="IsActiveEntity" Type="Edm.Boolean" Nullable="false" DefaultValue="true"/>
+        <Property Name="HasActiveEntity" Type="Edm.Boolean" Nullable="false" DefaultValue="false"/>
+        <Property Name="HasDraftEntity" Type="Edm.Boolean" Nullable="false" DefaultValue="false"/>
+        <NavigationProperty Name="_SalesOrder" Type="com.example.zrt_salesorder.SalesOrderType" Partner="_Item"/>
+      </EntityType>
+      <Action Name="Edit" IsBound="true" EntitySetPath="_it">
+        <Parameter Name="_it" Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+        <Parameter Name="PreserveChanges" Type="Edm.Boolean"/>
+        <ReturnType Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+      </Action>
+      <Action Name="Prepare" IsBound="true" EntitySetPath="_it">
+        <Parameter Name="_it" Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+        <ReturnType Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+      </Action>
+      <Action Name="Activate" IsBound="true" EntitySetPath="_it">
+        <Parameter Name="_it" Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+        <ReturnType Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+      </Action>
+      <Action Name="Discard" IsBound="true">
+        <Parameter Name="_it" Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+      </Action>
+      <Action Name="confirm" IsBound="true" EntitySetPath="_it">
+        <Parameter Name="_it" Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+        <ReturnType Type="com.example.zrt_salesorder.SalesOrderType" Nullable="false"/>
+      </Action>
+      <EntityContainer Name="Container">
+        <EntitySet Name="SalesOrder" EntityType="com.example.zrt_salesorder.SalesOrderType">
+          <NavigationPropertyBinding Path="_Item" Target="SalesOrderItem"/>
+          <NavigationPropertyBinding Path="SiblingEntity" Target="SalesOrder"/>
+        </EntitySet>
+        <EntitySet Name="SalesOrderItem" EntityType="com.example.zrt_salesorder.SalesOrderItemType">
+          <NavigationPropertyBinding Path="_SalesOrder" Target="SalesOrder"/>
+        </EntitySet>
+      </EntityContainer>
+      <Annotations Target="SAP__self.Container/SalesOrder">
+        <Annotation Term="Common.DraftRoot">
+          <Record Type="Common.DraftRootType">
+            <PropertyValue Property="ActivationAction" String="com.example.zrt_salesorder.Activate"/>
+            <PropertyValue Property="DiscardAction" String="com.example.zrt_salesorder.Discard"/>
+            <PropertyValue Property="EditAction" String="com.example.zrt_salesorder.Edit"/>
+            <PropertyValue Property="PreparationAction" String="com.example.zrt_salesorder.Prepare"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.DeleteRestrictions">
+          <Record>
+            <PropertyValue Property="Deletable" Bool="false"/>
+          </Record>
+        </Annotation>
+      </Annotations>
+      <Annotations Target="SAP__self.Container/SalesOrderItem">
+        <Annotation Term="Common.DraftNode">
+          <Record Type="Common.DraftNodeType">
+            <PropertyValue Property="PreparationAction" String="com.example.zrt_salesorder.Prepare"/>
+          </Record>
+        </Annotation>
+      </Annotations>
+      <Annotations Target="SAP__self.SalesOrderType/SalesOrderID">
+        <Annotation Term="Common.Label" String="Sales Order"/>
+        <Annotation Term="Core.Computed"/>
+      </Annotations>
+      <Annotations Target="SAP__self.SalesOrderType/CustomerID">
+        <Annotation Term="Common.Label" String="Customer"/>
+      </Annotations>
+      <Annotations Target="SAP__self.SalesOrderType/LastChangedAt">
+        <Annotation Term="Core.Computed"/>
+        <Annotation Term="Core.OptimisticConcurrency"/>
+      </Annotations>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

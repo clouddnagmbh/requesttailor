@@ -59,6 +59,8 @@
     "allow-plugin-set-enabled",
     "allow-plugin-render-tab",
     "allow-plugin-action",
+    "allow-plugin-welcome",
+    "allow-plugin-choose-welcome",
     "allow-auth-tokens",
     "allow-auth-fetch-token",
     "allow-auth-clear-tokens",

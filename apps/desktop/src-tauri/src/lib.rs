@@ -99,6 +99,8 @@ pub fn run() {
             plugins::plugin_set_enabled,
             plugins::plugin_render_tab,
             plugins::plugin_action,
+            plugins::plugin_welcome,
+            plugins::plugin_choose_welcome,
             auth::auth_tokens,
             auth::auth_fetch_token,
             auth::auth_clear_tokens,

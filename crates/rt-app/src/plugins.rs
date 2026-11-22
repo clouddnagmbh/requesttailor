@@ -27,8 +27,8 @@ use serde::{Deserialize, Serialize};
 
 pub use rt_plugin::api::{
     ActionButton, Block, Contributions, FieldKind, FormField, ImportReply, ImporterContribution,
-    Manifest, Permissions, PluginFile, PluginResponse, TabContribution, TabPlace, TabTarget,
-    TreeItem, View, ViewReply,
+    Manifest, NewRequest, Permissions, PluginEnvironment, PluginFile, PluginResponse,
+    PluginVariable, TabContribution, TabPlace, TabTarget, TreeItem, View, ViewReply, WelcomeChoice,
 };
 pub use rt_plugin::host::{
     LoadedPlugin, PLUGIN_BODY_LIMIT, Plugin, PluginError, PluginHost, response_to_plugin,
@@ -43,6 +43,21 @@ pub struct PluginInfo {
     /// The user granted `manifest.permissions` at install time (all or nothing).
     pub granted: bool,
     pub enabled: bool,
+}
+
+/// The first-start question (wave 6, strand F): bundled plugins that offer a choice.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct WelcomeState {
+    /// Answered or skipped already: the UI does not ask again.
+    pub done: bool,
+    pub choices: Vec<WelcomeOffer>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WelcomeOffer {
+    /// Plugin id.
+    pub plugin: String,
+    pub choice: WelcomeChoice,
 }
 
 impl From<&LoadedPlugin> for PluginInfo {

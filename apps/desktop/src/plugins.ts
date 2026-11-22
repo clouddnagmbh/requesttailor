@@ -16,8 +16,11 @@ export function tauriPlugins(call: Call): PluginApi {
     install: (file) => call("plugin_install", raw(file.data)),
     remove: (id) => call("plugin_remove", { id }),
     setEnabled: (id, enabled) => call("plugin_set_enabled", { id, enabled }),
-    renderTab: (plugin, tab, target, state) => call("plugin_render_tab", { plugin, tab, target, state }),
-    action: (plugin, tab, action, target, state, input) =>
-      call("plugin_action", { plugin, tab, action, target, state, input }),
+    renderTab: (plugin, tab, target, state, environment) =>
+      call("plugin_render_tab", { plugin, tab, target, state, environment: environment ?? null }),
+    action: (plugin, tab, action, target, state, input, environment) =>
+      call("plugin_action", { plugin, tab, action, target, state, input, environment: environment ?? null }),
+    welcome: () => call("plugin_welcome"),
+    chooseWelcome: (plugins) => call("plugin_choose_welcome", { plugins }),
   };
 }

@@ -269,6 +269,10 @@ fn manifest() -> Manifest {
             variables: false,
         },
         contributes: Contributions {
+            welcome: Some(rt_app::plugins::WelcomeChoice {
+                label: "OData".into(),
+                description: String::new(),
+            }),
             prepare: true,
             response: false,
             tabs: vec![
@@ -284,6 +288,12 @@ fn manifest() -> Manifest {
                     place: TabPlace::Request,
                     content_types: vec![],
                 },
+                TabContribution {
+                    id: "entities".into(),
+                    title: "Entities".into(),
+                    place: TabPlace::Collection,
+                    content_types: vec![],
+                },
             ],
             importers: vec![ImporterContribution {
                 id: "edmx".into(),
@@ -296,6 +306,26 @@ fn manifest() -> Manifest {
 
 fn view_reply() -> ViewReply {
     ViewReply {
+        create_requests: vec![rt_app::plugins::NewRequest {
+            folder: "Books".into(),
+            name: "Read Books".into(),
+            spec: RequestSpec::default(),
+        }],
+        add_environments: vec![rt_app::plugins::PluginEnvironment {
+            name: "DEV".into(),
+            variables: vec![
+                rt_app::plugins::PluginVariable {
+                    name: "client".into(),
+                    value: "100".into(),
+                    secret: false,
+                },
+                rt_app::plugins::PluginVariable {
+                    name: "password".into(),
+                    value: String::new(),
+                    secret: true,
+                },
+            ],
+        }],
         view: View {
             blocks: vec![
                 Block::Heading {
@@ -853,6 +883,20 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
         ),
         ("viewReply", "ViewReply", j(view_reply())),
         ("viewReplyEmpty", "ViewReply", j(ViewReply::default())),
+        (
+            "welcomeState",
+            "WelcomeState",
+            j(rt_app::plugins::WelcomeState {
+                done: false,
+                choices: vec![rt_app::plugins::WelcomeOffer {
+                    plugin: "odata".into(),
+                    choice: rt_app::plugins::WelcomeChoice {
+                        label: "OData".into(),
+                        description: "V2 and V4 services".into(),
+                    },
+                }],
+            }),
+        ),
         (
             "tabTargets",
             "TabTarget[]",

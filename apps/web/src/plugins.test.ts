@@ -33,7 +33,7 @@ function fakeCore() {
       license: null,
       homepage: null,
       permissions: { ...NONE, storage: true },
-      contributes: { prepare: false, response: false, tabs: [], importers: [] },
+      contributes: { prepare: false, response: false, tabs: [], importers: [], welcome: null },
     };
   };
   const info = (p: (typeof loaded)[number]): PluginInfo => ({

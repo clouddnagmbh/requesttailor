@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "apps/desktop/src-tauri", "plugins/example"]
+members = [
+    "crates/*",
+    "apps/desktop/src-tauri",
+    "plugins/example",
+    "plugins/odata",
+    "plugins/odata/testserver",
+]
 # CI canaries are standalone workspaces that must never join the real build.
 exclude = ["ci"]
 

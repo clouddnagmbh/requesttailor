@@ -1,0 +1,26 @@
+{
+  "CustomerSet": [
+    { "CustomerID": "0000100001", "Name": "Northwind Tools GmbH", "City": "Linz", "Country": "AT", "Address": { "Street": "Hafenstrasse 1", "PostalCode": "4020" } },
+    { "CustomerID": "0000100002", "Name": "Blue Fjord AS", "City": "Bergen", "Country": "NO", "Address": { "Street": "Bryggen 7", "PostalCode": "5003" } },
+    { "CustomerID": "0000100003", "Name": "Cedar & Pine Ltd", "City": "Leeds", "Country": "GB", "Address": { "Street": "Mill Lane 22", "PostalCode": "LS1 4AB" } }
+  ],
+  "SalesOrderSet": [
+    { "SalesOrderID": "0500000001", "CustomerID": "0000100001", "CustomerName": "Northwind Tools GmbH", "GrossAmount": "1250.00", "Currency": "EUR", "LifecycleStatus": "N", "Note": "", "CreatedAt": "2026-03-02T08:00:00", "ChangedAt": "2026-03-02T08:00:00.0000000Z" },
+    { "SalesOrderID": "0500000002", "CustomerID": "0000100002", "CustomerName": "Blue Fjord AS", "GrossAmount": "980.50", "Currency": "NOK", "LifecycleStatus": "P", "Note": "Rush order", "CreatedAt": "2026-03-04T10:15:00", "ChangedAt": "2026-03-05T12:00:00.0000000Z" },
+    { "SalesOrderID": "0500000003", "CustomerID": "0000100003", "CustomerName": "Cedar & Pine Ltd", "GrossAmount": "42.00", "Currency": "GBP", "LifecycleStatus": "C", "Note": "", "CreatedAt": "2026-03-07T14:45:00", "ChangedAt": "2026-03-08T09:10:00.0000000Z" }
+  ],
+  "SalesOrderItemSet": [
+    { "SalesOrderID": "0500000001", "ItemPosition": "000010", "ProductID": "RT-1000", "Quantity": "5.000", "QuantityUnit": "EA", "NetAmount": "1000.00", "Currency": "EUR" },
+    { "SalesOrderID": "0500000001", "ItemPosition": "000020", "ProductID": "RT-1001", "Quantity": "1.000", "QuantityUnit": "EA", "NetAmount": "250.00", "Currency": "EUR" },
+    { "SalesOrderID": "0500000002", "ItemPosition": "000010", "ProductID": "RT-2000", "Quantity": "2.000", "QuantityUnit": "KG", "NetAmount": "980.50", "Currency": "NOK" },
+    { "SalesOrderID": "0500000003", "ItemPosition": "000010", "ProductID": "RT-3000", "Quantity": "1.000", "QuantityUnit": "EA", "NetAmount": "42.00", "Currency": "GBP" }
+  ],
+  "SalesOrder": [
+    { "SalesOrderUUID": "0b7e2f0a-6c1d-4e5f-9a10-000000000001", "SalesOrderID": "0500000001", "CustomerID": "0000100001", "GrossAmount": 1250.0, "Currency": "EUR", "OverallStatus": "N", "LastChangedAt": "2026-03-02T08:00:00.0000000Z" },
+    { "SalesOrderUUID": "0b7e2f0a-6c1d-4e5f-9a10-000000000002", "SalesOrderID": "0500000002", "CustomerID": "0000100002", "GrossAmount": 980.5, "Currency": "NOK", "OverallStatus": "P", "LastChangedAt": "2026-03-05T12:00:00.0000000Z" }
+  ],
+  "SalesOrderItem": [
+    { "ItemUUID": "1c8f3a1b-7d2e-4f60-8b21-000000000011", "SalesOrderUUID": "0b7e2f0a-6c1d-4e5f-9a10-000000000001", "ProductID": "RT-1000", "Quantity": 5.0, "QuantityUnit": "EA" },
+    { "ItemUUID": "1c8f3a1b-7d2e-4f60-8b21-000000000021", "SalesOrderUUID": "0b7e2f0a-6c1d-4e5f-9a10-000000000002", "ProductID": "RT-2000", "Quantity": 2.0, "QuantityUnit": "KG" }
+  ]
+}

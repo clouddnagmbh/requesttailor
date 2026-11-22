@@ -31,7 +31,14 @@ export function mockManifest(part: Partial<Manifest> & { id: string }): Manifest
     homepage: null,
     ...part,
     permissions: { network: [], storage: false, variables: false, ...part.permissions },
-    contributes: { prepare: false, response: false, tabs: [], importers: [], ...part.contributes },
+    contributes: {
+      prepare: false,
+      response: false,
+      tabs: [],
+      importers: [],
+      ...part.contributes,
+      welcome: part.contributes?.welcome ?? null,
+    },
   };
 }
 
@@ -120,15 +127,25 @@ export function mockPlugins(): MockPlugins {
     setEnabled: async (id, enabled) => {
       find(id).enabled = enabled;
     },
+    // Wave 6, strand F: bundled plugins and the first-start question. Interface commit:
+    // answered already, so no dialog shows.
+    welcome: async () => ({ done: true, choices: [] }),
+    chooseWelcome: async () => {},
     renderTab: async (plugin, tab, target, state): Promise<ViewReply> => {
       const m = tabOf(plugin, tab);
       const n = count(state);
-      return { view: view(m, tab, target, n), state: n, update_request: null };
+      return { view: view(m, tab, target, n), state: n, update_request: null, create_requests: [], add_environments: [] };
     },
     action: async (plugin, tab, action, target, state, input): Promise<ViewReply> => {
       const m = tabOf(plugin, tab);
       const n = count(state);
-      const reply: ViewReply = { view: view(m, tab, target, n), state: n, update_request: null };
+      const reply: ViewReply = {
+        view: view(m, tab, target, n),
+        state: n,
+        update_request: null,
+        create_requests: [],
+        add_environments: [],
+      };
       const say = (text: string) => reply.view.blocks.unshift({ type: "notice", level: "info", text });
       if (action === "hello") say(`Hello from ${m.name}`);
       else if (action === "form") say(`Form: ${input.map(([k, v]) => `${k}=${v}`).join(", ")}`);

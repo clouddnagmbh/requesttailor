@@ -79,6 +79,18 @@ pub struct Contributions {
     pub tabs: Vec<TabContribution>,
     #[serde(default)]
     pub importers: Vec<ImporterContribution>,
+    /// Offered on the app's first start ("What do you want to test?"). Only bundled plugins
+    /// are offered; choosing it enables the plugin. Added in wave 6.
+    #[serde(default)]
+    pub welcome: Option<WelcomeChoice>,
+}
+
+/// A first-start choice of a bundled plugin (wave 6).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WelcomeChoice {
+    pub label: String,
+    #[serde(default)]
+    pub description: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -100,6 +112,10 @@ pub enum TabPlace {
     Request,
     /// Next to Body, Headers, ... of the response view.
     Response,
+    /// A panel of the collection (next to the request tree), not tied to one request. Its
+    /// [`TabTarget::request_path`] is `""` and the `spec` of the call is the default request.
+    /// Added in wave 6.
+    Collection,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -199,6 +215,10 @@ pub enum Call {
         response: Option<PluginResponse>,
         /// What the last [`ViewReply::state`] of this tab was, `null` the first time.
         state: Option<serde_json::Value>,
+        /// Selected environment and its non-secret variables (variables only with the
+        /// `variables` permission). Added in wave 6; older hosts send none.
+        #[serde(default)]
+        context: Option<PluginContext>,
     },
     /// The user clicked an action or submitted a form of the tab. Reply: [`ViewReply`].
     Action {
@@ -211,6 +231,9 @@ pub enum Call {
         /// Form values by field name (forms only).
         #[serde(default)]
         input: Vec<(String, String)>,
+        /// As for [`Call::RenderTab`]. Added in wave 6.
+        #[serde(default)]
+        context: Option<PluginContext>,
     },
     /// Reply: [`DetectReply`].
     Detect {
@@ -279,6 +302,42 @@ pub struct ViewReply {
     /// Replaces the request in the editor (an unsaved change, like typing). Request tabs only.
     #[serde(default)]
     pub update_request: Option<RequestSpec>,
+    /// New requests for the collection (unsaved, like "New request"), e.g. from an entity
+    /// browser. The host refuses names that exist. Added in wave 6.
+    #[serde(default)]
+    pub create_requests: Vec<NewRequest>,
+    /// New environments (unsaved), e.g. a DEV/QAS/PRD template. Only non-secret values; the
+    /// host refuses names that exist and variables marked secret. Added in wave 6.
+    #[serde(default)]
+    pub add_environments: Vec<PluginEnvironment>,
+}
+
+/// A request a view adds to the collection (wave 6).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NewRequest {
+    /// Folder path relative to the collection root, `""` for the root; created if missing.
+    #[serde(default)]
+    pub folder: String,
+    pub name: String,
+    pub spec: RequestSpec,
+}
+
+/// An environment a view adds to the collection (wave 6).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginEnvironment {
+    pub name: String,
+    #[serde(default)]
+    pub variables: Vec<PluginVariable>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginVariable {
+    pub name: String,
+    #[serde(default)]
+    pub value: String,
+    /// A secret variable without a value: the user sets it in Environments (keychain).
+    #[serde(default)]
+    pub secret: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -397,6 +456,12 @@ pub enum HostCall {
         request: PluginRequest,
         #[serde(default)]
         credentials: bool,
+        /// Send and store cookies in the cookie jar of the current send's environment, so a
+        /// handshake (e.g. a CSRF token bound to a session cookie) shares the session with the
+        /// request. Only for the request's origin, in the prepare and response hooks. Added in
+        /// wave 6.
+        #[serde(default)]
+        session: bool,
     },
     /// Needs `permissions.storage`. Reply: the value or `null`.
     StorageGet { key: String },

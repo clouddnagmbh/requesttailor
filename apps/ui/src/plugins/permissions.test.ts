@@ -81,6 +81,7 @@ describe("plugin tabs", () => {
       manifest: mockManifest({
         id,
         contributes: {
+          welcome: null,
           prepare: false,
           response: false,
           tabs: [

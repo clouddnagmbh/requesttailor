@@ -1,0 +1,22 @@
+[package]
+name = "rt-plugin-odata"
+description = "RequestTailor: OData V2 and V4 plugin (metadata, query builder, CSRF, ETag, $batch, drafts, SAP system landscapes)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# A plain library, built into `target/plugins/odata.wasm` by `scripts/build-plugins.mjs` (see
+# plugins/example/Cargo.toml). Uses only the public plugin API through rt-plugin-sdk.
+
+[dependencies]
+rt-plugin-sdk = { path = "../../crates/rt-plugin-sdk" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+rt-format = { path = "../../crates/rt-format" }
+
+[lints]
+workspace = true

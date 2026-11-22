@@ -1,5 +1,20 @@
-# plugins/odata
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
 
-OData V2/V4, CSRF and `$batch` as a plugin on the public plugin API.
+# OData plugin
 
-Scaffold only (wave 1). Planned for wave 6.
+OData V2 and V4 for RequestTailor, as found in SAP S/4HANA, SAP CAP and RAP, built only on
+the public plugin API (`crates/rt-plugin/API.md`). The RequestTailor core knows nothing about
+OData or SAP.
+
+- Entity browser from `$metadata` (V2 and V4), cached per service root
+- Query builder for `$filter`, `$expand`, `$select`, `$orderby`, `$top`, `$skip`, `$count`
+- CSRF token handshake, ETag and `If-Match`, `$batch` with changesets, draft actions
+- SAP system landscapes (DEV/QAS/PRD) with `sap-client` and `sap-language`
+- Importers for `$metadata` files and SAP Business Accelerator Hub API specifications
+
+The app ships it bundled; at first start it is enabled only if you choose "SAP and OData".
+
+Build: `node scripts/build-plugins.mjs odata` → `target/plugins/odata.wasm`.
+Test server: `cargo run -p rt-odata-testserver` (port 47830), services in
+`testdata/SOURCES.md`. Missing extension points: `API-WUENSCHE.md`.

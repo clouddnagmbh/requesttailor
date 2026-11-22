@@ -47,6 +47,7 @@ pub fn http(request: PluginRequest) -> Result<PluginResponse> {
     call(&HostCall::Http {
         request,
         credentials: false,
+        session: false,
     })
 }
 
@@ -57,6 +58,19 @@ pub fn http_with_credentials(request: PluginRequest) -> Result<PluginResponse> {
     call(&HostCall::Http {
         request,
         credentials: true,
+        session: false,
+    })
+}
+
+/// Like [`http_with_credentials`], and in the session of the send: cookies of the
+/// environment's jar go along and `Set-Cookie` is stored there (e.g. a CSRF token fetch whose
+/// token is bound to the session cookie). Only in the `prepare` and `response` hooks, only to
+/// the request's origin. Added in wave 6.
+pub fn http_in_session(request: PluginRequest) -> Result<PluginResponse> {
+    call(&HostCall::Http {
+        request,
+        credentials: true,
+        session: true,
     })
 }
 

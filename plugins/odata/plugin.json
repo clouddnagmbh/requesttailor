@@ -1,0 +1,28 @@
+{
+  "id": "odata",
+  "name": "OData",
+  "version": "0.1.0",
+  "api": 1,
+  "description": "OData V2 and V4 from $metadata: entity browser, query builder, CSRF token handshake, ETag and If-Match, $batch with changesets, draft actions; SAP system landscapes with sap-client and language.",
+  "license": "Apache-2.0",
+  "permissions": { "network": ["{request}"], "storage": true, "variables": true },
+  "contributes": {
+    "prepare": true,
+    "response": true,
+    "tabs": [
+      { "id": "entities", "title": "OData", "place": "collection", "content_types": [] },
+      { "id": "query", "title": "Query", "place": "request", "content_types": [] },
+      { "id": "batch", "title": "Batch", "place": "request", "content_types": [] },
+      { "id": "draft", "title": "Draft", "place": "request", "content_types": [] },
+      { "id": "landscape", "title": "SAP systems", "place": "collection", "content_types": [] }
+    ],
+    "importers": [
+      { "id": "edmx", "label": "OData metadata ($metadata, EDMX)", "extensions": ["edmx", "xml"] },
+      { "id": "sap-hub", "label": "SAP Business Accelerator Hub (API specification)", "extensions": ["edmx", "xml", "json"] }
+    ],
+    "welcome": {
+      "label": "SAP and OData",
+      "description": "OData V2 and V4 services, S/4HANA, CAP and RAP: metadata browser, query builder, CSRF, ETag, $batch, drafts, DEV/QAS/PRD landscapes."
+    }
+  }
+}

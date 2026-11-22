@@ -39,12 +39,14 @@ fn run<P: Plugin + ?Sized>(plugin: &P, call: Call) -> Result<serde_json::Value> 
             spec,
             response,
             state,
+            context,
         } => json(plugin.render_tab(Tab {
             tab,
             target,
             spec,
             response,
             state,
+            context,
         })?),
         Call::Action {
             tab,
@@ -54,6 +56,7 @@ fn run<P: Plugin + ?Sized>(plugin: &P, call: Call) -> Result<serde_json::Value> 
             response,
             state,
             input,
+            context,
         } => json(plugin.action(Action {
             tab,
             action,
@@ -62,6 +65,7 @@ fn run<P: Plugin + ?Sized>(plugin: &P, call: Call) -> Result<serde_json::Value> 
             response,
             state,
             input,
+            context,
         })?),
         Call::Detect { importer, files } => json(DetectReply {
             matches: plugin.detect(&importer, files)?,

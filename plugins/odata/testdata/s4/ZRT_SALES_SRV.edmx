@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<!-- Synthetic SAP Gateway OData V2 service in the style of S/4HANA (not SAP data). -->
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata" xmlns:sap="http://www.sap.com/Protocols/SAPData">
+  <edmx:DataServices m:DataServiceVersion="2.0">
+    <Schema Namespace="ZRT_SALES_SRV" xml:lang="en" sap:schema-version="1" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+      <EntityType Name="SalesOrder" sap:content-version="1">
+        <Key>
+          <PropertyRef Name="SalesOrderID"/>
+        </Key>
+        <Property Name="SalesOrderID" Type="Edm.String" Nullable="false" MaxLength="10" sap:label="Sales Order" sap:creatable="false" sap:updatable="false"/>
+        <Property Name="CustomerID" Type="Edm.String" Nullable="false" MaxLength="10" sap:label="Customer"/>
+        <Property Name="CustomerName" Type="Edm.String" MaxLength="80" sap:label="Customer Name" sap:creatable="false" sap:updatable="false"/>
+        <Property Name="GrossAmount" Type="Edm.Decimal" Precision="15" Scale="2" sap:unit="Currency" sap:label="Gross Amount" sap:creatable="false" sap:updatable="false"/>
+        <Property Name="Currency" Type="Edm.String" MaxLength="5" sap:label="Currency" sap:semantics="currency-code"/>
+        <Property Name="LifecycleStatus" Type="Edm.String" MaxLength="1" sap:label="Lifecycle Status" sap:updatable="false"/>
+        <Property Name="Note" Type="Edm.String" MaxLength="255" sap:label="Note" sap:filterable="false"/>
+        <Property Name="CreatedAt" Type="Edm.DateTime" Precision="0" sap:label="Created At" sap:creatable="false" sap:updatable="false"/>
+        <Property Name="ChangedAt" Type="Edm.DateTimeOffset" Precision="7" ConcurrencyMode="Fixed" sap:label="Changed At" sap:creatable="false" sap:updatable="false"/>
+        <NavigationProperty Name="ToItems" Relationship="ZRT_SALES_SRV.assoc_SalesOrder_Items" FromRole="FromRole_SalesOrder" ToRole="ToRole_Items"/>
+        <NavigationProperty Name="ToCustomer" Relationship="ZRT_SALES_SRV.assoc_SalesOrder_Customer" FromRole="FromRole_SalesOrder_C" ToRole="ToRole_Customer"/>
+      </EntityType>
+      <EntityType Name="SalesOrderItem" sap:content-version="1">
+        <Key>
+          <PropertyRef Name="SalesOrderID"/>
+          <PropertyRef Name="ItemPosition"/>
+        </Key>
+        <Property Name="SalesOrderID" Type="Edm.String" Nullable="false" MaxLength="10" sap:label="Sales Order"/>
+        <Property Name="ItemPosition" Type="Edm.String" Nullable="false" MaxLength="6" sap:label="Item"/>
+        <Property Name="ProductID" Type="Edm.String" Nullable="false" MaxLength="10" sap:label="Product"/>
+        <Property Name="Quantity" Type="Edm.Decimal" Precision="13" Scale="3" sap:unit="QuantityUnit" sap:label="Quantity"/>
+        <Property Name="QuantityUnit" Type="Edm.String" MaxLength="3" sap:label="Unit" sap:semantics="unit-of-measure"/>
+        <Property Name="NetAmount" Type="Edm.Decimal" Precision="15" Scale="2" sap:unit="Currency" sap:label="Net Amount" sap:creatable="false" sap:updatable="false"/>
+        <Property Name="Currency" Type="Edm.String" MaxLength="5" sap:label="Currency" sap:semantics="currency-code"/>
+        <NavigationProperty Name="ToSalesOrder" Relationship="ZRT_SALES_SRV.assoc_SalesOrder_Items" FromRole="ToRole_Items" ToRole="FromRole_SalesOrder"/>
+      </EntityType>
+      <EntityType Name="Customer" sap:content-version="1">
+        <Key>
+          <PropertyRef Name="CustomerID"/>
+        </Key>
+        <Property Name="CustomerID" Type="Edm.String" Nullable="false" MaxLength="10" sap:label="Customer"/>
+        <Property Name="Name" Type="Edm.String" MaxLength="80" sap:label="Name"/>
+        <Property Name="City" Type="Edm.String" MaxLength="40" sap:label="City"/>
+        <Property Name="Country" Type="Edm.String" MaxLength="3" sap:label="Country"/>
+        <Property Name="Address" Type="ZRT_SALES_SRV.Address" Nullable="false"/>
+      </EntityType>
+      <ComplexType Name="Address">
+        <Property Name="Street" Type="Edm.String" MaxLength="60" sap:label="Street"/>
+        <Property Name="PostalCode" Type="Edm.String" MaxLength="10" sap:label="Postal Code"/>
+      </ComplexType>
+      <ComplexType Name="ConfirmationResult">
+        <Property Name="SalesOrderID" Type="Edm.String" MaxLength="10"/>
+        <Property Name="LifecycleStatus" Type="Edm.String" MaxLength="1"/>
+      </ComplexType>
+      <Association Name="assoc_SalesOrder_Items" sap:content-version="1">
+        <End Type="ZRT_SALES_SRV.SalesOrder" Multiplicity="1" Role="FromRole_SalesOrder"/>
+        <End Type="ZRT_SALES_SRV.SalesOrderItem" Multiplicity="*" Role="ToRole_Items"/>
+        <ReferentialConstraint>
+          <Principal Role="FromRole_SalesOrder">
+            <PropertyRef Name="SalesOrderID"/>
+          </Principal>
+          <Dependent Role="ToRole_Items">
+            <PropertyRef Name="SalesOrderID"/>
+          </Dependent>
+        </ReferentialConstraint>
+      </Association>
+      <Association Name="assoc_SalesOrder_Customer" sap:content-version="1">
+        <End Type="ZRT_SALES_SRV.SalesOrder" Multiplicity="*" Role="FromRole_SalesOrder_C"/>
+        <End Type="ZRT_SALES_SRV.Customer" Multiplicity="1" Role="ToRole_Customer"/>
+      </Association>
+      <EntityContainer Name="ZRT_SALES_SRV_Entities" m:IsDefaultEntityContainer="true" sap:supported-formats="atom json xlsx">
+        <EntitySet Name="SalesOrderSet" EntityType="ZRT_SALES_SRV.SalesOrder" sap:deletable="false" sap:pageable="true" sap:content-version="1"/>
+        <EntitySet Name="SalesOrderItemSet" EntityType="ZRT_SALES_SRV.SalesOrderItem" sap:content-version="1"/>
+        <EntitySet Name="CustomerSet" EntityType="ZRT_SALES_SRV.Customer" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1"/>
+        <AssociationSet Name="assoc_SalesOrder_Items_AssocSet" Association="ZRT_SALES_SRV.assoc_SalesOrder_Items" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1">
+          <End EntitySet="SalesOrderSet" Role="FromRole_SalesOrder"/>
+          <End EntitySet="SalesOrderItemSet" Role="ToRole_Items"/>
+        </AssociationSet>
+        <AssociationSet Name="assoc_SalesOrder_Customer_AssocSet" Association="ZRT_SALES_SRV.assoc_SalesOrder_Customer" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1">
+          <End EntitySet="SalesOrderSet" Role="FromRole_SalesOrder_C"/>
+          <End EntitySet="CustomerSet" Role="ToRole_Customer"/>
+        </AssociationSet>
+        <FunctionImport Name="ConfirmSalesOrder" ReturnType="ZRT_SALES_SRV.ConfirmationResult" m:HttpMethod="POST" sap:action-for="ZRT_SALES_SRV.SalesOrder">
+          <Parameter Name="SalesOrderID" Type="Edm.String" Mode="In" MaxLength="10"/>
+        </FunctionImport>
+        <FunctionImport Name="GetOpenOrderCount" ReturnType="Edm.Int32" m:HttpMethod="GET">
+          <Parameter Name="CustomerID" Type="Edm.String" Mode="In" MaxLength="10"/>
+        </FunctionImport>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

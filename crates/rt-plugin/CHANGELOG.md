@@ -3,6 +3,17 @@
 Every change to the plugin API (`API.md`, `src/api.rs`) is listed here, newest first.
 Additive changes keep `API_VERSION`; breaking changes bump it.
 
+## API version 1, additions (wave 6)
+
+Additive; `API_VERSION` stays 1, plugins built for wave 5 run unchanged:
+- Manifest: `contributes.welcome` (first-start choice of bundled plugins).
+- Tabs: `place: "collection"` (panel of the open collection, `request_path` `""`).
+- `render-tab` and `action` get `context` (environment, non-secret variables).
+- `ViewReply`: `create_requests` and `add_environments` (unsaved additions to the
+  collection; secret variables without values).
+- `http` host call: `session: true` uses the cookie jar of the send.
+- Rust SDK: `Tab::context`, `Action::context`, `host::http_in_session`.
+
 ## API version 1, clarifications (wave 5)
 
 Documentation only, no ABI change:

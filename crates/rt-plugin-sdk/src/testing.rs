@@ -179,6 +179,7 @@ impl MockHost {
             HostCall::Http {
                 request,
                 credentials,
+                session: _,
             } => {
                 let allowed = {
                     let state = self.0.borrow();

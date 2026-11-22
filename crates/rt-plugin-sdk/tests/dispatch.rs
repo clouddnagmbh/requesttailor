@@ -49,6 +49,8 @@ impl Plugin for Everything {
 
     fn render_tab(&self, tab: Tab) -> Result<ViewReply> {
         Ok(ViewReply {
+            add_environments: Vec::new(),
+            create_requests: Vec::new(),
             view: View {
                 blocks: vec![Block::Heading {
                     text: format!("{} for {}", tab.tab, tab.spec.name),
@@ -63,6 +65,8 @@ impl Plugin for Everything {
         let mut spec = action.spec.clone();
         spec.url = action.input("url").unwrap_or_default().to_owned();
         Ok(ViewReply {
+            add_environments: Vec::new(),
+            create_requests: Vec::new(),
             view: View::default(),
             state: action.state,
             update_request: Some(spec),
@@ -221,6 +225,7 @@ fn tabs_and_actions_carry_state_and_request_updates() {
     let reply: ViewReply = testing::call(
         &Everything,
         &Call::RenderTab {
+            context: None,
             tab: "info".into(),
             target: target(),
             spec: spec(),
@@ -240,6 +245,7 @@ fn tabs_and_actions_carry_state_and_request_updates() {
     let reply: ViewReply = testing::call(
         &Everything,
         &Call::Action {
+            context: None,
             tab: "info".into(),
             action: "set-url".into(),
             target: target(),

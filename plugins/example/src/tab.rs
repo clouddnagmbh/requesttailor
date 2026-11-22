@@ -105,6 +105,8 @@ fn view(spec: &RequestSpec, response: Option<&PluginResponse>, stats: bool) -> R
 
 fn reply(blocks: Vec<Block>, stats: bool) -> ViewReply {
     ViewReply {
+        add_environments: Vec::new(),
+        create_requests: Vec::new(),
         view: View { blocks },
         state: Some(json!({ "stats": stats })),
         update_request: None,

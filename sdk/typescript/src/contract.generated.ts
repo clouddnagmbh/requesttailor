@@ -36,7 +36,8 @@ export const manifest: Manifest = {
         "place": "request",
         "title": "Builder"
       }
-    ]
+    ],
+    "welcome": null
   },
   "description": "Everything",
   "homepage": "https://example.com",
@@ -128,6 +129,7 @@ export const calls: Call[] = [
     }
   },
   {
+    "context": null,
     "hook": "render-tab",
     "response": {
       "body": {
@@ -176,6 +178,7 @@ export const calls: Call[] = [
     }
   },
   {
+    "context": null,
     "hook": "render-tab",
     "response": null,
     "spec": {
@@ -208,6 +211,7 @@ export const calls: Call[] = [
   },
   {
     "action": "apply",
+    "context": null,
     "hook": "action",
     "input": [
       [
@@ -317,6 +321,8 @@ export const notesReply: NotesReply = {
 };
 
 export const viewReply: ViewReply = {
+  "add_environments": [],
+  "create_requests": [],
   "state": {
     "stats": false
   },
@@ -497,7 +503,8 @@ export const hostCalls: HostCall[] = [
       ],
       "method": "POST",
       "url": "https://api.example.com/users?key=***"
-    }
+    },
+    "session": false
   },
   {
     "key": "k",

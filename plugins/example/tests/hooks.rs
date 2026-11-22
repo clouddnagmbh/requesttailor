@@ -129,6 +129,7 @@ fn tab_call(action: Option<&str>, state: Option<serde_json::Value>, with_respons
     });
     match action {
         None => Call::RenderTab {
+            context: None,
             tab: "summary".into(),
             target,
             spec,
@@ -136,6 +137,7 @@ fn tab_call(action: Option<&str>, state: Option<serde_json::Value>, with_respons
             state,
         },
         Some(action) => Call::Action {
+            context: None,
             tab: "summary".into(),
             action: action.into(),
             target,

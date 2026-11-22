@@ -1,0 +1,21 @@
+{
+  "Genres": [
+    { "ID": 10, "name": "Fiction" },
+    { "ID": 11, "name": "Drama" },
+    { "ID": 13, "name": "Poetry" },
+    { "ID": 16, "name": "Mystery" }
+  ],
+  "Authors": [
+    { "ID": 101, "name": "Ada Pennington", "dateOfBirth": "1871-04-02", "placeOfBirth": "Bristol" },
+    { "ID": 107, "name": "Jonas Hartwig", "dateOfBirth": "1902-11-19", "placeOfBirth": "Graz" },
+    { "ID": 150, "name": "Mira Okonkwo", "dateOfBirth": "1958-06-30", "placeOfBirth": "Lagos" },
+    { "ID": 170, "name": "Elif Sandor", "dateOfBirth": "1976-01-08", "placeOfBirth": "Izmir" }
+  ],
+  "Books": [
+    { "ID": 201, "title": "The Lighthouse Ledger", "descr": "A harbour clerk keeps a second set of books.", "author_ID": 101, "genre_ID": 16, "stock": 12, "price": 11.11, "currency_code": "GBP", "modifiedAt": "2026-01-15T09:30:00.000Z" },
+    { "ID": 207, "title": "Winter in the Valley", "descr": "Three families, one long winter.", "author_ID": 107, "genre_ID": 10, "stock": 11, "price": 12.34, "currency_code": "EUR", "modifiedAt": "2026-01-15T09:30:00.000Z" },
+    { "ID": 251, "title": "Salt and Iron", "descr": "Poems from the coast.", "author_ID": 150, "genre_ID": 13, "stock": 333, "price": 13.13, "currency_code": "USD", "modifiedAt": "2026-01-15T09:30:00.000Z" },
+    { "ID": 252, "title": "The Quiet Stage", "descr": "A play in four acts.", "author_ID": 150, "genre_ID": 11, "stock": 555, "price": 14.0, "currency_code": "USD", "modifiedAt": "2026-01-15T09:30:00.000Z" },
+    { "ID": 271, "title": "Paper Cranes", "descr": "A detective who folds origami.", "author_ID": 170, "genre_ID": 16, "stock": 22, "price": 15.0, "currency_code": "EUR", "modifiedAt": "2026-01-15T09:30:00.000Z" }
+  ]
+}

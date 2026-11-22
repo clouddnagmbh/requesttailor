@@ -84,7 +84,10 @@ pub async fn plugin_render_tab(
     tab: String,
     target: TabTarget,
     state: Option<serde_json::Value>,
+    environment: Option<String>,
 ) -> Result<ViewReply, CommandError> {
+    // `environment` (wave 6, strand F): not passed to the plugin's context yet.
+    let _ = environment;
     Ok(render_tab(&core, plugin, tab, None, target, state).await?)
 }
 
@@ -98,8 +101,34 @@ pub async fn plugin_action(
     target: TabTarget,
     state: Option<serde_json::Value>,
     input: Vec<(String, String)>,
+    environment: Option<String>,
 ) -> Result<ViewReply, CommandError> {
+    // `environment` (wave 6, strand F): not passed to the plugin's context yet.
+    let _ = environment;
     Ok(render_tab(&core, plugin, tab, Some((action, input)), target, state).await?)
+}
+
+/// The first-start question (wave 6, strand F): bundled plugins with a `welcome` choice.
+/// Interface commit: answered already, so the UI shows no dialog.
+#[tauri::command]
+pub async fn plugin_welcome(
+    core: State<'_, AppCore>,
+) -> Result<rt_app::plugins::WelcomeState, CommandError> {
+    let _ = core;
+    Ok(rt_app::plugins::WelcomeState {
+        done: true,
+        choices: Vec::new(),
+    })
+}
+
+/// Enables the chosen bundled plugins and records that the question was answered.
+#[tauri::command]
+pub async fn plugin_choose_welcome(
+    core: State<'_, AppCore>,
+    plugins: Vec<String>,
+) -> Result<(), CommandError> {
+    let _ = (core, plugins);
+    Ok(())
 }
 
 #[tauri::command]

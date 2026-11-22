@@ -34,6 +34,12 @@ carries its manifest as UTF-8 JSON in the custom section named `rt-plugin`. The 
 
 - `id`: `[a-z0-9][a-z0-9-]*`, at most 64 characters, unique per installation.
 - `api`: the API version the plugin was built for. The host runs `1 <= api <= API_VERSION`.
+- `contributes.welcome` (optional, wave 6): `{ "label", "description" }`. Only plugins that
+  ship with the app (bundled) use it: at first start the app asks which of them to enable,
+  and bundled plugins without the user's choice stay disabled. Installed plugins ignore it.
+- Tab `place`: `request`, `response` or `collection` (wave 6). A collection tab is a panel of
+  the open collection, not of a request: `target.request_path` is `""` and `spec` is an empty
+  request.
 
 ## Extension points
 
@@ -41,7 +47,7 @@ carries its manifest as UTF-8 JSON in the custom section named `rt-plugin`. The 
 | --- | --- | --- | --- |
 | `prepare` | before every send, after auth, before signing | masked request, context | `RequestPatch`, notes |
 | `response` | after every response | masked request, response, context | notes |
-| `render-tab` / `action` | when the user opens a plugin tab or clicks in it | request spec, response, tab state | `View`, new state, optional request update |
+| `render-tab` / `action` | when the user opens a plugin tab or clicks in it | request spec, response, tab state, context | `View`, new state, optional request update, new requests, new environments |
 | `detect` / `import` | import dialog | files | match yes/no; OpenCollection files plus a loss report |
 
 The CLI runs `prepare` and `response` exactly like the apps. `rt send` shows the notes. Tabs
@@ -115,6 +121,12 @@ signature. The plugin never sees those values. This only works in the `prepare` 
 `response` hooks, and only for URLs with the same origin (scheme, host, port) as the
 request. Otherwise the call is refused with an `error` reply and nothing is sent.
 
+`http` with `session: true` (wave 6; implies `credentials: true`, same rules) also runs in
+the session of the send: cookies of the collection's cookie jar for the selected
+environment go along, and `Set-Cookie` of the reply is stored there. That way a token the
+plugin fetches (for example a CSRF token bound to a session cookie) is valid for the request
+itself. Hosts without a cookie jar treat it like `credentials: true`.
+
 `http` does not follow redirects; the plugin gets the 3xx response and decides itself. It
 times out after 30 seconds. Request and response bodies are cut at 8 MiB, and the response
 the plugin gets is masked like any other.
@@ -166,6 +178,19 @@ never runs in the UI. The blocks are:
 `state` is opaque to the host. It is passed back with the next call for the same tab, so
 plugins can stay stateless. `update_request` replaces the request in the editor as an unsaved
 change, for example after a query builder action.
+
+Since wave 6 a reply may also add to the collection; the app shows what will be added and
+the user saves it like any other change:
+- `create_requests`: `{ "folder", "name", "spec" }`, new request files (`folder` relative to
+  the collection root, `""` for the root; folders are created). Existing names get a suffix.
+- `add_environments`: `{ "name", "variables": [{ "name", "value", "secret" }] }`. A `secret`
+  variable is created without a value (the user sets it, it goes to the key store); a plugin
+  can never write secret values. An existing environment of that name keeps its variables
+  and gets only the missing ones.
+
+`render-tab` and `action` carry a `context` (wave 6): the selected environment and, with the
+`variables` permission, the non-secret variables in scope, as for `prepare`. Older hosts send
+none.
 
 ## JSON
 

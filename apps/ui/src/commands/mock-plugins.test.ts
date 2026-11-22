@@ -10,6 +10,7 @@ const demo = mockManifest({
   id: "demo",
   name: "Demo",
   contributes: {
+    welcome: null,
     prepare: true,
     response: true,
     tabs: [{ id: "req", title: "Demo", place: "request", content_types: [] }],
