@@ -81,6 +81,12 @@ pub trait AuthPrompt {
     fn device_code<'a>(&'a self, prompt: &'a DeviceCodePrompt) -> LocalBoxFuture<'a, ()>;
 
     fn device_code_done<'a>(&'a self) -> LocalBoxFuture<'a, ()>;
+
+    /// `true` once the user cancelled the flow (the shell's cancel button). Checked between
+    /// the polls of the device code flow, which has no other way to learn it. Default: never.
+    fn cancelled(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
