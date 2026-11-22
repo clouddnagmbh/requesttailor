@@ -34,7 +34,7 @@ getrandom = "0.2"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
-serde = "1"
+serde = { version = "1", features = ["derive"] }
 url = "2"
 web-time = "1"
 

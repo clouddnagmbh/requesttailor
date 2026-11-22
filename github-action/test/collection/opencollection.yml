@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+# Smoke collection for the GitHub Action and the Docker image in CI: two requests against
+# rt-testserver (environment `ci`, or `--var baseUrl=...`).
+opencollection: "1.0.0"
+info:
+  name: rt-action-smoke

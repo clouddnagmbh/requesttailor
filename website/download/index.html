@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="Download RequestTailor for macOS, Windows and Linux, and the rt command line, with checksums and signatures to verify them.">
+<meta name="description" content="Download RequestTailor for macOS and the rt command line for macOS, Linux and Docker, with checksums and signatures to verify them.">
 <title>Download · RequestTailor</title>
 <link rel="stylesheet" href="../assets/site.css">
 </head>
@@ -30,7 +30,7 @@
 <main id="main">
 <div class="wrap">
 <h1>Download</h1>
-<p class="lead">Installers and the <code>rt</code> command line are published on the
+<p class="lead">The macOS app and the <code>rt</code> command line are published on the
 project's GitHub releases page, together with a checksum file and its signature.</p>
 
 <div class="note">
@@ -44,24 +44,31 @@ empty releases page. You can build everything from source in the meantime; see t
 <thead><tr><th scope="col">System</th><th scope="col">File</th><th scope="col">Signed</th></tr></thead>
 <tbody>
 <tr><td>macOS, Apple silicon and Intel</td><td><code>RequestTailor_&lt;version&gt;_macos_universal.dmg</code></td><td>Developer ID, notarized by Apple</td></tr>
-<tr><td>Windows 10 and 11, x64</td><td><code>RequestTailor_&lt;version&gt;_windows_x64-setup.exe</code></td><td>Authenticode</td></tr>
-<tr><td>Linux x64, most distributions</td><td><code>RequestTailor_&lt;version&gt;_linux_amd64.AppImage</code></td><td>via the signed checksum file</td></tr>
-<tr><td>Debian, Ubuntu x64</td><td><code>RequestTailor_&lt;version&gt;_linux_amd64.deb</code></td><td>via the signed checksum file</td></tr>
 </tbody>
 </table>
 <p class="actions"><a class="button primary" href="https://github.com/clouddnagmbh/requesttailor/releases/latest">Go to the latest release</a></p>
+<p><strong>Windows and Linux:</strong> use the <a href="#web">web app</a> or the
+<a href="#cli">command line</a>. There are no desktop installers for Windows and Linux.</p>
 
 <h2 id="cli">Command line: rt</h2>
 <table>
 <thead><tr><th scope="col">System</th><th scope="col">File</th></tr></thead>
 <tbody>
 <tr><td>macOS (universal)</td><td><code>rt_&lt;version&gt;_macos_universal.zip</code>, signed and notarized</td></tr>
-<tr><td>Windows x64</td><td><code>rt_&lt;version&gt;_windows_x64.zip</code>, signed</td></tr>
-<tr><td>Linux x64</td><td><code>rt_&lt;version&gt;_linux_x64.tar.gz</code></td></tr>
+<tr><td>Linux x86_64, any distribution</td><td><code>rt_&lt;version&gt;_linux_x86_64.tar.gz</code> (static binary)</td></tr>
+<tr><td>Linux aarch64, any distribution</td><td><code>rt_&lt;version&gt;_linux_aarch64.tar.gz</code> (static binary)</td></tr>
 </tbody>
 </table>
 <p>Unpack it and put <code>rt</code> on your <code>PATH</code>. <code>rt --version</code> prints
-the version. The <a href="../docs/cli/">CLI guide</a> has the commands.</p>
+the version. The <a href="../docs/cli/">CLI guide</a> has the commands; <code>rt run</code>
+runs a collection in a pipeline and writes JUnit and JSON reports.</p>
+
+<h3 id="docker">Docker image and GitHub Action</h3>
+<p>For pipelines, <code>rt</code> also comes as a container image (Linux, amd64 and arm64):</p>
+<pre><code>docker run --rm -v "$PWD:/work" ghcr.io/clouddnagmbh/rt run . --reporter junit=junit.xml</code></pre>
+<p>In GitHub Actions, the action <code>clouddnagmbh/requesttailor/github-action</code> downloads
+<code>rt</code> from the release, checks it against <code>SHA256SUMS</code> and runs the
+collection. Its README in the repository has examples.</p>
 
 <h2 id="web">Web app</h2>
 <p>The web app is part of the repository and runs from it (<code>npm run dev -w apps/web</code>).
@@ -78,8 +85,6 @@ shasum -a 256 -c SHA256SUMS --ignore-missing
 
 # Linux
 sha256sum -c SHA256SUMS --ignore-missing</code></pre>
-<pre><code># Windows (PowerShell): compare the output with the line in SHA256SUMS
-Get-FileHash .\RequestTailor_&lt;version&gt;_windows_x64-setup.exe -Algorithm SHA256</code></pre>
 
 <h3 id="signature">2. Check the signature of the checksums</h3>
 <pre><code>gpg --import release-key.asc
@@ -93,8 +98,6 @@ there too.</p>
 <h3 id="os-signatures">3. The operating system's own check</h3>
 <pre><code># macOS: should say "accepted" and "source=Notarized Developer ID"
 spctl --assess --type execute -vv /Applications/RequestTailor.app</code></pre>
-<pre><code># Windows (PowerShell): Status should be "Valid"
-Get-AuthenticodeSignature .\RequestTailor_&lt;version&gt;_windows_x64-setup.exe</code></pre>
 
 <h2 id="updates">Updates</h2>
 <p>The app does not check for updates by itself, because it makes no connection you did not

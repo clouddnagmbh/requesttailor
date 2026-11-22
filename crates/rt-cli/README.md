@@ -1,10 +1,11 @@
 # rt
 
-The RequestTailor command line: `rt send`, `rt import`, `rt scan` and the companion `rt agent`
-(below).
+The RequestTailor command line: `rt send`, `rt run`, `rt import`, `rt scan` and the companion
+`rt agent` (below).
 
 ```sh
 rt send <request-file> [--env NAME] [--var NAME=VALUE]... [--body-limit BYTES] [--pretty]
+rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAME[=FILE]]...
 rt import <file>... --out DIR [--format FORMAT] [--json]
 rt scan [PATH]... [--json]
 rt agent [--port PORT] [--allow-origin ORIGIN]... [--allow-secrets]
@@ -22,6 +23,11 @@ that contains `opencollection.yml`.
 | `--var NAME=VALUE` | Runtime variable, highest precedence (repeatable). Use it for secrets and to point a collection at another host, e.g. `--var host=http://localhost:3000` |
 | `--body-limit BYTES` | Keep at most this many response body bytes in the report (default 10 MiB); `size` still counts all bytes |
 | `--pretty` | Indent the JSON |
+| `--plugin FILE.wasm` | Also run this plugin (repeatable) |
+| `--no-plugins` | Do not run the installed plugins |
+| `--cookie-jar FILE` | Send cookies from `FILE` and store new ones in it |
+| `--no-prompt` | Fail instead of asking for an OAuth 2.0 login (pipelines) |
+| `--no-scripts` | Do not run the collection's scripts; declarative assertions still run |
 
 ## Output
 
@@ -32,7 +38,9 @@ surfaces. Fields: `version` (report format, currently 1), `request_path`, `envir
 `version`, `headers`, final `url`, `redirects`, `body` as `{"encoding": "utf8" | "base64",
 "data": ...}`, `size`, `truncated`, `timing` and `total` in milliseconds), `variables`
 (which variables were used and where they came from), `unresolved` (placeholders without a
-value) and `error` (`{"kind": "not-found" | "prepare" | "transport", "message": ...}`).
+value) and `error` (`{"kind": "not-found" | "prepare" | "auth" | "plugin" | "script" |
+"transport", "message": ...}`). Since wave 7, also `tests`, `assertions`, `logs`,
+`var_changes` and `flow` from scripts and assertions (omitted when empty).
 
 The report is printed whenever the collection could be read, also on errors. Usage errors and
 unreadable collections print a message to stderr and nothing to stdout. A human-readable
@@ -45,7 +53,8 @@ output mode is not part of wave 2; pipe through `jq` meanwhile.
 | 0 | A response was received, whatever its HTTP status (a 404 or 500 is still 0) |
 | 1 | Transport error, no response: connection, DNS, TLS, timeout, redirect limit |
 | 2 | Usage error, no collection found, invalid files, or request not in the collection |
-| 3 | The request could not be prepared: unknown environment, invalid URL after variable substitution, unsupported auth, unreadable body file |
+| 3 | The request could not be prepared: unknown environment, invalid URL after variable substitution, unsupported auth, unreadable body file; authentication failed; a plugin or a pre-request script stopped it |
+| 4 | A response was received but a test or assertion failed |
 
 ## External secrets
 
@@ -82,6 +91,132 @@ itself.
 
 Body files (file bodies, multipart file parts) are read relative to the collection root.
 Absolute paths, `..` and symlinks that lead outside the collection folder are refused.
+
+## Collection runs: `rt run`
+
+`rt run` sends every request of a collection, or of one folder of it, in order, and reports
+tests and assertions: the command for pipelines. It uses the same core, scripts, plugins and
+auth as the desktop and web apps, so what is green in the app is green in CI.
+
+```sh
+rt run                                   # the collection (or folder) you are in
+rt run api/users -e Staging --var token=$API_TOKEN
+rt run . --data users.csv --reporter junit=reports/junit.xml --reporter json=reports/run.json
+```
+
+`FOLDER` is the collection root or a folder inside it (default: the current folder); a
+folder runs only its requests. Order: folders and requests by `seq`, then name, depth first.
+Variables that scripts set carry over to the following requests of the run (never into
+files).
+
+| Option | Meaning |
+| --- | --- |
+| `-e`, `--env NAME`, `--var NAME=VALUE` | As for `rt send`; `--var` applies to every request |
+| `--data FILE` | CSV (header row, then one row per iteration) or JSON (an array of objects); each row's values are variables of its iteration |
+| `--iterations N` | Run the requests `N` times; with `--data`, take `N` rows, starting over at the end |
+| `--delay MS` | Wait `MS` milliseconds between requests |
+| `--bail` | Stop at the first failed request, test or assertion |
+| `--reporter NAME[=FILE]` | `text`, `json` or `junit`, repeatable. Without `FILE` the report goes to stdout (one reporter at most); missing folders of `FILE` are created |
+| `--out FILE` | The file of the reporter just before it: `--reporter junit --out junit.xml` is `--reporter junit=junit.xml` |
+| `--body-limit`, `--plugin`, `--no-plugins`, `--cookie-jar`, `--no-prompt`, `--no-scripts` | As for `rt send` |
+
+### Reporters
+
+**text** is always on: one line per request on stderr while the run goes, failed tests and
+assertions, warnings and script output (`console.log`) indented below, a summary at the end.
+`--reporter text=FILE` also writes it to a file.
+
+```text
+rt run: Shop API, 3 requests
+✓ GET List products  200  41 ms
+✗ POST Create order  201  88 ms
+    ✗ order has an id: expected undefined to be a string
+    > created order with total 12.50
+- DELETE Cleanup  skipped
+
+Requests: 3 (2 passed, 1 failed, 1 skipped)
+Tests: 4 passed, 1 failed
+Assertions: 2 passed, 0 failed
+Duration: 152 ms
+```
+
+**json** prints `{"version": 1, "summary": {...}, "steps": [...]}`. `summary` counts
+requests (`passed`, `failed`, `skipped`), `tests_passed`/`tests_failed`,
+`assertions_passed`/`assertions_failed`, `duration_ms` and `stopped`. Each step has
+`iteration` (0-based), `request_path`, `request_name`, `passed`, `skipped` and `report`, the
+send report exactly as `rt send` prints it (secret values as `***`; the response body as
+received, at most `--body-limit` bytes).
+
+**junit** writes JUnit XML as GitHub, GitLab and Jenkins read it: a `<testsuite>` per request
+(named by its path, plus ` [iteration n]` when the run has several), a `<testcase>` per test
+and per assertion (`res.status eq 200`), a failed one with `<failure message="...">`. A
+request that failed (connection, preparation, auth, a plugin or a pre-request script) is a
+testcase `request` with an `<error>`; a skipped request is a skipped testcase `request`; a
+request without tests and assertions is a passing testcase `request`, so every request is
+listed. Script output goes to `<system-out>`. Times are in seconds.
+
+### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Every request got a response and every test and assertion passed (an HTTP 500 without a test is still a pass) |
+| 1 | No network stack could be set up |
+| 2 | Usage error: bad arguments, no collection, not a folder of it, unknown environment, unreadable data file, a folder without requests, a report that cannot be written |
+| 3 | External secrets or plugins could not be set up |
+| 4 | A request failed, or a test or assertion failed |
+
+### In CI
+
+Pass secrets as environment variables of the job and hand them to `--var`; never write them
+into the collection. With `--no-prompt`, an OAuth 2.0 flow that needs a person fails instead
+of waiting for a browser.
+
+GitHub Actions, with the action in [`github-action/`](../../github-action/README.md):
+
+```yaml
+- uses: clouddnagmbh/requesttailor/github-action@v1
+  with:
+    collection: api
+    environment: Staging
+    junit: reports/junit.xml
+  env:
+    RT_VAR_token: ${{ secrets.API_TOKEN }}
+```
+
+GitLab CI, with the [Docker image](#docker):
+
+```yaml
+api-tests:
+  image:
+    name: ghcr.io/clouddnagmbh/rt:latest
+    entrypoint: [""]
+  script:
+    - rt run api -e Staging --var "token=$API_TOKEN" --no-prompt --reporter junit=junit.xml
+  artifacts:
+    when: always
+    reports:
+      junit: junit.xml
+```
+
+Jenkins (or any shell): download `rt` for the agent's OS from the release, check it against
+`SHA256SUMS`, then `rt run api --reporter junit=junit.xml` and publish `junit.xml` with the
+JUnit plugin.
+
+### Docker
+
+`ghcr.io/clouddnagmbh/rt` is `rt` on a minimal base image (distroless, CA certificates,
+no shell), running as a non-root user in `/work`, with `rt` as the entrypoint:
+
+```sh
+docker run --rm -v "$PWD:/work" ghcr.io/clouddnagmbh/rt run . --reporter junit=junit.xml
+```
+
+The container writes files as its own user (uid 65532); give that user write access to the
+mounted folder for reports, or add `--user "$(id -u):$(id -g)"`. To reach a server on the
+host, use `--network host` (Linux) or `host.docker.internal` as the host name (Docker
+Desktop). Installed plugins are not in the image; pass them with `--plugin`. Build it
+yourself from a checkout with `docker build -f docker/Dockerfile -t rt .`
+([`docker/Dockerfile`](../../docker/Dockerfile)).
 
 ## Import: `rt import`
 

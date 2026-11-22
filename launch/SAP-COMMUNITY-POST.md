@@ -30,7 +30,7 @@ RequestTailor is an API client under the Apache License 2.0. Three things set it
 - **No account.** Download it, open a folder, send. It works offline and does not talk to any
   server of ours. Passwords stay in your operating system's keychain; the files hold only the
   variable name.
-- **The same core everywhere.** The desktop app (macOS, Windows, Linux), the browser version
+- **The same core everywhere.** The desktop app (macOS), the browser version (any system)
   and the command line `rt` share one Rust core, so a request that works on your machine works
   the same way in a CI pipeline.
 
