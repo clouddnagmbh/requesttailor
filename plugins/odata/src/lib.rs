@@ -147,11 +147,6 @@ fn merge(first: RequestPatch, second: RequestPatch) -> RequestPatch {
     }
 }
 
-/// Placeholder of the interface commit: the strand replaces it.
-pub(crate) fn todo(what: &str) -> Error {
-    Error::new(format!("odata: {what} is not implemented yet"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

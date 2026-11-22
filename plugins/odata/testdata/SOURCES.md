@@ -34,3 +34,9 @@ Service roots served by the OData test server (`plugins/odata/testserver`):
 | `/sap/opu/odata4/sap/zrt_salesorder/srvd_a2x/sap/zrt_salesorder/0001/` | `s4/zrt_salesorder_0001.edmx` |
 | `/odata/v4/admin/` | `cap-bookshop/admin-v4.edmx` |
 | `/odata/v2/admin/` | `cap-bookshop/admin-v2.edmx` |
+
+The test server keeps the data of `data.json` in memory, per start, and answers in the style
+of SAP Gateway (V2), RAP (V4) and CAP: CSRF tokens bound to a session cookie, weak ETags with
+`If-Match`, `$batch` (multipart; JSON batch on V4), drafts. The S/4 services need Basic auth
+`RT_USER` / `RT_PASS` and accept only `sap-client=100`. The full list of behaviours is the doc
+comment of `testserver/src/lib.rs`.
