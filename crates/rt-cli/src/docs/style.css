@@ -1,0 +1,256 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Copyright 2026 The RequestTailor Authors */
+
+/* Stylesheet of the pages `rt docs` writes. System fonts only; light and dark follow the
+   system. Nothing is loaded from elsewhere. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --bg-soft: #f5f6f8;
+  --fg: #1b1f24;
+  --fg-soft: #4d5560;
+  --border: #d9dde3;
+  --accent: #1f5fbf;
+  --code-bg: #f0f2f5;
+  --get: #1a7f37;
+  --post: #9a6700;
+  --put: #1f5fbf;
+  --patch: #8250df;
+  --delete: #cf222e;
+  --focus: #f0a000;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171b;
+    --bg-soft: #1c2026;
+    --fg: #e6e9ed;
+    --fg-soft: #a8b0ba;
+    --border: #323841;
+    --accent: #7fb0ff;
+    --code-bg: #1f242b;
+    --get: #4ac26b;
+    --post: #d4a72c;
+    --put: #7fb0ff;
+    --patch: #c297ff;
+    --delete: #ff7b72;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--accent);
+}
+
+a:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.skip {
+  position: absolute;
+  left: -999px;
+  top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.skip:focus {
+  left: 0.5rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
+  gap: 2rem;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+@media (max-width: 50rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: sticky;
+  top: 1rem;
+}
+
+.toc li {
+  margin: 0.15rem 0;
+}
+
+.toc a {
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.toc a:hover {
+  text-decoration: underline;
+}
+
+.toc .toc-folder {
+  margin-top: 0.8rem;
+  font-weight: 600;
+}
+
+h1 {
+  margin-top: 0;
+}
+
+h2 {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3rem;
+  margin-top: 2.5rem;
+}
+
+h4 {
+  margin: 1.2rem 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.meta,
+.file {
+  color: var(--fg-soft);
+  font-size: 0.9rem;
+}
+
+.request {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 1.25rem 1rem;
+  margin: 1.25rem 0;
+  background: var(--bg);
+}
+
+.method {
+  display: inline-block;
+  min-width: 3.5rem;
+  font-family: var(--mono);
+  font-size: 0.85em;
+  font-weight: 700;
+  color: var(--fg-soft);
+}
+
+.method.get { color: var(--get); }
+.method.post { color: var(--post); }
+.method.put { color: var(--put); }
+.method.patch { color: var(--patch); }
+.method.delete { color: var(--delete); }
+
+code,
+pre {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+}
+
+code {
+  background: var(--code-bg);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+pre {
+  background: var(--code-bg);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+.url code {
+  font-size: 0.95rem;
+}
+
+.docs-text {
+  white-space: pre-wrap;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.92rem;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  background: var(--bg-soft);
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--fg-soft);
+}
+
+.example {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  margin: 0.5rem 0;
+  background: var(--bg-soft);
+}
+
+.example summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.status {
+  font-family: var(--mono);
+  margin-left: 0.5rem;
+}
+
+.status.s2 { color: var(--get); }
+.status.s3 { color: var(--put); }
+.status.s4 { color: var(--post); }
+.status.s5 { color: var(--delete); }
+
+.footer {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 1rem;
+  color: var(--fg-soft);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+}
