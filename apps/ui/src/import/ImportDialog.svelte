@@ -2,7 +2,9 @@
 <!-- Copyright 2026 The RequestTailor Authors -->
 <!-- Import dialog: drop or pick files (or paste cURL / .http text), see the loss report, then
      write the new collection into a folder (`backend.imports`) and open it. Nothing is
-     written before "Choose folder and import". Owner: wave 4, strand B. -->
+     written before "Choose folder and import". Owner: wave 4, strand B.
+     Wave 13: with a collection open, the plan can also go into it as a new folder
+     (`imports.writeInto`, unsaved until Save), with the same loss report. -->
 <script lang="ts">
   import { untrack } from "svelte";
 
@@ -32,6 +34,8 @@
   let sources = $state<string[]>([]);
   let copied = $state(false);
   let fileInput = $state<HTMLInputElement | null>(null);
+  /** Wave 13: where the plan goes. */
+  let target = $state<"new" | "folder">("new");
 
   const groupCounts = (g: LossGroup) =>
     [String(g.losses.length), g.dropped && `${g.dropped} dropped`, g.approximated && `${g.approximated} approximated`]
@@ -49,6 +53,7 @@
     plan = null;
     sources = [];
     copied = false;
+    target = "new";
   }
 
   function opened(node: HTMLDialogElement) {
@@ -110,8 +115,26 @@
     }
   }
 
+  async function writeInto() {
+    if (!plan || busy) return;
+    busy = "writing";
+    error = null;
+    try {
+      await app.settled();
+      await app.backend.imports.writeInto(plan.id, null);
+      plan = null;
+      await app.reload();
+      onclose();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      busy = null;
+    }
+  }
+
   async function write() {
     if (!plan || busy) return;
+    if (target === "folder" && app.collection) return writeInto();
     busy = "writing";
     error = null;
     try {
@@ -257,9 +280,21 @@
       </div>
       <footer>
         <button data-testid="import-back" disabled={busy !== null} onclick={discardPlan}>Back</button>
-        <span class="muted">Creates the folder “{plan.folder_name}” in the folder you choose.</span>
+        {#if app.collection}
+          <select data-testid="import-target" aria-label="Import into" bind:value={target}>
+            <option value="new">As a new collection</option>
+            <option value="folder">Into “{app.collection.name}” as a folder</option>
+          </select>
+        {/if}
+        <span class="muted" data-testid="import-target-hint">
+          {#if target === "folder" && app.collection}
+            Adds the folder “{plan.folder_name}” to the open collection; nothing is written before Save.
+          {:else}
+            Creates the folder “{plan.folder_name}” in the folder you choose.
+          {/if}
+        </span>
         <button class="primary" data-testid="import-write" disabled={busy !== null} onclick={write}>
-          {busy === "writing" ? "Importing…" : "Choose folder and import"}
+          {busy === "writing" ? "Importing…" : target === "folder" && app.collection ? "Add to collection" : "Choose folder and import"}
         </button>
       </footer>
     {/if}

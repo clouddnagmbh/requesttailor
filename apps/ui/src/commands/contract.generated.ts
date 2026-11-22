@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionDiff, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, FieldBlame, FileChange, Flow, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitFileCommit, GitIdentity, GitPullResult, GitResolution, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionDiff, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitFileCommit, GitIdentity, GitPullResult, GitResolution, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -1457,6 +1457,54 @@ export const importPlan: ImportPlan = {
   "folder_name": "My API",
   "format": "postman",
   "id": 1,
+  "report": {
+    "environments": 0,
+    "folders": 1,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "pre-request script (3 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Users / Get user"
+      }
+    ],
+    "requests": 2
+  }
+};
+
+export const folderImport: FolderImport = {
+  "environments_added": [
+    "Staging"
+  ],
+  "environments_extended": [
+    "Prod"
+  ],
+  "files": [
+    "shop/recording.odtrace"
+  ],
+  "folder": "shop",
+  "folders": 1,
+  "losses": [
+    {
+      "detail": "pre-request script (3 lines) not imported",
+      "effect": "dropped",
+      "kind": "script",
+      "location": "Users / Get user"
+    }
+  ],
+  "name": "Shop",
+  "requests": 3
+};
+
+export const externalImport: ExternalImport = {
+  "collection_name": "Trace",
+  "files": [
+    {
+      "path": "opencollection.yml",
+      "text": "opencollection: 1.0.0\n"
+    }
+  ],
   "report": {
     "environments": 0,
     "folders": 1,

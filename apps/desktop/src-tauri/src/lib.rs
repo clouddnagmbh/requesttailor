@@ -142,6 +142,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             import::import_analyze,
             import::import_write,
             import::import_discard,
+            import::import_adopt,
+            import::import_write_into,
             history::history_list,
             history::history_clear,
             search::search,

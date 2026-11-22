@@ -46,6 +46,8 @@
     "allow-import-analyze",
     "allow-import-write",
     "allow-import-discard",
+    "allow-import-adopt",
+    "allow-import-write-into",
     "allow-history-list",
     "allow-history-clear",
     "allow-search",

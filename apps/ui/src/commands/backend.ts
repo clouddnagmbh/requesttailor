@@ -25,6 +25,8 @@ import type {
   AuthPrompt,
   CookieInfo,
   ImportPlan,
+  ExternalImport,
+  FolderImport,
   LineSlice,
   Manifest,
   PluginInfo,
@@ -324,6 +326,14 @@ export interface ImportApi {
   /** `null` if the user cancelled the folder picker (the plan stays available). */
   write(id: number): Promise<CollectionInfo | null>;
   discard(id: number): Promise<void>;
+  /** Wave 13: adds plan `id` to the open collection as a new top-level folder named `name`
+   *  (default: the plan's folder name; ` 2`, ` 3`, ... if taken), unsaved like any edit:
+   *  structure, scripts, environments (only missing variables), other files below the folder.
+   *  The plan is gone afterwards. */
+  writeInto(id: number, name?: string | null): Promise<FolderImport>;
+  /** Wave 13: checks and keeps a collection converted by an extension, so it is written like
+   *  any import (`write`, `writeInto`, `discard`). Rejects with kind `import`. */
+  adopt(imported: ExternalImport): Promise<ImportPlan>;
 }
 
 /** Sends from this device. Recorded by the backend on every `send`; no bodies, no header

@@ -3,7 +3,8 @@
 
 //! Import: convert files (`rt_app::Imports`), then write the new collection into a folder
 //! the user picks and open it. Commands: `import_analyze`, `import_write`, `import_discard`.
-//! Owner: wave 4, strand B.
+//! Owner: wave 4, strand B. Since wave 13 also `import_adopt` (a collection converted by an
+//! extension) and `import_write_into` (into the open collection as a new folder, unsaved).
 //!
 //! `import_analyze` takes its files as one raw IPC body (no JSON number arrays, so a
 //! multi-megabyte export crosses the bridge as bytes): a little-endian `u32` with the length
@@ -164,6 +165,39 @@ pub async fn import_write(
         .unwrap_or_else(|p| p.into_inner())
         .discard(id);
     Ok(Some(info))
+}
+
+/// Checks and keeps a collection converted elsewhere (an extension's importer, wave 13).
+#[tauri::command]
+pub async fn import_adopt(
+    core: State<'_, AppCore>,
+    import: rt_app::import::ExternalImport,
+) -> Result<ImportPlan, CommandError> {
+    let mut imports = core.imports.lock().unwrap_or_else(|p| p.into_inner());
+    Ok(imports.adopt(import)?)
+}
+
+/// Adds plan `id` to the open collection as a new folder (`name`, else the plan's folder
+/// name), unsaved like any edit (wave 13). The plan is gone afterwards.
+#[tauri::command]
+pub async fn import_write_into(
+    core: State<'_, AppCore>,
+    id: u64,
+    name: Option<String>,
+) -> Result<rt_app::import::FolderImport, CommandError> {
+    let (folder_name, files) = {
+        let imports = core.imports.lock().unwrap_or_else(|p| p.into_inner());
+        let (n, f) = imports.get(id)?;
+        (n.to_owned(), f.clone())
+    };
+    let name = name.filter(|n| !n.trim().is_empty()).unwrap_or(folder_name);
+    let result =
+        core.with_workspace(|ws, _| rt_app::import::add_to_workspace(ws, &files, &name))?;
+    core.imports
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .discard(id);
+    Ok(result)
 }
 
 #[tauri::command]

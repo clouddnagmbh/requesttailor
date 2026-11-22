@@ -81,6 +81,8 @@ describe("TauriBackend", () => {
     await b.imports.analyze([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman");
     await b.imports.write(1);
     await b.imports.discard(1);
+    await b.imports.writeInto(2, "Shop");
+    await b.imports.adopt({ collection_name: "T", files: [], report: { format: "plugin", requests: 0, folders: 0, environments: 0, losses: [] } });
     await b.history.list("q", 20);
     await b.history.clear();
     const wasm = { name: "p.wasm", data: new Uint8Array([0, 97, 115, 109]) };
@@ -238,6 +240,11 @@ describe("TauriBackend", () => {
       ["import_analyze", packImport([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman")],
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],
+      ["import_write_into", { id: 2, name: "Shop" }],
+      [
+        "import_adopt",
+        { import: { collection_name: "T", files: [], report: { format: "plugin", requests: 0, folders: 0, environments: 0, losses: [] } } },
+      ],
       ["history_list", { query: "q", limit: 20 }],
       ["history_clear", undefined],
       ["import_analyze_plugin", packPluginImport([wasm], "odata", "edmx")],

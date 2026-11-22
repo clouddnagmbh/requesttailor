@@ -1124,6 +1124,33 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
         ("importPlan", "ImportPlan", j(import_plan())),
+        // Wave 13: import into the open collection, imports converted by an extension.
+        (
+            "folderImport",
+            "FolderImport",
+            j(rt_app::import::FolderImport {
+                folder: "shop".into(),
+                name: "Shop".into(),
+                requests: 3,
+                folders: 1,
+                environments_added: vec!["Staging".into()],
+                environments_extended: vec!["Prod".into()],
+                files: vec!["shop/recording.odtrace".into()],
+                losses: import_plan().report.losses,
+            }),
+        ),
+        (
+            "externalImport",
+            "ExternalImport",
+            j(rt_app::import::ExternalImport {
+                collection_name: "Trace".into(),
+                files: vec![rt_app::import::ImportedFile {
+                    path: "opencollection.yml".into(),
+                    text: "opencollection: 1.0.0\n".into(),
+                }],
+                report: import_plan().report,
+            }),
+        ),
         (
             "importFormats",
             "ImportFormat[]",

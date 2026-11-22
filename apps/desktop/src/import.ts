@@ -45,5 +45,8 @@ export function tauriImports(call: Call): ImportApi {
       call("import_analyze_plugin", packPluginImport(files, plugin, importer) as unknown as Record<string, unknown>),
     write: (id) => call("import_write", { id }),
     discard: (id) => call("import_discard", { id }),
+    // Wave 13: a collection converted by an extension; into the open collection as a folder.
+    adopt: (imported) => call("import_adopt", { import: imported }),
+    writeInto: (id, name) => call("import_write_into", { id, name: name ?? null }),
   };
 }

@@ -14,7 +14,7 @@ use rt_format::import::{ImportFormat, SourceFile};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
-use crate::workspace_js::{app_error, from_js, int, to_js};
+use crate::workspace_js::{WorkspaceJs, app_error, from_js, int, to_js};
 
 #[wasm_bindgen]
 pub struct Importer {
@@ -95,5 +95,36 @@ impl Importer {
     pub fn discard(&mut self, id: f64) -> Result<(), JsValue> {
         self.imports.discard(int(id)?);
         Ok(())
+    }
+}
+
+// ---- wave 13: extension imports, into the open collection ----
+
+#[wasm_bindgen]
+impl Importer {
+    /// `ImportPlan` for an `ExternalImport` (a collection converted by an extension), checked
+    /// like a plugin import, then written with `take` like any other.
+    pub fn adopt(&mut self, import: JsValue) -> Result<JsValue, JsValue> {
+        let import: rt_app::import::ExternalImport = from_js(&import, "import")?;
+        to_js(&self.imports.adopt(import).map_err(app_error)?)
+    }
+}
+
+#[wasm_bindgen(js_class = Workspace)]
+impl WorkspaceJs {
+    /// Adds the files of a plan (`Importer.take`) to the open collection as a new folder
+    /// `name` (`rt_app::import::add_to_workspace`); returns `FolderImport`. Unsaved.
+    #[wasm_bindgen(js_name = addImport)]
+    pub fn add_import(&self, files: JsValue, name: &str) -> Result<JsValue, JsValue> {
+        let files: Vec<FileChange> = from_js(&files, "files")?;
+        let set = rt_format::FileSet {
+            files: files
+                .into_iter()
+                .map(|f| (f.path, f.text.into_bytes()))
+                .collect(),
+        };
+        let result = rt_app::import::add_to_workspace(&mut self.workspace_mut(), &set, name)
+            .map_err(app_error)?;
+        to_js(&result)
     }
 }

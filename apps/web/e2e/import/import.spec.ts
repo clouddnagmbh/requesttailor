@@ -105,3 +105,23 @@ test("an explicit format overrides detection", async ({ page }) => {
   await expect(page.getByTestId("import-detected")).toHaveText("OpenAPI");
   await expect(page.getByTestId("import-group").locator("summary")).toHaveText([/Bodies/, /Documentation/]);
 });
+
+// Wave 13: into the open collection as a folder, unsaved until Save.
+test("import into the open collection as a new folder", async ({ page }) => {
+  await page.goto("/?backend=mock");
+  await page.getByTestId("open-collection").click();
+  await expect(page.getByTestId("collection-name")).not.toHaveText("");
+  const collection = await page.getByTestId("collection-name").textContent();
+  await page.getByTestId("import").click();
+  await drop(page, [{ name: "shop.postman_collection.json", text: POSTMAN }]);
+  await expect(page.getByTestId("import-plan")).toContainText("Loss report: 4");
+  await page.getByTestId("import-target").selectOption("folder");
+  await expect(page.getByTestId("import-target-hint")).toContainText("nothing is written before Save");
+  await expect(page.getByTestId("import-write")).toHaveText("Add to collection");
+  await page.getByTestId("import-write").click();
+  await expect(page.getByTestId("import-dialog")).toBeHidden();
+  // The same collection, with the folder and its requests, unsaved.
+  await expect(page.getByTestId("collection-name")).toHaveText(collection!);
+  await expect(page.getByTestId("tree-folder").filter({ hasText: "shop" })).toBeVisible();
+  await expect(page.getByTestId("save")).toBeEnabled();
+});

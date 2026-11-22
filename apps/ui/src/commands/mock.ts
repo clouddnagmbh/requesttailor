@@ -216,6 +216,16 @@ export class MockBackend implements Backend {
   readonly imports: ImportApi = mockImports(
     () => this.openCollection(),
     () => this.plugins,
+    async (wanted, names) => {
+      const root = await this.tree();
+      const children = root.kind === "folder" ? root.children : [];
+      const taken = new Set(children.flatMap((c) => (c.kind === "folder" ? [c.name.toLowerCase()] : [])));
+      let name = wanted;
+      for (let i = 2; taken.has(name.toLowerCase()); i++) name = `${wanted} ${i}`;
+      const folder = await this.createFolder(name);
+      for (const n of names) await this.createRequest(folder, n);
+      return { folder, name };
+    },
   );
   readonly history = new MockHistory();
   readonly recent = new MockRecent();

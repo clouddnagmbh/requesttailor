@@ -3,8 +3,10 @@
 
 // `ImportApi` of the web app: the core's `Importer` converts; `write` asks for a folder,
 // creates `plan.folder_name` in it, writes the files and opens it. Owner: wave 4, strand B.
+// Wave 13: `writeInto` adds a plan to the open collection as a folder (the core's
+// `add_to_workspace`, unsaved), `adopt` keeps a collection converted by an extension.
 
-import { BackendError, type ImportApi, type ImportPlan } from "@requesttailor/ui";
+import { BackendError, type FileChange, type FolderImport, type ImportApi, type ImportPlan } from "@requesttailor/ui";
 
 import { writeChanges } from "./fs/directory";
 import { pluginsOf } from "./plugins";
@@ -73,6 +75,31 @@ export function webImports(host: WebHost): ImportApi {
     discard: async (id) => {
       folders.delete(id);
       if (importer) (await importer).discard(id);
+    },
+
+    writeInto: async (id, name) => {
+      const folder = folders.get(id);
+      if (folder === undefined) throw new BackendError("import", `import ${id} not found`);
+      const session = host.session();
+      try {
+        const files = (await core()).take(id);
+        folders.delete(id);
+        const ws = session.ws as typeof session.ws & { addImport(files: FileChange[], name: string): FolderImport };
+        return ws.addImport(files, name?.trim() || folder);
+      } catch (e) {
+        throw toBackendError(e);
+      }
+    },
+
+    adopt: async (imported) => {
+      try {
+        const imports = (await core()) as CoreImporter & { adopt(imported: unknown): ImportPlan };
+        const plan = imports.adopt(imported);
+        folders.set(plan.id, plan.folder_name);
+        return plan;
+      } catch (e) {
+        throw toBackendError(e);
+      }
     },
 
     // Wave 5, strand A: plugin importers through the web plugin host (./plugins.ts); the

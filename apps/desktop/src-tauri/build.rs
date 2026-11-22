@@ -49,6 +49,8 @@ const COMMANDS: &[&str] = &[
     "import_analyze",
     "import_write",
     "import_discard",
+    "import_adopt",
+    "import_write_into",
     "history_list",
     "history_clear",
     "search",

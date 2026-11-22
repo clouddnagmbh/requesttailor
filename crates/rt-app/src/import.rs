@@ -10,16 +10,22 @@
 //! 2. [`Imports::take`] hands the converted files to the shell, which writes them into a new,
 //!    empty folder and opens it as the collection (`ImportApi.write`).
 //!
+//! Since wave 13 an import can also go into the open collection as a new folder
+//! ([`add_to_workspace`], [`add_to_files`]), and a collection converted elsewhere (an
+//! extension's importer) is checked and kept like any other ([`Imports::adopt`]).
+//!
 //! Owner: wave 4, strand B. Changes to the public types are interface changes.
 
 use std::collections::BTreeMap;
 
+use rt_core::model::{Auth, Body, Item, PartKind, RequestDefaults, RequestSpec};
 use rt_format::FileSet;
 pub use rt_format::import::SourceFile;
-use rt_format::import::{ImportFormat, LossReport};
+use rt_format::import::{ImportFormat, Loss, LossEffect, LossKind, LossReport};
 use serde::{Deserialize, Serialize};
 
 use crate::AppError;
+use crate::workspace::Workspace;
 
 /// Result of the first step, for the UI.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -122,6 +128,356 @@ pub fn folder_name(collection_name: &str) -> String {
     } else {
         trimmed.chars().take(80).collect()
     }
+}
+
+// ---- into an open collection (since wave 13) ----
+
+/// A collection converted elsewhere, as the UI hands it over (an extension's importer):
+/// its files as text and its loss report. [`Imports::adopt`] checks it like a plugin import.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExternalImport {
+    pub collection_name: String,
+    pub files: Vec<ImportedFile>,
+    pub report: LossReport,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImportedFile {
+    /// Relative to the collection root, `/`-separated.
+    pub path: String,
+    pub text: String,
+}
+
+/// What adding an import to the open collection did ([`add_to_workspace`]). Nothing is on
+/// disk until the user saves.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FolderImport {
+    /// Path of the new folder (for `createRequest`, the tree).
+    pub folder: String,
+    /// Its display name: the import's name, with ` 2`, ` 3`, ... if a top-level folder of the
+    /// collection already has it.
+    pub name: String,
+    pub requests: u32,
+    /// Folders below the new one.
+    pub folders: u32,
+    /// Environments the collection did not have.
+    pub environments_added: Vec<String>,
+    /// Environments of the same name that got the variables they lacked (existing values stay).
+    pub environments_extended: Vec<String>,
+    /// Other files of the import (bodies, recordings, snapshots), staged below the folder.
+    pub files: Vec<String>,
+    /// What the folder could not take over as it was, in addition to the import's report:
+    /// collection-level headers, auth and variables are carried by the requests instead.
+    pub losses: Vec<Loss>,
+}
+
+impl Imports {
+    /// Adds an [`ExternalImport`] after checking it: safe paths, a readable collection.
+    pub fn adopt(&mut self, import: ExternalImport) -> Result<ImportPlan, AppError> {
+        let mut files = FileSet::default();
+        for f in import.files {
+            if !safe_path(&f.path) {
+                return Err(AppError::Import(format!("invalid path {:?}", f.path)));
+            }
+            files.files.insert(f.path, f.text.into_bytes());
+        }
+        rt_format::read_collection(&files).map_err(|e| AppError::Import(e.to_string()))?;
+        Ok(self.add(rt_format::import::Import {
+            collection_name: import.collection_name,
+            files,
+            report: import.report,
+        }))
+    }
+}
+
+fn safe_path(path: &str) -> bool {
+    !path.is_empty()
+        && !path.starts_with('/')
+        && !path.contains(['\\', ':', '\0'])
+        && path
+            .split('/')
+            .all(|p| !p.is_empty() && p != "." && p != ".." && !p.starts_with('.'))
+}
+
+/// Adds the collection `imported` to the open collection as a new top-level folder named
+/// `name` (made unique), with the same rules on every surface:
+///
+/// - Folders and requests keep their structure and order; folder scripts stay folder scripts,
+///   the imported collection's scripts become the new folder's.
+/// - Collection- and folder-level headers, auth and variables of the import cannot be folder
+///   defaults yet; each request gets them (own values win), reported as approximated.
+/// - Environments: a new name is added; an existing one gets only the variables it lacks.
+///   Secret values are never written.
+/// - Every other file (bodies, companion files) is staged below the new folder; body file
+///   paths of the requests follow.
+///
+/// Everything is unsaved, like any edit.
+pub fn add_to_workspace(
+    workspace: &mut Workspace,
+    imported: &FileSet,
+    name: &str,
+) -> Result<FolderImport, AppError> {
+    let source =
+        rt_format::read_collection(imported).map_err(|e| AppError::Import(e.to_string()))?;
+    let source = source.model().clone();
+    let name = unique_folder_name(workspace.collection(), name);
+    let mut out = FolderImport {
+        folder: String::new(),
+        name: name.clone(),
+        requests: 0,
+        folders: 0,
+        environments_added: Vec::new(),
+        environments_extended: Vec::new(),
+        files: Vec::new(),
+        losses: Vec::new(),
+    };
+    let mut work = workspace.clone();
+    let doc = work.doc_mut();
+    let top = doc.add_folder("", &name)?;
+    if !source.defaults.scripts.is_empty() {
+        doc.set_folder_scripts(&top, &source.defaults.scripts)?;
+    }
+    report_carried(&source.defaults, "collection", &mut out.losses);
+    if source.defaults.settings != Default::default() {
+        out.losses.push(loss(
+            "collection",
+            LossKind::Setting,
+            LossEffect::Dropped,
+            "collection request settings (timeouts, redirects) not taken over",
+        ));
+    }
+    if source.config != Default::default() {
+        out.losses.push(loss(
+            "collection",
+            LossKind::Setting,
+            LossEffect::Dropped,
+            "collection config (certificates, protobuf, agents) not taken over",
+        ));
+    }
+    let chain = vec![&source.defaults];
+    add_items(doc, &top, &source.items, &chain, &top, &mut out)?;
+    out.folder = top.clone();
+
+    for env in &source.environments {
+        match work.collection().environment(&env.name).cloned() {
+            None => {
+                work.update_environment(env.clone())?;
+                out.environments_added.push(env.name.clone());
+            }
+            Some(mut existing) => {
+                let missing: Vec<_> = env
+                    .variables
+                    .iter()
+                    .filter(|v| !existing.variables.iter().any(|e| e.name == v.name))
+                    .cloned()
+                    .collect();
+                if !missing.is_empty() {
+                    existing.variables.extend(missing);
+                    work.update_environment(existing)?;
+                    out.environments_extended.push(env.name.clone());
+                }
+            }
+        }
+    }
+
+    for (path, bytes) in &imported.files {
+        if owned_by_format(path, imported) {
+            continue;
+        }
+        let target = format!("{top}/{path}");
+        work.stage_companion(&target, bytes.clone())?;
+        out.files.push(target);
+    }
+    work.refresh();
+    *workspace = work;
+    Ok(out)
+}
+
+/// [`add_to_workspace`] on files instead of an open workspace, for the CLI and tools that
+/// write a commit: `base` with the folder added (unchanged files byte-identical).
+pub fn add_to_files(
+    base: &FileSet,
+    imported: &FileSet,
+    name: &str,
+) -> Result<(FileSet, FolderImport), AppError> {
+    let mut workspace = Workspace::open(base.clone())?;
+    let result = add_to_workspace(&mut workspace, imported, name)?;
+    let mut files = base.clone();
+    for change in workspace.save()? {
+        if change.deleted {
+            files.files.remove(&change.path);
+        } else {
+            files.files.insert(change.path, change.text.into_bytes());
+        }
+    }
+    Ok((files, result))
+}
+
+fn owned_by_format(path: &str, files: &FileSet) -> bool {
+    // The same rule as `read_collection`: `.yml` files outside nested collections.
+    path.ends_with(".yml") && {
+        let mut dir = path.rsplit_once('/').map_or("", |(d, _)| d);
+        let mut nested = false;
+        while !dir.is_empty() {
+            if files
+                .files
+                .contains_key(&format!("{dir}/{}", rt_format::COLLECTION_FILE))
+            {
+                nested = true;
+                break;
+            }
+            dir = dir.rsplit_once('/').map_or("", |(d, _)| d);
+        }
+        !nested
+    }
+}
+
+fn unique_folder_name(collection: &rt_core::model::Collection, wanted: &str) -> String {
+    let wanted = folder_name(wanted);
+    let taken = |n: &str| {
+        collection.items.iter().any(|i| match i {
+            Item::Folder(f) => {
+                f.name.eq_ignore_ascii_case(n)
+                    || f.path
+                        .rsplit('/')
+                        .next()
+                        .is_some_and(|d| d.eq_ignore_ascii_case(n))
+            }
+            Item::Request(_) => false,
+        })
+    };
+    if !taken(&wanted) {
+        return wanted;
+    }
+    (2..)
+        .map(|i| format!("{wanted} {i}"))
+        .find(|n| !taken(n))
+        .expect("some number is free")
+}
+
+fn loss(location: &str, kind: LossKind, effect: LossEffect, detail: impl Into<String>) -> Loss {
+    Loss {
+        location: location.to_owned(),
+        kind,
+        effect,
+        detail: detail.into(),
+    }
+}
+
+/// Notes the defaults of `location` that the requests carry instead.
+fn report_carried(defaults: &RequestDefaults, location: &str, losses: &mut Vec<Loss>) {
+    if !defaults.headers.is_empty() {
+        losses.push(loss(
+            location,
+            LossKind::Other,
+            LossEffect::Approximated,
+            format!(
+                "{} header(s) copied into each request below",
+                defaults.headers.len()
+            ),
+        ));
+    }
+    if !matches!(defaults.auth, Auth::Inherit) {
+        losses.push(loss(
+            location,
+            LossKind::Auth,
+            LossEffect::Approximated,
+            "auth set on each request below that inherited it",
+        ));
+    }
+    if !defaults.vars.is_empty() {
+        losses.push(loss(
+            location,
+            LossKind::Variable,
+            LossEffect::Approximated,
+            format!(
+                "{} variable(s) became request variables of each request below (an environment no longer overrides them)",
+                defaults.vars.len()
+            ),
+        ));
+    }
+}
+
+fn add_items(
+    doc: &mut rt_format::CollectionDoc,
+    parent: &str,
+    items: &[Item],
+    chain: &[&RequestDefaults],
+    top: &str,
+    out: &mut FolderImport,
+) -> Result<(), AppError> {
+    for item in items {
+        match item {
+            Item::Folder(f) => {
+                let path = doc.add_folder(parent, &f.name)?;
+                out.folders += 1;
+                if !f.defaults.scripts.is_empty() {
+                    doc.set_folder_scripts(&path, &f.defaults.scripts)?;
+                }
+                report_carried(&f.defaults, &f.name, &mut out.losses);
+                let mut inner = chain.to_vec();
+                inner.push(&f.defaults);
+                add_items(doc, &path, &f.items, &inner, top, out)?;
+            }
+            Item::Request(r) => {
+                let spec = carried(&r.spec, chain, top);
+                doc.add_request(parent, &spec)?;
+                out.requests += 1;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// `spec` with the headers, auth and variables of `chain` (outermost first) it inherited,
+/// and body file paths below `top`.
+fn carried(spec: &RequestSpec, chain: &[&RequestDefaults], top: &str) -> RequestSpec {
+    let mut spec = spec.clone();
+    let mut headers: Vec<_> = Vec::new();
+    let mut vars: Vec<_> = Vec::new();
+    for d in chain {
+        for h in &d.headers {
+            headers.retain(|x: &rt_core::model::KeyValue| !x.name.eq_ignore_ascii_case(&h.name));
+            headers.push(h.clone());
+        }
+        for v in &d.vars {
+            vars.retain(|x: &rt_core::model::Variable| x.name != v.name);
+            vars.push(v.clone());
+        }
+    }
+    headers.retain(|h| {
+        !spec
+            .headers
+            .iter()
+            .any(|x| x.name.eq_ignore_ascii_case(&h.name))
+    });
+    headers.append(&mut spec.headers);
+    spec.headers = headers;
+    vars.retain(|v| !spec.vars.iter().any(|x| x.name == v.name));
+    vars.append(&mut spec.vars);
+    spec.vars = vars;
+    if matches!(spec.auth, Auth::Inherit)
+        && let Some(auth) = chain
+            .iter()
+            .rev()
+            .map(|d| &d.auth)
+            .find(|a| !matches!(a, Auth::Inherit))
+    {
+        spec.auth = auth.clone();
+    }
+    let moved = |p: &str| format!("{top}/{p}");
+    match &mut spec.body {
+        Body::File { path, .. } => *path = moved(path),
+        Body::Multipart { parts } => {
+            for part in parts.iter_mut().filter(|p| p.kind == PartKind::File) {
+                for v in &mut part.values {
+                    *v = moved(v);
+                }
+            }
+        }
+        _ => {}
+    }
+    spec
 }
 
 #[cfg(test)]

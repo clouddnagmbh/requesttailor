@@ -276,6 +276,17 @@ impl Workspace {
         Ok(())
     }
 
+    /// The format document, for edits composed of several steps (an import added as a folder,
+    /// [`crate::import::add_to_workspace`]). Call [`Workspace::refresh`] afterwards.
+    pub(crate) fn doc_mut(&mut self) -> &mut CollectionDoc {
+        &mut self.doc
+    }
+
+    /// Recomputes `dirty` after edits through [`Workspace::doc_mut`].
+    pub(crate) fn refresh(&mut self) {
+        self.refresh_dirty();
+    }
+
     /// Request paths (and `environments/<name>.yml` paths) with unsaved changes.
     ///
     /// Also new and deleted files, sorted by path. An environment declared inside

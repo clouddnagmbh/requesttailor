@@ -625,6 +625,34 @@ export interface ImportPlan {
   report: LossReport;
 }
 
+// ---- import into the open collection (rt_app::import, wave 13) ----
+
+export interface ImportedFile {
+  path: string;
+  text: string;
+}
+
+/** A collection converted by an extension's importer, for `ImportApi.adopt`. */
+export interface ExternalImport {
+  collection_name: string;
+  files: ImportedFile[];
+  report: LossReport;
+}
+
+/** What `ImportApi.writeInto` added to the open collection (unsaved). */
+export interface FolderImport {
+  folder: string;
+  name: string;
+  requests: number;
+  folders: number;
+  environments_added: string[];
+  environments_extended: string[];
+  /** Other files of the import, staged below the folder. */
+  files: string[];
+  /** Collection-level settings the requests carry instead (in addition to the plan's report). */
+  losses: Loss[];
+}
+
 // ---- history and search (rt_app::history, rt_app::search) ----
 
 export interface HistoryEntry {

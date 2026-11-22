@@ -111,6 +111,8 @@ function stem(name: string): string {
 export function mockImports(
   open?: () => Promise<CollectionInfo | null>,
   plugins?: () => PluginApi,
+  /** Wave 13: adds a folder `name` (made unique) with requests `names`; returns its path and name. */
+  into?: (name: string, names: string[]) => Promise<{ folder: string; name: string }>,
 ): ImportApi {
   let nextId = 1;
   const plans = new Map<number, ImportPlan>();
@@ -149,6 +151,41 @@ export function mockImports(
     },
     discard: async (id) => {
       plans.delete(id);
+    },
+    // Wave 13: into the open collection as a folder; one request per counted request.
+    writeInto: async (id, name) => {
+      const plan = plans.get(id);
+      if (!plan) throw new BackendError("import", `import ${id} not found`);
+      if (!into) throw new BackendError("shell", "no collection is open");
+      const names = Array.from({ length: plan.report.requests }, (_, i) => `${plan.collection_name} ${i + 1}`);
+      const added = await into(name?.trim() || plan.folder_name, names);
+      plans.delete(id);
+      return {
+        ...added,
+        requests: names.length,
+        folders: 0,
+        environments_added: [],
+        environments_extended: [],
+        files: [],
+        losses: [],
+      };
+    },
+    adopt: async (imported) => {
+      if (!imported.files.some((f) => f.path === "opencollection.yml")) {
+        throw new BackendError("import", "not a collection: opencollection.yml is missing");
+      }
+      const bad = imported.files.find((f) => f.path.startsWith("/") || f.path.split("/").some((p) => p === ".." || p.startsWith(".")));
+      if (bad) throw new BackendError("import", `invalid path ${JSON.stringify(bad.path)}`);
+      const plan: ImportPlan = {
+        id: nextId++,
+        format: imported.report.format,
+        collection_name: imported.collection_name,
+        folder_name: imported.collection_name,
+        files: imported.files.length,
+        report: imported.report,
+      };
+      plans.set(plan.id, plan);
+      return plan;
     },
     // Wave 5, strand A: plugin importers of the mock plugins (one request per file).
     analyzeWithPlugin: async (files, plugin, importer) => {
