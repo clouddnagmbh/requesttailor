@@ -211,16 +211,96 @@ jobs:
       - name: Scan full history
         run: ./gitleaks git --no-banner --redact --config .gitleaks.toml .
 
+  # Performance budgets (perf/budgets.toml, method in perf/README.md). Every OS measures the
+  # desktop app as it ships (release build): cold start and idle memory. Linux also measures the
+  # shared UI in Chrome: frame times over a 100 MB response and keystrokes to a sent request
+  # (browser measurements, the same UI code on every OS). Each job fails on an exceeded budget;
+  # `perf` merges all results (worst value per metric) and fails on an exceeded or missing one.
+  perf-measure:
+    name: perf (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux, os: ubuntu-latest, parts: "desktop,frames,keystrokes" }
+          - { name: macos, os: macos-latest, parts: desktop }
+          - { name: windows, os: windows-latest, parts: desktop }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - name: wasm32 target (web measurements)
+        if: runner.os == 'Linux'
+        run: rustup target add wasm32-unknown-unknown
+      # WebKitGTK for the app, and a virtual display for its window.
+      - name: Desktop build and run dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ${{ env.TAURI_LINUX_DEPS }} xvfb
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Tests of the measurement tools
+        run: node --test "scripts/perf/*.test.mjs"
+      - name: Install wasm-bindgen (version from Cargo.lock)
+        if: runner.os == 'Linux'
+        run: |
+          v=$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/"/, "", $3); print $3 }' Cargo.lock)
+          if ! wasm-bindgen --version 2>/dev/null | grep -qxF "wasm-bindgen $v"; then
+            cargo install wasm-bindgen-cli --version "$v" --locked
+          fi
+      - name: Build the desktop app (release, frontend embedded)
+        run: npm run build -w apps/desktop -- --ci
+      - name: Recent collections against the real web backend
+        if: runner.os == 'Linux'
+        working-directory: apps/web
+        run: |
+          node ../../scripts/build-wasm.mjs
+          npx playwright test --config e2e/recent/playwright.recent.config.ts
+      - name: Measure (fails on an exceeded budget)
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then run="xvfb-run -a"; else run=""; fi
+          $run node scripts/perf/run.mjs --only "${{ matrix.parts }}" --check
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-${{ matrix.name }}
+          path: |
+            perf/results.json
+            perf/report.json
+          if-no-files-found: warn
+
   perf:
     name: perf budgets
+    needs: perf-measure
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-      # Wave 1: budgets defined, nothing measured yet. Wave 4 adds measuring and --require-all.
-      - run: node scripts/check-perf-budgets.mjs
+      - name: Tests of the budget check
+        run: node --test scripts/check-perf-budgets.test.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: perf-*
+          path: perf-results
+      # Every OS must have delivered results; a missing one is a failure, not a skip.
+      - name: Merge (worst value per metric) and check every budget
+        run: |
+          for os in linux macos windows; do
+            test -f "perf-results/perf-$os/results.json" || { echo "no results from $os"; exit 1; }
+          done
+          node scripts/perf/merge.mjs perf/results.json perf-results/perf-*/results.json
+          node scripts/check-perf-budgets.mjs perf/results.json --require-all
 
   frontend:
     name: frontend (svelte, playwright)
@@ -262,7 +342,7 @@ jobs:
   # Single required status for branch protection.
   ci-ok:
     if: always()
-    needs: [native, desktop, wasm, ios, conformance, lint, licenses, dco, secrets, perf, frontend]
+    needs: [native, desktop, wasm, ios, conformance, lint, licenses, dco, secrets, perf-measure, perf, frontend]
     runs-on: ubuntu-latest
     steps:
       - name: All jobs green
