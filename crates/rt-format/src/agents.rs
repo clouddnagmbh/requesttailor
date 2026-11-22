@@ -234,7 +234,7 @@ impl CollectionDoc {
                 .ok_or_else(|| invalid("the file is not a YAML mapping".into()))?;
             let access = Val::Plain(access_word(policy.access).to_owned());
             if is_default(policy) {
-                remove_agents(root).map_err(|k| not_block(k))?;
+                remove_agents(root).map_err(&not_block)?;
             } else {
                 match root.get_mut("extensions") {
                     None => root.put(

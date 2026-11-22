@@ -531,7 +531,7 @@ pub fn now_ms() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rt_core::model::{EnvironmentPolicy, GrpcSpec, MessageVariant, Protocol, WebSocketSpec};
+    use rt_core::model::{EnvironmentPolicy, MessageVariant, Protocol, WebSocketSpec};
 
     fn spec(method: &str) -> RequestSpec {
         RequestSpec {
@@ -601,7 +601,7 @@ mod tests {
     #[test]
     fn grpc_always_writes_websocket_only_with_messages() {
         let grpc = RequestSpec {
-            protocol: Protocol::Grpc(Box::new(GrpcSpec::default())),
+            protocol: Protocol::Grpc(Box::default()),
             ..spec("GRPC")
         };
         assert_eq!(effect(&grpc), Effect::Write);
