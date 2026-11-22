@@ -24,6 +24,7 @@ use rt_core::model::{
 };
 
 use crate::read::{self, Builder};
+use crate::runtime;
 use crate::yaml::{Document, ItemOp, Map, Node, Val, document_text, parse, reparse};
 
 const ROOT_ORDER: &[&str] = &[
@@ -284,7 +285,7 @@ pub(crate) fn set_enabled(m: &mut Map, enabled: bool, order: &[&str], nl: &str) 
 
 /// One step of turning an old list into a new one.
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum Step {
+pub(crate) enum Step {
     Keep(usize),
     /// Old item, new item: edit the old one in place.
     Edit(usize, usize),
@@ -294,7 +295,11 @@ enum Step {
 /// Pairs a longest common subsequence of items that are the `same` entry (e.g. have the same
 /// name): equal ones are kept, the others edited in place. Between the pairs, old items are
 /// edited by position, extra new items added and extra old items dropped.
-fn align<T: PartialEq>(old: &[T], new: &[T], same: impl Fn(&T, &T) -> bool) -> Vec<Step> {
+pub(crate) fn align<T: PartialEq>(
+    old: &[T],
+    new: &[T],
+    same: impl Fn(&T, &T) -> bool,
+) -> Vec<Step> {
     let (n, m) = (old.len(), new.len());
     let mut lcs = vec![vec![0u32; m + 1]; n + 1];
     for i in (0..n).rev() {
@@ -559,17 +564,16 @@ fn strip_secret_values(map: &mut Map, key: &str) {
 
 /// Text of a new `folder.yml` (wave 6), as Bruno 3 writes one: name, type, seq.
 pub(crate) fn new_folder_text(name: &str, seq: f64) -> String {
-    document_text(
-        &[(
-            "info",
-            Val::Map(vec![
-                ("name", Val::str(name)),
-                ("type", Val::str("folder")),
-                ("seq", Val::Plain(number(seq))),
-            ]),
-        )],
-        false,
-    )
+    folder_text(name, Some(seq))
+}
+
+/// Text of a `folder.yml` with name, type and, if given, seq.
+pub(crate) fn folder_text(name: &str, seq: Option<f64>) -> String {
+    let mut info = vec![("name", Val::str(name)), ("type", Val::str("folder"))];
+    if let Some(seq) = seq {
+        info.push(("seq", Val::Plain(number(seq))));
+    }
+    document_text(&[("info", Val::Map(info))], false)
 }
 
 /// Text of a new request file with name, type, seq, method and URL; the rest is added by
@@ -627,7 +631,7 @@ pub(crate) fn apply_request(doc: &Document, path: &str, spec: &RequestSpec) -> R
         .ok_or("the file is not a YAML mapping")?;
     write_info(root, &old, &want, nl);
     write_http(root, path, &old, &want, nl)?;
-    write_runtime(root, &old, &want, nl);
+    write_runtime(root, &old, &want, nl)?;
     write_settings(root, &old, &want, nl);
 
     let doc = reparse(&doc)?;
@@ -897,31 +901,60 @@ fn write_auth(http: &mut Map, old: &Auth, new: &Auth, nl: &str) -> Result<()> {
     Ok(())
 }
 
-fn write_runtime(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str) {
-    if old.vars == new.vars {
-        return;
+/// `runtime`: variables, scripts, assertions and actions (the last three in
+/// [`runtime`](crate::runtime)).
+fn write_runtime(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str) -> Result<()> {
+    let vars = old.vars != new.vars;
+    let scripts = old.scripts != new.scripts;
+    let assertions = old.assertions != new.assertions;
+    let actions = old.actions != new.actions;
+    if !(vars || scripts || assertions || actions) {
+        return Ok(());
     }
-    let list = var_list("variables", RUNTIME_ORDER, Empty::Remove);
+    // Something that is not a block mapping cannot be edited without losing it.
+    let fixed = root
+        .get("runtime")
+        .is_some_and(|n| runtime::has_content(n) && !matches!(n, Node::Map(m) if !m.flow));
     match root.get_mut("runtime").and_then(Node::block_map_mut) {
         Some(runtime) => {
-            sync_list(runtime, &list, &new.vars, nl);
-            strip_secret_values(runtime, "variables");
+            if vars {
+                let list = var_list("variables", RUNTIME_ORDER, Empty::Remove);
+                sync_list(runtime, &list, &new.vars, nl);
+                strip_secret_values(runtime, "variables");
+            }
+            if scripts {
+                runtime::write_scripts(runtime, RUNTIME_ORDER, &new.scripts, nl)?;
+            }
+            if assertions {
+                runtime::write_assertions(runtime, RUNTIME_ORDER, &new.assertions, nl);
+            }
+            if actions {
+                runtime::write_actions(runtime, RUNTIME_ORDER, &new.actions, nl)?;
+            }
             if runtime.is_empty() {
                 root.remove("runtime");
             }
         }
-        None if new.vars.is_empty() => {}
-        None => root.put(
-            "runtime",
-            &Val::Map(vec![(
-                "variables",
-                Val::Seq(new.vars.iter().map(var_val).collect()),
-            )]),
-            ROOT_ORDER,
-            true,
-            nl,
-        ),
+        None if fixed => {
+            return Err("`runtime` is not a block mapping; it cannot be edited".into());
+        }
+        None => {
+            let mut entries = Vec::new();
+            if !new.vars.is_empty() {
+                entries.push((
+                    "variables",
+                    Val::Seq(new.vars.iter().map(var_val).collect()),
+                ));
+            }
+            entries.extend(runtime::scripts_val(&new.scripts).map(|v| ("scripts", v)));
+            entries.extend(runtime::assertions_val(&new.assertions).map(|v| ("assertions", v)));
+            entries.extend(runtime::actions_val(&new.actions).map(|v| ("actions", v)));
+            if !entries.is_empty() {
+                root.put("runtime", &Val::Map(entries), ROOT_ORDER, true, nl);
+            }
+        }
     }
+    Ok(())
 }
 
 fn write_settings(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str) {

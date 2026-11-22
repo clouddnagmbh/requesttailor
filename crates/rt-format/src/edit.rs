@@ -287,7 +287,7 @@ impl CollectionDoc {
     }
 
     /// Rebuilds the model (and the issues) from the parsed files after an edit.
-    fn rebuild(&mut self) {
+    pub(crate) fn rebuild(&mut self) {
         let docs: BTreeMap<&str, &yaml::Document> = self
             .files
             .iter()

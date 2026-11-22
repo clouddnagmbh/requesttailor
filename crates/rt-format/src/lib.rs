@@ -9,7 +9,7 @@
 //!
 //! Files are parsed into a format-preserving YAML tree (module `yaml`): writing an unchanged
 //! document reproduces every file byte for byte, including everything the model does not
-//! represent (scripts, assertions, docs, examples, OAuth configurations, comments, ...).
+//! represent (gRPC scripts, docs, examples, OAuth configurations, comments, ...).
 //!
 //! Layout of a collection: `opencollection.yml` at the root, one `folder.yml` per folder
 //! (optional), one `*.yml` per item, `environments/<name>.yml` per environment. A folder that
@@ -82,8 +82,8 @@ enum Source {
 }
 
 /// A parsed collection that remembers everything needed to write the files back
-/// byte-identically, including fields the core model does not represent (scripts,
-/// assertions, docs, examples, unknown auth types, ...).
+/// byte-identically, including fields the core model does not represent (gRPC scripts,
+/// docs, examples, unknown auth types, ...).
 #[derive(Debug, Clone)]
 pub struct CollectionDoc {
     model: Collection,
@@ -124,9 +124,10 @@ impl CollectionDoc {
     }
 
     /// Replaces the request at `path` (relative to the collection root) with `spec`.
-    /// Only what differs is rewritten; everything the model does not represent (scripts,
-    /// assertions, docs, examples, comments, layout) stays as it was, and the result is
-    /// formatted the way Bruno writes it. The model view is updated too.
+    /// Only what differs is rewritten; everything the model does not represent (gRPC scripts,
+    /// action types other than `set-variable`, docs, examples, comments, layout) stays as it
+    /// was, and the result is formatted the way Bruno writes it. The model view is updated
+    /// too. Scripts, assertions and `set-variable` actions are written since wave 7.
     ///
     /// Secret request variables are written without a value. An `Auth::Unsupported` can only
     /// be kept as the file has it; setting another one is an error. Every edit is read back
@@ -164,6 +165,22 @@ impl CollectionDoc {
     /// Returns the new folder's path. Added in wave 6 (plugin views add requests in folders).
     pub fn add_folder(&mut self, parent: &str, name: &str) -> Result<String, FormatError> {
         self.new_folder(parent, name)
+    }
+
+    /// Sets the scripts of the collection (`folder` is `""`: `request.scripts` of
+    /// `opencollection.yml`) or of a folder (`request.scripts` of its `folder.yml`, created
+    /// if the folder has none). Entries of phases RequestTailor does not run (gRPC) stay;
+    /// everything else in the file stays as it was. The edit is read back and must give
+    /// `scripts`, otherwise it is refused and the file is left as it was.
+    ///
+    /// Added in wave 7 (strand B); request scripts, assertions and actions are written by
+    /// [`set_request`](Self::set_request).
+    pub fn set_folder_scripts(
+        &mut self,
+        folder: &str,
+        scripts: &[rt_core::model::Script],
+    ) -> Result<(), FormatError> {
+        self.edit_default_scripts(folder, scripts)
     }
 
     /// Creates or replaces the environment `env.name` (file `environments/<name>.yml`).
