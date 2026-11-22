@@ -84,6 +84,43 @@ commit if it finds one.</p>
 <p>The same request runs on the command line with the same core:</p>
 <pre><code>rt send users/get-user.yml --env Staging --var token="$API_TOKEN" --pretty</code></pre>
 <p>See <a href="cli/">Command line: rt</a>.</p>
+
+<h2 id="mock">Mock a service from its examples</h2>
+<p>Requests can keep saved examples: a request and the response it got (OpenCollection
+<code>examples</code>, also carried over by the Postman import). <code>rt mock</code> serves
+them, so the app, a front end or a test can work before the real service exists:</p>
+<pre><code>rt mock . --env Local --port 4010</code></pre>
+<p>An incoming request matches an example by method and path: the path of the request's URL,
+where <code>:id</code>, <code>{id}</code> and unresolved <code>{{variables}}</code> match any
+segment, and scheme, host and a leading <code>{{baseUrl}}</code> are left out. With
+<code>--env</code>, the environment's variables are filled in first, so
+<code>{{baseUrl}}/users/:id</code> with <code>baseUrl = http://localhost:4010/api</code>
+becomes <code>/api/users/:id</code>. When several examples fit, the one whose saved request
+matches best wins: its path, query parameters, headers and body (JSON is compared as JSON).
+A request without a matching example gets <code>404</code> with a JSON list of all routes.
+The mock listens on <code>127.0.0.1</code> unless you pass <code>--host</code>, allows CORS
+for the web app, and logs every request to the terminal. It prints the routes at start.</p>
+
+<h2 id="api-docs">Write documentation of a collection</h2>
+<p><code>rt docs</code> turns a collection into one static HTML page with a stylesheet:
+folders, requests with method, URL, description and docs, parameters, headers, body, the
+type of auth, and the saved examples.</p>
+<pre><code>rt docs . --out public/api-docs --env Staging</code></pre>
+<p>The page runs no scripts, loads nothing from other servers and follows the system's light
+or dark mode, so it can be published as it is, for example with GitHub Pages. Secret values
+never appear: secret variables stay <code>{{name}}</code>, auth shows only its type and the
+variables it uses, and anything the <a href="environments/#scanner">secret scanner</a> sees
+as a credential is shown as <code>***</code> (the command tells you how many). With
+<code>--env</code>, the environment's non-secret variables are filled in.</p>
+
+<h2 id="benchmark">Check the numbers</h2>
+<p>The performance budgets are measured on every build. The <a href="../benchmark/">benchmark</a>
+measures the same numbers for other API clients installed on the same machine:</p>
+<pre><code>npm run build -w apps/desktop
+node scripts/bench/run.mjs --browser</code></pre>
+<p>It writes the results with the machine and every version to <code>bench/results/</code>.
+It installs nothing and starts other apps with an empty profile and without network access
+for their web content.</p>
 </article>
 </div>
 </div>
