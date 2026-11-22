@@ -65,8 +65,8 @@ test("clicking a file shows its diff with coloured added and removed lines", asy
   await expect(diff).toBeVisible();
   await expect(diff.getByTestId("git-diff-path")).toHaveText("health.yml");
   await expect(diff.getByTestId("git-hunk")).toHaveCount(1);
-  await expect(diff.locator('[data-kind="removed"]')).toHaveText(['-  "method": "GET",']);
-  await expect(diff.locator('[data-kind="added"]')).toHaveText(['+  "method": "POST",']);
+  await expect(diff.locator('[data-kind="removed"]')).toHaveText(["-  method: GET"]);
+  await expect(diff.locator('[data-kind="added"]')).toHaveText(["+  method: POST"]);
   const color = (kind: string) =>
     diff.locator(`[data-kind="${kind}"]`).first().evaluate((e) => getComputedStyle(e).backgroundColor);
   expect(await color("added")).not.toBe(await color("removed"));

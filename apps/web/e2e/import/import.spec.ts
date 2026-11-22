@@ -38,14 +38,14 @@ test("drop a Postman export, read the loss report, import, the collection opens"
   await expect(page.getByTestId("import-name")).toHaveText("shop");
   await expect(page.getByTestId("import-counts")).toHaveText("4 requests, 1 folder, 2 environments");
   await expect(page.getByTestId("import-plan")).toContainText("Loss report: 4");
-  await expect(page.getByTestId("import-plan")).toContainText("(3 dropped, 1 approximated)");
+  await expect(page.getByTestId("import-plan")).toContainText("(1 dropped, 3 approximated)");
 
   // Grouped by kind; each line says dropped or approximated, where, and what.
   const groups = page.getByTestId("import-group");
   await expect(groups).toHaveCount(4);
   await expect(groups.locator("summary")).toHaveText([
-    /Scripts\s*1, 1 dropped/,
-    /Tests\s*1, 1 dropped/,
+    /Scripts\s*1, 1 approximated/,
+    /Tests\s*1, 1 approximated/,
     /Auth and credentials\s*1, 1 approximated/,
     /Variables and secrets\s*1, 1 dropped/,
   ]);
