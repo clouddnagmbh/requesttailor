@@ -84,6 +84,9 @@ testdata/idp       Keycloak als Test-Identitätsanbieter für OAuth 2.0 (`idp.sh
 apps/ui            gemeinsame Oberfläche (Svelte 5, TypeScript, CodeMirror 6)
 apps/desktop       Tauri-2-Hülle; Crate `rt-desktop` in `apps/desktop/src-tauri` (nur Desktop, nicht wasm32/iOS)
 apps/web           Web-App
+website           statische Website (`/`, `/sap/`, `/download/`, `/docs/`), ohne Skripte und Fremdanfragen
+examples          Beispiel-Collections S/4HANA, CAP, RAP gegen `rt-odata-testserver`
+launch            Launch-Kit: Checkliste, Release Notes, Entwurf SAP-Community-Post (veröffentlicht nur der Nutzer)
 plugins/example    Beispiel-Plugin (Rust); Anleitung „Ein Plugin schreiben“ in `plugins/README.md`
 plugins/odata      OData-Plugin (Welle 6): Module je Strang (`metadata`, `query`, `write`, `landscape`), Modell `edm.rs`, `service.rs`; `API-WUENSCHE.md`
 plugins/odata/testdata   synthetische S/4- (V2, V4 RAP) und CAP-Dienste (V4, V2), Herkunft in SOURCES.md
@@ -163,6 +166,7 @@ npm run check -w apps/desktop && npm test -w apps/desktop
 npm run dev -w apps/desktop                          # Desktop-App lokal (Tauri)
 npm run build -w apps/desktop                        # Release-Build ohne Bundle
 node scripts/check-license-headers.mjs
+node scripts/check-website.mjs                       # Website: keine Fremdanfragen, Links, Budgets wie perf/budgets.toml
 node scripts/check-dco.mjs origin/main..HEAD
 node scripts/check-perf-budgets.mjs
 node scripts/build-plugins.mjs                       # Beispiel-Plugins nach target/plugins/<id>.wasm (Manifest eingebettet, Importe geprüft)

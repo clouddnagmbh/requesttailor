@@ -172,6 +172,8 @@ jobs:
           node-version-file: .nvmrc
       - name: License headers
         run: node scripts/check-license-headers.mjs
+      - name: Website (no third-party requests, links, budgets)
+        run: node scripts/check-website.mjs
 
   licenses:
     runs-on: ubuntu-latest
