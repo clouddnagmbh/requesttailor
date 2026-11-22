@@ -1,0 +1,121 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="The rt command line: send requests from a collection with a JSON report, import other tools&#x27; exports, scan for credentials, and the rt agent companion.">
+<title>Command line: rt · RequestTailor</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/cli/" aria-current="page">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<h1>Command line: <code>rt</code></h1>
+<p class="lead"><code>rt</code> runs the same core as the apps. What is green in the app is
+green in the pipeline.</p>
+
+<pre><code>rt send &lt;request-file&gt; [--env NAME] [--var NAME=VALUE]... [--plugin FILE]... [--pretty]
+rt import &lt;file&gt;... --out DIR [--format FORMAT] [--json]
+rt scan [PATH]... [--json]
+rt agent [--port PORT] [--allow-origin ORIGIN]... [--allow-secrets]
+rt --help</code></pre>
+
+<h2 id="send">rt send</h2>
+<p>Sends one request. The collection is the nearest folder above the request file that
+contains <code>opencollection.yml</code>.</p>
+<table>
+<thead><tr><th scope="col">Option</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>-e</code>, <code>--env NAME</code></td><td>Use the environment <code>NAME</code></td></tr>
+<tr><td><code>--var NAME=VALUE</code></td><td>Runtime variable with the highest precedence, repeatable; use it to pass secrets from the pipeline</td></tr>
+<tr><td><code>--plugin FILE</code></td><td>Run a plugin's hooks for this send, for example <code>target/plugins/odata.wasm</code></td></tr>
+<tr><td><code>--body-limit BYTES</code></td><td>Keep at most this many body bytes in the report (default 10 MiB)</td></tr>
+<tr><td><code>--pretty</code></td><td>Indent the JSON</td></tr>
+</tbody>
+</table>
+<p>The output is one JSON object, the send report: what went on the wire (secrets as
+<code>***</code>), the response with status, headers, body and timing, the variables used and
+their origin, unresolved placeholders and any error. The web app produces the same report.</p>
+<table>
+<thead><tr><th scope="col">Exit code</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>A response arrived, whatever its HTTP status</td></tr>
+<tr><td>1</td><td>No response: connection, DNS, TLS, timeout, too many redirects</td></tr>
+<tr><td>2</td><td>Usage error, no collection, invalid files, or the request is not in the collection</td></tr>
+<tr><td>3</td><td>The request could not be prepared: unknown environment, invalid URL, unsupported auth, unreadable body file</td></tr>
+</tbody>
+</table>
+<p>A status check in a pipeline, with <code>jq</code>:</p>
+<pre><code>rt send health/status.yml --env CI --var token="$API_TOKEN" \
+  | jq -e '.response.status == 200' </code></pre>
+
+<h2 id="import">rt import</h2>
+<pre><code>rt import shop.postman_collection.json prod.postman_environment.json --out ./shop
+rt import api.yaml --format openapi --out ./api --json</code></pre>
+<p>Prints the loss report. Exit code 0 once the collection is written, 2 if the input cannot
+be read or <code>--out</code> is not empty.</p>
+
+<h2 id="scan">rt scan</h2>
+<p>Finds credentials in collection files (see <a href="../environments/#scanner">secret
+scanner</a>). Exit code 0 when clean, 1 with findings, 2 if a path cannot be read. As a Git
+pre-commit hook:</p>
+<pre><code>#!/bin/sh
+files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.yml' '*.yaml' '*.json')
+[ -z "$files" ] &amp;&amp; exit 0
+exec rt scan $files</code></pre>
+
+<h2 id="agent">rt agent</h2>
+<p>The web app runs in the browser, so the browser's rules apply: no request to a server
+without CORS headers, no client certificates. <code>rt agent</code> is a companion on your
+machine that sends such requests for the web app. It listens on <code>127.0.0.1</code> only,
+checks the <code>Host</code> and <code>Origin</code> of every request, pairs with the web app
+through a single-use code printed in your terminal, and keeps its tokens in memory only. With
+<code>--allow-secrets</code> it also reads secrets from secret managers for the web app.</p>
+<p>The full reference, including the security model, is
+<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/crates/rt-cli/README.md">crates/rt-cli/README.md</a>.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

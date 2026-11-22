@@ -1,0 +1,124 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="How RequestTailor stores collections: OpenCollection YAML, one file per request, environments as files, byte-identical round trips and importers with a loss report.">
+<title>Collections as files · RequestTailor</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/" aria-current="page">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<h1>Collections as files</h1>
+<p class="lead">The folder is the collection. The app reads it and writes changes back; it
+keeps no copy of its own.</p>
+
+<h2 id="layout">Layout</h2>
+<pre><code>my-api/
+  opencollection.yml        the collection: name, default headers, auth, variables
+  users/
+    folder.yml              optional: folder name, order, defaults for its requests
+    get-user.yml            one request per file
+    create-user.yml
+  environments/
+    Local.yml               one file per environment
+    Staging.yml</code></pre>
+<p>A folder inside the collection that has its own <code>opencollection.yml</code> is a
+separate collection.</p>
+
+<h2 id="request">A request</h2>
+<pre><code>info:
+  name: Get user
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/users/{{userId}}"
+  headers:
+    - name: Accept
+      value: application/json
+  auth: inherit</code></pre>
+<p><code>auth: inherit</code> takes the authentication of the folder or the collection. The
+URL is the truth for the query string; query parameters in a <code>params</code> list only
+mirror it.</p>
+
+<h2 id="format">OpenCollection</h2>
+<p>The files follow OpenCollection 1.0, the YAML format Bruno writes, so Bruno collections in
+that format open unchanged. OpenCollection allows no unknown fields; data of RequestTailor's
+own goes into the <code>extensions</code> section of <code>opencollection.yml</code>.</p>
+<p>Reading and writing are exact. Opening a collection and saving it without changes gives
+byte-identical files, comments and formatting included. When you change one request, only
+that part of that file changes, so diffs show what you did and nothing else. The test suite
+checks this on every commit against a corpus of 86 Bruno collections.</p>
+
+<h2 id="import">Importing</h2>
+<p>Imports create a new collection folder from another tool's export:</p>
+<table>
+<thead><tr><th scope="col">Source</th><th scope="col">Versions</th></tr></thead>
+<tbody>
+<tr><td>Postman</td><td>collections v2.0 and v2.1, with environment and globals files</td></tr>
+<tr><td>Insomnia</td><td>v4 and v5 exports</td></tr>
+<tr><td>OpenAPI</td><td>3.0 to 3.2</td></tr>
+<tr><td>cURL</td><td>command lines</td></tr>
+<tr><td>HAR</td><td>1.2</td></tr>
+<tr><td><code>.http</code></td><td>VS Code REST Client and JetBrains HTTP Client, with their environment files</td></tr>
+</tbody>
+</table>
+<p>Every import comes with a loss report that lists what could not be carried over exactly,
+with its location and whether it was dropped or approximated. Secret values from the source
+are never written; the variables are created as secrets without a value. Plugins can add
+importers, such as the OData plugin's <code>$metadata</code> importer.</p>
+
+<h2 id="git">Git</h2>
+<p>The desktop app has Git built in, without a staging area: choose the changed files, write
+a message, commit. Branches, pull, push and conflict resolution are in the same view.
+Operations that change files on disk refuse while you have unsaved changes. In the web app,
+pull and push go through the <code>rt agent</code> companion.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

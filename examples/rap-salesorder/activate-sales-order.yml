@@ -1,0 +1,13 @@
+info:
+  name: Activate draft
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{baseUrl}}{{service}}/SalesOrder(SalesOrderUUID={{salesOrderUUID}},IsActiveEntity=false)/com.example.zrt_salesorder.Activate"
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit

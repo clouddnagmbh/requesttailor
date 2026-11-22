@@ -1,0 +1,100 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Get started with RequestTailor: install, open a collection folder, pick an environment and send a request.">
+<title>Getting started · RequestTailor</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../">Home</a></li>
+<li><a href="../sap/">SAP and OData</a></li>
+<li><a href="../docs/" aria-current="page">Docs</a></li>
+<li><a href="../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../docs/" aria-current="page">Getting started</a></li>
+<li><a href="../docs/collections/">Collections as files</a></li>
+<li><a href="../docs/environments/">Environments and secrets</a></li>
+<li><a href="../docs/cli/">Command line: rt</a></li>
+<li><a href="../docs/mcp/">MCP server</a></li>
+<li><a href="../docs/plugins/">Plugins</a></li>
+<li><a href="../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<h1>Getting started</h1>
+<p class="lead">From download to the first response in a few minutes, without an account.</p>
+
+<h2 id="install">1. Install</h2>
+<p>Get the installer for your system from the <a href="../download/">download page</a> and
+check its signature. On macOS, open the disk image and drag RequestTailor to Applications. On
+Windows, run the setup. On Linux, make the AppImage executable (<code>chmod +x</code>) or
+install the <code>.deb</code>.</p>
+
+<h2 id="first-start">2. First start</h2>
+<p>The app asks once which extras you want. Choose <em>SAP and OData</em> if you work with
+OData services; this switches on the bundled OData plugin. You can change it later in the
+plugin settings. Nothing else happens at first start: no account, no sign-in, no network
+connection.</p>
+
+<h2 id="collection">3. Open or create a collection</h2>
+<p>A collection is a folder with an <code>opencollection.yml</code> file at its root. Open an
+existing folder (for example a Bruno collection in OpenCollection YAML, or one of the
+<a href="https://github.com/clouddnagmbh/requesttailor/tree/main/examples">examples</a>), create a new one, or import from Postman,
+Insomnia, OpenAPI, cURL, HAR or <code>.http</code> files. Each request is a file in that
+folder; see <a href="collections/">Collections as files</a>.</p>
+
+<h2 id="environment">4. Choose an environment</h2>
+<p>Environments hold the values that change between systems: host, user, client. Secret
+values (passwords, tokens) are entered once and kept in the operating system's keychain, not
+in the folder. See <a href="environments/">Environments and secrets</a>.</p>
+
+<h2 id="send">5. Send</h2>
+<p>Pick a request and send it. The response view shows status, headers, body, timing and
+which variables were used and where they came from. Large responses stay fast: only the lines
+on screen are loaded. Next time, the app reopens the last collection and request, so sending
+again takes at most two keystrokes.</p>
+
+<h2 id="git">6. Commit</h2>
+<p>The collection is ordinary files, so commit it with the built-in Git view or any Git tool.
+Before every commit from the app, a scanner checks the files for credentials and refuses the
+commit if it finds one.</p>
+
+<h2 id="pipeline">7. Run it in a pipeline</h2>
+<p>The same request runs on the command line with the same core:</p>
+<pre><code>rt send users/get-user.yml --env Staging --var token="$API_TOKEN" --pretty</code></pre>
+<p>See <a href="cli/">Command line: rt</a>.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

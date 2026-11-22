@@ -1,0 +1,15 @@
+info:
+  name: Edit (create draft of active order)
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}{{service}}/SalesOrder(SalesOrderUUID={{salesOrderUUID}},IsActiveEntity=true)/com.example.zrt_salesorder.Edit"
+  body:
+    type: json
+    data: |-
+      {
+        "PreserveChanges": true
+      }
+  auth: inherit

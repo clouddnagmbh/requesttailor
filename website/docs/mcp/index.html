@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="The RequestTailor MCP server for AI agents is planned for a later release.">
+<title>MCP server · RequestTailor</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/" aria-current="page">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<h1>MCP server</h1>
+<div class="note">
+<p><strong>Not in this release.</strong> The MCP server is planned for a later version. This
+page says what is decided so far.</p>
+</div>
+<p>The Model Context Protocol lets AI agents call tools. RequestTailor's MCP server will be
+part of the <code>rt</code> command line and use the same core as the apps, so an agent sends
+requests exactly as you would, from the same collection files.</p>
+<p>The project's rules for agents are fixed already:</p>
+<ul>
+<li>Agents never see secret values. They work with variable names; values are added by the
+core when sending and masked in what the agent gets back.</li>
+<li>Requests that write to a production environment need your approval.</li>
+<li>Every agent action is written to a local audit log on your machine.</li>
+</ul>
+<p>Until then, agents can already use <code>rt send</code>, whose JSON report is made to be
+read by programs. See <a href="../cli/">Command line: rt</a>.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

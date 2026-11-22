@@ -1,0 +1,13 @@
+info:
+  name: Discard draft
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{baseUrl}}{{service}}/SalesOrder(SalesOrderUUID={{salesOrderUUID}},IsActiveEntity=false)/com.example.zrt_salesorder.Discard"
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit

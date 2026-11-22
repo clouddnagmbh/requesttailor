@@ -1,0 +1,113 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Download RequestTailor for macOS, Windows and Linux, and the rt command line, with checksums and signatures to verify them.">
+<title>Download · RequestTailor</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../">Home</a></li>
+<li><a href="../sap/">SAP and OData</a></li>
+<li><a href="../docs/">Docs</a></li>
+<li><a href="../download/" aria-current="page">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<h1>Download</h1>
+<p class="lead">Installers and the <code>rt</code> command line are published on the
+project's GitHub releases page, together with a checksum file and its signature.</p>
+
+<div class="note">
+<p>The first release is being prepared. Until it is published, the links below lead to the
+empty releases page. You can build everything from source in the meantime; see the
+<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/README.md">README</a>.</p>
+</div>
+
+<h2 id="desktop">Desktop app</h2>
+<table>
+<thead><tr><th scope="col">System</th><th scope="col">File</th><th scope="col">Signed</th></tr></thead>
+<tbody>
+<tr><td>macOS, Apple silicon and Intel</td><td><code>RequestTailor_&lt;version&gt;_macos_universal.dmg</code></td><td>Developer ID, notarized by Apple</td></tr>
+<tr><td>Windows 10 and 11, x64</td><td><code>RequestTailor_&lt;version&gt;_windows_x64-setup.exe</code></td><td>Authenticode</td></tr>
+<tr><td>Linux x64, most distributions</td><td><code>RequestTailor_&lt;version&gt;_linux_amd64.AppImage</code></td><td>via the signed checksum file</td></tr>
+<tr><td>Debian, Ubuntu x64</td><td><code>RequestTailor_&lt;version&gt;_linux_amd64.deb</code></td><td>via the signed checksum file</td></tr>
+</tbody>
+</table>
+<p class="actions"><a class="button primary" href="https://github.com/clouddnagmbh/requesttailor/releases/latest">Go to the latest release</a></p>
+
+<h2 id="cli">Command line: rt</h2>
+<table>
+<thead><tr><th scope="col">System</th><th scope="col">File</th></tr></thead>
+<tbody>
+<tr><td>macOS (universal)</td><td><code>rt_&lt;version&gt;_macos_universal.zip</code>, signed and notarized</td></tr>
+<tr><td>Windows x64</td><td><code>rt_&lt;version&gt;_windows_x64.zip</code>, signed</td></tr>
+<tr><td>Linux x64</td><td><code>rt_&lt;version&gt;_linux_x64.tar.gz</code></td></tr>
+</tbody>
+</table>
+<p>Unpack it and put <code>rt</code> on your <code>PATH</code>. <code>rt --version</code> prints
+the version. The <a href="../docs/cli/">CLI guide</a> has the commands.</p>
+
+<h2 id="web">Web app</h2>
+<p>The web app is part of the repository and runs from it (<code>npm run dev -w apps/web</code>).
+A hosted version is not part of this release.</p>
+
+<h2 id="verify">Verify what you downloaded</h2>
+<p>Every release has a <code>SHA256SUMS</code> file with the SHA-256 checksum of each file,
+and <code>SHA256SUMS.asc</code>, a GPG signature of that file made with the project's release
+key.</p>
+
+<h3 id="checksums">1. Check the checksum</h3>
+<pre><code># macOS
+shasum -a 256 -c SHA256SUMS --ignore-missing
+
+# Linux
+sha256sum -c SHA256SUMS --ignore-missing</code></pre>
+<pre><code># Windows (PowerShell): compare the output with the line in SHA256SUMS
+Get-FileHash .\RequestTailor_&lt;version&gt;_windows_x64-setup.exe -Algorithm SHA256</code></pre>
+
+<h3 id="signature">2. Check the signature of the checksums</h3>
+<pre><code>gpg --import release-key.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS</code></pre>
+<p>The output must say <q>Good signature</q> and show this key fingerprint:</p>
+<p><code>Release key fingerprint: published with the first release</code></p>
+<p>Compare the fingerprint here, on this website, rather than with the key file from the
+release itself: someone who could replace the files on the release could replace the key
+there too.</p>
+
+<h3 id="os-signatures">3. The operating system's own check</h3>
+<pre><code># macOS: should say "accepted" and "source=Notarized Developer ID"
+spctl --assess --type execute -vv /Applications/RequestTailor.app</code></pre>
+<pre><code># Windows (PowerShell): Status should be "Valid"
+Get-AuthenticodeSignature .\RequestTailor_&lt;version&gt;_windows_x64-setup.exe</code></pre>
+
+<h2 id="updates">Updates</h2>
+<p>The app does not check for updates by itself, because it makes no connection you did not
+ask for. To hear about new versions, watch the repository's releases on GitHub or subscribe to
+<a href="https://github.com/clouddnagmbh/requesttailor/releases.atom">the releases feed</a>.</p>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

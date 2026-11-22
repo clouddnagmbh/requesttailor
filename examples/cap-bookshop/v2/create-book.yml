@@ -1,0 +1,21 @@
+info:
+  name: Create book
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}{{service}}/Books"
+  body:
+    type: json
+    data: |-
+      {
+        "ID": {{newBookId}},
+        "title": "Notes from the V2 Adapter",
+        "author_ID": 150,
+        "genre_ID": 13,
+        "stock": 3,
+        "price": "14.50",
+        "currency_code": "EUR"
+      }
+  auth: inherit

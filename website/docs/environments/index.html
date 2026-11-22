@@ -1,0 +1,123 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Variables, environments and secrets in RequestTailor: precedence, secret variables in the OS keychain, external secret managers and the secret scanner.">
+<title>Environments and secrets · RequestTailor</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/" aria-current="page">Environments and secrets</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<h1>Environments and secrets</h1>
+<p class="lead">Values that differ between systems live in environments. Values that must
+stay secret never enter the collection folder.</p>
+
+<h2 id="precedence">Where a variable comes from</h2>
+<p>Variables are written <code>{{name}}</code> and resolved in layers. A later layer wins:</p>
+<ol>
+<li>Global</li>
+<li>Collection (<code>opencollection.yml</code>)</li>
+<li>Environment (<code>environments/&lt;name&gt;.yml</code>)</li>
+<li>Folder (<code>folder.yml</code>)</li>
+<li>Request</li>
+<li>Runtime (for example <code>--var</code> on the command line)</li>
+</ol>
+<p>The response view and the JSON report of <code>rt send</code> show for each variable which
+layer it came from, and list placeholders that had no value.</p>
+
+<h2 id="secrets">Secret variables</h2>
+<p>A secret variable is declared in the environment file without a value:</p>
+<pre><code>name: Staging
+variables:
+  - name: baseUrl
+    value: https://api.staging.example.com
+  - secret: true
+    name: apiToken</code></pre>
+<p>You enter the value once in the app. The desktop app keeps it in the operating system's
+keychain (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux); the web
+app keeps it encrypted in the browser's storage. Values are added only when a request is sent,
+and reports show them as <code>***</code>. OAuth 2.0 tokens are kept the same way.</p>
+
+<h2 id="external">Secret managers</h2>
+<p>An environment can read secrets from a secret manager through that manager's own command
+line, with your existing login. The file holds only the reference:</p>
+<pre><code>name: Staging
+externalSecrets:
+  type: one-password
+  variables:
+    - name: apiToken
+      secretReference: op://Staging/api/token</code></pre>
+<table>
+<thead><tr><th scope="col"><code>type</code></th><th scope="col">Command line used</th></tr></thead>
+<tbody>
+<tr><td><code>one-password</code></td><td><code>op</code></td></tr>
+<tr><td><code>hashicorp-vault-server</code>, <code>hashicorp-vault-cloud</code></td><td><code>vault</code></td></tr>
+<tr><td><code>aws-secrets-manager</code></td><td><code>aws</code></td></tr>
+<tr><td><code>azure-key-vault</code></td><td><code>az</code></td></tr>
+<tr><td><code>gcp-secrets-manager</code></td><td><code>gcloud</code></td></tr>
+</tbody>
+</table>
+<p>Values are held in memory only and masked in every report. The reference fields of each
+type are listed in the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/crates/rt-cli/README.md#external-secrets">CLI
+reference</a>.</p>
+
+<h2 id="scanner">Secret scanner</h2>
+<p>Before every commit from the app, and with <code>rt scan</code> in a pipeline or Git hook,
+RequestTailor looks for credentials typed into collection files: known token formats, private
+keys, <code>Bearer</code> and <code>Basic</code> credentials, passwords in URLs and values of
+credential-like fields. A commit with findings is refused. Values that are only variables,
+masks such as <code>***</code> and placeholders are not findings. A line that is not a
+credential can be marked with a <code># rt-scan:allow</code> comment.</p>
+
+<h2 id="certificates">Client certificates</h2>
+<p>Client certificates (PEM or PKCS#12) are configured per collection or per environment and
+used by the desktop app and the command line. Browsers do not let web pages present client
+certificates, so the web app reports a clear TLS error instead.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

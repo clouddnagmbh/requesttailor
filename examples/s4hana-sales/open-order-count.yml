@@ -1,0 +1,9 @@
+info:
+  name: Open order count (function import)
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{baseUrl}}{{service}}/GetOpenOrderCount?CustomerID='{{customerId}}'"
+  auth: inherit

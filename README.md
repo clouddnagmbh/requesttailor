@@ -30,6 +30,14 @@ cargo test --workspace
 
 See `CLAUDE.md` for all checks CI runs.
 
+## More
+
+- [`examples/`](examples): example collections for S/4HANA (OData V2), CAP and RAP
+- [`website/`](website): the project website (static, `/sap/`, `/download/`, `/docs/`)
+- [`RELEASING.md`](RELEASING.md): signed release builds, secrets, verification
+- [`plugins/README.md`](plugins/README.md): writing a plugin
+- [`crates/rt-cli/README.md`](crates/rt-cli/README.md): the `rt` command line
+
 ## License
 
 Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).

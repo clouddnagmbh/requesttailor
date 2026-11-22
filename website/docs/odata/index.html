@@ -1,0 +1,132 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Step by step: OData V2 and V4 services from SAP S/4HANA, CAP and RAP in RequestTailor, with the OData plugin, landscapes, CSRF, ETags, $batch and drafts.">
+<title>OData and SAP guide · RequestTailor</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/" aria-current="page">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<h1>OData and SAP guide</h1>
+<p class="lead">How to work with OData V2 and V4 services from S/4HANA, CAP and RAP. For an
+overview of the plugin, see <a href="../../sap/">SAP and OData</a>.</p>
+
+<h2 id="enable">1. Switch on the OData plugin</h2>
+<p>Choose <em>SAP and OData</em> at first start, or switch the OData plugin on later in the
+plugin settings. It asks for three permissions: network access to the host of the request
+being sent only, its own storage (for cached metadata, CSRF tokens and ETags), and the
+non-secret variables (for <code>sapClient</code> and <code>sapLanguage</code>).</p>
+
+<h2 id="try">2. Try it locally</h2>
+<p>The repository has a synthetic OData test server and three example collections:</p>
+<pre><code>cargo run -p rt-odata-testserver          # http://127.0.0.1:47830</code></pre>
+<p>Open <code>examples/s4hana-sales</code>, <code>examples/cap-bookshop</code> or
+<code>examples/rap-salesorder</code>, pick the environment <em>Local</em>, and for the S/4
+examples enter the test password <code>RT_PASS</code> as the value of the secret variable
+<code>password</code>. Each example's README walks through its requests.</p>
+
+<h2 id="connect">3. Connect your own system</h2>
+<ol>
+<li>Create a collection, or import the service's <code>$metadata</code> (from the system, or
+an API specification downloaded from the SAP Business Accelerator Hub). The importer creates
+a request per entity set and operation.</li>
+<li>In the plugin's <em>SAP systems</em> tab, create DEV, QAS and PRD environments: host,
+client, language and user. The password is created as a secret without a value; enter it
+once and it stays in your keychain.</li>
+<li>Pick an environment and send. The plugin adds <code>sap-client</code> and
+<code>sap-language</code> to the URL unless it already has them.</li>
+</ol>
+
+<h2 id="browse">4. Browse and query</h2>
+<p>The <em>OData</em> tab of the collection shows the service model from
+<code>$metadata</code>: entity sets, keys, properties, navigation and operations. On a
+request, the <em>Query</em> tab builds <code>$filter</code>, <code>$expand</code>,
+<code>$select</code>, <code>$orderby</code>, <code>$top</code>, <code>$skip</code> and
+<code>$count</code> or <code>$inlinecount</code> from that model and writes them into the
+URL.</p>
+
+<h2 id="write">5. Write: CSRF and ETags</h2>
+<p>SAP Gateway and many CAP deployments protect writes with a CSRF token bound to the session
+cookie. Before a modifying request without <code>X-CSRF-Token</code>, the plugin fetches one
+with <code>X-CSRF-Token: Fetch</code> in the same session as the request and sets it. When the
+server answers <code>403</code> with <code>X-CSRF-Token: Required</code>, the next send
+fetches a new token.</p>
+<p>For optimistic locking, read the entity first. The plugin remembers its ETag and sets
+<code>If-Match</code> on the next update or delete of that entity, unless you set the header
+yourself. In OData V2 the update method is usually <code>MERGE</code> (newer Gateway releases
+accept <code>PATCH</code>); in V4 it is <code>PATCH</code>.</p>
+
+<h2 id="batch">6. $batch</h2>
+<p>The <em>Batch</em> tab composes a <code>$batch</code> request from read parts and
+changesets (all-or-nothing groups of writes), as multipart for V2 and V4 or as JSON for V4,
+and shows each part of the response with its status. A batch is an ordinary request file, so
+you can also write the body by hand, as the examples do.</p>
+
+<h2 id="drafts">7. Drafts in RAP and CAP</h2>
+<p>Draft-enabled entities have two instances per key, the active one
+(<code>IsActiveEntity=true</code>) and the draft (<code>IsActiveEntity=false</code>). The
+<em>Draft</em> tab runs the lifecycle:</p>
+<table>
+<thead><tr><th scope="col">Step</th><th scope="col">RAP</th><th scope="col">CAP</th></tr></thead>
+<tbody>
+<tr><td>Draft of an active instance</td><td>bound action <code>Edit</code></td><td>bound action <code>draftEdit</code></td></tr>
+<tr><td>Change the draft</td><td><code>PATCH</code> on the draft</td><td><code>PATCH</code> on the draft</td></tr>
+<tr><td>Validate</td><td><code>Prepare</code></td><td><code>draftPrepare</code></td></tr>
+<tr><td>Save</td><td><code>Activate</code></td><td><code>draftActivate</code></td></tr>
+<tr><td>Throw away</td><td><code>Discard</code></td><td><code>DELETE</code> on the draft</td></tr>
+</tbody>
+</table>
+
+<h2 id="cli">8. In a pipeline</h2>
+<p>The plugin runs in <code>rt send</code> too, with the same CSRF and ETag handling:</p>
+<pre><code>rt send sales/read-sales-order.yml --env QAS --var password="$QAS_PASSWORD" \
+  --plugin odata.wasm --pretty</code></pre>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+<p>SAP, S/4HANA, SAP Gateway, ABAP and other SAP products named here are trademarks or registered trademarks of SAP SE in Germany and other countries. RequestTailor is not affiliated with, endorsed or sponsored by SAP SE.</p>
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

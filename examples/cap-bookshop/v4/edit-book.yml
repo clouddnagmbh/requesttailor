@@ -1,0 +1,15 @@
+info:
+  name: Edit (create draft of active book)
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}{{service}}/Books(ID={{bookId}},IsActiveEntity=true)/AdminService.draftEdit"
+  body:
+    type: json
+    data: |-
+      {
+        "PreserveChanges": true
+      }
+  auth: inherit

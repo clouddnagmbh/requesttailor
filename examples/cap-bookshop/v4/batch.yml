@@ -1,0 +1,41 @@
+info:
+  name: Batch (JSON, read and atomicity group)
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{baseUrl}}{{service}}/$batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "requests": [
+          {
+            "id": "r1",
+            "method": "GET",
+            "url": "Books?$filter=IsActiveEntity eq true&$select=ID,title&$top=2",
+            "headers": { "accept": "application/json" }
+          },
+          {
+            "id": "c1",
+            "atomicityGroup": "g1",
+            "method": "POST",
+            "url": "Books",
+            "headers": { "content-type": "application/json" },
+            "body": { "ID": 902, "title": "First of a pair", "stock": 1 }
+          },
+          {
+            "id": "c2",
+            "atomicityGroup": "g1",
+            "method": "POST",
+            "url": "Books",
+            "headers": { "content-type": "application/json" },
+            "body": { "ID": 903, "title": "Second of a pair", "stock": 1 }
+          }
+        ]
+      }
+  auth: inherit

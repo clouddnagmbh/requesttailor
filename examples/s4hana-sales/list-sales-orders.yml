@@ -1,0 +1,9 @@
+info:
+  name: List sales orders
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}{{service}}/SalesOrderSet?$select=SalesOrderID,CustomerName,GrossAmount,Currency,LifecycleStatus&$orderby=SalesOrderID desc&$top=10&$inlinecount=allpages"
+  auth: inherit

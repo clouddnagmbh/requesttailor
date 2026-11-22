@@ -1,0 +1,104 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="RequestTailor plugins: single WebAssembly modules in a sandbox, with hooks for requests, responses, tabs and importers, and permissions you grant.">
+<title>Plugins · RequestTailor</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/" aria-current="page">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<h1>Plugins</h1>
+<p class="lead">A plugin is a single WebAssembly file. The same file runs on the desktop, in
+the web app and in <code>rt</code>.</p>
+
+<h2 id="what">What a plugin can do</h2>
+<table>
+<thead><tr><th scope="col">Hook</th><th scope="col">When it runs</th></tr></thead>
+<tbody>
+<tr><td>Prepare</td><td>Before every send, after authentication and before signing; it can change the request</td></tr>
+<tr><td>Response</td><td>After every response; it can add notes</td></tr>
+<tr><td>Tabs</td><td>Adds tabs to the request editor, the response view or the collection, drawn from declarative blocks (text, tables, trees, forms, buttons)</td></tr>
+<tr><td>Importers</td><td>Converts files in the import dialog and in <code>rt import</code> into a collection, with a loss report</td></tr>
+</tbody>
+</table>
+
+<h2 id="sandbox">The sandbox</h2>
+<ul>
+<li>No native code: plugins are WebAssembly only, run by an interpreter that works the same
+everywhere.</li>
+<li>No file system, no threads, and no network except through the host's HTTP call.</li>
+<li>Every call runs in a fresh instance with a fuel limit and a memory limit of 64 MiB.</li>
+<li>Plugins never see secret values: requests and responses reach them masked.</li>
+</ul>
+
+<h2 id="permissions">Permissions</h2>
+<p>A plugin declares in its manifest what it needs, and you see that before installing it:</p>
+<table>
+<thead><tr><th scope="col">Permission</th><th scope="col">Allows</th></tr></thead>
+<tbody>
+<tr><td><code>network</code></td><td>HTTP requests to the listed hosts only (<code>{request}</code> means the host of the request being sent)</td></tr>
+<tr><td><code>storage</code></td><td>A private key-value store per plugin and device</td></tr>
+<tr><td><code>variables</code></td><td>Reading the non-secret variables in scope</td></tr>
+</tbody>
+</table>
+
+<h2 id="write">Writing a plugin</h2>
+<p>Plugins are written in Rust with the plugin SDK and built with one command:</p>
+<pre><code>node scripts/build-plugins.mjs hello    # builds plugins/hello to target/plugins/hello.wasm
+rt send request.yml --plugin target/plugins/hello.wasm --pretty</code></pre>
+<p>The full guide with a working example, the testing tools and the versioning rules is
+<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/plugins/README.md">plugins/README.md</a>; the binary interface is specified in
+<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/crates/rt-plugin/API.md">API.md</a>. A TypeScript SDK has the types and a test
+host; building plugins from TypeScript is not available yet.</p>
+<p>Third-party plugins are welcome. Name them so it is clear they are your own, for example
+<q>Acme Tools for RequestTailor</q>; see the
+<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

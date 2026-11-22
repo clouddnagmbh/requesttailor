@@ -1,0 +1,9 @@
+info:
+  name: Discard draft
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}{{service}}/Books(ID={{bookId}},IsActiveEntity=false)"
+  auth: inherit

@@ -1,0 +1,15 @@
+info:
+  name: Update book stock
+  type: http
+  seq: 4
+
+http:
+  method: MERGE
+  url: "{{baseUrl}}{{service}}/Books({{bookId}})"
+  body:
+    type: json
+    data: |-
+      {
+        "stock": 20
+      }
+  auth: inherit

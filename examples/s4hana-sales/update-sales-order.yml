@@ -1,0 +1,15 @@
+info:
+  name: Update sales order note
+  type: http
+  seq: 4
+
+http:
+  method: MERGE
+  url: "{{baseUrl}}{{service}}/SalesOrderSet('{{salesOrderId}}')"
+  body:
+    type: json
+    data: |-
+      {
+        "Note": "Updated with RequestTailor"
+      }
+  auth: inherit

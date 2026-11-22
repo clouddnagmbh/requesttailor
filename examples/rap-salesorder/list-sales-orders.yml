@@ -1,0 +1,9 @@
+info:
+  name: List active sales orders
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}{{service}}/SalesOrder?$filter=IsActiveEntity eq true&$select=SalesOrderUUID,SalesOrderID,CustomerID,GrossAmount,Currency,OverallStatus&$orderby=SalesOrderID&$count=true&$top=10"
+  auth: inherit

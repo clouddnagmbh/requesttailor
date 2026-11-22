@@ -1,0 +1,96 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="What RequestTailor stores and sends: no account, no telemetry, no update checks; secrets in the OS keychain; this website sets no cookies.">
+<title>Privacy · RequestTailor</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/" aria-current="page">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<h1>Privacy</h1>
+<p class="lead">RequestTailor sends what you send, to where you send it. Nothing else.</p>
+
+<h2 id="app">The app and the command line</h2>
+<ul>
+<li><strong>No account.</strong> There is no sign-in, no license key and no registration.</li>
+<li><strong>No telemetry.</strong> No usage statistics, no crash reports, no analytics are
+collected or sent.</li>
+<li><strong>No connection to our servers.</strong> The app does not check for updates and
+does not load content from the internet.</li>
+<li><strong>Connections you cause.</strong> The requests you send; Git remotes you pull from or
+push to; the OAuth 2.0 provider and browser sign-in of an auth configuration; the command lines
+of secret managers you configure; and hosts a plugin is permitted to reach, which you see
+before installing it.</li>
+</ul>
+
+<h2 id="data">What is stored, and where</h2>
+<table>
+<thead><tr><th scope="col">Data</th><th scope="col">Desktop app</th><th scope="col">Web app</th></tr></thead>
+<tbody>
+<tr><td>Collections and environments</td><td>Your folders</td><td>Your folders, through the browser's file access</td></tr>
+<tr><td>Secret values, OAuth 2.0 tokens</td><td>Operating system keychain</td><td>Encrypted in the browser's storage</td></tr>
+<tr><td>History: request name, method, masked URL, status, time; no bodies and no header values</td><td>Data folder</td><td>Browser storage</td></tr>
+<tr><td>Cookies set by responses, per collection and environment</td><td>Data folder</td><td>Browser storage</td></tr>
+<tr><td>Installed plugins and their storage</td><td>Data folder</td><td>Browser storage</td></tr>
+</tbody>
+</table>
+<p><code>rt</code> keeps no history. It shares the keychain entries and the plugin folder with
+the desktop app, and keeps cookies only in a file you name with <code>--cookie-jar</code>.</p>
+<p>The companion <code>rt agent</code> listens on your own machine only (127.0.0.1), logs the
+method and host of each request it sends, never paths, headers or bodies, and keeps its
+pairing tokens in memory.</p>
+
+<h2 id="website">This website</h2>
+<p>This website is a set of static pages. It sets no cookies, runs no scripts, uses no
+analytics and loads no fonts, images or scripts from other servers. The hosting provider
+(GitHub Pages) keeps its own technical server logs; see GitHub's privacy statement for what
+those contain.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>
