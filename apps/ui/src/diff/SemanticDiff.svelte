@@ -11,7 +11,7 @@
   import type { Snippet } from "svelte";
 
   import type { ChangeTarget, ChangedFile, CollectionDiff, DiffValue, FieldChange, FieldPath, ModelChange } from "../commands/types";
-  import { fieldLabel, isMultiline, KIND_LABEL, targetLabel, valueText } from "./format";
+  import { fieldLabel, fieldValueText, isMultiline, KIND_LABEL, secretNote, targetLabel, valueText } from "./format";
   import { lineOps } from "./textdiff";
 
   let {
@@ -32,7 +32,7 @@
   }
 
   const lines = (f: FieldChange) => lineOps(valueText(f.old), valueText(f.new));
-  const text = (v: DiffValue | null) => valueText(v) ?? "";
+  const text = (v: DiffValue | null, path: FieldPath) => fieldValueText(path, v) ?? "";
 </script>
 
 <div class="sd" data-testid="semantic-diff">
@@ -63,7 +63,7 @@
               {#if f.old?.kind === "secret" || f.new?.kind === "secret"}
                 <div class="values">
                   <span class="secret" data-testid="sd-secret">secret value hidden</span>
-                  <span class="note">{f.old && f.new ? "changed" : f.new ? "added" : "removed"}</span>
+                  <span class="note" data-testid="sd-secret-note">{secretNote(f.path, f.old, f.new)}</span>
                 </div>
               {:else if isMultiline(f.old, f.new)}
                 <div class="code" data-testid="sd-code">
@@ -73,9 +73,9 @@
                 </div>
               {:else}
                 <div class="values">
-                  {#if f.old}<del class="old" data-testid="sd-old">{text(f.old) || "(empty)"}</del>{/if}
+                  {#if f.old}<del class="old" data-testid="sd-old">{text(f.old, f.path) || "(empty)"}</del>{/if}
                   {#if f.old && f.new}<span class="arrow" aria-hidden="true">→</span>{/if}
-                  {#if f.new}<ins class="new" data-testid="sd-new">{text(f.new) || "(empty)"}</ins>{/if}
+                  {#if f.new}<ins class="new" data-testid="sd-new">{text(f.new, f.path) || "(empty)"}</ins>{/if}
                 </div>
               {/if}
             </li>
