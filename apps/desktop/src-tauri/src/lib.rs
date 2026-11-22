@@ -37,6 +37,10 @@ mod session_vars;
 /// Wave 8, strand A.
 mod streams;
 
+/// The app's core as managed Tauri state (wave 10). A distribution's Tauri plugin may use it,
+/// e.g. to open a collection it placed on disk: `app.state::<AppCore>().open(&root)`, then
+/// its UI extension shows it with `ctx.app.adopt(info)`.
+pub use crate::commands::AppCore;
 pub use crate::core::{CollectionInfo, Core};
 
 /// The configured app (plugins, state, commands) without its context. `main.rs` runs it with

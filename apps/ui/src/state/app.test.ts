@@ -25,4 +25,24 @@ describe("AppState", () => {
     await app.send("health.yml");
     expect(app.results["health.yml"].report.request?.url).toMatch(/\/two$/);
   });
+
+  it("tells edit listeners about the user's edits, not about external ones (wave 10)", async () => {
+    const backend = new MockBackend();
+    const app = new AppState(backend);
+    await app.open();
+    await app.select("health.yml");
+    const seen: string[] = [];
+    const off = app.onEdit((path, spec) => seen.push(`${path} ${spec.url}`));
+    const spec = structuredClone(app.drafts["health.yml"]);
+    await app.edit("health.yml", { ...spec, url: "{{baseUrl}}/mine" });
+    await app.applyExternal("health.yml", { ...spec, url: "{{baseUrl}}/theirs" });
+    expect(seen).toEqual(["health.yml {{baseUrl}}/mine"]);
+    // The open tab shows the external change, the backend has it, the request is unsaved.
+    expect(app.drafts["health.yml"].url).toBe("{{baseUrl}}/theirs");
+    expect((await backend.getRequest("health.yml")).url).toBe("{{baseUrl}}/theirs");
+    expect(app.dirty).toContain("health.yml");
+    off();
+    await app.edit("health.yml", { ...spec, url: "{{baseUrl}}/after" });
+    expect(seen).toHaveLength(1);
+  });
 });

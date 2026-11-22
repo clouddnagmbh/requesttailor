@@ -42,6 +42,9 @@ export class AppState {
    *  shells with concurrent commands (Tauri) never send or save a stale request. */
   private lastEdit: Promise<unknown> = Promise.resolve();
 
+  /** Wave 10: listeners of `onEdit`. */
+  private readonly editListeners = new Set<(path: string, spec: RequestSpec) => void>();
+
   constructor(backend: Backend) {
     this.backend = backend;
   }
@@ -131,6 +134,34 @@ export class AppState {
   async edit(path: string, spec: RequestSpec): Promise<void> {
     this.drafts[path] = spec;
     const snapshot = $state.snapshot(spec) as RequestSpec;
+    for (const listener of this.editListeners) {
+      try {
+        listener(path, snapshot);
+      } catch (e) {
+        console.warn("RequestTailor: an edit listener failed:", e);
+      }
+    }
+    await this.update(path, snapshot);
+  }
+
+  /** Wave 10: calls `listener` after every edit the user makes in the editor (`edit`), with
+   *  the request as edited; not for changes applied with `applyExternal`. Returns the
+   *  unsubscribe. For extensions that share edits (live collaboration). */
+  onEdit(listener: (path: string, spec: RequestSpec) => void): () => void {
+    this.editListeners.add(listener);
+    return () => this.editListeners.delete(listener);
+  }
+
+  /** Wave 10: applies a request that changed elsewhere (another person, another device) as
+   *  if it had been edited here: the backend gets it (in memory, unsaved, like `edit`) and an
+   *  open tab shows it at once. `onEdit` listeners are not called. Requests that are not
+   *  open only reach the backend. */
+  async applyExternal(path: string, spec: RequestSpec): Promise<void> {
+    if (path in this.drafts) this.drafts[path] = spec;
+    await this.update(path, $state.snapshot(spec) as RequestSpec);
+  }
+
+  private async update(path: string, snapshot: RequestSpec): Promise<void> {
     const run = this.lastEdit.then(() =>
       this.guard(async () => {
         await this.backend.updateRequest(path, snapshot);
