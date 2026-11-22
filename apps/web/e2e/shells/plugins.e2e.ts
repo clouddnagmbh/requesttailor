@@ -24,8 +24,10 @@ async function setup(page: Page): Promise<void> {
 
 /** Opens the folder through the UI (after a reload too) and waits until it is shown. */
 async function open(page: Page): Promise<void> {
-  await page.getByTestId("open-collection").click();
-  await expect(page.getByTestId("collection-name")).toHaveText("Shell test");
+  const name = page.getByTestId("collection-name");
+  // After a reload the app may already have reopened the folder by itself.
+  if (!(await name.isVisible())) await page.getByTestId("open-collection").click();
+  await expect(name).toHaveText("Shell test");
 }
 
 type Rt = { __rt: { backend: import("@requesttailor/ui").Backend } };

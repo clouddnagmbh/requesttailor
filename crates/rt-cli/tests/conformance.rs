@@ -90,6 +90,8 @@ async fn run_case(plan: Plan) -> Result<SendReport, String> {
         environment: plan.environment,
         vars: plan.vars,
         body_limit: plan.body_limit.unwrap_or(SendOptions::default().body_limit),
+        // Same reports on every machine, whatever plugins the developer has installed.
+        no_plugins: true,
         ..SendArgs::default()
     };
     Ok(rt_cli::send_request(&doc, &plan.request, &args, &files, &transport).await)

@@ -85,12 +85,17 @@ export interface Session {
 }
 
 /** What the per-feature parts (./git, ./import, ./history, ./recent; wave 4) may use. */
+export interface OpenOptions {
+  /** Keep the collection that is open by the time the folder is read (start-up reopen). */
+  unlessOpen?: boolean;
+}
+
 export interface WebHost {
   readonly deps: WebBackendDeps;
   /** The open collection; throws `BackendError` if none. */
   session(): Session;
   /** Opens `handle` as the collection (asks for read/write access if needed). */
-  openHandle(handle: FileSystemDirectoryHandle): Promise<CollectionInfo>;
+  openHandle(handle: FileSystemDirectoryHandle, options?: OpenOptions): Promise<CollectionInfo>;
   /** The companion's URL and token if it is paired, else `null`. */
   companionCredentials(): Promise<CompanionCredentials | null>;
 }
@@ -147,7 +152,7 @@ export class WebBackend implements Backend {
     const host: WebHost = {
       deps,
       session: () => this.session(),
-      openHandle: (handle) => this.openHandle(handle),
+      openHandle: (handle, options) => this.openHandle(handle, options),
       companionCredentials: async () => {
         try {
           return await this.client().credentials();
@@ -212,6 +217,12 @@ export class WebBackend implements Backend {
       startIn = last?.handle;
       if (last && (await last.handle.queryPermission?.({ mode: "readwrite" }).catch(() => "denied")) === "granted") {
         handle = last.handle;
+        // Already open (the start-up reopen got there first): keep it instead of replacing
+        // the workspace under a send that may be running.
+        const open = this.current;
+        if (open && (await open.handle.isSameEntry(handle).catch(() => false))) {
+          return { id: open.id, name: open.ws.name().trim() || open.handle.name, location: open.handle.name };
+        }
       }
     }
     if (!handle) {
@@ -225,13 +236,39 @@ export class WebBackend implements Backend {
     return this.openHandle(handle);
   }
 
-  private openHandle(handle: FileSystemDirectoryHandle): Promise<CollectionInfo> {
+  /** The open in flight, so concurrent opens of the same folder (e.g. the start-up reopen
+   *  and a click on Open folder) share one workspace instead of replacing each other while a
+   *  send is running. */
+  private opening: { handle: FileSystemDirectoryHandle; info: Promise<CollectionInfo> } | null = null;
+
+  private async openHandle(handle: FileSystemDirectoryHandle, options: OpenOptions = {}): Promise<CollectionInfo> {
+    const pending = this.opening;
+    if (pending && (await pending.handle.isSameEntry(handle).catch(() => false))) return pending.info;
+    const info = this.openHandleNow(handle, options);
+    const entry = { handle, info };
+    this.opening = entry;
+    try {
+      return await info;
+    } finally {
+      if (this.opening === entry) this.opening = null;
+    }
+  }
+
+  private openHandleNow(handle: FileSystemDirectoryHandle, options: OpenOptions): Promise<CollectionInfo> {
     return guard(async () => {
       await ensureReadWrite(handle);
       const [core, files] = await Promise.all([this.deps.loadCore(), readDirectory(handle)]);
       const ws = core.Workspace.open(files);
+      const open = this.current;
+      if (options.unlessOpen && open) {
+        // A collection was opened meanwhile (the start-up reopen came late): keep it.
+        ws.free();
+        return { id: open.id, name: open.ws.name().trim() || open.handle.name, location: open.handle.name };
+      }
       const id = await rememberFolder(handle);
-      this.current?.ws.free();
+      // The previous workspace is not freed here: a send or history write that started before
+      // may still hold it (freeing it made them fail with "null pointer passed to rust").
+      // wasm-bindgen's FinalizationRegistry frees it once nothing refers to it any more.
       this.current = { id, handle, ws, secrets: null };
       const info = { id, name: ws.name().trim() || handle.name, location: handle.name };
       this.recent.opened(info, handle);

@@ -76,7 +76,9 @@ export function webRecent(host: WebHost): WebRecent {
         await queue(() => forgetRecent(id));
         return null;
       }
-      return host.openHandle(folder.handle);
+      // Without a click this is the start-up reopen: it must not replace a collection the
+      // user opened while it was on its way.
+      return host.openHandle(folder.handle, { unlessOpen: !interactive });
     },
   };
 }

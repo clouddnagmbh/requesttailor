@@ -79,10 +79,14 @@ crates/rt-git      Git nativ (gitoxide), nur Desktop/CLI/iOS, nicht wasm32
 crates/rt-testserver  lokaler HTTP-Testserver (nur Testinfrastruktur, nativ)
 testdata/collections/bruno  Korpus: 86 Bruno-Collections (MIT), unverändert, für Round-Trip-Tests
 testdata/import    Import-Korpus pro Quelle, frei lizenziert, Herkunft und Lizenz je Datei in SOURCES.md
+testdata/sigv4     AWS-SigV4-Testvektoren (Apache-2.0, Herkunft in SOURCES.md)
+testdata/idp       Keycloak als Test-Identitätsanbieter für OAuth 2.0 (`idp.sh start|stop`, Port 8180)
 apps/ui            gemeinsame Oberfläche (Svelte 5, TypeScript, CodeMirror 6)
 apps/desktop       Tauri-2-Hülle; Crate `rt-desktop` in `apps/desktop/src-tauri` (nur Desktop, nicht wasm32/iOS)
 apps/web           Web-App
-plugins/odata      OData V2/V4, CSRF, $batch
+plugins/example    Beispiel-Plugin (Rust); Anleitung „Ein Plugin schreiben“ in `plugins/README.md`
+plugins/odata      OData V2/V4, CSRF, $batch (Welle 6)
+sdk/typescript     TypeScript-Typen der Plugin-API und Test-Host (TS→WASM-Build noch offen)
 ci/canary          absichtlich verbotene Abhängigkeiten; die Lizenz-Gates müssen sie ablehnen
 scripts            Prüfskripte ohne Abhängigkeiten (Lizenzen, Köpfe, DCO, Performance)
 perf/budgets.toml  Performance-Budgets, einzige Quelle für die Schwellwerte
@@ -121,7 +125,11 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 5 (unten). Änderungen daran sind Sc
 - Format: je Bereich ein Modul in `rt-format/src/auth/` (`oauth2`, `awsv4`, `certs`, `secrets`). Schreiber lassen unveränderte Teile byte-gleich; die Rücklese-Prüfung jeder Änderung verweigert, was ein Schreiber nicht kann.
 - Plugin-API: `rt_plugin::api` und `crates/rt-plugin/API.md`. Ein Plugin ist eine `.wasm`-Datei mit dem Manifest in der Custom Section `rt-plugin`; JSON über `rt_call`/`rt.host`; Rechte `network` (Hosts), `storage`, `variables`; Plugins sehen nie Secret-Werte. Jede Änderung an der API braucht einen Eintrag in `crates/rt-plugin/CHANGELOG.md`.
 - `Backend` hat `plugins` (`PluginApi`), `auth` (`AuthApi`, Prompts über `onPrompt`), `cookies` (`CookieApi`), `git.scan` und `imports.analyzeWithPlugin`. Dateien je Strang wie in Welle 4 (Desktop `src-tauri/src/{plugins,auth,cookies}.rs`, Web `src/{plugins,auth,cookies}.ts`, Mock `commands/mock-{plugins,auth,cookies}.ts`, CLI `crates/rt-cli/src/{plugins,oauth,cookies,secrets,scan}.rs`, zusammengesetzt in `services.rs`).
-- Secret-Scanner: `rt_app::secret_scan::scan`; ein Commit mit Klartext-Zugangsdaten scheitert mit `AppError::SecretsFound`; `rt scan` für Pipelines und Git-Hooks.
+- Secret-Scanner: `rt_app::secret_scan::scan`; ein Commit mit Klartext-Zugangsdaten scheitert mit `AppError::SecretsFound`; `rt scan` für Pipelines und Git-Hooks. Unterdrücken nur zeilenweise mit `rt-scan:allow` bzw. `rt-scan:allow-next-line`.
+- Plugin-Host: wasmi (Interpreter, gleiche Engine nativ, im Browser und auf iOS), frische Instanz pro Aufruf, Fuel- und 64-MiB-Grenze. Pufferregel steht in API.md (Host gibt `rt_call`-Ein- und Ausgabe frei; `rt.host`-Antworten gibt das Plugin frei). Installierte Plugins: `plugins/` im Datenordner, gemeinsam für Desktop und CLI; `RT_DATA_DIR` ersetzt den Datenordner (Tests setzen ihn oder `--no-plugins`). Im Web in IndexedDB.
+- Externe Secrets: nativ über die CLIs der Anbieter (`rt_app::secret_sources`, `CommandRunner`), im Web über `rt agent --allow-secrets` (`POST /v1/secrets`). Werte nur im Speicher, maskiert.
+- Client-Zertifikate nur nativ; Browser und Begleitdienst verweigern mit klarem TLS-Fehler. Cookies je Collection und Umgebung, Werte im Report maskiert.
+- OAuth-Tokens: nativ im Schlüsselbund (Desktop und CLI teilen die Einträge), im Web im verschlüsselten Browser-Speicher; die UI sieht nur `TokenInfo`.
 
 ## Befehle
 
@@ -148,6 +156,9 @@ npm run build -w apps/desktop                        # Release-Build ohne Bundle
 node scripts/check-license-headers.mjs
 node scripts/check-dco.mjs origin/main..HEAD
 node scripts/check-perf-budgets.mjs
+node scripts/build-plugins.mjs                       # Beispiel-Plugins nach target/plugins/<id>.wasm (Manifest eingebettet, Importe geprüft)
+npm run check -w sdk/typescript && npm test -w sdk/typescript   # TS-Typen gegen die Rust-JSON, ABI-Test des gebauten Plugins
+testdata/idp/idp.sh start && RT_IDP_URL=http://localhost:8180 cargo test -p rt-core --test oauth2_idp; testdata/idp/idp.sh stop  # OAuth gegen Keycloak (Docker)
 gitleaks git --no-banner --redact --config .gitleaks.toml .
 ci/canary/run.sh
 cargo test -p rt-cli --test conformance --test cli --locked

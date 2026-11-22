@@ -28,8 +28,11 @@ struct Output {
 
 /// Runs `rt` with a deadline, so a hanging binary fails the test instead of blocking it.
 fn rt(args: &[String]) -> Output {
+    // A data folder of its own: the developer's installed plugins must not change the reports.
+    let data = std::env::temp_dir().join(format!("rt-cli-test-data-{}", std::process::id()));
     let mut child = Command::new(env!("CARGO_BIN_EXE_rt"))
         .args(args)
+        .env("RT_DATA_DIR", data)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
