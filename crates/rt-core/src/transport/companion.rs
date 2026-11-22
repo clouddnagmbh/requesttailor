@@ -434,3 +434,38 @@ pub enum StreamServerMessage {
     /// Opening or sending failed; the session is over.
     Failed { error: super::TransportError },
 }
+
+impl From<crate::stream::StreamOpen> for WireStreamOpen {
+    fn from(open: crate::stream::StreamOpen) -> Self {
+        use crate::stream::StreamOpen;
+        match open {
+            StreamOpen::WebSocket {
+                url,
+                headers,
+                protocols,
+                timeout_ms,
+                keep_alive_ms,
+            } => WireStreamOpen::WebSocket {
+                url,
+                headers,
+                protocols,
+                timeout_ms,
+                keep_alive_ms,
+            },
+            StreamOpen::Sse { request } => WireStreamOpen::Sse {
+                request: WireRequest::from(&request),
+            },
+            StreamOpen::Grpc {
+                url,
+                path,
+                metadata,
+                timeout_ms,
+            } => WireStreamOpen::Grpc {
+                url,
+                path,
+                metadata,
+                timeout_ms,
+            },
+        }
+    }
+}
