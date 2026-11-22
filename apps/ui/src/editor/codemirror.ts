@@ -2,13 +2,20 @@
 // Copyright 2026 The RequestTailor Authors
 
 // CodeMirror 6 extensions of the request editor: `{{variable}}` highlighting with provenance
-// tooltips (hover and cursor), single-line fields, languages and a theme built only from the
-// design tokens in tokens.css.
+// tooltips (hover and cursor), single-line fields, languages, folding and a theme built only
+// from the design tokens in tokens.css (shared with the response's pretty view).
 
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
 import { xml } from "@codemirror/lang-xml";
-import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
+import {
+  bracketMatching,
+  foldGutter,
+  foldKeymap,
+  HighlightStyle,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import { EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from "@codemirror/state";
 import {
   Decoration,
@@ -170,9 +177,15 @@ export function singleLine(onEnter: () => void): Extension {
 
 // ---- multi line ----
 
+/** Fold markers in the gutter; from the keyboard Mod-Alt-[ / Mod-Alt-] (Ctrl-Alt-[ / ] for all). */
+export function folding(): Extension {
+  return [foldGutter({ openText: "⌄", closedText: "›" }), keymap.of(foldKeymap)];
+}
+
 export function multiLine(): Extension {
   return [
     lineNumbers(),
+    folding(),
     highlightActiveLine(),
     bracketMatching(),
     indentOnInput(),
@@ -198,7 +211,7 @@ export function base(): Extension {
 
 // ---- look (tokens only) ----
 
-const tokenHighlight = HighlightStyle.define([
+export const tokenHighlight = HighlightStyle.define([
   { tag: [t.propertyName, t.tagName], color: "var(--rt-accent)" },
   { tag: [t.string, t.attributeValue], color: "var(--rt-ok)" },
   { tag: [t.number, t.bool, t.null, t.attributeName], color: "var(--rt-warn)" },
@@ -209,7 +222,7 @@ const tokenHighlight = HighlightStyle.define([
   { tag: [t.keyword, t.controlKeyword, t.definitionKeyword, t.moduleKeyword, t.operatorKeyword], fontWeight: "600" },
 ]);
 
-const theme = EditorView.theme({
+export const theme = EditorView.theme({
   "&": {
     color: "var(--rt-fg)",
     backgroundColor: "var(--rt-bg)",
@@ -232,6 +245,16 @@ const theme = EditorView.theme({
     borderRight: "1px solid var(--rt-border)",
   },
   ".cm-activeLineGutter": { backgroundColor: "var(--rt-bg-hover)" },
+  ".cm-foldGutter .cm-gutterElement": { padding: "0 2px", cursor: "pointer" },
+  ".cm-foldGutter .cm-gutterElement:hover": { color: "var(--rt-fg)" },
+  ".cm-foldPlaceholder": {
+    backgroundColor: "var(--rt-bg-hover)",
+    color: "var(--rt-fg-muted)",
+    border: "1px solid var(--rt-border)",
+    borderRadius: "var(--rt-radius)",
+    padding: "0 4px",
+    margin: "0 2px",
+  },
   "&.cm-focused .cm-matchingBracket": { backgroundColor: "var(--rt-bg-hover)", outline: "1px solid var(--rt-border)" },
   ".cm-placeholder": { color: "var(--rt-fg-muted)" },
   ".rt-var": { borderRadius: "2px", fontWeight: "600" },

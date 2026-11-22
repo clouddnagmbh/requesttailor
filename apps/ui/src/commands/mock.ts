@@ -8,6 +8,8 @@
 //   - `demo/blocked.yml` fails like a request the browser blocks (CORS), to show the
 //                        companion offer
 //   - a URL ending in `/login` answers `{"token": "mock-token-123", "user": {...}}` (wave 7)
+//   - a URL ending in `/xml`, `/html` or `/json-compact` answers a fixed compact body of
+//     that type (pretty view tests, wave 8)
 // Everything else answers like rt-testserver's `/echo`.
 // Wave 7 (strand C): session variables go into the runtime layer, assertions and actions run
 // in a tiny model (`mock-assert.ts`), a send keeps its `var_changes` for the session.
@@ -130,6 +132,30 @@ const sampleEnvironments = (): Environment[] => [
     ],
   },
 ];
+
+/** Compact sample bodies by URL ending, for the pretty view (wave 8). */
+function sampleBody(url: string): { body: string; contentType: string } | null {
+  const end = /\/(xml|html|json-compact)(\?|$)/.exec(url)?.[1];
+  switch (end) {
+    case "xml":
+      return {
+        contentType: "application/xml; charset=utf-8",
+        body: '<?xml version="1.0"?><users count="2"><!-- page 1 --><user id="1"><name>Ada</name><tags><tag>admin</tag></tags></user><user id="2"><name>Grace</name><note><![CDATA[a < b]]></note></user></users>',
+      };
+    case "html":
+      return {
+        contentType: "text/html",
+        body: "<!DOCTYPE html>\n<html>\n<head>\n<title>Mock</title>\n</head>\n<body>\n<p>Hello<br>world</p>\n<pre>  keep\n   me</pre>\n</body>\n</html>\n",
+      };
+    case "json-compact":
+      return {
+        contentType: "application/json",
+        body: '{"id":12345678901234567890,"price":1.0,"items":[{"name":"a"},{"name":"b"}],"empty":{}}',
+      };
+    default:
+      return null;
+  }
+}
 
 /** Line `i` of the virtual large body: 63 characters plus `\n` = 64 bytes per line. */
 const LARGE_SIZE = 100 * 1024 * 1024;
@@ -432,6 +458,7 @@ export class MockBackend implements Backend {
     let stored: Stored;
     let preview: string;
     let size: number;
+    let contentType = "application/json";
     if (path === "demo/large.yml") {
       const lineCount = LARGE_SIZE / LARGE_LINE_BYTES;
       stored = {
@@ -444,13 +471,17 @@ export class MockBackend implements Backend {
       preview = stored.lines(0, 1024).join("\n");
       size = LARGE_SIZE;
     } else {
-      const body = /\/login(\?|$)/.test(url)
-        ? JSON.stringify({ token: "mock-token-123", user: { id: 7, name: "Ada" } }, null, 2)
-        : JSON.stringify(
-            { method: spec.method, url: mask(url), headers: headers.map(([n, v]) => [n.toLowerCase(), reported(n, v)]) },
-            null,
-            2,
-          );
+      const sample = sampleBody(url);
+      if (sample) contentType = sample.contentType;
+      const body = sample
+        ? sample.body
+        : /\/login(\?|$)/.test(url)
+          ? JSON.stringify({ token: "mock-token-123", user: { id: 7, name: "Ada" } }, null, 2)
+          : JSON.stringify(
+              { method: spec.method, url: mask(url), headers: headers.map(([n, v]) => [n.toLowerCase(), reported(n, v)]) },
+              null,
+              2,
+            );
       const lines = body.split("\n");
       stored = {
         lineCount: lines.length,
@@ -466,7 +497,7 @@ export class MockBackend implements Backend {
     report.response = {
       status: 200,
       version: "HTTP/1.1",
-      headers: [["content-type", "application/json"], ...setCookie.map((v): [string, string] => ["set-cookie", maskSetCookie(v)])],
+      headers: [["content-type", contentType], ...setCookie.map((v): [string, string] => ["set-cookie", maskSetCookie(v)])],
       url: mask(url),
       redirects: [],
       body: { encoding: "utf8", data: preview },

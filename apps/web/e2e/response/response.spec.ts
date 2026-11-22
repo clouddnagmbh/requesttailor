@@ -46,6 +46,7 @@ test.describe("100 MB response", () => {
     await expect(page.getByTestId("response-mode-raw")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("response-mode-pretty")).toBeDisabled();
     await expect(page.getByTestId("response-mode-tree")).toBeDisabled();
+    await expect(page.getByTestId("response-pretty-hint")).toHaveText("Pretty view and highlighting are available up to 5 MB.");
     await expect(rows(page).first()).toContainText('{"line": 000000000, ');
   });
 
@@ -112,8 +113,11 @@ test.describe("JSON response", () => {
 
   test("pretty view is the default for small JSON", async ({ page }) => {
     await expect(page.getByTestId("response-mode-pretty")).toHaveAttribute("aria-pressed", "true");
-    await expect(rows(page).first()).toHaveText(/^\s*1\s*\{$/);
-    await expect(page.getByTestId("response-lines")).toContainText('"method": "GET"');
+    const pretty = page.getByTestId("response-pretty");
+    await expect(pretty).toHaveAttribute("data-language", "json");
+    await expect(pretty.locator(".cm-line").first()).toHaveText("{");
+    await expect(pretty.locator(".cm-lineNumbers .cm-gutterElement").filter({ hasText: /^1$/ })).toHaveCount(1);
+    await expect(pretty).toContainText('"method": "GET"');
   });
 
   test("headers table", async ({ page }) => {
@@ -163,7 +167,7 @@ test.describe("JSON response", () => {
     await expect(page.getByTestId("response-filter-result")).toHaveCount(0);
     await filter.fill("");
     await expect(page.getByTestId("response-filter-error")).toHaveCount(0);
-    await expect(page.getByTestId("response-lines")).toContainText('"method": "GET"');
+    await expect(page.getByTestId("response-pretty")).toContainText('"method": "GET"');
   });
 
   test("raw and hex views", async ({ page }) => {

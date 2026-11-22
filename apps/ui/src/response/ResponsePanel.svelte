@@ -1,20 +1,15 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- One received response: summary bar, body (pretty / raw / tree / hex, JSONPath filter),
+<!-- One received response: summary bar, body (pretty / raw / tree / hex, JSONPath filter;
+     pretty is highlighted and foldable by the body's language, up to PRETTY_LIMIT),
      headers, tests and console of scripts (wave 7), and timing. Created per response (keyed by its id), so all state here belongs to
      that response. The full body stays in the backend; the UI only fetches what it shows. -->
 <script lang="ts">
   import type { Backend } from "../commands/backend";
   import type { ReceivedResponse, StoredResponse } from "../commands/types";
-  import {
-    formatDuration,
-    formatSize,
-    JSON_VIEW_LIMIT,
-    looksLikeJson,
-    reasonPhrase,
-    statusClass,
-    waterfall,
-  } from "./format";
+  import { bodyLanguage, prettyBody, type BodyLanguage } from "../pretty/language";
+  import CodeView from "./CodeView.svelte";
+  import { formatDuration, formatSize, header, PRETTY_LIMIT, reasonPhrase, statusClass, waterfall } from "./format";
   import { contentTypeOf, tabsFor } from "../plugins/permissions";
   import PluginTab from "../plugins/PluginTab.svelte";
   import SendNotes from "../plugins/SendNotes.svelte";
@@ -52,9 +47,15 @@
   // svelte-ignore state_referenced_locally
   const id = result.response_id!;
   // svelte-ignore state_referenced_locally
-  const jsonCandidate = result.is_text && looksLikeJson(response);
+  const lang: BodyLanguage = result.is_text
+    ? bodyLanguage(header(response.headers, "content-type"), response.body.encoding === "utf8" ? response.body.data.slice(0, 1024) : "")
+    : "text";
   // svelte-ignore state_referenced_locally
-  const jsonViewable = jsonCandidate && result.size <= JSON_VIEW_LIMIT;
+  const tooLarge = result.size > PRETTY_LIMIT;
+  /** Pretty view: highlighted (and re-indented for JSON and XML) in the UI. */
+  const prettyViewable = lang !== "text" && !tooLarge;
+  const jsonCandidate = lang === "json";
+  const jsonViewable = jsonCandidate && !tooLarge;
 
   let tab = $state<Tab>("body");
 
@@ -75,15 +76,18 @@
   const pluginTabs = $derived(tabsFor(plugins.list, "response", contentTypeOf(response.headers)));
   const pluginTab = $derived(tab.startsWith("plugin:") ? (pluginTabs.find((t) => `plugin:${t.key}` === tab) ?? null) : null);
   // svelte-ignore state_referenced_locally
-  let mode = $state<Mode>(jsonViewable ? "pretty" : result.is_text ? "raw" : "hex");
+  let mode = $state<Mode>(prettyViewable ? "pretty" : result.is_text ? "raw" : "hex");
 
-  // ---- JSON (pretty view and tree), parsed in the UI for bodies up to JSON_VIEW_LIMIT ----
+  // ---- pretty view and JSON tree, in the UI for bodies up to PRETTY_LIMIT ----
 
-  let json = $state.raw<
+  let pretty = $state.raw<
     | { state: "loading" }
-    | { state: "ok"; value: unknown; pretty: LineSource }
+    | { state: "ok"; text: string; formatted: boolean }
     | { state: "error"; message: string }
     | { state: "off" }
+  >({ state: prettyViewable ? "loading" : "off" });
+  let json = $state.raw<
+    { state: "loading" } | { state: "ok"; value: unknown } | { state: "error"; message: string } | { state: "off" }
   >({ state: jsonViewable ? "loading" : "off" });
 
   async function bodyText(): Promise<string> {
@@ -93,15 +97,25 @@
     return new TextDecoder().decode(await backend.responseBytes(id, 0, result.size));
   }
 
-  if (jsonViewable) {
+  const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+  if (prettyViewable) {
     bodyText()
       .then((text) => {
-        const value: unknown = JSON.parse(text);
-        // `$state.raw`: the parsed value is never mutated, so it stays out of proxies.
-        json = { state: "ok", value, pretty: arraySource(JSON.stringify(value, null, 2).split("\n")) };
+        // Token-level: numbers and strings stay as received (no parse/stringify round trip).
+        pretty = { state: "ok", ...prettyBody(text, lang) };
+        if (!jsonViewable) return;
+        try {
+          // `$state.raw`: the parsed value is never mutated, so it stays out of proxies.
+          json = { state: "ok", value: JSON.parse(text) };
+        } catch (e) {
+          json = { state: "error", message: message(e) };
+          if (mode === "tree") mode = "pretty";
+        }
       })
       .catch((e: unknown) => {
-        json = { state: "error", message: e instanceof Error ? e.message : String(e) };
+        pretty = { state: "error", message: message(e) };
+        json = { state: "error", message: message(e) };
         if (mode === "pretty" || mode === "tree") mode = "raw";
       });
   }
@@ -114,20 +128,41 @@
   // svelte-ignore state_referenced_locally
   const hex = hexSource(result.size, (offset, length) => backend.responseBytes(id, offset, length));
 
-  const jsonUnavailable = $derived(
+  const LANGUAGE_NAMES: Record<BodyLanguage, string> = {
+    json: "JSON",
+    xml: "XML",
+    html: "HTML",
+    javascript: "JavaScript",
+    css: "CSS",
+    text: "text",
+  };
+  // svelte-ignore state_referenced_locally
+  const prettyUnavailable = !result.is_text
+    ? "The body is binary"
+    : lang === "text"
+      ? "No pretty view for this content type"
+      : tooLarge
+        ? `Pretty view and highlighting are available up to ${formatSize(PRETTY_LIMIT)}`
+        : null;
+  const prettyError = $derived(pretty.state === "error" ? `The body could not be loaded: ${pretty.message}` : null);
+  const treeUnavailable = $derived(
     !jsonCandidate
       ? "The body is not JSON"
-      : !jsonViewable
-        ? `Pretty view and tree are available for JSON up to ${formatSize(JSON_VIEW_LIMIT)}`
+      : tooLarge
+        ? `The tree is available for JSON up to ${formatSize(PRETTY_LIMIT)}`
         : json.state === "error"
           ? `The body is not valid JSON: ${json.message}`
           : null,
   );
+  /** Pretty view and highlighting would be there, only the body is too large (shown above the raw lines). */
+  const largeHint = lang !== "text" && tooLarge ? prettyUnavailable : null;
 
   // ---- JSONPath filter (in the backend, so it works for bodies of any size it accepts) ----
 
   let expression = $state("");
-  let filtered = $state.raw<{ expression: string; source: LineSource } | null>(null);
+  let filtered = $state.raw<
+    { expression: string; text: string; source: null } | { expression: string; text: null; source: LineSource } | null
+  >(null);
   let filterError = $state<string | null>(null);
   let filterSeq = 0;
   let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -143,7 +178,11 @@
     try {
       const text = await backend.filterJson(id, expr.trim());
       if (seq !== filterSeq) return;
-      filtered = { expression: expr, source: arraySource(text.split("\n")) };
+      // JSONPath results are JSON: highlighted like the pretty view while they are small enough.
+      filtered =
+        text.length <= PRETTY_LIMIT
+          ? { expression: expr, text: prettyBody(text, "json").text, source: null }
+          : { expression: expr, text: null, source: arraySource(text.split("\n")) };
       filterError = null;
     } catch (e) {
       if (seq !== filterSeq) return;
@@ -172,7 +211,7 @@
 
   let copied = $state(false);
   // svelte-ignore state_referenced_locally
-  const copyable = result.is_text && result.size <= JSON_VIEW_LIMIT;
+  const copyable = result.is_text && result.size <= PRETTY_LIMIT;
 
   async function copy() {
     try {
@@ -197,7 +236,8 @@
   ];
 
   function disabledReason(m: Mode): string | null {
-    if (m === "pretty" || m === "tree") return jsonUnavailable;
+    if (m === "pretty") return prettyUnavailable ?? prettyError;
+    if (m === "tree") return treeUnavailable;
     if (m === "raw" && !result.is_text) return "The body is binary";
     return null;
   }
@@ -300,18 +340,29 @@
     {:else if filtered}
       <div class="fill" data-testid="response-filter-result">
         {#key filtered}
-          <VirtualLines source={filtered.source} label="JSONPath result" />
+          {#if filtered.text !== null}
+            <CodeView text={filtered.text} lang="json" label="JSONPath result" testid="response-filter-code" />
+          {:else}
+            <VirtualLines source={filtered.source} label="JSONPath result" />
+          {/if}
         {/key}
       </div>
-    {:else if mode === "pretty" || mode === "tree"}
-      {#if json.state === "ok"}
-        {#if mode === "pretty"}
-          <VirtualLines source={json.pretty} label="Response body (pretty)" />
-        {:else}
-          <div class="tree" data-testid="response-tree">
-            <ul><JsonNode name={null} value={json.value} path="$" expanded {onpick} /></ul>
-          </div>
+    {:else if mode === "pretty"}
+      {#if pretty.state === "ok"}
+        {#if !pretty.formatted && (lang === "json" || lang === "xml")}
+          <p class="hint" data-testid="response-pretty-fallback">
+            Shown as received: the body is not well-formed {LANGUAGE_NAMES[lang]}.
+          </p>
         {/if}
+        <CodeView text={pretty.text} {lang} label="Response body (pretty)" testid="response-pretty" />
+      {:else}
+        <p class="note">Loading…</p>
+      {/if}
+    {:else if mode === "tree"}
+      {#if json.state === "ok"}
+        <div class="tree" data-testid="response-tree">
+          <ul><JsonNode name={null} value={json.value} path="$" expanded {onpick} /></ul>
+        </div>
       {:else}
         <p class="note">Loading…</p>
       {/if}
@@ -319,6 +370,7 @@
       {#if result.line_count === 0}
         <p class="note">Empty body</p>
       {:else}
+        {#if largeHint}<p class="hint" data-testid="response-pretty-hint">{largeHint}.</p>{/if}
         <VirtualLines source={raw} label="Response body" />
       {/if}
     {:else if result.size === 0}
@@ -474,5 +526,12 @@
     margin: 0;
     padding: var(--rt-gap);
     color: var(--rt-fg-muted);
+  }
+  .hint {
+    margin: 0;
+    padding: 2px var(--rt-gap);
+    color: var(--rt-fg-muted);
+    font-size: var(--rt-size-small);
+    border-bottom: 1px solid var(--rt-border);
   }
 </style>

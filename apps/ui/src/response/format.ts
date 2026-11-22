@@ -5,10 +5,14 @@
 // timing waterfall.
 
 import type { TransportMode } from "../commands/backend";
-import type { ReceivedResponse, SendError, Timing } from "../commands/types";
+import type { SendError, Timing } from "../commands/types";
 
-/** JSON bodies up to this size get the pretty view and the tree (parsed in the UI). */
-export const JSON_VIEW_LIMIT = 5 * 1024 * 1024;
+/**
+ * Text bodies up to this size get the pretty view (highlighted, foldable, JSON and XML
+ * re-indented) and, for JSON, the tree. Both work on the whole body in the UI; larger bodies
+ * stay in the backend and are shown as raw lines.
+ */
+export const PRETTY_LIMIT = 5 * 1024 * 1024;
 
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -120,14 +124,6 @@ export function describeError(error: SendError): string {
 export function header(headers: [string, string][], name: string): string | null {
   const lower = name.toLowerCase();
   return headers.find(([n]) => n.toLowerCase() === lower)?.[1] ?? null;
-}
-
-/** Content type says JSON, or the start of the body looks like it. */
-export function looksLikeJson(response: ReceivedResponse): boolean {
-  const ct = header(response.headers, "content-type") ?? "";
-  if (/[/+]json\b/i.test(ct)) return true;
-  if (response.body.encoding !== "utf8") return false;
-  return /^\s*[[{]/.test(response.body.data);
 }
 
 export type PhaseName = "dns" | "connect" | "tls" | "ttfb" | "download";
