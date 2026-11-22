@@ -4,6 +4,7 @@
      The companion offer for blocked requests is a separate component (strand G); this view
      shows the error message only. -->
 <script lang="ts">
+  import SendNotes from "../plugins/SendNotes.svelte";
   import { getApp } from "../state/app.svelte";
   import { describeError } from "./format";
   import ResponsePanel from "./ResponsePanel.svelte";
@@ -20,6 +21,7 @@
       <ResponsePanel {result} {response} backend={app.backend} />
     {/key}
   {:else if result?.report.error}
+    <SendNotes notes={result.report.notes ?? []} />
     <p class="error" role="alert" data-testid="response-error">{describeError(result.report.error)}</p>
   {:else if app.sending[path]}
     <p class="note">Sending…</p>

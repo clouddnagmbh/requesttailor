@@ -30,7 +30,7 @@ import { mockCookies } from "./mock-cookies";
 import { mockGit } from "./mock-git";
 import { MockHistory, mockSearch } from "./mock-history";
 import { mockImports } from "./mock-import";
-import { mockPlugins } from "./mock-plugins";
+import { mockPlugins, type MockPlugins } from "./mock-plugins";
 import { MockRecent } from "./mock-recent";
 import type {
   Environment,
@@ -153,11 +153,16 @@ export class MockBackend implements Backend {
     dirty: () => this.dirty(),
     openCollection: () => this.openCollection(),
   });
-  readonly imports: ImportApi = mockImports(() => this.openCollection());
+  readonly imports: ImportApi = mockImports(
+    () => this.openCollection(),
+    () => this.plugins,
+  );
   readonly history = new MockHistory();
   readonly recent = new MockRecent();
   // Wave 5 parts, one file per strand.
-  readonly plugins: PluginApi = mockPlugins();
+  readonly plugins: MockPlugins = Object.assign(mockPlugins(), {
+    requestOf: (path: string) => this.getRequest(path),
+  });
   readonly auth: AuthApi = mockAuth();
   readonly cookies: CookieApi = mockCookies();
 
@@ -302,6 +307,8 @@ export class MockBackend implements Backend {
 
   async send(path: string, input: SendInput): Promise<StoredResponse> {
     const result = await this.sendNow(path, input);
+    const notes = this.plugins.notes();
+    if (notes.length > 0) result.report.notes = [...(result.report.notes ?? []), ...notes];
     this.history.record("mock-collection", await this.getRequest(path), result);
     return result;
   }
