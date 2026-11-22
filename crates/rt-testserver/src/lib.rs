@@ -18,6 +18,7 @@
 //! | `GET /bearer/{token}` | 200 if `Authorization: Bearer {token}`, else 401 |
 //! | `GET /cookies/set?name=value&...` | 200, one `Set-Cookie: name=value; Path=/` per parameter, JSON of the parameters |
 //! | `GET /cookies` | 200, JSON `{"cookie": <Cookie header or null>}` |
+//! | `POST /graphql` | GraphQL endpoint of a tiny library schema (introspection, queries, mutations; see [`graphql`]) |
 //! | `OPTIONS *` | CORS preflight, 204 |
 //!
 //! [`spawn_mtls`] serves the same routes over HTTPS and requires a client certificate signed
@@ -25,6 +26,7 @@
 //! presented leaf certificate), visible through `/echo`.
 
 // Wave 8, strand B: gRPC echo server (`spawn_grpc`) and `POST /graphql`.
+pub mod graphql;
 pub mod grpc;
 pub use grpc::{GrpcOptions, spawn_grpc, spawn_grpc_with};
 
@@ -306,6 +308,7 @@ async fn route(req: Request<Incoming>) -> Response<Body> {
 
     match segments.as_slice() {
         ["echo", ..] => echo(req, path, query).await,
+        ["graphql"] if req.method() == Method::POST => graphql_route(req).await,
         ["status", code] => match code
             .parse::<u16>()
             .ok()
@@ -412,6 +415,22 @@ fn header_is(req: &Request<Incoming>, expected: &str) -> bool {
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| v == expected)
+}
+
+async fn graphql_route(req: Request<Incoming>) -> Response<Body> {
+    let authorization = req
+        .headers()
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    let body = match req.into_body().collect().await {
+        Ok(b) => b.to_bytes(),
+        Err(_) => Bytes::new(),
+    };
+    json(
+        StatusCode::OK,
+        graphql::respond(&body, authorization.as_deref()),
+    )
 }
 
 async fn echo(req: Request<Incoming>, path: String, query: String) -> Response<Body> {
