@@ -169,6 +169,7 @@ struct Instance {
     store: Store<Data>,
     memory: Memory,
     alloc: TypedFunc<i32, i32>,
+    dealloc: TypedFunc<(i32, i32), ()>,
     rt_call: TypedFunc<(i32, i32), i64>,
 }
 
@@ -359,6 +360,9 @@ impl Instance {
         let alloc = instance
             .get_typed_func::<i32, i32>(&store, "rt_alloc")
             .map_err(|e| e.to_string())?;
+        let dealloc = instance
+            .get_typed_func::<(i32, i32), ()>(&store, "rt_dealloc")
+            .map_err(|e| e.to_string())?;
         let rt_call = instance
             .get_typed_func::<(i32, i32), i64>(&store, "rt_call")
             .map_err(|e| e.to_string())?;
@@ -366,6 +370,7 @@ impl Instance {
             store,
             memory,
             alloc,
+            dealloc,
             rt_call,
         })
     }
@@ -393,6 +398,15 @@ impl Instance {
         Ok(mem[range].to_vec())
     }
 
+    fn free(&mut self, ptr: i32, len: i32) -> Result<(), String> {
+        self.dealloc
+            .call(&mut self.store, (ptr, len))
+            .map_err(|e| format!("rt_dealloc failed: {}", describe(&e)))
+    }
+
+    /// Buffer ownership (API.md): the host allocates the input with `rt_alloc` and frees it
+    /// and the reply of `rt_call` with `rt_dealloc`. Requests of `rt.host` stay the plugin's;
+    /// replies to them are allocated with `rt_alloc` and freed by the plugin.
     async fn run(&mut self, input: &[u8], host: &dyn HostCalls) -> Result<Vec<u8>, String> {
         let (ptr, len) = self.write(input)?;
         let mut state = self
@@ -401,7 +415,12 @@ impl Instance {
             .map_err(|e| describe(&e))?;
         loop {
             match state {
-                TypedResumableCall::Finished(packed) => return self.read_packed(packed),
+                TypedResumableCall::Finished(packed) => {
+                    let reply = self.read_packed(packed)?;
+                    self.free(ptr, len)?;
+                    self.free((packed >> 32) as i32, packed as i32)?;
+                    return Ok(reply);
+                }
                 TypedResumableCall::OutOfFuel(_) => {
                     return Err("ran out of fuel (too much work for one call)".into());
                 }

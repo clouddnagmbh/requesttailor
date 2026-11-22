@@ -458,3 +458,28 @@ fn now_and_log_need_no_permission() {
     let err = block_on(host.before_send(request("https://a.test/"), &[], &context())).unwrap_err();
     assert!(err.contains("invalid reply"), "{err}");
 }
+
+/// API.md, buffer ownership: after `rt_call` the host frees the input and the reply (two
+/// `rt_dealloc` calls); the reply to an `rt.host` call is the plugin's to free.
+#[test]
+fn the_host_frees_input_and_reply_and_nothing_else() {
+    let run = |limit| {
+        let (mut host, _) = new_host();
+        host.load(
+            &plugin(
+                &manifest("f", json!({}), json!({"prepare": true})),
+                Body::FreeAtMost(limit),
+            ),
+            Permissions::default(),
+            true,
+        )
+        .unwrap();
+        block_on(host.before_send(request("https://a.test/"), &[], &context())).unwrap_err()
+    };
+    // Two frees are allowed: the call gets as far as reading the (unsuitable) reply.
+    let err = run(2);
+    assert!(err.contains("invalid reply"), "{err}");
+    // One is not: the host frees both buffers.
+    let err = run(1);
+    assert!(err.contains("rt_dealloc failed"), "{err}");
+}

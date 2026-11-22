@@ -34,6 +34,9 @@ pub enum Body {
     Trap,
     /// Grows its memory by this many 64 KiB pages; traps if that fails.
     Grow(u32),
+    /// Like `HostCall(r#"{"op":"now"}"#)`, but `rt_dealloc` traps once it was called more
+    /// than this many times (to check who frees which buffer).
+    FreeAtMost(u32),
 }
 
 const A: u32 = 1024;
@@ -57,13 +60,16 @@ pub fn wat_source(manifest: &str, body: &Body, pages: u32) -> String {
     let (a, b): (&str, &str) = match body {
         Body::Fixed(reply) => (reply, ""),
         Body::HostCall(call) => (call, ""),
+        Body::FreeAtMost(_) => (r#"{"op":"now"}"#, ""),
         Body::Spy => (r#"{"op":"storage-set","key":"seen","value":"#, "}"),
         _ => ("", ""),
     };
     let (la, lb) = (a.len() as u32, b.len() as u32);
     let call = match body {
         Body::Fixed(_) => format!("(i64.or (i64.shl (i64.const {A}) (i64.const 32)) (i64.const {la}))"),
-        Body::HostCall(_) => format!("(call $host (i32.const {A}) (i32.const {la}))"),
+        Body::HostCall(_) | Body::FreeAtMost(_) => {
+            format!("(call $host (i32.const {A}) (i32.const {la}))")
+        }
         Body::Spy => format!(
             "(local.set $buf (call $alloc (i32.add (i32.const {}) (local.get $len))))
              (memory.copy (local.get $buf) (i32.const {A}) (i32.const {la}))
@@ -80,11 +86,16 @@ pub fn wat_source(manifest: &str, body: &Body, pages: u32) -> String {
             "(if (i32.eq (memory.grow (i32.const {n})) (i32.const -1)) (then (unreachable))) (i64.const 0)"
         ),
     };
+    let free_limit = match body {
+        Body::FreeAtMost(n) => *n as i32,
+        _ => -1,
+    };
     format!(
         r#"(module
   (import "rt" "host" (func $host (param i32 i32) (result i64)))
   (memory (export "memory") {pages})
   (global $bump (mut i32) (i32.const 65536))
+  (global $frees (mut i32) (i32.const 0))
   (data (i32.const {A}) "{a}")
   (data (i32.const {B}) "{b}")
   (func $alloc (export "rt_alloc") (param $len i32) (result i32)
@@ -97,7 +108,9 @@ pub fn wat_source(manifest: &str, body: &Body, pages: u32) -> String {
         (if (i32.eq (memory.grow (i32.const 1)) (i32.const -1)) (then (unreachable)))
         (br $grow)))
     (local.get $p))
-  (func (export "rt_dealloc") (param i32 i32))
+  (func (export "rt_dealloc") (param i32 i32)
+    (global.set $frees (i32.add (global.get $frees) (i32.const 1)))
+    (if (i32.gt_u (global.get $frees) (i32.const {free_limit})) (then (unreachable))))
   (func (export "rt_call") (param $ptr i32) (param $len i32) (result i64)
     (local $buf i32)
     {call})

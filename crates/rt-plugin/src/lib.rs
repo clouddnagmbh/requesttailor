@@ -11,7 +11,7 @@
 //! host calls of `API.md`.
 //!
 //! Owners in wave 5: `api` interface commit (changes need a `CHANGELOG.md` entry), `host`
-//! strand A, the SDKs (`crates/rt-plugin-sdk`, `sdk/ts`) strand B.
+//! strand A, the SDKs (`crates/rt-plugin-sdk`, `sdk/typescript`) strand B.
 
 pub mod api;
 #[cfg(feature = "host")]
