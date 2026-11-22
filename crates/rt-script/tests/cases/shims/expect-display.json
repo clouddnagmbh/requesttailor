@@ -1,0 +1,47 @@
+{
+  "name": "expect: long values are shortened as chai does",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"object\", () => expect({ alpha: \"a long value here\", beta: 2, gamma: 3 }).to.eql({}));\ntest(\"array\", () => expect([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]).to.eql([]));\ntest(\"nested\", () => expect({ a: [1, { b: \"c\" }] }).to.eql({ a: [] }));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"id\":7}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "object",
+        "passed": false,
+        "error": "expected { Object (alpha, beta, ...) } to deeply equal {}"
+      },
+      {
+        "name": "array",
+        "passed": false,
+        "error": "expected [ Array(15) ] to deeply equal []"
+      },
+      {
+        "name": "nested",
+        "passed": false,
+        "error": "expected { a: [ 1, { b: 'c' } ] } to deeply equal { a: [] }"
+      }
+    ]
+  }
+}

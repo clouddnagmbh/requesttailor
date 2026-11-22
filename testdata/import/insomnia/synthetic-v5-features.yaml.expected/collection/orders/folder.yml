@@ -26,5 +26,12 @@ request:
   variables:
     - name: region
       value: eu
+  scripts:
+    - type: before-request
+      code: insomnia.environment.set('t', Date.now());
+    - type: after-response
+      code: |-
+        const body = insomnia.response.json();
+        insomnia.test('has id', () => insomnia.expect(body.id).to.exist);
 
 docs: Order endpoints

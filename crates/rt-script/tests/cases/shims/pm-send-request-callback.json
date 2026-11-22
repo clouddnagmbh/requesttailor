@@ -1,0 +1,59 @@
+{
+  "name": "pm: pm.sendRequest with a callback chains a token into a variable",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.sendRequest({\n  url: pm.variables.replaceIn(\"{{auth}}/token\"),\n  method: \"POST\",\n  header: { \"Content-Type\": \"application/x-www-form-urlencoded\" },\n  body: { mode: \"urlencoded\", urlencoded: [{ key: \"grant_type\", value: \"client_credentials\" }] }\n}, function (err, res) {\n  if (err) throw err;\n  pm.environment.set(\"token\", res.json().access_token);\n  pm.environment.set(\"tokenStatus\", res.code);\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "auth",
+      "value": "http://auth",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    }
+  ],
+  "send": [
+    {
+      "url": "http://auth/token",
+      "response": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"access_token\":\"abc\"}",
+        "time_ms": 5,
+        "url": "http://auth/token"
+      }
+    }
+  ],
+  "expect": {
+    "var_changes": [
+      {
+        "name": "token",
+        "value": "abc",
+        "scope": "environment"
+      },
+      {
+        "name": "tokenStatus",
+        "value": "200",
+        "scope": "environment"
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "name": "bru: req.setHeader/deleteHeader/deleteHeaders (corpus: response-timeline-headers-yml collection script)",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "collection",
+      "code": "req.setHeader('collection-set-header-1', 'collection-set-header-script-1');\nreq.setHeader('collection-set-header-2', 'collection-set-header-script-2');\nreq.deleteHeader('collection-delete-header-1');\nreq.deleteHeaders(['collection-delete-headers-1', 'collection-delete-headers-2']);\nbru.setVar('collection-token-1', 'collection-interpolated-script-1');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "{{host}}/headers",
+    "headers": [
+      [
+        "collection-delete-header-1",
+        "a"
+      ],
+      [
+        "Keep",
+        "k"
+      ],
+      [
+        "collection-delete-headers-1",
+        "b"
+      ],
+      [
+        "collection-delete-headers-2",
+        "c"
+      ],
+      [
+        "collection-set-header-1",
+        "old"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "request": {
+      "method": "GET",
+      "url": "{{host}}/headers",
+      "headers": [
+        [
+          "Keep",
+          "k"
+        ],
+        [
+          "collection-set-header-1",
+          "collection-set-header-script-1"
+        ],
+        [
+          "collection-set-header-2",
+          "collection-set-header-script-2"
+        ]
+      ],
+      "body": null
+    },
+    "var_changes": [
+      {
+        "name": "collection-token-1",
+        "value": "collection-interpolated-script-1",
+        "scope": "runtime"
+      }
+    ],
+    "error": null
+  }
+}

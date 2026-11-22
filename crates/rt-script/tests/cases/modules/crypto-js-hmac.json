@@ -1,0 +1,55 @@
+{
+  "name": "crypto-js: HMAC signatures in hex and Base64 (pre-request signing)",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const CryptoJS = require('crypto-js');\nconst message = \"The quick brown fox jumps over the lazy dog\";\nconst sig = CryptoJS.HmacSHA256(message, pm.environment.get(\"secret\"));\npm.request.headers.add({ key: \"X-Sig-Hex\", value: sig.toString() });\npm.request.headers.add({ key: \"X-Sig-B64\", value: CryptoJS.enc.Base64.stringify(sig) });\nconsole.log(CryptoJS.HmacSHA1(message, \"key\").toString(), CryptoJS.HmacMD5(message, \"key\").toString());\nconsole.log(CryptoJS.HmacSHA512(message, \"key\").toString(CryptoJS.enc.Base64));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "secret",
+      "value": "key",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": true
+    }
+  ],
+  "expect": {
+    "request": {
+      "method": "GET",
+      "url": "http://h/x",
+      "headers": [
+        [
+          "X-Sig-Hex",
+          "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8"
+        ],
+        [
+          "X-Sig-B64",
+          "97yD9DBThCSxMpjmqm+xQ+9NWaFJRhdZl0edvC0aPNg="
+        ]
+      ],
+      "body": null
+    },
+    "logs": [
+      {
+        "level": "log",
+        "text": "de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9 80070713463e7749b90c2dc24911e275"
+      },
+      {
+        "level": "log",
+        "text": "tCrwkFe6weLUFwjkipAuCbX/fxKrQopP6GZTxz3SSPuC+UilSfe3kaW0GRXuTR7Dk1NX5OIxclDQNyr6Lr7rOg=="
+      }
+    ],
+    "error": null
+  }
+}

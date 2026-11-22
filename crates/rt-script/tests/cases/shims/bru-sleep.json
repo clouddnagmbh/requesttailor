@@ -1,0 +1,26 @@
+{
+  "name": "bru: await bru.sleep (corpus: runner-responsive-toolbar/slow-ping.yml, shorter)",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "await bru.sleep(20);\nbru.setVar(\"slept\", \"yes\");"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "var_changes": [
+      {
+        "name": "slept",
+        "value": "yes",
+        "scope": "runtime"
+      }
+    ],
+    "error": null
+  }
+}

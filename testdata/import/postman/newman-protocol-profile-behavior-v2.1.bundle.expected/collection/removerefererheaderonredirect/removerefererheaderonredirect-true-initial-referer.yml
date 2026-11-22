@@ -11,6 +11,23 @@ http:
       value: INITIAL_REFERER
   auth: inherit
 
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        const responseJSON = pm.response.json();
+
+        pm.test("Status code is 200", function () {
+            pm.response.to.have.status(200);
+        });
+
+        pm.test("Response body sanity", function () {
+            pm.expect(responseJSON).to.have.property('url', '/');
+            pm.expect(responseJSON).to.have.property('method', 'GET');
+            pm.expect(responseJSON).to.have.property('headers')
+                .that.have.property('referer', 'INITIAL_REFERER');
+        });
+
 settings:
   followRedirects: true
   maxRedirects: 10

@@ -16,3 +16,10 @@ http:
         "evalResult": {{evalResult}}
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const evalResult = eval('8+8');
+        insomnia.environment.set('evalResult', evalResult);

@@ -7,3 +7,20 @@ http:
   method: POST
   url: "{{ _['serverURL'] }}/echo"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        insomnia.environment.set('serverURL', 'http://127.0.0.1:4010');
+        insomnia.clientCertificates = []; // remove all existing ones or it will still be selected
+        // update
+        insomnia.request.certificate.update({
+            disabled: true,
+            key: {src: 'invalid.key'},
+            cert: {src: 'invalid.cert'},
+            passphrase: '',
+            pfx: undefined,
+        });
+    - type: after-response
+      code: insomnia.environment.unset('serverURL');

@@ -1,0 +1,64 @@
+{
+  "name": "expect: status, header, jsonBody and response classes on rt.response",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"status\", () => expect(rt.response).to.have.status(201));\ntest(\"status fails\", () => expect(rt.response).to.have.status(200));\ntest(\"header\", () => { expect(rt.response).to.have.header(\"content-type\"); expect(rt.response).to.have.header(\"Content-Type\", \"application/json\"); expect(rt.response).to.not.have.header(\"x-missing\"); });\ntest(\"header fails\", () => expect(rt.response).to.have.header(\"x-missing\"));\ntest(\"jsonBody\", () => { expect(rt.response).to.have.jsonBody(); expect(rt.response).to.have.jsonBody(\"user.name\", \"Ada\"); expect(rt.response).to.have.jsonBody(\"user.name\"); });\ntest(\"jsonBody fails\", () => expect(rt.response).to.have.jsonBody(\"user.name\", \"Bob\"));\ntest(\"classes\", () => { expect(rt.response).to.be.ok; expect(rt.response).to.be.success; expect(rt.response).to.not.be.clientError; expect(rt.response).to.be.json; });"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 201,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"user\":{\"name\":\"Ada\"}}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "status",
+        "passed": true
+      },
+      {
+        "name": "status fails",
+        "passed": false,
+        "error": "expected response to have status code 200 but got 201"
+      },
+      {
+        "name": "header",
+        "passed": true
+      },
+      {
+        "name": "header fails",
+        "passed": false,
+        "error": "expected response to have header with key 'x-missing'"
+      },
+      {
+        "name": "jsonBody",
+        "passed": true
+      },
+      {
+        "name": "jsonBody fails",
+        "passed": false,
+        "error": "expected response body json at 'user.name' to contain 'Bob' but got 'Ada'"
+      },
+      {
+        "name": "classes",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

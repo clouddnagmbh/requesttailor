@@ -17,3 +17,21 @@ http:
         "bodyFromCallback": {{bodyFromCallback}}
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        let respFromCallback;
+        const respFromAwait = await insomnia.sendRequest(
+                'http://127.0.0.1:4010/echo',
+                (err, resp) => {
+                    if (err != null) {
+                        throw err;
+                    } else {
+                      respFromCallback = resp;
+                    }
+                }
+            );
+        insomnia.environment.set('bodyFromAwait', respFromAwait.body);
+        insomnia.environment.set('bodyFromCallback', respFromCallback.body);

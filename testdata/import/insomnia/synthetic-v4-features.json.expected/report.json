@@ -30,18 +30,6 @@
         "location": "Binary body"
       },
       {
-        "detail": "pre-request script (3 lines) not imported",
-        "effect": "dropped",
-        "kind": "script",
-        "location": "Create (JSON)"
-      },
-      {
-        "detail": "after-response script (1 line) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "Create (JSON)"
-      },
-      {
         "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
         "effect": "approximated",
         "kind": "auth",
@@ -124,12 +112,6 @@
         "effect": "approximated",
         "kind": "body",
         "location": "Upload"
-      },
-      {
-        "detail": "pre-request script (2 lines) not imported",
-        "effect": "dropped",
-        "kind": "script",
-        "location": "Users"
       },
       {
         "detail": "template tag `{% uuid %}` kept as text; RequestTailor does not evaluate it",

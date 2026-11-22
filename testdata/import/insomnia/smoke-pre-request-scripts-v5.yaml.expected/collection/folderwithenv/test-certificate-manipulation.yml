@@ -7,3 +7,21 @@ http:
   method: POST
   url: http://127.0.0.1:4010/echo
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // print the original one
+        console.log('key:', insomnia.request.certificate.key);
+        console.log('cert:', insomnia.request.certificate.cert);
+        console.log('passphrass:', insomnia.request.certificate.passphrass);
+        console.log('pfx:', insomnia.request.certificate.pfx);
+        // update
+        insomnia.request.certificate.update({
+            disabled: true,
+            key: {src: 'invalid.key'},
+            cert: {src: 'invalid.cert'},
+            passphrase: '',
+            pfx: {src: ''},
+        });

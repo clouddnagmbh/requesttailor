@@ -7,3 +7,28 @@ http:
   method: GET
   url: "{{BASE_URL}}{{TNT_CONTEXT_PATH}}/events"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: "pm.test(\"Non-empty response\", () => {\r
+
+        \    const jsonData = pm.response.json();\r
+
+        \    // The positive test cases will have created at least 10 events at this point.\r
+
+        \    pm.expect(jsonData.length).to.gt(10);\r
+
+        });\r
+
+        const schema = pm.collectionVariables.get(\"EVENTS_SCHEMA\");\r
+
+        const schemaObject = JSON.parse(schema);\r
+
+        \r
+
+        pm.test('Schema is valid', () => {\r
+
+        \    pm.response.to.have.jsonSchema(schemaObject);\r
+
+        });"

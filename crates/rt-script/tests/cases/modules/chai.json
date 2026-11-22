@@ -1,0 +1,46 @@
+{
+  "name": "chai: require('chai') gives expect and assert",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const { expect: chaiExpect, assert } = require('chai');\ntest(\"expect\", () => chaiExpect([1, 2]).to.have.lengthOf(2));\ntest(\"assert\", () => { assert.equal(1, \"1\"); assert.strictEqual(2, 2); assert.deepEqual({ a: 1 }, { a: 1 }); assert.isTrue(true); assert.include(\"abc\", \"b\"); });\ntest(\"assert fails\", () => assert.deepEqual({ a: 1 }, { a: 2 }));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "expect",
+        "passed": true
+      },
+      {
+        "name": "assert",
+        "passed": true
+      },
+      {
+        "name": "assert fails",
+        "passed": false,
+        "error": "expected { a: 1 } to deeply equal { a: 2 }"
+      }
+    ],
+    "error": null
+  }
+}

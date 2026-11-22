@@ -1,0 +1,81 @@
+{
+  "name": "pm: pm.variables (resolved, runtime), replaceIn, toObject, typed within the phase",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.variables.set(\"local\", 5);\nconsole.log(pm.variables.get(\"host\"), typeof pm.variables.get(\"local\"), pm.variables.has(\"missing\") ? \"yes\" : \"no\");\nconsole.log(pm.variables.replaceIn(\"{{host}}/{{local}}\"), pm.environment.replaceIn(\"{{host}}\"));\npm.environment.set(\"host\", \"http://override\");\nconsole.log(pm.environment.get(\"host\"), pm.variables.get(\"host\"), pm.environment.name);\npm.environment.unset(\"gone\");\nconsole.log(String(pm.environment.has(\"gone\")));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "host",
+      "value": "http://env",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "gone",
+      "value": "x",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    }
+  ],
+  "info": {
+    "request_path": "x.yml",
+    "request_name": "X",
+    "collection_name": "C",
+    "environment": "Staging",
+    "iteration": null
+  },
+  "expect": {
+    "var_changes": [
+      {
+        "name": "local",
+        "value": "5",
+        "scope": "runtime"
+      },
+      {
+        "name": "host",
+        "value": "http://override",
+        "scope": "environment"
+      },
+      {
+        "name": "gone",
+        "value": null,
+        "scope": "environment"
+      }
+    ],
+    "logs": [
+      {
+        "level": "log",
+        "text": "http://env number no"
+      },
+      {
+        "level": "log",
+        "text": "http://env/5 http://env"
+      },
+      {
+        "level": "log",
+        "text": "http://override http://override Staging"
+      },
+      {
+        "level": "log",
+        "text": "false"
+      }
+    ],
+    "error": null
+  }
+}

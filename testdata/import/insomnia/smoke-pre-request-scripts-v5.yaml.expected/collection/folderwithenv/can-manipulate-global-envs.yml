@@ -16,3 +16,8 @@ http:
         "setByScript": "{{setByScript}}"
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: insomnia.globals.set('setByScript', 'setByScript');

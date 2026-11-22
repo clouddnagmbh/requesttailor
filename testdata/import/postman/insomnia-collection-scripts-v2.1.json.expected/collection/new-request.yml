@@ -7,3 +7,10 @@ http:
   method: GET
   url: httpbin.org/get
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: console.log('this is pre-request script');
+    - type: tests
+      code: console.log('this is test script');

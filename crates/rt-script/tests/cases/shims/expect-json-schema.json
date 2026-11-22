@@ -1,0 +1,59 @@
+{
+  "name": "expect: jsonSchema on data and on a response",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const schema = {\"type\":\"object\",\"required\":[\"id\",\"name\"],\"properties\":{\"id\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"},\"tags\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"additionalProperties\":false};\ntest(\"valid\", () => expect({ id: 1, name: \"a\", tags: [\"x\"] }).to.have.jsonSchema(schema));\ntest(\"wrong type\", () => expect({ id: \"1\", name: \"a\" }).to.have.jsonSchema(schema));\ntest(\"missing\", () => expect({ id: 1 }).to.have.jsonSchema(schema));\ntest(\"extra\", () => expect({ id: 1, name: \"a\", more: true }).to.have.jsonSchema(schema));\ntest(\"response\", () => expect(rt.response).to.have.jsonSchema(schema));\ntest(\"refs and oneOf\", () => expect({ v: 3 }).to.have.jsonSchema({ definitions: { n: { type: \"number\" } }, properties: { v: { oneOf: [{ $ref: \"#/definitions/n\" }, { type: \"string\" }] } } }));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"id\":7,\"name\":\"seven\"}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "valid",
+        "passed": true
+      },
+      {
+        "name": "wrong type",
+        "passed": false,
+        "error": "data.id should be integer"
+      },
+      {
+        "name": "missing",
+        "passed": false,
+        "error": "data should have required property 'name'"
+      },
+      {
+        "name": "extra",
+        "passed": false,
+        "error": "data should NOT have additional properties ('more')"
+      },
+      {
+        "name": "response",
+        "passed": true
+      },
+      {
+        "name": "refs and oneOf",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "bru: bru.runner.stopExecution stops the run",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "bru.runner.stopExecution();"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "flow": {
+      "kind": "next",
+      "request": null
+    },
+    "error": null
+  }
+}

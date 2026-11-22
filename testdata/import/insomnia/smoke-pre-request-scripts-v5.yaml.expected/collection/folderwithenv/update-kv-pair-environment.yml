@@ -13,3 +13,10 @@ http:
     type: json
     data: "{}"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        insomnia.environment.set('__environment_type', '__environment_value_kv');
+        insomnia.environment.set('examplehost', 'http://url-from-script');

@@ -11,3 +11,26 @@ http:
       value: RECE
       type: query
   auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: "const schema = pm.collectionVariables.get(\"TNT_SHIPMENT_EVENTS_PAYLOAD_SCHEMA\");\r
+
+        const schemaObject = JSON.parse(schema);\r
+
+        \r
+
+        pm.test(\"All requests match query parameters payload schema\", () => {\r
+
+        \  const jsonData = pm.response.json();\r
+
+        \  jsonData.map((item) =>{\r
+
+        pm.expect(item.payload).to.have.jsonSchema(schemaObject);\r
+
+        pm.expect(item.payload.shipmentEventTypeCode).to.equal(\"RECE\");\r
+
+        \ } );\r
+
+        });"

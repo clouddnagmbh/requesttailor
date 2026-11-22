@@ -9,5 +9,10 @@ request:
       value: "{{env-var-in-global}}"
     - name: bob
       value: something
+  scripts:
+    - type: before-request
+      code: console.log('pre')
+    - type: tests
+      code: console.log('after')
 
 bundled: false

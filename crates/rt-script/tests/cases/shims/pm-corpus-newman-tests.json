@@ -1,0 +1,76 @@
+{
+  "name": "pm: reading globals, environment and variables (corpus: newman-globals-env-data-files tests)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "var data1 = pm.response.json();\n\npm.test(\"Read global var correctly\", () => {\n    pm.expect(pm.globals.get(\"prsG\")).equal('prsG');\n})\npm.test(\"Read env var correctly\", () => {\n    pm.expect(pm.environment.get(\"prsE\")).equal('prsE');\n})\npm.test(\"Read data var correctly\", () => {\n    pm.expect(pm.variables.get(\"prsE\")).equal('prsE');\n})\npm.test(\"Content-Type is present\", () => {\n    pm.expect(pm.response.headers.has(\"content-type\")).true;\n})"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"args\":{\"prsG\":\"prsG\",\"prsE\":\"prsE\"}}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "variables": [
+    {
+      "name": "prsG",
+      "value": "prsG",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "prsE",
+      "value": "prsEaRDDDROR",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "prsE",
+      "value": "prsE",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "Read global var correctly",
+        "passed": true
+      },
+      {
+        "name": "Read env var correctly",
+        "passed": true
+      },
+      {
+        "name": "Read data var correctly",
+        "passed": true
+      },
+      {
+        "name": "Content-Type is present",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

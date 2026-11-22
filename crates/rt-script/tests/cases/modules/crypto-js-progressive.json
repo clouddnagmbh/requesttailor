@@ -1,0 +1,49 @@
+{
+  "name": "crypto-js: progressive hashing, PBKDF2 and the global CryptoJS",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const C = require('crypto-js');\ntest(\"progressive\", () => {\n  expect(C.algo.SHA256.create().update(\"a\").update(\"bc\").finalize().toString()).to.equal(C.SHA256(\"abc\").toString());\n  expect(C.algo.HMAC.create(C.algo.SHA256, \"key\").update(\"The quick brown fox \").update(\"jumps over the lazy dog\").finalize().toString())\n    .to.equal(\"f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8\");\n});\ntest(\"pbkdf2 (RFC 6070)\", () => {\n  expect(C.PBKDF2(\"password\", \"salt\", { keySize: 5, iterations: 2, hasher: C.algo.SHA1 }).toString()).to.equal(\"ea6c014dc72d6f8ccd1ed92ace1d41f0d8de8957\");\n});\ntest(\"global CryptoJS\", () => expect(CryptoJS.MD5(\"abc\").toString()).to.equal(\"900150983cd24fb0d6963f7d28e17f72\"));\ntest(\"AES is not included\", () => expect(() => C.AES.encrypt(\"x\", \"k\")).to.throw(\"not supported\"));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "progressive",
+        "passed": true
+      },
+      {
+        "name": "pbkdf2 (RFC 6070)",
+        "passed": true
+      },
+      {
+        "name": "global CryptoJS",
+        "passed": true
+      },
+      {
+        "name": "AES is not included",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

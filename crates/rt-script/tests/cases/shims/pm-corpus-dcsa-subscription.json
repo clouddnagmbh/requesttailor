@@ -1,0 +1,59 @@
+{
+  "name": "pm: collectionVariables set/unset and pm.request.body.raw in tests (corpus: dcsa-tnt)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const parsedBody = pm.response.json();\npm.collectionVariables.set(\"SUBSCRIPTION_ID\", parsedBody.subscriptionID);\n\npm.request.body.raw[\"secret\"] // delete secret before setting to compare in NEXT TEST\npm.collectionVariables.set(\"POST_BODY\", pm.request.body.raw) // set body\n\n\npm.test(\"Status code is 201\", () => {\n    pm.response.to.have.status(201);\n});\npm.collectionVariables.unset(\"OLD_ID\");"
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "{{TNT_BASE_URL}}/event-subscriptions",
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"callbackUrl\":\"http://cb\",\"secret\":\"MTIz\"}"
+  },
+  "response": {
+    "status": 201,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"subscriptionID\":\"sub-1\"}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "Status code is 201",
+        "passed": true
+      }
+    ],
+    "var_changes": [
+      {
+        "name": "SUBSCRIPTION_ID",
+        "value": "sub-1",
+        "scope": "collection"
+      },
+      {
+        "name": "POST_BODY",
+        "value": "{\"callbackUrl\":\"http://cb\",\"secret\":\"MTIz\"}",
+        "scope": "collection"
+      },
+      {
+        "name": "OLD_ID",
+        "value": null,
+        "scope": "collection"
+      }
+    ],
+    "error": null
+  }
+}

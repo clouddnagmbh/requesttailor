@@ -27,3 +27,22 @@ http:
         "seachParam": "{{seachParam}}"
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const { URL } = require('url');
+        const url = new URL('https://user:pwd@insomnia.com:6666/p1?q1=a&q2=b#hashcontent');
+        insomnia.environment.set('hash', "#hashcontent");
+        insomnia.environment.set('host', "insomnia.com:6666");
+        insomnia.environment.set('hostname', "insomnia.com");
+        insomnia.environment.set('href', "https://user:pwd@insomnia.com:6666/p1?q1=a&q2=b#hashcontent");
+        insomnia.environment.set('origin', "https://insomnia.com:6666");
+        insomnia.environment.set('password', "pwd");
+        insomnia.environment.set('pathname', "/p1");
+        insomnia.environment.set('port', "6666");
+        insomnia.environment.set('protocol', "https:");
+        insomnia.environment.set('search', "?q1=a&q2=b");
+        insomnia.environment.set('username', "user");
+        insomnia.environment.set('seachParam', url.searchParams.toString());

@@ -13,3 +13,18 @@ http:
     type: json
     data: "{}"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        insomnia.request.auth.update(
+            {
+                type: 'basic',
+                basic: [
+                        {key: 'username', value: 'myName'},
+                        {key: 'password', value: 'myPwd'},
+                ],
+            },
+            'basic'
+        );

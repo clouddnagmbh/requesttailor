@@ -26,3 +26,31 @@ http:
         "events": {{events}}
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const path = require('path');
+        const assert = require('assert');
+        const buffer = require('buffer');
+        const util = require('util');
+        const url = require('url');
+        const punycode = require('punycode');
+        const querystring = require('querystring');
+        const stringDecoder = require('string_decoder');
+        const stream = require('stream');
+        const timers = require('timers');
+        const events = require('events');
+        // set them
+        insomnia.environment.set('path', path != null);
+        insomnia.environment.set('assert', assert != null);
+        insomnia.environment.set('buffer', buffer != null);
+        insomnia.environment.set('util', util != null);
+        insomnia.environment.set('url', url != null);
+        insomnia.environment.set('punycode', punycode != null);
+        insomnia.environment.set('querystring', querystring != null);
+        insomnia.environment.set('stringDecoder', stringDecoder != null);
+        insomnia.environment.set('stream', stream != null);
+        insomnia.environment.set('timers', timers != null);
+        insomnia.environment.set('events', events != null);

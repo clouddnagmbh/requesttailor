@@ -1,0 +1,67 @@
+{
+  "name": "expect: equal, deep equal and eql with chai's messages",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"strict equal\", () => expect(404).to.equal(200));\ntest(\"deep equal\", () => expect({ a: [1, 2] }).to.deep.equal({ a: [1, 2] }));\ntest(\"eql fails\", () => expect({ a: 1 }).to.eql({ a: 2 }));\ntest(\"not equal\", () => expect(\"x\").to.not.equal(\"x\"));\ntest(\"strings are quoted\", () => expect(\"foo\").to.equal(\"bar\"));\ntest(\"equal is strict\", () => expect(1).to.equal(\"1\"));\ntest(\"custom message\", () => expect(1, \"count\").to.equal(2));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"id\":7}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "strict equal",
+        "passed": false,
+        "error": "expected 404 to equal 200"
+      },
+      {
+        "name": "deep equal",
+        "passed": true
+      },
+      {
+        "name": "eql fails",
+        "passed": false,
+        "error": "expected { a: 1 } to deeply equal { a: 2 }"
+      },
+      {
+        "name": "not equal",
+        "passed": false,
+        "error": "expected 'x' to not equal 'x'"
+      },
+      {
+        "name": "strings are quoted",
+        "passed": false,
+        "error": "expected 'foo' to equal 'bar'"
+      },
+      {
+        "name": "equal is strict",
+        "passed": false,
+        "error": "expected 1 to equal '1'"
+      },
+      {
+        "name": "custom message",
+        "passed": false,
+        "error": "count: expected 1 to equal 2"
+      }
+    ],
+    "error": null
+  }
+}

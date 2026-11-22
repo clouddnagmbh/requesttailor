@@ -1,0 +1,112 @@
+{
+  "name": "bru: reading variables from the layers",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(bru.getEnvVar(\"host\"), bru.getGlobalEnvVar(\"g\"), bru.getCollectionVar(\"c\"), bru.getFolderVar(\"f\"), bru.getRequestVar(\"r\"));\nconsole.log(typeof bru.getEnvVar(\"num\"), bru.getEnvVar(\"num\"));\nbru.setEnvVar(\"shadowed\", \"env-value\");\nconsole.log(bru.getVar(\"shadowed\"), bru.getEnvVar(\"shadowed\"));\nconsole.log(bru.getEnvName(), bru.getCollectionName(), bru.interpolate(\"{{host}}/x?c={{c}}\"));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "g",
+      "value": "global-1",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "c",
+      "value": "coll-1",
+      "source": {
+        "layer": "collection"
+      },
+      "secret": false
+    },
+    {
+      "name": "host",
+      "value": "http://api",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "num",
+      "value": "300",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "f",
+      "value": "folder-1",
+      "source": {
+        "layer": "folder",
+        "path": "f"
+      },
+      "secret": false
+    },
+    {
+      "name": "r",
+      "value": "req-1",
+      "source": {
+        "layer": "request"
+      },
+      "secret": false
+    },
+    {
+      "name": "shadowed",
+      "value": "runtime-value",
+      "source": {
+        "layer": "runtime"
+      },
+      "secret": false
+    }
+  ],
+  "info": {
+    "request_path": "x.yml",
+    "request_name": "X",
+    "collection_name": "Shop",
+    "environment": "Local",
+    "iteration": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "http://api global-1 coll-1 folder-1 req-1"
+      },
+      {
+        "level": "log",
+        "text": "string 300"
+      },
+      {
+        "level": "log",
+        "text": "runtime-value env-value"
+      },
+      {
+        "level": "log",
+        "text": "Local Shop http://api/x?c=coll-1"
+      }
+    ],
+    "var_changes": [
+      {
+        "name": "shadowed",
+        "value": "env-value",
+        "scope": "environment"
+      }
+    ],
+    "error": null
+  }
+}

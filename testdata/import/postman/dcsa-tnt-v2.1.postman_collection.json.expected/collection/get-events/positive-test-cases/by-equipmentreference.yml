@@ -11,3 +11,42 @@ http:
       value: APZU4812090
       type: query
   auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: "const schema = pm.collectionVariables.get(\"EVENTS_SCHEMA\");\r
+
+        const schemaObject = JSON.parse(schema);\r
+
+        const EQUIPMENT_EVENT_PAYLOAD_SCHEMA = schemaObject.items.properties.payload.oneOf[1];\r
+
+        \r
+
+        pm.test('Schema is valid', () => {\r
+
+        \    pm.response.to.have.jsonSchema(schemaObject);\r
+
+        });\r
+
+        \r
+
+        pm.test(\"Requests match query parameter equipmentReference\", () => {\r
+
+        \  const jsonData = pm.response.json();\r
+
+        \  jsonData.map(item => {\r
+
+        \  const presentInReferences = item.payload.references === null &&\r
+
+        \  item.payload.references.find( re => re.type == \"EQ\" && re.type == \"APZU4812090\");\r
+
+        \  if(pm.expect(item.payload).to.have.jsonSchema(EQUIPMENT_EVENT_PAYLOAD_SCHEMA) && !presentInReferences){\r
+
+        \  pm.expect(item.payload.equipmentReference).to.equal(\"APZU4812090\");\r
+
+        \  }\r
+
+        \  });\r
+
+        });"

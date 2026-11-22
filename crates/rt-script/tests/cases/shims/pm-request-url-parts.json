@@ -1,0 +1,46 @@
+{
+  "name": "pm: pm.request.url parts and pm.request in tests",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const u = pm.request.url;\nconsole.log(u.toString(), u.protocol, u.getHost(), u.port, u.getPath(), u.path.join(\"|\"), u.getQueryString(), u.query.get(\"id\"), u.hash);\nconsole.log(pm.request.method, pm.request.headers.get(\"x-a\"), JSON.stringify(pm.request.getHeaders()));"
+    }
+  ],
+  "request": {
+    "method": "DELETE",
+    "url": "https://api.example.com:8443/v1/items?id=5&all#top",
+    "headers": [
+      [
+        "X-A",
+        "1"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "https://api.example.com:8443/v1/items?id=5&all#top https api.example.com 8443 /v1/items v1|items id=5&all 5 top"
+      },
+      {
+        "level": "log",
+        "text": "DELETE 1 {\"X-A\":\"1\"}"
+      }
+    ],
+    "error": null
+  }
+}

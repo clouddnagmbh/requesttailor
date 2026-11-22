@@ -1,0 +1,41 @@
+{
+  "name": "pm: property chains (corpus: newman-protocol-profile-behavior)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const responseJSON = pm.response.json();\n\npm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body sanity\", function () {\n    pm.expect(responseJSON).to.have.property('url', '/');\n    pm.expect(responseJSON).to.have.property('method', 'GET');\n    pm.expect(responseJSON).to.have.property('headers')\n        .that.not.have.property('referer');\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:4042/1",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"url\":\"/\",\"method\":\"GET\",\"data\":\"\",\"headers\":{\"host\":\"localhost\"}}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "Status code is 200",
+        "passed": true
+      },
+      {
+        "name": "Response body sanity",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

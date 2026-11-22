@@ -1,0 +1,32 @@
+{
+  "name": "uuid: v4, NIL, validate, version (corpus: Insomnia smoke-pre-request-scripts uuid.NIL)",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const uuid = require('uuid');\ninsomnia.environment.set('uuid', uuid.NIL);\nconst id = uuid.v4();\nconsole.log(String(uuid.validate(id)), String(uuid.version(id)), String(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)), String(uuid.validate(\"nope\")));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "var_changes": [
+      {
+        "name": "uuid",
+        "value": "00000000-0000-0000-0000-000000000000",
+        "scope": "environment"
+      }
+    ],
+    "logs": [
+      {
+        "level": "log",
+        "text": "true 4 true false"
+      }
+    ],
+    "error": null
+  }
+}

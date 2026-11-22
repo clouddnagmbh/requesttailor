@@ -1,0 +1,20 @@
+{
+  "name": "bru: bru.setVar refuses names Bruno refuses",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "bru.setVar(\"a b\", 1);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "error": "contains invalid characters",
+    "var_changes": []
+  }
+}

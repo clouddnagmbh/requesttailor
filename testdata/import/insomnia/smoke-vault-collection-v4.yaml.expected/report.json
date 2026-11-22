@@ -18,26 +18,26 @@
         "location": "environment legacy vault value object"
       },
       {
-        "detail": "pre-request script (3 lines) not imported",
-        "effect": "dropped",
+        "detail": "pre-request script kept, but it uses `insomnia.vault`, which RequestTailor does not support; see SHIM-COVERAGE.md",
+        "effect": "approximated",
         "kind": "script",
         "location": "legacy-array-vault"
       },
       {
-        "detail": "after-response script (2 lines) not imported",
-        "effect": "dropped",
+        "detail": "after-response script kept, but it uses `insomnia.vault`, which RequestTailor does not support; see SHIM-COVERAGE.md",
+        "effect": "approximated",
         "kind": "script",
         "location": "legacy-array-vault"
       },
       {
-        "detail": "pre-request script (3 lines) not imported",
-        "effect": "dropped",
+        "detail": "pre-request script kept, but it uses `insomnia.vault`, which RequestTailor does not support; see SHIM-COVERAGE.md",
+        "effect": "approximated",
         "kind": "script",
         "location": "legacy-object-vault"
       },
       {
-        "detail": "after-response script (2 lines) not imported",
-        "effect": "dropped",
+        "detail": "after-response script kept, but it uses `insomnia.vault`, which RequestTailor does not support; see SHIM-COVERAGE.md",
+        "effect": "approximated",
         "kind": "script",
         "location": "legacy-object-vault"
       }

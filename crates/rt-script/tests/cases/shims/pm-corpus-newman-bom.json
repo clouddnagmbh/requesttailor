@@ -1,0 +1,41 @@
+{
+  "name": "pm: to.be.ok and property(...).and.equal (corpus: newman-bom-in-collection)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.test('expect response be 200', function () {\n    pm.response.to.be.ok\n})\npm.test('expect response json contain args', function () {\n    pm.expect(pm.response.json().args).to.have.property('source')\n      .and.equal('newman-sample-github-collection')\n})"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "https://postman-echo.com/get?source=newman-sample-github-collection",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"args\":{\"source\":\"newman-sample-github-collection\"}}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "expect response be 200",
+        "passed": true
+      },
+      {
+        "name": "expect response json contain args",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

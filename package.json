@@ -16,6 +16,7 @@
   "scripts": {
     "check:licenses": "node scripts/check-npm-licenses.mjs",
     "check:headers": "node scripts/check-license-headers.mjs",
-    "test:scripts": "node --test scripts/*.test.mjs scripts/perf/*.test.mjs"
+    "test:scripts": "node --test scripts/*.test.mjs scripts/perf/*.test.mjs",
+    "test:shims": "node --test crates/rt-script/js/test/*.test.mjs"
   }
 }

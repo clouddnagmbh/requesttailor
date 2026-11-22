@@ -1,0 +1,85 @@
+{
+  "name": "pm: legacy tests[...], responseCode, responseBody, responseHeaders, postman.*",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "tests[\"Status code is 200\"] = responseCode.code === 200;\ntests[\"Body has id\"] = responseBody.has ? false : responseBody.indexOf(\"id\") > -1;\ntests[\"Content type\"] = responseHeaders[\"Content-Type\"] === \"application/json\";\ntests[\"Fast\"] = responseTime < 10;\nvar jsonData = JSON.parse(responseBody);\npostman.setEnvironmentVariable(\"id\", jsonData.id);\npostman.setGlobalVariable(\"g\", \"1\");\ntests[\"Env var\"] = postman.getEnvironmentVariable(\"id\") === 7;\ntests[\"Header\"] = postman.getResponseHeader(\"content-type\") === \"application/json\";\ntests[\"Old env object\"] = environment.host === \"http://env\";"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"id\":7}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "variables": [
+    {
+      "name": "host",
+      "value": "http://env",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "Status code is 200",
+        "passed": true
+      },
+      {
+        "name": "Body has id",
+        "passed": true
+      },
+      {
+        "name": "Content type",
+        "passed": true
+      },
+      {
+        "name": "Fast",
+        "passed": false,
+        "error": "expected false to be truthy"
+      },
+      {
+        "name": "Env var",
+        "passed": true
+      },
+      {
+        "name": "Header",
+        "passed": true
+      },
+      {
+        "name": "Old env object",
+        "passed": true
+      }
+    ],
+    "var_changes": [
+      {
+        "name": "id",
+        "value": "7",
+        "scope": "environment"
+      },
+      {
+        "name": "g",
+        "value": "1",
+        "scope": "global"
+      }
+    ],
+    "error": null
+  }
+}

@@ -8,6 +8,18 @@ http:
   url: localhost:4042/1
   auth: inherit
 
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        pm.test("Status code is 302", function () {
+            pm.response.to.have.status(302);
+        });
+
+        pm.test("Location header is present", function () {
+            pm.response.to.have.header("location");
+        });
+
 settings:
   followRedirects: false
   maxRedirects: 10

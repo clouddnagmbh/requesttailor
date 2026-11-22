@@ -1,0 +1,19 @@
+{
+  "name": "bru: an API RequestTailor does not provide fails with a clear error",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "await bru.runRequest('run-request-child');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "error": "bru.runRequest is not supported in RequestTailor"
+  }
+}

@@ -11,3 +11,34 @@ http:
       value: TNT1
       type: query
   auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: "\r
+
+        const schema = pm.collectionVariables.get(\"EVENTS_SCHEMA\");\r
+
+        const schemaObject = JSON.parse(schema);\r
+
+        \r
+
+        pm.test('Schema is valid', () => {\r
+
+        \    pm.response.to.have.jsonSchema(schemaObject);\r
+
+        \    \r
+
+        });\r
+
+        pm.test(\"All requests match query parameters payload schema\", () => {\r
+
+        \  const jsonData = pm.response.json();\r
+
+        \  jsonData.map((item) => {\r
+
+        \      pm.expect(item.payload.transportCall.carrierServiceCode).to.equal(\"TNT1\");\r
+
+        \  });\r
+
+        });"

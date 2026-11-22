@@ -11,3 +11,38 @@ http:
       value: cbr-b83765166707812c8ff4
       type: query
   auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: "\r
+
+        const schema = pm.collectionVariables.get(\"EVENTS_SCHEMA\");\r
+
+        const schemaObject = JSON.parse(schema);\r
+
+        \r
+
+        pm.test('Schema is valid', () => {\r
+
+        \    pm.response.to.have.jsonSchema(schemaObject);\r
+
+        });\r
+
+        \r
+
+        pm.test(\"All requests match query parameters DocumentReference\", () => {\r
+
+        \  const jsonData = pm.response.json();\r
+
+        \  jsonData.map((item) =>{\r
+
+        \  const dr = item.payload.relatedDocumentReferences.map\r
+
+        \      (dr => dr.value);\r
+
+        \       pm.expect(dr).to.include(\"cbr-b83765166707812c8ff4\");\r
+
+        \ } );\r
+
+        });"

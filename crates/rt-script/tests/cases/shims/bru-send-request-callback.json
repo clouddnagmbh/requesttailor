@@ -1,0 +1,55 @@
+{
+  "name": "bru: bru.sendRequest with a callback; the phase waits for it (corpus: 01-fire-and-forget)",
+  "phase": "after-response",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "bru.setVar('lateResult', 'pending');\nbru.sendRequest({ url: 'http://localhost:8081/api/wait-for?time=2000', method: 'GET' }, async (err, res) => {\n  bru.setVar('lateResult', 'landed');\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:8081/ping",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "pong",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "send": [
+    {
+      "url": "http://localhost:8081/api/wait-for?time=2000",
+      "response": {
+        "status": 200,
+        "headers": [],
+        "body": "ok",
+        "time_ms": 20,
+        "url": "http://localhost:8081/api/wait-for?time=2000"
+      }
+    }
+  ],
+  "expect": {
+    "var_changes": [
+      {
+        "name": "lateResult",
+        "value": "pending",
+        "scope": "runtime"
+      },
+      {
+        "name": "lateResult",
+        "value": "landed",
+        "scope": "runtime"
+      }
+    ],
+    "error": null
+  }
+}

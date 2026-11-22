@@ -7,3 +7,18 @@ http:
   method: POST
   url: http://127.0.0.1:4010/echo
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        console.log(insomnia.request.proxy.getProxyUrl());
+        insomnia.request.proxy.update({
+                host: 'localhost',
+                match: '<all_urls>',
+                port: 8888,
+                tunnel: false,
+                authenticate: false,
+                username: '',
+                password: '',
+        });

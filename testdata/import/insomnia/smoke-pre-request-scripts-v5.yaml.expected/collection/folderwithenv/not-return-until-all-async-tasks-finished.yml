@@ -16,3 +16,18 @@ http:
         "asyncTaskDone": {{asyncTaskDone}}
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const resp = insomnia.sendRequest(
+          'http://127.0.0.1:4010/echo',
+          (err, resp) => {
+              if (err != null) {
+                  throw err;
+              } else {
+                insomnia.environment.set("asyncTaskDone", true);
+              }
+          }
+        );

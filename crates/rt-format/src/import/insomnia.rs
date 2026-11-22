@@ -15,16 +15,20 @@
 //! - The base environment becomes the collection variables, sub-environments environments.
 //!   Nested values are flattened (`user.name`). Private environments are secrets: their
 //!   values are never written.
-//! - Scripts, unit tests, gRPC/WebSocket requests, API specs and cookie jars are reported.
+//! - Pre-request and after-response scripts of folders and requests are imported as they
+//!   are (`before-request`, `after-response`); the shims of `rt-script` run them, and the
+//!   report names each API they use that the shims do not support (`shim-apis.txt`).
+//! - Unit tests, gRPC/WebSocket requests, API specs and cookie jars are reported.
 
 use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
-    RawKind, RequestSpec, Settings, Variable,
+    RawKind, RequestSpec, Script, ScriptPhase, Settings, Variable,
 };
 
 use super::auth::{self, AwsV4, OAuth1, OAuth2};
 use super::common::{Losses, finish, invalid, location, plural, raw_kind, url_params, utf8};
 use super::out::{AuthOut, CollectionOut, DefaultsOut, FolderOut, ItemOut, RequestOut};
+use super::shims::Dialect;
 use super::value::{Value, parse_any};
 use super::{Import, ImportError, ImportFormat, LossKind, SourceFile, stem};
 
@@ -617,10 +621,26 @@ impl Cx {
         out
     }
 
-    fn folder(&mut self, it: Item<'_>, name: &str, here: &str, items: Vec<ItemOut>) -> FolderOut {
+    /// The scripts of a folder or request, reported like every imported script.
+    fn scripts(&mut self, it: Item<'_>, here: &str) -> Vec<Script> {
         let (pre, post) = it.scripts();
-        self.losses.script(here, "pre-request script", &pre);
-        self.losses.script(here, "after-response script", &post);
+        let mut out = Vec::new();
+        for (what, phase, code) in [
+            ("pre-request script", ScriptPhase::BeforeRequest, pre),
+            ("after-response script", ScriptPhase::AfterResponse, post),
+        ] {
+            if code.trim().is_empty() {
+                continue;
+            }
+            self.losses
+                .script_kept(here, what, &code, Dialect::Insomnia);
+            out.push(Script { phase, code });
+        }
+        out
+    }
+
+    fn folder(&mut self, it: Item<'_>, name: &str, here: &str, items: Vec<ItemOut>) -> FolderOut {
+        let scripts = self.scripts(it, here);
         let (headers, header_docs) = self.headers(it.v.get("headers"), here);
         let auth = match it.v.get("authentication") {
             Some(a) if !a.entries().is_empty() => self.auth(a, here),
@@ -638,6 +658,7 @@ impl Cx {
                 header_docs,
                 auth,
                 vars,
+                scripts,
                 ..DefaultsOut::default()
             },
             items,
@@ -664,9 +685,7 @@ impl Cx {
 
     fn request(&mut self, it: Item<'_>, here: &str) -> RequestOut {
         let v = it.v;
-        let (pre, post) = it.scripts();
-        self.losses.script(here, "pre-request script", &pre);
-        self.losses.script(here, "after-response script", &post);
+        let scripts = self.scripts(it, here);
         let mut url = self.template(&v.string("url"), here);
         // Insomnia appends `parameters` when sending; here they become part of the URL.
         let mut query = Vec::new();
@@ -736,7 +755,7 @@ impl Cx {
         let spec = RequestSpec {
             actions: Vec::new(),
             assertions: Vec::new(),
-            scripts: Vec::new(),
+            scripts,
             name,
             seq: None,
             method,

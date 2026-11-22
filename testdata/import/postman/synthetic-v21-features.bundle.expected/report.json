@@ -6,12 +6,6 @@
     "format": "postman",
     "losses": [
       {
-        "detail": "test script (1 line) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "collection"
-      },
-      {
         "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
         "effect": "approximated",
         "kind": "auth",
@@ -96,12 +90,6 @@
         "location": "Bodies / XML"
       },
       {
-        "detail": "pre-request script (2 lines) not imported",
-        "effect": "dropped",
-        "kind": "script",
-        "location": "Users"
-      },
-      {
         "detail": "cookies of example `Created` not imported",
         "effect": "dropped",
         "kind": "example",
@@ -112,12 +100,6 @@
         "effect": "dropped",
         "kind": "example",
         "location": "Users / Create user"
-      },
-      {
-        "detail": "test script (3 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "Users / Get user"
       },
       {
         "detail": "dynamic variables {{$guid}}, {{$randomInt}} kept as text; RequestTailor does not generate dynamic values yet",

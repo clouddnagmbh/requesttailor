@@ -1,0 +1,81 @@
+{
+  "name": "bru: set variables in every scope, typed for the rest of the phase",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "bru.setVar(\"token\", \"abc\");\nbru.setVar(\"count\", 3);\nbru.setVar(\"config\", { region: \"eu\" });\nbru.setEnvVar(\"envOnly\", \"e\");\nbru.setGlobalEnvVar(\"glob\", true);\nbru.setCollectionVar(\"coll\", \"c\");\nbru.deleteVar(\"old\");\nconsole.log(typeof bru.getVar(\"count\"), bru.getVar(\"count\") + 1, bru.getVar(\"config\").region);\nconsole.log(bru.getEnvVar(\"envOnly\"), bru.getGlobalEnvVar(\"glob\"), bru.getCollectionVar(\"coll\"));\nconsole.log(String(bru.hasVar(\"token\")), String(bru.hasVar(\"old\")), String(bru.getVar(\"old\")));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "old",
+      "value": "1",
+      "source": {
+        "layer": "runtime"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "var_changes": [
+      {
+        "name": "token",
+        "value": "abc",
+        "scope": "runtime"
+      },
+      {
+        "name": "count",
+        "value": "3",
+        "scope": "runtime"
+      },
+      {
+        "name": "config",
+        "value": "{\"region\":\"eu\"}",
+        "scope": "runtime"
+      },
+      {
+        "name": "envOnly",
+        "value": "e",
+        "scope": "environment"
+      },
+      {
+        "name": "glob",
+        "value": "true",
+        "scope": "global"
+      },
+      {
+        "name": "coll",
+        "value": "c",
+        "scope": "collection"
+      },
+      {
+        "name": "old",
+        "value": null,
+        "scope": "runtime"
+      }
+    ],
+    "logs": [
+      {
+        "level": "log",
+        "text": "number 4 eu"
+      },
+      {
+        "level": "log",
+        "text": "e true c"
+      },
+      {
+        "level": "log",
+        "text": "true false undefined"
+      }
+    ],
+    "request": null,
+    "error": null
+  }
+}

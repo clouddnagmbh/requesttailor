@@ -1,0 +1,53 @@
+{
+  "name": "bru: await bru.sendRequest in a test (corpus: 07-real-request-async-test)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"sync pass (control)\", function () {\n  expect(1).to.equal(1);\n});\n\ntest(\"async test awaiting a real request (bug check)\", async function () {\n  const response = await bru.sendRequest({\n    method: \"get\",\n    url: \"http://localhost:8081/ping\"\n  });\n  expect(response.data).to.equal(\"pong\");\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:8081/ping",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [],
+    "body": "pong",
+    "time_ms": 1,
+    "url": "http://localhost:8081/ping"
+  },
+  "send": [
+    {
+      "url": "http://localhost:8081/ping",
+      "response": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/plain"
+          ]
+        ],
+        "body": "pong",
+        "time_ms": 3,
+        "url": "http://localhost:8081/ping"
+      }
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "sync pass (control)",
+        "passed": true
+      },
+      {
+        "name": "async test awaiting a real request (bug check)",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

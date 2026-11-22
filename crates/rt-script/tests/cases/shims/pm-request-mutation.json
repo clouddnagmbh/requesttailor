@@ -1,0 +1,64 @@
+{
+  "name": "pm: pre-request changes to URL, method, headers and body",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.request.headers.add({ key: \"X-Added\", value: \"1\" });\npm.request.headers.upsert({ key: \"Accept\", value: \"text/plain\" });\npm.request.headers.remove(\"X-Remove\");\npm.request.addHeader({ key: \"X-Signature\", value: pm.variables.replaceIn(\"sig-{{user}}\") });\npm.request.url.query.add({ key: \"page\", value: \"2\" });\npm.request.method = \"post\";\npm.request.body.update({ mode: \"raw\", raw: JSON.stringify({ user: pm.variables.get(\"user\") }) });\nconsole.log(pm.request.headers.get(\"accept\"), pm.request.url.getQueryString(), pm.request.body.raw);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "{{baseUrl}}/items?q=a",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ],
+      [
+        "X-Remove",
+        "x"
+      ]
+    ],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "user",
+      "value": "ada",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/items?q=a&page=2",
+      "headers": [
+        [
+          "Accept",
+          "text/plain"
+        ],
+        [
+          "X-Added",
+          "1"
+        ],
+        [
+          "X-Signature",
+          "sig-ada"
+        ]
+      ],
+      "body": "{\"user\":\"ada\"}"
+    },
+    "logs": [
+      {
+        "level": "log",
+        "text": "text/plain q=a&page=2 {\"user\":\"ada\"}"
+      }
+    ],
+    "error": null
+  }
+}

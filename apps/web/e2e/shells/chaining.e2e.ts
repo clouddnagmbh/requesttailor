@@ -146,7 +146,6 @@ test("set as variable from the JSON tree feeds the next send", async ({ page }) 
 });
 
 test("edited assertions and actions are saved to the request file", async ({ page }) => {
-  test.skip(true, "wave 7: needs strand B (format writer for runtime.assertions/actions)");
   await setup(page);
   await page.getByTestId("tree-request").filter({ hasText: "Who am I" }).click();
   await page.getByTestId("tab-assertions").click();

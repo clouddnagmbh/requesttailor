@@ -16,3 +16,10 @@ http:
         "uuid": "{{uuid}}"
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const uuid = require('uuid');
+        insomnia.environment.set('uuid', uuid.NIL);

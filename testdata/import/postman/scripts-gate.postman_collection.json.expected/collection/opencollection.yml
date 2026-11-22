@@ -1,0 +1,27 @@
+opencollection: "1.0.0"
+
+info:
+  name: Scripts gate
+
+request:
+  variables:
+    - name: baseUrl
+      value: http://127.0.0.1:47811
+    - name: signingKey
+      value: gate-signing-key
+  scripts:
+    - type: before-request
+      code: |-
+        // Every request: count the requests of the run and send the count along.
+        const count = Number(pm.collectionVariables.get("requestCount") || 0) + 1;
+        pm.collectionVariables.set("requestCount", count);
+        pm.request.headers.upsert({ key: "X-Request-Count", value: String(count) });
+    - type: tests
+      code: |-
+        pm.test("status is 2xx", function () {
+            pm.response.to.be.success;
+        });
+
+docs: "Wave 7 gate: pre-request and test scripts at collection, folder and request level, run unchanged against rt-testserver after import. Set baseUrl to the test server (e.g. --var baseUrl=http://127.0.0.1:47811)."
+
+bundled: false

@@ -1,0 +1,37 @@
+{
+  "name": "pm: pm.visualizer is ignored with a warning, pm.vault fails clearly",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.visualizer.set(\"<b>{{x}}</b>\", {});\nawait pm.vault.get(\"key\");"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "warn",
+        "text": "pm.visualizer is not supported in RequestTailor; ignored"
+      }
+    ],
+    "error": "pm.vault is not supported in RequestTailor"
+  }
+}

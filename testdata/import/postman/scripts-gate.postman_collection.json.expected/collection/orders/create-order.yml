@@ -1,0 +1,69 @@
+info:
+  name: Create order
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/echo/{{apiVersion}}/orders"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: X-Trace
+      value: "{{traceId}}"
+    - name: X-Signature
+      value: "{{signature}}"
+  body:
+    type: json
+    data: '{"orderId": "{{orderId}}", "item": "{{item}}", "qty": {{qty}}}'
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const CryptoJS = require("crypto-js");
+
+        // Data-driven when run with a data file; defaults otherwise.
+        const item = pm.iterationData.get("item") || "book";
+        const qty = Number(pm.iterationData.get("qty") || 3);
+
+        pm.variables.set("orderId", "ord-" + (41 + pm.info.iteration + 1));
+        pm.variables.set("item", item);
+        pm.variables.set("qty", qty);
+        pm.variables.set("traceId", "trace-" + pm.collectionVariables.get("requestCount"));
+
+        const payload = pm.variables.get("orderId") + ":" + item + ":" + qty;
+        const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get("signingKey")).toString(CryptoJS.enc.Hex);
+        pm.variables.set("signature", signature);
+    - type: tests
+      code: |-
+        const CryptoJS = require("crypto-js");
+        const echo = pm.response.json();
+        const headers = Object.fromEntries(echo.headers);
+        const sent = JSON.parse(echo.body);
+
+        pm.test("status code is 200", function () {
+            pm.response.to.have.status(200);
+        });
+
+        pm.test("the URL uses the version the folder set", function () {
+            pm.expect(echo.method).to.equal("POST");
+            pm.expect(echo.path).to.equal("/echo/v1/orders");
+        });
+
+        pm.test("the body carries the pre-request variables", function () {
+            pm.expect(sent).to.deep.equal({ orderId: pm.variables.get("orderId"), item: pm.variables.get("item"), qty: Number(pm.variables.get("qty")) });
+        });
+
+        pm.test("the headers carry the pre-request variables", function () {
+            pm.expect(headers).to.have.property("x-trace", "trace-" + pm.collectionVariables.get("requestCount"));
+            pm.expect(headers["x-request-count"]).to.equal(String(pm.collectionVariables.get("requestCount")));
+            const payload = sent.orderId + ":" + sent.item + ":" + sent.qty;
+            const expected = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get("signingKey")).toString();
+            pm.expect(headers["x-signature"]).to.equal(expected);
+            pm.expect(headers["x-signature"]).to.match(/^[0-9a-f]{64}$/);
+        });
+
+        // Chained into the next request.
+        pm.collectionVariables.set("createdOrderId", sent.orderId);

@@ -7,3 +7,17 @@ request:
   variables:
     - name: val
       value: "1"
+  scripts:
+    - type: before-request
+      code: |-
+        const folder1ValByFolder1 = insomnia.parentFolders.get('folder1').environment.get('val');
+        const folder1ValByFolder1ByName = insomnia.parentFolders.getByName('folder1').environment.get('val');
+        const folder2ValByFolder1 = insomnia.parentFolders.get('folder2').environment.get('val');
+        const folder2ValByFolder1ByName = insomnia.parentFolders.getByName('folder2').environment.get('val');
+        const valFoundByFolder1 = insomnia.parentFolders.findValue('val');
+
+        insomnia.environment.set('folder1ValByFolder1', folder1ValByFolder1);
+        insomnia.environment.set('folder1ValByFolder1ByName', folder1ValByFolder1ByName);
+        insomnia.environment.set('folder2ValByFolder1', folder2ValByFolder1);
+        insomnia.environment.set('folder2ValByFolder1ByName', folder2ValByFolder1ByName);
+        insomnia.environment.set('valFoundByFolder1', valFoundByFolder1);

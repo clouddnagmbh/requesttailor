@@ -13,3 +13,11 @@ http:
     type: json
     data: "{}"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        insomnia.environment.set('__fromScript', 'environment');
+        insomnia.baseEnvironment.set('__fromScript1', 'baseEnvironment');
+        insomnia.collectionVariables.set('__fromScript2', 'collection');
