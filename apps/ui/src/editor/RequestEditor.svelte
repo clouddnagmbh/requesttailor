@@ -4,7 +4,10 @@
      scripts and assertions (wave 7, strand C). Owner: wave 3, strand B.
      Reads the spec from `app.drafts[path]`; every change goes through `app.edit` (typing is
      debounced and flushed before anything else can use the backend's state). Variable
-     highlighting comes from `backend.preview`; the editor never resolves a variable itself. -->
+     highlighting comes from `backend.preview`; the editor never resolves a variable itself.
+     Wave 8 (strand A): WebSocket and gRPC requests have "Messages" instead of "Body" (gRPC:
+     the method picker above it) and gRPC calls its headers "Metadata"; Enter in the URL
+     connects a session request instead of sending it. -->
 <script lang="ts">
   import { onMount, untrack, type Snippet } from "svelte";
 
@@ -17,6 +20,10 @@
   import ScriptsTab from "../scripts/ScriptsTab.svelte";
   import { sessionVars } from "../scripts/session.svelte";
   import { getApp } from "../state/app.svelte";
+  import GrpcMethodPicker from "../grpc/GrpcMethodPicker.svelte";
+  import { sessionKind } from "../stream/kind";
+  import MessageEditor from "../stream/MessageEditor.svelte";
+  import { getSessions } from "../stream/sessions.svelte";
   import AuthEditor from "./AuthEditor.svelte";
   import BodyEditor from "./BodyEditor.svelte";
   import CodeField from "./CodeField.svelte";
@@ -195,8 +202,11 @@
   // ---- tabs ----
 
   /** Built-in tabs, or `plugin:<plugin>/<tab>` (wave 5). */
-  type Tab = "params" | "headers" | "body" | "auth" | "vars" | "scripts" | "assertions" | `plugin:${string}`;
-  let tab = $state<Tab>("params");
+  type Tab = "params" | "headers" | "body" | "messages" | "auth" | "vars" | "scripts" | "assertions" | `plugin:${string}`;
+  let chosen = $state<Tab>("params");
+  // Wave 8: session requests have messages, not a body.
+  const protocol = $derived(spec?.protocol?.type === "websocket" || spec?.protocol?.type === "grpc" ? spec.protocol : null);
+  const tab = $derived<Tab>(protocol && chosen === "body" ? "messages" : !protocol && chosen === "messages" ? "body" : chosen);
   const plugins = pluginsState(app.backend);
   const pluginTabs = $derived(tabsFor(plugins.list, "request"));
   const pluginTab = $derived(tab.startsWith("plugin:") ? (pluginTabs.find((t) => `plugin:${t.key}` === tab) ?? null) : null);
@@ -204,8 +214,10 @@
     spec
       ? [
           ["params", "Params", count(spec.params.filter((p) => p.enabled).length)],
-          ["headers", "Headers", count(spec.headers.filter((h) => h.enabled).length)],
-          ["body", "Body", spec.body.type === "none" ? "" : spec.body.type === "raw" ? spec.body.kind : spec.body.type],
+          ["headers", protocol?.type === "grpc" ? "Metadata" : "Headers", count(spec.headers.filter((h) => h.enabled).length)],
+          protocol
+            ? ["messages", "Messages", count(protocol.messages.length)]
+            : ["body", "Body", spec.body.type === "none" ? "" : spec.body.type === "raw" ? spec.body.kind : spec.body.type],
           ["auth", "Auth", spec.auth.type === "inherit" ? "" : spec.auth.type === "unsupported" ? spec.auth.kind : spec.auth.type],
           ["vars", "Vars", count(spec.vars.length)],
           ["scripts", "Scripts", count(countScripts(spec.scripts))],
@@ -217,9 +229,11 @@
     return n === 0 ? "" : String(n);
   }
 
+  const sessions = getSessions();
   function sendNow() {
     flush();
-    void app.send(path);
+    if (sessions && sessionKind(spec)) void sessions.primary(path);
+    else void app.send(path);
   }
 </script>
 
@@ -227,6 +241,9 @@
   {#if spec}
     {#key path}
       <div class="urlbar">
+        {#if protocol}
+          <span class="method protocol" data-testid="method-protocol" title={protocol.type === "grpc" ? "gRPC" : "WebSocket"}>{spec.method}</span>
+        {:else}
         <select
           class="method"
           data-testid="method-select"
@@ -241,7 +258,8 @@
           {#each METHODS as m (m)}<option value={m}>{m}</option>{/each}
           <option value="custom">{isCustom ? spec.method || "Custom" : "Custom…"}</option>
         </select>
-        {#if isCustom}
+        {/if}
+        {#if isCustom && !protocol}
           <input
             class="custom"
             data-testid="method-custom"
@@ -290,7 +308,7 @@
             data-testid={`tab-${id}`}
             aria-selected={tab === id}
             aria-controls="rt-request-panel"
-            onclick={() => (tab = id)}
+            onclick={() => (chosen = id)}
           >
             {text}{#if badge}<span class="badge">{badge}</span>{/if}
           </button>
@@ -303,7 +321,7 @@
             title="Plugin {t.pluginName}"
             aria-selected={tab === `plugin:${t.key}`}
             aria-controls="rt-request-panel"
-            onclick={() => (tab = `plugin:${t.key}`)}
+            onclick={() => (chosen = `plugin:${t.key}`)}
           >
             {t.tab.title}
           </button>
@@ -365,6 +383,23 @@
             {stash}
             onchange={(body: Body, typing: boolean) => update((s) => (s.body = body), typing)}
           />
+        {:else if tab === "messages" && protocol}
+          {#if protocol.type === "grpc"}
+            <GrpcMethodPicker
+              {path}
+              spec={protocol}
+              onchange={(grpc) => update((s) => (s.protocol = { ...grpc, type: "grpc" }))}
+            />
+          {/if}
+          <MessageEditor
+            messages={protocol.messages}
+            {lookup}
+            kinds={protocol.type === "grpc" ? ["json"] : undefined}
+            onchange={(messages, typing) =>
+              update((s) => {
+                if (s.protocol && s.protocol.type !== "http") s.protocol.messages = messages;
+              }, typing)}
+          />
         {:else if tab === "auth"}
           <AuthEditor
             auth={spec.auth}
@@ -425,6 +460,14 @@
   .method {
     font-weight: 600;
     padding: 2px 4px;
+  }
+  .protocol {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius);
+    font-family: var(--rt-font-mono);
   }
   .custom {
     width: 8em;
