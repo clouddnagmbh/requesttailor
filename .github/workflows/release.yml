@@ -330,7 +330,7 @@ jobs:
           cargo build -p rt-cli --release --locked --target "$TARGET"
           bin="target/$TARGET/release/rt"
           file "$bin"
-          file "$bin" | grep -Eq 'static(-pie)? linked' || { echo "::error::rt is not statically linked"; exit 1; }
+          file "$bin" | grep -Eq 'statically linked|static-pie linked' || { echo "::error::rt is not statically linked"; exit 1; }
           "$bin" --version
       - name: Collect the release file
         run: |
