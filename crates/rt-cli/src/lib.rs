@@ -20,6 +20,7 @@ pub mod oauth;
 pub mod plugins;
 pub mod run;
 pub mod scan;
+pub mod scripts;
 pub mod secrets;
 pub mod services;
 

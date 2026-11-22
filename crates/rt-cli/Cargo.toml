@@ -22,6 +22,8 @@ rt-core = { path = "../rt-core" }
 # the system browser (wave 5, strand C, `oauth.rs`).
 rt-format = { path = "../rt-format" }
 rt-plugin = { path = "../rt-plugin" }
+# The script sandbox (wave 7, `scripts.rs`).
+rt-script = { path = "../rt-script" }
 serde_json = "1"
 # Current-thread runtime only; the native transport needs the I/O and timer drivers.
 tokio = { version = "1", features = ["rt", "net", "time"] }

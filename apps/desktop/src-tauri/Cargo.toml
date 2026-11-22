@@ -21,6 +21,8 @@ rt-core = { path = "../../../crates/rt-core" }
 rt-format = { path = "../../../crates/rt-format" }
 rt-git = { path = "../../../crates/rt-git" }
 rt-plugin = { path = "../../../crates/rt-plugin" }
+# The script sandbox (wave 7, `scripts.rs`).
+rt-script = { path = "../../../crates/rt-script" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
