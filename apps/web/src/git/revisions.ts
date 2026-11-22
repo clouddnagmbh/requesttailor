@@ -5,7 +5,7 @@
 // same answers as the desktop (`rt-git/src/revisions.rs`, `file_log.rs`): `revParse`,
 // `treeAt`, `show`, `fileLog`, `mergeBase`, `commits`. In the browser the repository root is
 // the collection folder, so collection- and repository-relative paths are the same.
-// `fileLog` follows no renames yet (strand D adds that on both sides).
+// `fileLog` follows renames (./file-log.ts).
 
 import "./buffer-global";
 
@@ -13,6 +13,7 @@ import git from "isomorphic-git";
 
 import { BackendError, type GitCommit, type GitFileCommit, type GitTree } from "@requesttailor/ui";
 
+import { followFileLog } from "./file-log";
 import type { Repo } from "./repo";
 
 const gitErr = (message: string) => new BackendError("git", message);
@@ -153,25 +154,9 @@ export async function show(repo: Repo, rev: string, path: string): Promise<strin
 }
 
 /** Commits of `HEAD`'s history (by commit time) in which `path` differs from the first
- *  parent, newest first. */
-export async function fileLog(repo: Repo, path: string, limit: number): Promise<GitFileCommit[]> {
-  const filepath = checkPath(path);
-  let head: string;
-  try {
-    head = await git.resolveRef({ ...base(repo), ref: "HEAD" });
-  } catch {
-    return [];
-  }
-  const out: GitFileCommit[] = [];
-  for (const entry of await git.log({ ...base(repo), ref: head })) {
-    if (out.length >= limit) break;
-    const here = (await blobOf(repo, entry.oid, filepath))?.oid ?? null;
-    const parent = entry.commit.parent[0];
-    const before = parent ? ((await blobOf(repo, parent, filepath))?.oid ?? null) : null;
-    const change = !before && here ? "added" : before && !here ? "deleted" : before !== here ? "modified" : null;
-    if (change) out.push({ commit: toCommit(entry.oid, entry.commit), path: filepath, change });
-  }
-  return out;
+ *  parent, newest first, following renames (./file-log.ts). */
+export function fileLog(repo: Repo, path: string, limit: number): Promise<GitFileCommit[]> {
+  return followFileLog(repo, path, limit);
 }
 
 /** Best common ancestor of `a` and `b`; `null` if unrelated. */

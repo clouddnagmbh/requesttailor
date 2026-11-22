@@ -49,7 +49,7 @@ mod session_vars;
 /// Wave 8, strand A.
 mod streams;
 /// Wave 12, strand D: request history and test results per commit.
-mod timeline;
+pub mod timeline;
 
 /// The app's core as managed Tauri state (wave 10). A distribution's Tauri plugin may use it,
 /// e.g. to open a collection it placed on disk: `app.state::<AppCore>().open(&root)`, then
