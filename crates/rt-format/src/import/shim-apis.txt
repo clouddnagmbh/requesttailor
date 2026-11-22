@@ -1,0 +1,403 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+#
+# Script APIs of the shims in crates/rt-script/js (wave 7): one per line,
+#   <api> <supported|partial|unsupported> <note>
+# An entry covers its member paths too (`res.body` covers `res.body.items`); the longest
+# entry wins. `expect().<word>` is a chai assertion word, `name()` a called global,
+# `tests[]` an indexed one, `require('x')` a module. `insomnia.*` falls back to `pm.*`.
+#
+# Read by the importers (loss report: every unsupported or partial API a kept script uses),
+# by scripts/shim-frequency.mjs and by the shim tests, which check that every supported and
+# partial API exists. crates/rt-script/SHIM-COVERAGE.md is the readable table.
+
+# --- shared: test, expect, globals ---------------------------------------------------------
+test() supported async functions are awaited
+expect() supported chai subset with chai's messages
+expect().to supported
+expect().be supported
+expect().been supported
+expect().is supported
+expect().that supported
+expect().which supported
+expect().and supported
+expect().has supported
+expect().have supported
+expect().with supported
+expect().at supported
+expect().of supported
+expect().same supported
+expect().but supported
+expect().does supported
+expect().still supported
+expect().also supported
+expect().not supported
+expect().deep supported
+expect().nested supported
+expect().own supported
+expect().ordered supported
+expect().any supported
+expect().all supported
+expect().ok supported on a response: status 2xx (Postman)
+expect().true supported
+expect().false supported
+expect().null supported
+expect().undefined supported
+expect().NaN supported
+expect().finite supported
+expect().exist supported
+expect().exists supported
+expect().empty supported
+expect().equal supported
+expect().equals supported
+expect().eq supported
+expect().eql supported
+expect().eqls supported
+expect().above supported
+expect().gt supported
+expect().greaterThan supported
+expect().least supported
+expect().gte supported
+expect().greaterThanOrEqual supported
+expect().below supported
+expect().lt supported
+expect().lessThan supported
+expect().most supported
+expect().lte supported
+expect().lessThanOrEqual supported
+expect().within supported
+expect().closeTo supported
+expect().approximately supported
+expect().a supported
+expect().an supported
+expect().include supported
+expect().includes supported
+expect().contain supported
+expect().contains supported
+expect().oneOf supported
+expect().property supported
+expect().ownProperty supported
+expect().haveOwnProperty supported
+expect().nestedProperty supported
+expect().lengthOf supported
+expect().length supported
+expect().match supported
+expect().matches supported
+expect().string supported
+expect().keys supported
+expect().key supported
+expect().members supported
+expect().instanceOf supported
+expect().instanceof supported
+expect().throw supported
+expect().throws supported
+expect().Throw supported
+expect().satisfy supported
+expect().satisfies supported
+expect().status supported response assertion
+expect().statusCode supported response assertion
+expect().header supported response assertion
+expect().body supported response assertion
+expect().jsonBody supported response assertion
+expect().jsonSchema partial JSON Schema draft 4 to 2020-12 without `format` and remote `$ref`
+expect().responseTime supported response assertion
+expect().success supported response assertion
+expect().info supported response assertion
+expect().redirection supported response assertion
+expect().clientError supported response assertion
+expect().serverError supported response assertion
+expect().error supported response assertion
+expect().accepted supported response assertion
+expect().withoutContent supported response assertion
+expect().badRequest supported response assertion
+expect().unauthorized supported response assertion
+expect().unauthorised supported response assertion
+expect().forbidden supported response assertion
+expect().notFound supported response assertion
+expect().notAcceptable supported response assertion
+expect().rateLimited supported response assertion
+expect().json supported response assertion
+expect().withBody supported response assertion
+expect().html supported response assertion
+expect().xml supported response assertion
+expect().fail supported
+expect().cookie unsupported cookie assertions are not available
+expect().should unsupported chai `should` is not available
+atob() supported
+btoa() supported
+setTimeout() supported runs on rt.sleep; the wait counts against the time limit
+setInterval() supported runs on rt.sleep; the wait counts against the time limit
+clearTimeout() supported
+clearInterval() supported
+fetch() unsupported use pm.sendRequest, bru.sendRequest or rt.sendRequest
+URL() unsupported no URL class in the sandbox
+URLSearchParams() unsupported no URLSearchParams class in the sandbox
+Buffer unsupported no Node.js Buffer; use crypto-js encoders
+Buffer() unsupported no Node.js Buffer; use crypto-js encoders
+process unsupported no process environment in the sandbox
+TextEncoder() unsupported
+TextDecoder() unsupported
+
+# --- modules --------------------------------------------------------------------------------
+require('crypto-js') partial hashes (MD5, SHA-1, SHA-2), HMAC, PBKDF2, encoders; no ciphers (AES, DES, …), SHA-3 or RIPEMD-160
+require('lodash') partial about 130 common functions; no chaining (`_(x).map()`) or `_.template`
+require('moment') partial English, local and UTC; no time zones, locales, durations or relative time
+require('uuid') partial v4, NIL, MAX, validate, version, parse, stringify; no v1, v3, v5, v6, v7
+require('chai') partial expect and the common assert functions; no `should` or plugins
+require('atob') supported
+require('btoa') supported
+require('tv4') partial validate, validateResult, validateMultiple; no `format`, addSchema or remote `$ref`
+require('ajv') partial compile, validate, errorsText; errors are `{ message }`; no `format` or custom keywords
+
+# --- Bruno ----------------------------------------------------------------------------------
+bru.getVar supported runtime variables; see "Variable types"
+bru.setVar supported runtime scope
+bru.hasVar supported
+bru.deleteVar supported
+bru.getAllVars partial every variable in scope, not only runtime ones
+bru.deleteAllVars unsupported the runtime variables cannot be listed
+bru.getEnvName supported
+bru.getEnvVar supported environment scope; see "Variable types"
+bru.setEnvVar supported environment scope, in memory; `persist` is ignored (files are never written)
+bru.hasEnvVar supported
+bru.deleteEnvVar supported
+bru.getGlobalEnvVar supported global scope
+bru.setGlobalEnvVar supported global scope, in memory
+bru.getCollectionVar supported collection scope
+bru.setCollectionVar supported collection scope, in memory
+bru.hasCollectionVar supported
+bru.deleteCollectionVar supported
+bru.getFolderVar partial the resolved value (a closer layer can shadow the folder's)
+bru.getRequestVar partial the resolved value (a runtime variable can shadow the request's)
+bru.getCollectionName supported
+bru.getProcessEnv partial always undefined: scripts do not see the process environment
+bru.getOauth2CredentialVar unsupported
+bru.interpolate supported strings, and strings inside objects and arrays
+bru.sleep supported counts against the time limit
+bru.setNextRequest supported
+bru.runner.skipRequest supported
+bru.runner.stopExecution supported
+bru.runner.setNextRequest supported
+bru.sendRequest supported axios-style options and response; every status resolves; callback or promise
+bru.runRequest unsupported use the collection runner
+bru.isSafeMode supported always true (RequestTailor has one sandbox, like Bruno's safe mode)
+bru.cwd unsupported scripts have no file system access
+bru.getTestResults unsupported
+bru.getAssertionResults unsupported
+bru.visualize partial ignored with a warning
+bru.cookies unsupported
+bru.grpc unsupported gRPC requests and their scripts do not run in RequestTailor
+__dirname unsupported scripts have no file system access
+__filename unsupported scripts have no file system access
+req.getUrl supported before-request: as written, templates unresolved
+req.setUrl supported
+req.url supported
+req.getMethod supported
+req.setMethod supported
+req.method supported
+req.getHeader supported
+req.getHeaders supported
+req.setHeader supported
+req.setHeaders supported replaces every header
+req.deleteHeader supported
+req.deleteHeaders supported
+req.headers supported
+req.getBody supported parsed JSON when the body is JSON; `{ raw: true }` gives the text
+req.setBody supported objects are sent as JSON
+req.body supported
+req.getName supported
+req.getExecutionPlatform partial always "app"
+req.getExecutionMode unsupported
+req.getPathParams unsupported
+req.getAuthMode unsupported
+req.getTimeout unsupported
+req.setTimeout unsupported
+req.setMaxRedirects unsupported
+req.onFail unsupported
+res() partial paths with `.`, `[n]`, `..key`; no filters
+res.status supported
+res.statusText supported
+res.headers supported names in lower case
+res.body supported parsed JSON when the body is JSON, the text otherwise
+res.responseTime supported
+res.url supported
+res.getStatus supported
+res.getStatusText supported
+res.getHeader supported
+res.getHeaders supported
+res.getBody supported
+res.setBody partial changes what later code of the same phase reads, not the response
+res.getResponseTime supported
+res.getUrl supported
+res.getSize supported header size estimated
+
+# --- Postman --------------------------------------------------------------------------------
+pm.test supported `done` callbacks and async functions are awaited
+pm.test.skip partial the test is not run and not reported
+pm.expect supported see expect()
+pm.environment.get supported environment scope; see "Variable types"
+pm.environment.set supported environment scope, in memory (files are never written)
+pm.environment.unset supported
+pm.environment.has supported
+pm.environment.replaceIn supported
+pm.environment.name supported
+pm.environment.toObject partial every variable in scope, not only the environment's
+pm.environment.toJSON partial every variable in scope
+pm.environment.clear unsupported the variables of one scope cannot be listed
+pm.globals.get supported global scope
+pm.globals.set supported global scope, in memory
+pm.globals.unset supported
+pm.globals.has supported
+pm.globals.replaceIn supported
+pm.globals.toObject partial every variable in scope
+pm.globals.toJSON partial every variable in scope
+pm.globals.clear unsupported the variables of one scope cannot be listed
+pm.collectionVariables.get supported collection scope
+pm.collectionVariables.set supported collection scope, in memory
+pm.collectionVariables.unset supported
+pm.collectionVariables.has supported
+pm.collectionVariables.replaceIn supported
+pm.collectionVariables.toObject partial every variable in scope
+pm.collectionVariables.toJSON partial every variable in scope
+pm.collectionVariables.clear unsupported the variables of one scope cannot be listed
+pm.variables.get supported the resolved value (all layers)
+pm.variables.set supported runtime scope (Postman's local variables)
+pm.variables.has supported
+pm.variables.unset supported
+pm.variables.replaceIn supported
+pm.variables.toObject supported
+pm.iterationData.get supported the data row of the runner's iteration
+pm.iterationData.has supported
+pm.iterationData.unset supported
+pm.iterationData.toObject supported
+pm.iterationData.toJSON supported
+pm.iterationData.replaceIn supported
+pm.info.eventName supported `prerequest` or `test`
+pm.info.iteration supported
+pm.info.iterationCount supported
+pm.info.requestName supported
+pm.info.requestId partial the request's path in the collection
+pm.request.url supported Url object: toString, getHost, getPath, getQueryString, query.add/upsert/remove, …
+pm.request.method supported
+pm.request.headers supported HeaderList: get, has, add, upsert, remove, each, toObject, …
+pm.request.body supported raw text bodies; update() takes raw, urlencoded and graphql
+pm.request.addHeader supported
+pm.request.removeHeader supported
+pm.request.upsertHeader supported
+pm.request.getHeaders supported
+pm.request.addQueryParams supported
+pm.request.removeQueryParams supported
+pm.request.name supported
+pm.request.id partial the request's path in the collection
+pm.request.toJSON supported
+pm.request.auth unsupported auth is configured on the request, not in scripts
+pm.request.certificate unsupported
+pm.request.proxy unsupported
+pm.response.code supported
+pm.response.status supported the reason phrase
+pm.response.headers supported HeaderList, read-only
+pm.response.json supported
+pm.response.text supported
+pm.response.reason supported
+pm.response.responseTime supported
+pm.response.responseSize supported
+pm.response.size partial body size only
+pm.response.cookies partial from the response's Set-Cookie headers
+pm.response.toJSON supported
+pm.response.to.status supported `pm.response.to.have.status(code or reason)`
+pm.response.to.header supported
+pm.response.to.body supported
+pm.response.to.jsonBody supported
+pm.response.to.jsonSchema partial no `format`, no remote `$ref`
+pm.response.to.responseTime supported
+pm.response.to.ok supported
+pm.response.to.success supported
+pm.response.to.info supported
+pm.response.to.redirection supported
+pm.response.to.clientError supported
+pm.response.to.serverError supported
+pm.response.to.error supported
+pm.response.to.accepted supported
+pm.response.to.withoutContent supported
+pm.response.to.badRequest supported
+pm.response.to.unauthorized supported
+pm.response.to.unauthorised supported
+pm.response.to.forbidden supported
+pm.response.to.notFound supported
+pm.response.to.notAcceptable supported
+pm.response.to.rateLimited supported
+pm.response.to.json supported
+pm.response.to.withBody supported
+pm.response.to.html supported
+pm.response.to.xml supported
+pm.response.to.cookie unsupported
+pm.response.dataURI unsupported
+pm.response.stream unsupported
+pm.sendRequest partial URL string or request object (raw, urlencoded, graphql bodies; no formdata or file); callback or promise
+pm.execution.skipRequest supported pre-request scripts
+pm.execution.setNextRequest supported
+pm.execution.location partial collection name and `current` request name only
+pm.cookies partial cookies of this request (Cookie header) or response (Set-Cookie); no jar
+pm.cookies.jar unsupported
+pm.visualizer partial ignored with a warning
+pm.vault unsupported
+pm.require unsupported package libraries are not available; built-in modules work with require()
+postman.setNextRequest supported `null` stops the run
+postman.getEnvironmentVariable supported
+postman.setEnvironmentVariable supported
+postman.clearEnvironmentVariable supported
+postman.clearEnvironmentVariables unsupported
+postman.getGlobalVariable supported
+postman.setGlobalVariable supported
+postman.clearGlobalVariable supported
+postman.clearGlobalVariables unsupported
+postman.getResponseHeader supported
+postman.getResponseCookie supported
+tests[] supported `tests["name"] = condition` records a test
+responseBody supported
+responseCode supported
+responseHeaders supported
+responseTime supported
+responseCookies supported
+iteration supported
+environment partial a read-only snapshot of every variable in scope when the script starts
+environment[] partial a read-only snapshot of every variable in scope when the script starts
+globals partial a read-only snapshot of every variable in scope when the script starts
+globals[] partial a read-only snapshot of every variable in scope when the script starts
+request partial a read-only snapshot of URL, method, headers and body
+_ partial the lodash subset (see require('lodash'))
+CryptoJS partial see require('crypto-js')
+tv4 partial see require('tv4')
+xml2Json() unsupported
+xmlToJson() unsupported
+cheerio unsupported
+cheerio() unsupported
+
+# --- Insomnia (falls back to pm.* for the rest) ---------------------------------------------
+insomnia.baseEnvironment.get supported the collection scope
+insomnia.baseEnvironment.set supported the collection scope, in memory
+insomnia.baseEnvironment.unset supported
+insomnia.baseEnvironment.has supported
+insomnia.baseEnvironment.replaceIn supported
+insomnia.baseEnvironment.toObject partial every variable in scope
+insomnia.baseGlobals.get supported the global scope
+insomnia.baseGlobals.set supported the global scope, in memory
+insomnia.baseGlobals.unset supported
+insomnia.baseGlobals.has supported
+insomnia.baseGlobals.toObject partial every variable in scope
+insomnia.parentFolders unsupported
+insomnia.clientCertificates unsupported
+insomnia.request.auth unsupported auth is configured on the request, not in scripts
+insomnia.request.certificate unsupported
+insomnia.request.proxy unsupported
+insomnia.request.body.update supported raw, urlencoded and graphql
+
+# --- JetBrains HTTP client (handler scripts are not imported) -------------------------------
+client unsupported JetBrains handler scripts are not imported
+response unsupported JetBrains handler scripts are not imported
+request.variables unsupported JetBrains handler scripts are not imported
+crypto unsupported JetBrains handler scripts are not imported
+$random unsupported JetBrains handler scripts are not imported
+jsonPath() unsupported JetBrains handler scripts are not imported
+xpath() unsupported JetBrains handler scripts are not imported
+require('*') unsupported not a built-in module of RequestTailor
