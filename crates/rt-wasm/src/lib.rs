@@ -52,6 +52,9 @@
 //! `analyze(files, format) -> ImportPlan` (`files`: `{ name, data: Uint8Array }[]`), `take(id) -> FileChange[]`, `discard(id)`
 //! (`import_js.rs`); history helpers (`history_js.rs`, strand E).
 //!
+//! Wave 7: the collection runner on `Workspace` (`runPlan`, `run`) and `parseData`
+//! (`runner_js.rs`, strand D).
+//!
 //! Saving is two-step so a failed write keeps the changes unsaved: `prepareSave()` returns
 //! `{ changes: FileChange[] }` without touching the workspace; after the shell has written the
 //! files it calls `commit(prepared)`, which clears `dirty`.
@@ -309,6 +312,13 @@ mod workspace_js {
     #[wasm_bindgen(js_name = Workspace)]
     pub struct WorkspaceJs {
         inner: Rc<RefCell<Inner>>,
+    }
+
+    impl WorkspaceJs {
+        /// The open workspace, for the per-strand modules (wave 7: `runner_js`).
+        pub(crate) fn workspace(&self) -> std::cell::Ref<'_, Workspace> {
+            std::cell::Ref::map(self.inner.borrow(), |i| &i.workspace)
+        }
     }
 
     #[wasm_bindgen(js_class = Workspace)]
@@ -616,6 +626,8 @@ mod history_js;
 mod import_js;
 #[cfg(target_arch = "wasm32")]
 mod plugins_js;
+#[cfg(target_arch = "wasm32")]
+mod runner_js;
 #[cfg(target_arch = "wasm32")]
 mod services_js;
 

@@ -12,7 +12,7 @@ use std::task::{Context, Poll};
 use bytes::Bytes;
 use rt_app::{SendInput, TreeNode, Workspace};
 use rt_core::runner::{RunEvent, RunPlan};
-use rt_core::send::{MASK, SendOptions};
+use rt_core::send::{MASK, ReportBody, SendOptions};
 use rt_core::services::Services;
 use rt_core::transport::{
     BodyStream, HttpRequest, HttpVersion, Response, ResponseHead, Timing, Transport, TransportError,
@@ -47,7 +47,13 @@ impl Transport for Wire {
     async fn send(&self, request: HttpRequest) -> Result<Response, TransportError> {
         let url = request.url.clone();
         self.seen.borrow_mut().push(request);
-        let body: BodyStream = Box::pin(Once(Some(Bytes::from_static(b"{}"))));
+        // `/big`: 10 000 two-byte characters.
+        let bytes = if url.ends_with("/big") {
+            Bytes::from("é".repeat(10_000))
+        } else {
+            Bytes::from_static(b"{}")
+        };
+        let body: BodyStream = Box::pin(Once(Some(bytes)));
         Ok(Response {
             head: ResponseHead {
                 status: 200,
@@ -168,4 +174,45 @@ fn plan_follows_the_tree_and_the_run_has_secrets_and_body_files() {
         seen[2].body.as_ref().map(|b| b.bytes.to_vec()),
         Some(b"payload".to_vec())
     );
+}
+
+#[test]
+fn step_events_for_the_view_keep_a_body_preview() {
+    let mut set = sample();
+    set.files.insert(
+        "big.yml".into(),
+        b"info:\n  name: Big\n  type: http\n\nhttp:\n  method: GET\n  url: http://h/big\n".to_vec(),
+    );
+    let ws = Workspace::open(set).unwrap();
+    let snapshot = ws.run_snapshot(SendInput::default());
+    let mut events = Vec::new();
+    block_on(snapshot.run(
+        &RunPlan {
+            requests: vec!["big.yml".into(), "c.yml".into()],
+            iterations: 1,
+            ..Default::default()
+        },
+        &Wire::default(),
+        &SendOptions::default(),
+        &Services::none(),
+        &mut |e| events.push(rt_app::runner::for_view(e)),
+        &|| false,
+    ));
+    let steps: Vec<_> = events
+        .iter()
+        .filter_map(|e| match e {
+            RunEvent::Step { step } => step.report.response.as_ref(),
+            _ => None,
+        })
+        .collect();
+    let ReportBody::Utf8(text) = &steps[0].body else {
+        panic!("text body")
+    };
+    assert!(text.len() <= rt_app::runner::VIEW_BODY_LIMIT);
+    assert!(text.len() > rt_app::runner::VIEW_BODY_LIMIT - 2);
+    assert!(steps[0].truncated);
+    assert_eq!(steps[0].size, 20_000);
+    // Small bodies stay as they are.
+    assert_eq!(steps[1].body, ReportBody::Utf8("{}".into()));
+    assert!(!steps[1].truncated);
 }

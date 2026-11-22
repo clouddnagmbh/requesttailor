@@ -289,6 +289,32 @@ impl<S: SecretStore> Core<S> {
         Ok(lock(&self.responses).insert(report))
     }
 
+    /// Request paths below `folder` in run order (wave 7, strand D, `runner.rs`).
+    pub fn run_plan(&self, folder: Option<&str>) -> Result<Vec<String>, AppError> {
+        self.with_session(|s| Ok(rt_core::runner::plan(s.workspace.collection(), folder)))
+    }
+
+    /// The open collection for a run (wave 7, strand D, `runner.rs`) and its id: unsaved
+    /// edits included, the secret values of `input`'s environment injected as for a send
+    /// (keychain, then external secrets, read first on a blocking thread).
+    pub async fn run_snapshot(
+        &self,
+        input: SendInput,
+    ) -> Result<(rt_app::runner::RunSnapshot, String), AppError> {
+        let pending = self.with_session(|s| self.external_pending(s, &input))?;
+        if let Some((external, skip)) = pending {
+            let resolver = std::sync::Arc::clone(&self.external_secrets);
+            tokio::task::spawn_blocking(move || resolver.resolve(&external, &skip))
+                .await
+                .map_err(|e| AppError::Shell(format!("reading secrets failed: {e}")))?
+                .map_err(AppError::Shell)?;
+        }
+        self.with_session(|s| {
+            let input = self.with_secrets(s, input)?;
+            Ok((s.workspace.run_snapshot(input), s.id.clone()))
+        })
+    }
+
     pub fn response_lines(&self, id: u64, start: u64, count: u32) -> Result<LineSlice, AppError> {
         lock(&self.responses).lines(id, start, count)
     }
