@@ -442,6 +442,8 @@ fn v2_to_v3_breaks_in_every_way() {
     assert_eq!(ty.len(), 1, "{ty:#?}");
     assert!(ty[0].location.contains("limit"));
     assert!(ty[0].message.contains("integer") && ty[0].message.contains("string"));
+    // The message names the parameter (the changelog shows only the message).
+    assert!(ty[0].message.contains("`limit`"), "{}", ty[0].message);
 
     let field = b(SpecChangeKind::FieldRemoved);
     assert!(

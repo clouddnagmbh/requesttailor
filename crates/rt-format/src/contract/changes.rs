@@ -218,6 +218,7 @@ fn diff_params(c: &mut Collector<'_>, os: &Spec, ns: &Spec, o: &Operation, n: &O
                         format!("{} is now optional", param_loc(np)),
                     );
                 }
+                // The parameter's name stands for its value in the messages.
                 let mut sub = Vec::new();
                 diff_schema(
                     os,
@@ -225,7 +226,7 @@ fn diff_params(c: &mut Collector<'_>, os: &Spec, ns: &Spec, o: &Operation, n: &O
                     &op_.schema,
                     &np.schema,
                     Side::Request,
-                    "",
+                    &np.name,
                     0,
                     &mut sub,
                 );
