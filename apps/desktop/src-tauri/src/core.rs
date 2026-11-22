@@ -138,6 +138,15 @@ impl<S: SecretStore> Core<S> {
         self.open(&root)
     }
 
+    /// The open workspace and the collection id, for the per-strand modules (wave 8: saved
+    /// MCP tests are staged in it, `mcp_client.rs`).
+    pub fn with_workspace<T>(
+        &self,
+        f: impl FnOnce(&mut Workspace, &str) -> Result<T, AppError>,
+    ) -> Result<T, AppError> {
+        self.with_session(|s| f(&mut s.workspace, &s.id))
+    }
+
     fn with_session<T>(
         &self,
         f: impl FnOnce(&mut Session) -> Result<T, AppError>,

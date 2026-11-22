@@ -101,6 +101,17 @@ describe("TauriBackend", () => {
     const plan = { requests: ["a.yml"], data: [], iterations: 1, delay_ms: 0, bail: false };
     await b.runner.run(plan, { environment: "Local", vars: [] }, () => {});
     await b.runner.cancel();
+    const server = { transport: "http" as const, url: "{{mcpUrl}}", headers: [] };
+    const secretInput = { environment: "Local", vars: [], secrets: [["token", "leak"]] } as never;
+    const test = { name: "t", server, tool: "echo", arguments: { text: "hi" }, assertions: [] };
+    await b.mcp.connect(server, secretInput);
+    await b.mcp.tools(1);
+    await b.mcp.call(1, "echo", { text: "hi" });
+    await b.mcp.disconnect(1);
+    await b.mcp.tests();
+    await b.mcp.getTest("mcp/t.mcp.yaml");
+    await b.mcp.saveTest(null, test);
+    await b.mcp.runTest("mcp/t.mcp.yaml", secretInput);
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -176,6 +187,15 @@ describe("TauriBackend", () => {
       ["runner_parse_data", { name: "d.csv", data: [97] }],
       ["runner_run", { plan, input: { environment: "Local", vars: [] }, onEvent: "channel" }],
       ["runner_cancel", undefined],
+      // Secret values never leave the webview: the keychain is read on the Rust side.
+      ["mcp_connect", { server, input: { environment: "Local", vars: [] } }],
+      ["mcp_tools", { id: 1 }],
+      ["mcp_call", { id: 1, tool: "echo", args: { text: "hi" } }],
+      ["mcp_disconnect", { id: 1 }],
+      ["mcp_tests", undefined],
+      ["mcp_get_test", { path: "mcp/t.mcp.yaml" }],
+      ["mcp_save_test", { path: null, test }],
+      ["mcp_run_test", { path: "mcp/t.mcp.yaml", input: { environment: "Local", vars: [] } }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

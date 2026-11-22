@@ -124,6 +124,14 @@ export const COMMANDS = [
   "runner_parse_data",
   "runner_run",
   "runner_cancel",
+  "mcp_connect",
+  "mcp_tools",
+  "mcp_call",
+  "mcp_disconnect",
+  "mcp_tests",
+  "mcp_get_test",
+  "mcp_save_test",
+  "mcp_run_test",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -169,7 +177,7 @@ export class TauriBackend implements Backend {
   readonly grpc = tauriGrpc();
   readonly graphql = tauriGraphQl();
   readonly agents = tauriAgents();
-  readonly mcp = tauriMcp();
+  readonly mcp = tauriMcp((cmd, args) => this.call(cmd, args));
   readonly ai = tauriAi();
 
   constructor(

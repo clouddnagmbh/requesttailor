@@ -78,6 +78,14 @@
     "allow-runner-parse-data",
     "allow-runner-run",
     "allow-runner-cancel",
+    "allow-mcp-connect",
+    "allow-mcp-tools",
+    "allow-mcp-call",
+    "allow-mcp-disconnect",
+    "allow-mcp-tests",
+    "allow-mcp-get-test",
+    "allow-mcp-save-test",
+    "allow-mcp-run-test",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]
