@@ -127,8 +127,8 @@ pub struct Server<'a> {
 /// The collection root for `path`: the nearest folder at or above it with
 /// `opencollection.yml`.
 fn find_collection(path: &Path) -> Result<PathBuf, String> {
-    let canonical = std::fs::canonicalize(path)
-        .map_err(|e| format!("cannot open {}: {e}", path.display()))?;
+    let canonical =
+        std::fs::canonicalize(path).map_err(|e| format!("cannot open {}: {e}", path.display()))?;
     canonical
         .ancestors()
         .find(|dir| dir.join(rt_format::COLLECTION_FILE).is_file())
@@ -295,8 +295,10 @@ impl<'a> Server<'a> {
                 &RpcError::new(INVALID_REQUEST, "empty batch"),
             )),
             Value::Array(batch) => {
-                let replies: Vec<Value> =
-                    batch.into_iter().filter_map(|m| self.handle_one(m)).collect();
+                let replies: Vec<Value> = batch
+                    .into_iter()
+                    .filter_map(|m| self.handle_one(m))
+                    .collect();
                 (!replies.is_empty()).then_some(Value::Array(replies))
             }
             m => self.handle_one(m),

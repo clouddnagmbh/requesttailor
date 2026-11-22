@@ -370,10 +370,7 @@ pub fn heartbeat(data_dir: &Path, id: &str) -> std::io::Result<()> {
 }
 
 /// The decision for `id` once there is one: the decision and who decided.
-pub fn decision(
-    data_dir: &Path,
-    id: &str,
-) -> std::io::Result<Option<(ApprovalDecision, String)>> {
+pub fn decision(data_dir: &Path, id: &str) -> std::io::Result<Option<(ApprovalDecision, String)>> {
     if !valid_id(id) {
         return Err(invalid_id(id));
     }
@@ -534,9 +531,7 @@ pub fn now_ms() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rt_core::model::{
-        EnvironmentPolicy, GrpcSpec, MessageVariant, Protocol, WebSocketSpec,
-    };
+    use rt_core::model::{EnvironmentPolicy, GrpcSpec, MessageVariant, Protocol, WebSocketSpec};
 
     fn spec(method: &str) -> RequestSpec {
         RequestSpec {
@@ -672,7 +667,10 @@ mod tests {
         let Verdict::Refused { reason } = verdict(&p, Some("Staging"), Effect::Write) else {
             unreachable!()
         };
-        assert!(reason.contains("Staging") && reason.contains("reading"), "{reason}");
+        assert!(
+            reason.contains("Staging") && reason.contains("reading"),
+            "{reason}"
+        );
         let Verdict::Refused { reason } = verdict(&p, Some("Vault"), Effect::Read) else {
             unreachable!()
         };
@@ -711,7 +709,14 @@ mod tests {
         assert_ne!(a, b);
         assert_eq!(a.len(), 32);
         assert!(valid_id(&a));
-        for bad in ["", "../../etc", "abc", "zzzzzzzzzz", "a/b0000000", "deadbeef.json"] {
+        for bad in [
+            "",
+            "../../etc",
+            "abc",
+            "zzzzzzzzzz",
+            "a/b0000000",
+            "deadbeef.json",
+        ] {
             assert!(!valid_id(bad), "{bad}");
         }
     }
@@ -725,7 +730,10 @@ mod tests {
         request_approval(&dir, &approval(&a, 10)).unwrap();
         // Oldest first; no temporary files left behind.
         let list = pending(&dir).unwrap();
-        assert_eq!(list.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), [&a, &b]);
+        assert_eq!(
+            list.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(),
+            [&a, &b]
+        );
         assert_eq!(list[0], approval(&a, 10));
         let names: Vec<String> = std::fs::read_dir(approvals_dir(&dir))
             .unwrap()
@@ -786,8 +794,8 @@ mod tests {
         let (old, fresh) = (new_id(), new_id());
         request_approval(&dir, &approval(&old, 1)).unwrap();
         request_approval(&dir, &approval(&fresh, 2)).unwrap();
-        let past = std::time::SystemTime::now()
-            - std::time::Duration::from_millis(STALE_AFTER_MS + 5_000);
+        let past =
+            std::time::SystemTime::now() - std::time::Duration::from_millis(STALE_AFTER_MS + 5_000);
         std::fs::OpenOptions::new()
             .append(true)
             .open(pending_file(&dir, &old))

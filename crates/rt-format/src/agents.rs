@@ -157,7 +157,11 @@ fn sync_environments(map: &mut Map, wanted: &[EnvironmentPolicy], default: Agent
     map.entries
         .retain(|e| wanted.iter().any(|w| w.environment == e.key.value));
     for w in wanted {
-        match map.entries.iter_mut().find(|e| e.key.value == w.environment) {
+        match map
+            .entries
+            .iter_mut()
+            .find(|e| e.key.value == w.environment)
+        {
             Some(entry) if read_environment(&w.environment, &entry.value, default) == *w => {}
             Some(entry) => {
                 entry.sep = ": ".to_owned();
@@ -216,7 +220,11 @@ impl CollectionDoc {
         };
         let mut doc = doc.clone();
         let nl = doc.newline;
-        let not_block = |key: &str| invalid(format!("`{key}` is not a block mapping and cannot be edited"));
+        let not_block = |key: &str| {
+            invalid(format!(
+                "`{key}` is not a block mapping and cannot be edited"
+            ))
+        };
 
         // Phase 1: the `agents` mapping with its `access`, creating parents as needed.
         {
@@ -476,7 +484,8 @@ mod tests {
         let mut d = doc(&original);
         let mut p = d.model().config.agents.clone();
         p.environments[1].access = AgentAccess::Read;
-        p.environments.push(env("QA Box", AgentAccess::Write, false));
+        p.environments
+            .push(env("QA Box", AgentAccess::Write, false));
         p.environments.push(env("true", AgentAccess::None, false));
         d.set_agent_policy(&p).unwrap();
         assert_eq!(
@@ -501,7 +510,8 @@ mod tests {
     #[test]
     fn the_default_policy_removes_what_it_added() {
         let mut d = doc(HEAD);
-        d.set_agent_policy(&policy(AgentAccess::Write, vec![])).unwrap();
+        d.set_agent_policy(&policy(AgentAccess::Write, vec![]))
+            .unwrap();
         assert_eq!(
             text(&d),
             format!("{HEAD}\nextensions:\n  requesttailor:\n    agents:\n      access: write\n")
@@ -509,7 +519,9 @@ mod tests {
         d.set_agent_policy(&AgentPolicy::default()).unwrap();
         assert_eq!(text(&d), HEAD);
         // Other extensions stay.
-        let mut d = doc(EXAMPLE.replace("  requesttailor:\n", "  other: 1\n  requesttailor:\n").as_str());
+        let mut d = doc(EXAMPLE
+            .replace("  requesttailor:\n", "  other: 1\n  requesttailor:\n")
+            .as_str());
         d.set_agent_policy(&AgentPolicy::default()).unwrap();
         assert_eq!(text(&d), format!("{HEAD}\nextensions:\n  other: 1\n"));
     }
@@ -522,7 +534,10 @@ mod tests {
         assert_eq!(text(&d), EXAMPLE);
         let dup = policy(
             AgentAccess::Read,
-            vec![env("A", AgentAccess::Read, false), env("A", AgentAccess::Write, false)],
+            vec![
+                env("A", AgentAccess::Read, false),
+                env("A", AgentAccess::Write, false),
+            ],
         );
         assert!(d.set_agent_policy(&dup).is_err());
         let unnamed = policy(AgentAccess::Read, vec![env("", AgentAccess::Read, false)]);
@@ -540,7 +555,10 @@ mod tests {
         let mut d = doc(&format!(
             "{HEAD}extensions:\n  requesttailor:\n    agents: {{ access: none }}\n"
         ));
-        let p = policy(AgentAccess::Read, vec![env("PRD", AgentAccess::Write, true)]);
+        let p = policy(
+            AgentAccess::Read,
+            vec![env("PRD", AgentAccess::Write, true)],
+        );
         d.set_agent_policy(&p).unwrap();
         assert_eq!(doc(&text(&d)).model().config.agents, p);
     }
@@ -549,7 +567,10 @@ mod tests {
     fn crlf_files_stay_crlf() {
         let crlf = HEAD.replace('\n', "\r\n");
         let mut d = doc(&crlf);
-        let p = policy(AgentAccess::Read, vec![env("PRD", AgentAccess::Write, true)]);
+        let p = policy(
+            AgentAccess::Read,
+            vec![env("PRD", AgentAccess::Write, true)],
+        );
         d.set_agent_policy(&p).unwrap();
         let t = text(&d);
         assert!(!t.replace("\r\n", "").contains('\n'), "{t:?}");

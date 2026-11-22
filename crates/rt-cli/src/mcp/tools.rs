@@ -154,7 +154,10 @@ pub async fn call(server: &Server<'_>, id: &Value, params: &Value) -> Result<Val
             entry.outcome = AuditOutcome::Failed;
             entry.detail = "unknown tool".into();
             server.audit(entry);
-            return Err(RpcError::new(INVALID_PARAMS, format!("unknown tool: {name}")));
+            return Err(RpcError::new(
+                INVALID_PARAMS,
+                format!("unknown tool: {name}"),
+            ));
         }
     };
     match result {
@@ -393,7 +396,11 @@ async fn prepare(
         .and_then(|n| collection.environments.iter_mut().find(|e| e.name == n))
     {
         let store = rt_app::secrets::keychain::KeychainStore::default();
-        for var in env.variables.iter_mut().filter(|v| v.secret && v.value.is_none()) {
+        for var in env
+            .variables
+            .iter_mut()
+            .filter(|v| v.secret && v.value.is_none())
+        {
             if given.iter().any(|(n, _)| *n == var.name) {
                 continue;
             }
@@ -409,7 +416,8 @@ async fn prepare(
             }
         }
     }
-    let mut collection = crate::secrets::resolve(&collection, environment.as_deref(), &skip).await?;
+    let mut collection =
+        crate::secrets::resolve(&collection, environment.as_deref(), &skip).await?;
     {
         let mut masker = server.masker.borrow_mut();
         for env in &collection.environments {
@@ -562,7 +570,9 @@ async fn send_request(
     args: &Value,
     entry: &mut rt_app::agents::AuditEntry,
 ) -> Result<ToolResult, String> {
-    let path = str_arg(args, "path")?.ok_or("`path` is required")?.to_owned();
+    let path = str_arg(args, "path")?
+        .ok_or("`path` is required")?
+        .to_owned();
     let agent_vars = vars_arg(args)?;
     entry.request_path = Some(path.clone());
     let doc = match load(server) {

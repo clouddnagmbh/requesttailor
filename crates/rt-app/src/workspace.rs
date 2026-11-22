@@ -400,7 +400,10 @@ impl Workspace {
 
     /// Sets what coding agents may do (wave 8, strand C: `rt_app::agents`), in memory like
     /// every edit; `opencollection.yml` is dirty until `save`.
-    pub fn set_agent_policy(&mut self, policy: &rt_core::model::AgentPolicy) -> Result<(), AppError> {
+    pub fn set_agent_policy(
+        &mut self,
+        policy: &rt_core::model::AgentPolicy,
+    ) -> Result<(), AppError> {
         self.doc.set_agent_policy(policy)?;
         self.refresh_dirty();
         Ok(())

@@ -163,10 +163,15 @@ mod tests {
             a(json!({"action": "accept", "content": {"approve": "yes"}})),
             Some(ApprovalDecision::Denied)
         );
-        assert_eq!(a(json!({"action": "decline"})), Some(ApprovalDecision::Denied));
+        assert_eq!(
+            a(json!({"action": "decline"})),
+            Some(ApprovalDecision::Denied)
+        );
         assert_eq!(a(json!({"action": "cancel"})), None);
         assert_eq!(
-            elicited(&json!({"jsonrpc": "2.0", "id": "rt-1", "error": {"code": -1, "message": "x"}})),
+            elicited(
+                &json!({"jsonrpc": "2.0", "id": "rt-1", "error": {"code": -1, "message": "x"}})
+            ),
             None
         );
     }
