@@ -353,10 +353,6 @@ jobs:
         run: |
           npm run check -w apps/ui
           npm run check -w apps/web
-      - name: Unit tests
-        run: |
-          npm test -w apps/ui
-          npm test -w apps/web
       # The web app's real backend: the core as WebAssembly, and rt-testserver for the shell tests.
       - name: Install pinned toolchain and wasm32 target
         run: |
@@ -374,6 +370,12 @@ jobs:
           node scripts/build-wasm.mjs
           node scripts/build-plugins.mjs
           cargo build -p rt-cli -p rt-testserver --locked
+      # After the core is built: the web unit tests also run against the real rt-wasm
+      # (contract, rewrite), and skip those suites without it.
+      - name: Unit tests
+        run: |
+          npm test -w apps/ui
+          npm test -w apps/web
       # Uses the Google Chrome preinstalled on GitHub's ubuntu runners (channel "chrome").
       # Runs the UI tests (mock backend) and the shell tests (e2e/shells, real core). With
       # RT_BIN the tests against a real `rt agent` run too (companion, web Git push/pull via

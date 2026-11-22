@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "e2e": "playwright test && npm run e2e:shells",
-    "e2e:shells": "node ../../scripts/build-wasm.mjs && playwright test --config e2e/shells/playwright.config.ts && playwright test --config e2e/import/playwright.import.config.ts && playwright test --config e2e/compare/playwright.real.config.ts && playwright test --config e2e/review/playwright.real.config.ts",
+    "e2e:shells": "node ../../scripts/build-wasm.mjs && playwright test --config e2e/shells/playwright.config.ts && playwright test --config e2e/import/playwright.import.config.ts && playwright test --config e2e/compare/playwright.real.config.ts && playwright test --config e2e/review/playwright.real.config.ts && playwright test --config e2e/rescue/playwright.real.config.ts",
     "test": "vitest run --dir src"
   },
   "dependencies": {

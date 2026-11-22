@@ -8,8 +8,8 @@
 import type { ScanProgress } from "@requesttailor/ui";
 import { describe, expect, it } from "vitest";
 
-import { COMMANDS, type Command } from "./backend";
-import { PENDING, tauriRescue } from "./rescue";
+import type { Command } from "./backend";
+import { tauriRescue } from "./rescue";
 
 type Call = [Command, Record<string, unknown> | undefined];
 
@@ -39,7 +39,5 @@ describe("tauriRescue", () => {
     expect(seen).toEqual([{ scanned: 3, total: 9 }]);
     await api.scanHistory();
     expect(channels).toHaveLength(2);
-    expect(new Set(PENDING)).toEqual(new Set(calls.map(([c]) => c)));
-    for (const c of PENDING) expect(COMMANDS).toContain(c);
   });
 });

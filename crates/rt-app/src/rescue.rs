@@ -26,9 +26,8 @@
 //!   ever has the ids).
 //! - [`contains_value`] and [`replace_value`]: which blobs the rewrite changes, and how.
 //!
-//! The scanner reports lines with masked snippets, not values. The value is where the
-//! snippet's `***` stands in the line: [`values_in`] lines the snippet up with the line and
-//! keeps the reading that, put back as a `{{placeholder}}`, makes the scanner quiet.
+//! The scanner reports lines with masked snippets, not values; [`values_in`] gets the exact
+//! values it masked from `secret_scan::scan_values`, which only Rust code sees.
 //!
 //! Owner: wave 12 interface; implementation strand G.
 
@@ -185,138 +184,9 @@ impl FindingRef {
 // ---------------------------------------------------------------------------------------------
 // Values
 
-/// `scan` finds nothing on a line with this instead of a value.
-const PROBE: &str = "{{rt_rescue_probe}}";
-/// `secret_scan` cuts snippets to this many characters (then appends `…`).
-const SNIPPET_CHARS: usize = 160;
-const MASK: &str = "***";
-/// Readings of one line tried at most.
-const MAX_READINGS: usize = 16;
-
-/// The scanner's findings in `text`, each with the values on its line (usually one; empty
-/// when the snippet cannot be lined up with the line, e.g. a line cut in the snippet).
+/// The scanner's findings in `text`, each with the values it masked on its line.
 pub fn values_in(path: &str, text: &str) -> Vec<(SecretFinding, Vec<String>)> {
-    let findings = secret_scan::scan(&[(path, text)]);
-    if findings.is_empty() {
-        return Vec::new();
-    }
-    let lines: Vec<&str> = text.split('\n').collect();
-    findings
-        .into_iter()
-        .map(|f| {
-            let i = (f.line as usize).wrapping_sub(1);
-            let values = match lines.get(i) {
-                Some(line) => line_values(path, &lines, i, line, &f.snippet),
-                None => Vec::new(),
-            };
-            (f, values)
-        })
-        .collect()
-}
-
-/// The values on line `i` (`line`, as in the file) that the scanner masked in `snippet`.
-fn line_values(path: &str, lines: &[&str], i: usize, line: &str, snippet: &str) -> Vec<String> {
-    let line = line.strip_suffix('\r').unwrap_or(line);
-    let readings = readings(line, snippet);
-    // The reading that silences the scanner on this line is the one.
-    for values in &readings {
-        let mut probe = line.to_owned();
-        let mut sorted: Vec<&String> = values.iter().collect();
-        sorted.sort_by_key(|v| std::cmp::Reverse(v.len()));
-        for v in sorted {
-            probe = probe.replace(v.as_str(), PROBE);
-        }
-        let mut text: Vec<&str> = lines.to_vec();
-        text[i] = &probe;
-        let text = text.join("\n");
-        let line_no = u32::try_from(i + 1).unwrap_or(u32::MAX);
-        if !secret_scan::scan(&[(path, &text)])
-            .iter()
-            .any(|f| f.line == line_no)
-        {
-            return values.clone();
-        }
-    }
-    readings.into_iter().next().unwrap_or_default()
-}
-
-/// Ways to read `line` as `snippet` with values in place of its masks.
-fn readings(line: &str, snippet: &str) -> Vec<Vec<String>> {
-    let body = &line[line.len() - line.trim_start().len()..];
-    let (snip, cut) = match snippet.strip_suffix('…') {
-        Some(s) if s.chars().count() == SNIPPET_CHARS => (s.trim_end_matches('*'), true),
-        _ => (snippet, false),
-    };
-    let pieces: Vec<&str> = snip.split(MASK).collect();
-    if pieces.len() < 2 {
-        return Vec::new();
-    }
-    // Adjacent masks (`******`) stand for one value here.
-    let last = pieces.len() - 1;
-    let mut kept = vec![pieces[0]];
-    kept.extend(pieces[1..last].iter().copied().filter(|p| !p.is_empty()));
-    kept.push(pieces[last]);
-    let mut out = Vec::new();
-    let mut acc = Vec::new();
-    search(body, &kept, 0, 0, cut, &mut acc, &mut out);
-    out
-}
-
-fn search(
-    line: &str,
-    pieces: &[&str],
-    i: usize,
-    pos: usize,
-    cut: bool,
-    acc: &mut Vec<String>,
-    out: &mut Vec<Vec<String>>,
-) {
-    if out.len() >= MAX_READINGS || !line[pos..].starts_with(pieces[i]) {
-        return;
-    }
-    let after = pos + pieces[i].len();
-    let last = pieces.len() - 1;
-    if i == last {
-        if cut || line[after..].trim().is_empty() {
-            out.push(acc.clone());
-        }
-        return;
-    }
-    let next = pieces[i + 1];
-    if i + 1 == last && !cut {
-        // The last piece ends the line (before trailing blanks).
-        let end = line.trim_end().len();
-        if end < after + next.len() + 1 || !line[..end].ends_with(next) {
-            return;
-        }
-        let q = end - next.len();
-        if q <= after || !line.is_char_boundary(q) {
-            return;
-        }
-        acc.push(line[after..q].to_owned());
-        search(line, pieces, i + 1, q, cut, acc, out);
-        acc.pop();
-        return;
-    }
-    if next.is_empty() {
-        // Cut right after this mask: its end is unknown, keep the values before it.
-        if !acc.is_empty() {
-            out.push(acc.clone());
-        }
-        return;
-    }
-    let rest = &line[after..];
-    for (q, _) in rest.match_indices(next) {
-        if q == 0 {
-            continue;
-        }
-        acc.push(rest[..q].to_owned());
-        search(line, pieces, i + 1, after + q, cut, acc, out);
-        acc.pop();
-        if out.len() >= MAX_READINGS {
-            return;
-        }
-    }
+    secret_scan::scan_values(path, text)
 }
 
 /// The finding and value `at` names in `text` (the blob `at` names); `None` if it is not

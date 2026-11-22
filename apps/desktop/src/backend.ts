@@ -13,6 +13,7 @@ import {
   type CompanionStatus,
   type CompareApi,
   type CookieApi,
+  type RescueApi,
   type RunnerApi,
   type StreamsApi,
   type ScriptsApi,
@@ -49,7 +50,7 @@ import { tauriCompare, type MakeStepChannel } from "./compare";
 import { tauriContract } from "./contract";
 import { tauriDiffs } from "./diffs";
 import { tauriMerges } from "./merges";
-import { tauriRescue } from "./rescue";
+import { tauriRescue, type MakeProgressChannel } from "./rescue";
 import { tauriReview } from "./review";
 import { tauriTimeline } from "./timeline";
 import { tauriScripts } from "./scripts";
@@ -265,7 +266,7 @@ export class TauriBackend implements Backend {
   readonly timeline = tauriTimeline((cmd, args) => this.call(cmd, args));
   readonly review = tauriReview((cmd, args) => this.call(cmd, args));
   readonly contract = tauriContract((cmd, args) => this.call(cmd, args));
-  readonly rescue = tauriRescue((cmd, args) => this.call(cmd, args));
+  readonly rescue: RescueApi;
 
   constructor(
     private readonly invokeRaw: Invoke,
@@ -274,6 +275,8 @@ export class TauriBackend implements Backend {
     makeStreamChannel?: MakeStreamChannel,
     /** Wave 12: the channel of `compare.bisect` steps (injectable for tests, like `makeChannel`). */
     makeStepChannel?: MakeStepChannel,
+    /** Wave 12: the channel of `rescue.scanHistory` progress (injectable for tests). */
+    makeProgressChannel?: MakeProgressChannel,
   ) {
     const call: Call = (cmd, args) => this.call(cmd, args);
     this.git = tauriGit(call);
@@ -286,6 +289,7 @@ export class TauriBackend implements Backend {
     this.runner = tauriRunner(call, makeChannel);
     this.streams = tauriStreams(call, makeStreamChannel);
     this.compare = tauriCompare(call, makeStepChannel);
+    this.rescue = tauriRescue(call, makeProgressChannel);
     this.secrets = {
       has: (environment, variable) => this.call("secret_has", { environment, variable }),
       get: (environment, variable) => this.call("secret_get", { environment, variable }),

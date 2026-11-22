@@ -9,7 +9,7 @@
 import { Channel } from "@tauri-apps/api/core";
 import type { RescueApi, ScanProgress } from "@requesttailor/ui";
 
-import type { Call, Command } from "./backend";
+import type { Call } from "./backend";
 
 /** Creates the channel the progress arrives on; injectable for tests (Tauri's needs a window). */
 export type MakeProgressChannel = (onProgress: (progress: ScanProgress) => void) => unknown;
@@ -29,7 +29,3 @@ export function tauriRescue(call: Call, makeChannel: MakeProgressChannel = tauri
       }),
   };
 }
-
-/** Commands the shared mapping test in backend.test.ts leaves out: its call list is one
- *  sequence every strand would edit. `rescue.test.ts` checks both instead. */
-export const PENDING: readonly Command[] = ["rescue_scan", "rescue_rewrite"];

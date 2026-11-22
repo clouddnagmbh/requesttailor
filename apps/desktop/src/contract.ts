@@ -6,7 +6,7 @@
 
 import type { ContractApi } from "@requesttailor/ui";
 
-import type { Call, Command } from "./backend";
+import type { Call } from "./backend";
 
 export function tauriContract(call: Call): ContractApi {
   return {
@@ -16,7 +16,3 @@ export function tauriContract(call: Call): ContractApi {
     changelog: (from, to) => call("contract_changelog", { from, to }),
   };
 }
-
-/** Commands of this strand no method calls yet; backend.test.ts leaves them out of its
- *  "every command is mapped" check. */
-export const PENDING: readonly Command[] = [];

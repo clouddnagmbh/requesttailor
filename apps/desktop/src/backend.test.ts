@@ -8,20 +8,6 @@ import { describe, expect, it } from "vitest";
 
 import { COMMANDS, TauriBackend, type Command, type Invoke } from "./backend";
 import { packImport, packPluginImport } from "./import";
-// Wave 12: commands registered by the interface that no method calls yet (one list per strand).
-import { PENDING as CONTRACT_PENDING } from "./contract";
-import { PENDING as DIFFS_PENDING } from "./diffs";
-import { PENDING as MERGES_PENDING } from "./merges";
-import { PENDING as RESCUE_PENDING } from "./rescue";
-import { PENDING as TIMELINE_PENDING } from "./timeline";
-
-const PENDING = new Set<Command>([
-  ...DIFFS_PENDING,
-  ...MERGES_PENDING,
-  ...TIMELINE_PENDING,
-  ...CONTRACT_PENDING,
-  ...RESCUE_PENDING,
-]);
 
 function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown) {
   const calls: [Command, Record<string, unknown> | undefined][] = [];
@@ -29,7 +15,7 @@ function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown)
     calls.push([cmd, args]);
     return answer(cmd, args);
   };
-  return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel", () => "step-channel"), calls };
+  return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel", () => "step-channel", () => "progress-channel"), calls };
 }
 
 describe("TauriBackend", () => {
@@ -189,6 +175,8 @@ describe("TauriBackend", () => {
     await r.comment(7, { path: "a.yml", line: 3, body: "hi" });
     await r.submit(7, { verdict: "approve", body: "" });
     await r.ci(7);
+    await b.rescue.scanHistory();
+    await b.rescue.rewrite({ findings: ["a:b.yml:1"], variable: "apiToken", environment: "Local" });
     // Wave 12, strand B.
     const choice = { kind: "file", path: "a.yml", side: "theirs" } as const;
     await b.merges.conflicts();
@@ -333,11 +321,12 @@ describe("TauriBackend", () => {
       ["review_comment", { number: 7, comment: { path: "a.yml", line: 3, body: "hi" } }],
       ["review_submit", { number: 7, review: { verdict: "approve", body: "" } }],
       ["review_ci", { number: 7 }],
+      ["rescue_scan", { onProgress: "progress-channel" }],
+      ["rescue_rewrite", { plan: { findings: ["a:b.yml:1"], variable: "apiToken", environment: "Local" } }],
       ["merge_conflicts", undefined],
       ["merge_resolve", { choices: [choice] }],
     ]);
-    expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS.filter((c) => !PENDING.has(c))));
-    for (const c of PENDING) expect(COMMANDS).toContain(c);
+    expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });
 
   it("never forwards secret values from the webview at send", async () => {

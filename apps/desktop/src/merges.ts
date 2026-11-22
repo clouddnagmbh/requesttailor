@@ -7,7 +7,7 @@
 
 import type { ConflictChoice, MergeApi, MergeState } from "@requesttailor/ui";
 
-import type { Call, Command } from "./backend";
+import type { Call } from "./backend";
 
 export function tauriMerges(call: Call): MergeApi {
   return {
@@ -15,7 +15,3 @@ export function tauriMerges(call: Call): MergeApi {
     resolve: (choices: ConflictChoice[]) => call<void>("merge_resolve", { choices }),
   };
 }
-
-/** Commands of this strand no method calls yet; backend.test.ts leaves them out of its
- *  "every command is mapped" check. */
-export const PENDING: readonly Command[] = [];

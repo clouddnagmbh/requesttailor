@@ -6,7 +6,7 @@
 
 import type { DiffApi } from "@requesttailor/ui";
 
-import type { Call, Command } from "./backend";
+import type { Call } from "./backend";
 
 export function tauriDiffs(call: Call): DiffApi {
   return {
@@ -15,7 +15,3 @@ export function tauriDiffs(call: Call): DiffApi {
     between: (from, to) => call("diff_between", { from, to }),
   };
 }
-
-/** Commands of this strand no method calls yet; backend.test.ts leaves them out of its
- *  "every command is mapped" check. */
-export const PENDING: readonly Command[] = [];
