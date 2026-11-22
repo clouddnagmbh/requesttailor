@@ -12,7 +12,7 @@ mod commands;
 pub mod core;
 pub mod files;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
-mod git;
+pub mod git;
 pub mod history;
 mod import;
 pub mod recent;
