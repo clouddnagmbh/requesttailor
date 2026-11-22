@@ -12,6 +12,15 @@
 // conflict markers in the files, the conflicting stages in the index and `.git/MERGE_HEAD`,
 // so the command line sees the same merge. `resolve` takes one side; the next `commit`
 // finishes the merge (two parents).
+//
+// Wave 12 (strand B): the pull merges the collection on the model. Before isomorphic-git
+// merges, the core merges the collection's files of base, ours and theirs (`../merges.ts`,
+// rt-wasm); isomorphic-git's merge driver answers with that result, and files outside the
+// collection get the core's line merge one at a time. A file with field conflicts is left
+// conflicted with ours in each conflicted field and a comment above it. After a stopped merge,
+// files the model merges cleanly (e.g. a request one side renamed) are written and marked
+// resolved; if nothing is left, the merge commit is made. `mergeSides` and `writeResolved`
+// serve `MergeApi`.
 
 import "./buffer-global";
 
@@ -30,8 +39,10 @@ import {
   type GitStatus,
 } from "@requesttailor/ui";
 
+import { collectionMerger, type CollectionMerge, type CollectionMerger, type ConflictStages, type TextFiles } from "../merges";
 import type { FsClient } from "./fs";
 import { hostOf, type HttpClient } from "./http";
+import { treeAt } from "./revisions";
 
 export interface Repo {
   fs: FsClient;
@@ -594,8 +605,13 @@ export async function pull(repo: Repo, net: Network, identity: GitIdentity | nul
   return mergeUpstream(repo, identity);
 }
 
-/** The local half of `pull`: merges the (fetched) upstream into the current branch. */
-export async function mergeUpstream(repo: Repo, identity: GitIdentity | null): Promise<GitPullResult> {
+/** The local half of `pull`: merges the (fetched) upstream into the current branch, on the
+ *  model where a merger is registered (`../merges.ts`) or given. */
+export async function mergeUpstream(
+  repo: Repo,
+  identity: GitIdentity | null,
+  merger: CollectionMerger | null = collectionMerger(),
+): Promise<GitPullResult> {
   await requireNoMerge(repo, "pull");
   const branch = await git.currentBranch({ fs: repo.fs, dir: repo.dir, fullname: false });
   if (!branch) throw gitErr("Switch to a branch before you pull.");
@@ -621,9 +637,11 @@ export async function mergeUpstream(repo: Repo, identity: GitIdentity | null): P
     }
     if (!identity) throw gitErr("Set your name and email for commits first: this pull creates a merge commit.");
     const [mergeBase] = await git.findMergeBase({ ...base(repo), oids: [ours, theirs] });
-    await guardLocalChanges(repo, changedPaths(await flatTree(repo, (mergeBase as string) ?? null), theirsTree));
+    const baseTree = await flatTree(repo, (mergeBase as string) ?? null);
+    await guardLocalChanges(repo, changedPaths(baseTree, theirsTree));
     const author = { name: identity.name, email: identity.email };
     const message = `Merge ${up.remote}/${up.branch} into ${branch}`;
+    const sem = await semanticMerge(repo, merger, (mergeBase as string) ?? null, ours, theirs);
     try {
       const result = await git.merge({
         ...base(repo),
@@ -633,18 +651,179 @@ export async function mergeUpstream(repo: Repo, identity: GitIdentity | null): P
         committer: author,
         message,
         abortOnConflict: false,
+        mergeDriver: merger && sem ? semanticDriver(merger, sem) : undefined,
       });
       await git.checkout({ ...base(repo), ref: branch });
+      // The checkout leaves files both sides changed as ours; write the merged ones.
+      await syncWorkTree(repo, oursTree, await flatTree(repo, result.oid!));
       return { outcome: "merged", oid: result.oid! };
     } catch (e) {
       const err = e as { code?: string; data?: { filepaths?: string[] } };
       if (err.code !== "MergeConflictError") throw e;
       await writeWorkFile(repo, ".git/MERGE_HEAD", `${theirs}\n`);
       await writeWorkFile(repo, ".git/MERGE_MSG", `${message}\n`);
-      return { outcome: "conflicts", paths: [...(err.data?.filepaths ?? [])].sort() };
+      if (sem) {
+        await applyClean(repo, sem);
+        if ((await conflicted(repo)).length === 0) {
+          const covered = new Set(sem.paths);
+          const others = [...changedPaths(oursTree, theirsTree)].filter((p) => !covered.has(p));
+          await takeTheirsOnly(repo, others, baseTree, oursTree, theirsTree);
+          const c = await commit(repo, message, [...others, ...sem.paths], identity);
+          return { outcome: "merged", oid: c.oid };
+        }
+      }
+      return { outcome: "conflicts", paths: await conflicted(repo) };
     }
   } catch (e) {
     throw gitError(e);
+  }
+}
+
+/** The core's merge of the collection: the paths it covers and, to find a file again in
+ *  isomorphic-git's merge driver (which only gets the file name and the three texts), the
+ *  path of each name with ours' and theirs' text. `null` without a merger or when the core
+ *  cannot merge; then isomorphic-git's own merge is all there is. */
+interface Semantic extends CollectionMerge {
+  paths: string[];
+  byContent: Map<string, string>;
+}
+
+const contentKey = (name: string, ours: string, theirs: string) => `${name}\u0000${ours}\u0000${theirs}`;
+const fileName = (p: string) => p.slice(p.lastIndexOf("/") + 1);
+
+async function semanticMerge(
+  repo: Repo,
+  merger: CollectionMerger | null,
+  mergeBase: string | null,
+  ours: string,
+  theirs: string,
+): Promise<Semantic | null> {
+  if (!merger) return null;
+  const files = async (oid: string | null): Promise<TextFiles> =>
+    oid ? Object.entries((await treeAt(repo, oid)).files) : [];
+  try {
+    const [b, o, t] = [await files(mergeBase), await files(ours), await files(theirs)];
+    const merged = await merger.merge(b, o, t);
+    const paths = [...new Set([...b, ...o, ...t].map(([p]) => p))].sort();
+    const theirsOf = new Map(t);
+    const byContent = new Map<string, string>();
+    for (const [p, text] of o) {
+      const other = theirsOf.get(p);
+      if (other !== undefined) byContent.set(contentKey(fileName(p), text, other), p);
+    }
+    return { ...merged, paths, byContent };
+  } catch {
+    return null;
+  }
+}
+
+const conflictedIn = (m: CollectionMerge) => new Set([...m.conflicts.map((c) => c.file), ...m.text_conflicts]);
+
+/** isomorphic-git's merge driver on the core's merge: collection files from `sem`, any other
+ *  file both sides changed through the core's line merge. */
+function semanticDriver(merger: CollectionMerger, sem: Semantic) {
+  const conflicts = conflictedIn(sem);
+  const merged = new Map(sem.files);
+  const marked = new Map(sem.marked);
+  return async ({ path, contents }: { branches: string[]; contents: string[]; path: string }) => {
+    const [b, o, t] = contents;
+    const full = sem.byContent.get(contentKey(path, o, t));
+    if (full !== undefined) {
+      if (conflicts.has(full)) return { cleanMerge: false, mergedText: marked.get(full) ?? o };
+      return { cleanMerge: true, mergedText: merged.get(full) ?? o };
+    }
+    const line = await merger.text(b === "" ? null : b, o, t);
+    return { cleanMerge: line.clean, mergedText: line.text };
+  };
+}
+
+/** Writes the files that differ between `from` (the work tree's commit) and `to` into the
+ *  work tree and the index. */
+async function syncWorkTree(repo: Repo, from: Map<string, Entry>, to: Map<string, Entry>): Promise<void> {
+  for (const p of changedPaths(from, to)) {
+    const e = to.get(p);
+    if (!e) {
+      await removeOptional(repo, p);
+      await git.remove({ fs: repo.fs, dir: repo.dir, filepath: p });
+    } else {
+      const { blob } = await git.readBlob({ ...base(repo), oid: e.oid });
+      const have = await readOptional(repo, p);
+      if (have && have.length === blob.length && have.every((b, i) => b === blob[i])) continue;
+      await writeWorkFile(repo, p, blob);
+      await git.add({ ...base(repo), filepath: p });
+    }
+  }
+}
+
+/** After a stopped merge: writes the collection files the core merged cleanly (e.g. a request
+ *  one side renamed and the other changed) and marks them resolved. */
+async function applyClean(repo: Repo, sem: Semantic): Promise<void> {
+  const conflicts = conflictedIn(sem);
+  const merged = new Map(sem.files);
+  const unmerged = new Set(await conflicted(repo));
+  for (const p of sem.paths) {
+    if (conflicts.has(p)) continue;
+    const want = merged.get(p) ?? null;
+    const have = text(await readOptional(repo, p));
+    if (want === have && !unmerged.has(p)) continue;
+    if (want === null) {
+      await removeOptional(repo, p);
+      await git.remove({ fs: repo.fs, dir: repo.dir, filepath: p });
+    } else {
+      await writeWorkFile(repo, p, want);
+      await git.add({ ...base(repo), filepath: p });
+    }
+  }
+}
+
+/** The files outside the collection after a stopped merge that the core resolved: a file
+ *  only theirs changed gets theirs' version (isomorphic-git leaves a file theirs deleted). */
+async function takeTheirsOnly(
+  repo: Repo,
+  paths: Iterable<string>,
+  bases: Map<string, Entry>,
+  ours: Map<string, Entry>,
+  theirs: Map<string, Entry>,
+): Promise<void> {
+  for (const p of paths) {
+    if (ours.get(p)?.oid !== bases.get(p)?.oid) continue;
+    const t = theirs.get(p);
+    if (!t) {
+      await removeOptional(repo, p);
+    } else {
+      const { blob } = await git.readBlob({ ...base(repo), oid: t.oid });
+      await writeWorkFile(repo, p, blob);
+    }
+  }
+}
+
+/** The merge in progress for `MergeApi`: whether one is, the collection at HEAD and the
+ *  conflicted files' base, ours and theirs (from the merge base, HEAD and MERGE_HEAD). */
+export async function mergeSides(
+  repo: Repo,
+): Promise<{ merging: boolean; context: TextFiles; stages: ConflictStages[] }> {
+  const merging = (await mergeHead(repo)) !== null;
+  const paths = await conflicted(repo);
+  if (!merging || paths.length === 0) return { merging, context: [], stages: [] };
+  const context = Object.entries((await treeAt(repo, "HEAD")).files);
+  const stages: ConflictStages[] = [];
+  for (const p of paths) {
+    const c = await conflict(repo, p);
+    stages.push({ path: p, base: c.base, ours: c.ours, theirs: c.theirs });
+  }
+  return { merging, context, stages };
+}
+
+/** Writes resolved files (`null`: delete) and marks them resolved in the index. */
+export async function writeResolved(repo: Repo, files: [string, string | null][]): Promise<void> {
+  for (const [p, content] of files) {
+    if (content === null) {
+      await removeOptional(repo, p);
+      await git.remove({ fs: repo.fs, dir: repo.dir, filepath: p });
+    } else {
+      await writeWorkFile(repo, p, content);
+      await git.add({ ...base(repo), filepath: p });
+    }
   }
 }
 
