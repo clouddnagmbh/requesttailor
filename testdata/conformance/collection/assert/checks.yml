@@ -1,0 +1,117 @@
+info:
+  name: checks
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/echo/assert?x=1&user={{user}}"
+  params:
+    - name: x
+      value: "1"
+      type: query
+    - name: user
+      value: "{{user}}"
+      type: query
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.statusText
+      operator: eq
+      value: OK
+    - expression: res.body.method
+      operator: eq
+      value: GET
+    - expression: res.body.path
+      operator: eq
+      value: /echo/assert
+    - expression: res.body.query
+      operator: contains
+      value: "user={{user}}"
+    - expression: res.headers.content-type
+      operator: startsWith
+      value: application/json
+    - expression: res.body.body_len
+      operator: eq
+      value: "0"
+    - expression: res.body.headers
+      operator: isArray
+    - expression: res.responseTime
+      operator: gte
+      value: "0"
+    - expression: res.body.missing
+      operator: isUndefined
+    - expression: res.status
+      operator: in
+      value: "[200, 201]"
+    - expression: res.body["path"]
+      operator: matches
+      value: /^\/echo\//
+    - expression: level
+      operator: eq
+      value: environment
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.missing.deeper
+      operator: eq
+      value: "1"
+    - expression: res.body.path
+      operator: approximately
+      value: x
+    - expression: res.status
+      operator: eq
+      value: "500"
+      disabled: true
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.path
+        method: jsonq
+      variable:
+        name: echoedPath
+        scope: runtime
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: content-type
+        method: header
+      variable:
+        name: contentType
+        scope: environment
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.status
+        method: status
+      variable:
+        name: lastStatus
+        scope: runtime
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.missing
+        method: jsonq
+      variable:
+        name: notSet
+        scope: runtime
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.method
+        method: jsonq
+      variable:
+        name: disabledAction
+        scope: runtime
+      disabled: true
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

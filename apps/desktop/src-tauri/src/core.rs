@@ -242,6 +242,8 @@ impl<S: SecretStore> Core<S> {
 
     pub fn preview(&self, path: &str, input: SendInput) -> Result<Preview, AppError> {
         self.with_session(|s| {
+            // Wave 7: session variables in the runtime layer (`session_vars.rs`).
+            let input = self.services.session.input_for(&s.id, input);
             let input = self.with_secrets(s, input)?;
             s.workspace.preview(path, input)
         })
@@ -261,6 +263,7 @@ impl<S: SecretStore> Core<S> {
                 .map_err(AppError::Shell)?;
         }
         let (snapshot, collection, spec) = self.with_session(|s| {
+            let input = self.services.session.input_for(&s.id, input);
             let input = self.with_secrets(s, input)?;
             let spec = s.workspace.request(path)?;
             Ok((s.workspace.snapshot(path, input)?, s.id.clone(), spec))
@@ -284,6 +287,8 @@ impl<S: SecretStore> Core<S> {
         })
         .await
         .map_err(|e| AppError::Shell(format!("send failed: {e}")))?;
+        // Wave 7: what scripts and actions set lives on for the session.
+        self.services.session.keep(&collection, &report);
         self.history
             .record(&collection, &spec.name, &spec.method, &report);
         Ok(lock(&self.responses).insert(report))

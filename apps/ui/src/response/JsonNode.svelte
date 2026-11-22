@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
 <!-- One node of the JSON tree. Children exist in the DOM only while expanded, and long
-     arrays or objects show their children in pages. -->
+     arrays or objects show their children in pages. With `onpick` (wave 7), every node has a
+     "set as variable" button, shown on hover and keyboard focus. -->
 <script lang="ts">
   import JsonNode from "./JsonNode.svelte";
 
@@ -10,7 +11,15 @@
     value,
     path,
     expanded = false,
-  }: { name: string | null; value: unknown; path: string; expanded?: boolean } = $props();
+    onpick,
+  }: {
+    name: string | null;
+    value: unknown;
+    path: string;
+    expanded?: boolean;
+    /** "Set as variable" for this node (wave 7). */
+    onpick?: (path: string, value: unknown) => void;
+  } = $props();
 
   const PAGE = 200;
 
@@ -50,10 +59,11 @@
       {#if name !== null}<span class="key">{name}</span>{/if}
       <span class="summary">{isArray ? `[${total}]` : `{${total}}`}</span>
     </button>
+    {#if onpick}{@render pick()}{/if}
     {#if open}
       <ul>
         {#each entries as [key, child] (key)}
-          <JsonNode name={key} value={child} path={childPath(key)} />
+          <JsonNode name={key} value={child} path={childPath(key)} {onpick} />
         {/each}
         {#if total > shown}
           <li>
@@ -69,8 +79,21 @@
       {#if name !== null}<span class="key">{name}</span><span class="colon">:</span>{/if}
       <span class={kind}>{JSON.stringify(value)}</span>
     </span>
+    {#if onpick}{@render pick()}{/if}
   {/if}
 </li>
+
+{#snippet pick()}
+  <button
+    type="button"
+    class="pick"
+    data-testid="json-set-variable"
+    data-pick={path}
+    aria-label="Set as variable"
+    title="Set {path} as variable"
+    onclick={() => onpick?.(path, value)}>{"{{x}}"}</button
+  >
+{/snippet}
 
 <style>
   li {
@@ -97,6 +120,27 @@
   }
   .more {
     color: var(--rt-accent);
+  }
+  .pick {
+    margin-left: 6px;
+    padding: 0 4px;
+    font: inherit;
+    font-size: 0.9em;
+    color: var(--rt-accent);
+    background: var(--rt-bg-panel);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius);
+    cursor: pointer;
+    opacity: 0;
+  }
+  .toggle:hover + .pick,
+  .leaf:hover + .pick,
+  .pick:hover,
+  .pick:focus-visible {
+    opacity: 1;
+  }
+  .pick:hover {
+    background: var(--rt-bg-hover);
   }
   .caret {
     display: inline-block;

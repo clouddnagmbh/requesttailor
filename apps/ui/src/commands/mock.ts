@@ -7,7 +7,11 @@
 //   - `demo/large.yml`   responds with a virtual 100 MB body (lines generated on demand)
 //   - `demo/blocked.yml` fails like a request the browser blocks (CORS), to show the
 //                        companion offer
+//   - a URL ending in `/login` answers `{"token": "mock-token-123", "user": {...}}` (wave 7)
 // Everything else answers like rt-testserver's `/echo`.
+// Wave 7 (strand C): session variables go into the runtime layer, assertions and actions run
+// in a tiny model (`mock-assert.ts`), a send keeps its `var_changes` for the session.
+// `scriptOutcome` lets UI tests add script results (tests, logs, notes, a script error).
 
 import type {
   AuthApi,
@@ -27,6 +31,7 @@ import { BackendError } from "./backend";
 import { mockAuth } from "./mock-auth";
 import { maskCookieHeader, maskSetCookie, mockCookies, setCookiesFor } from "./mock-cookies";
 import { mockRunner } from "./mock-runner";
+import { mockActions, mockEvaluate } from "./mock-assert";
 import { mockScripts } from "./mock-scripts";
 import { mockGit } from "./mock-git";
 import { MockHistory, mockSearch } from "./mock-history";
@@ -179,6 +184,9 @@ export class MockBackend implements Backend {
     send: (path, input) => this.sendNow(path, input),
     releaseResponse: (id) => this.releaseResponse(id),
   });
+  /** Wave 7: what "scripts" add to a send's report, for UI tests (the mock runs no JavaScript).
+   *  A report with `error` set stops before the response, like `SendError::Script`. */
+  scriptOutcome: ((path: string) => Partial<SendReport> | null) | null = null;
 
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;
@@ -311,6 +319,9 @@ export class MockBackend implements Backend {
   async preview(path: string, input: SendInput): Promise<Preview> {
     const r = (await this.sendNow(path, input)).report;
     const env = this.envs.find((e) => e.name === input.environment);
+    const session = await this.scripts.sessionVars(input.environment ?? "");
+    const runtime = (name: string) =>
+      input.vars.find(([n]) => n === name)?.[1] ?? [...session].reverse().find((c) => c.name === name)?.value ?? undefined;
     return {
       url: r.request?.url ?? null,
       headers: r.request?.headers ?? [],
@@ -318,9 +329,9 @@ export class MockBackend implements Backend {
         ...u,
         value: u.secret
           ? null
-          : (input.vars.find(([n]) => n === u.name)?.[1] ??
-            env?.variables.find((v) => v.name === u.name)?.value ??
-            null),
+          : u.source.layer === "runtime"
+            ? (runtime(u.name) ?? null)
+            : (env?.variables.find((v) => v.name === u.name)?.value ?? null),
       })),
       unresolved: r.unresolved,
       error: null,
@@ -329,6 +340,9 @@ export class MockBackend implements Backend {
 
   async send(path: string, input: SendInput): Promise<StoredResponse> {
     const result = await this.sendNow(path, input);
+    for (const change of result.report.var_changes ?? []) {
+      await this.scripts.setSessionVar(input.environment ?? "", change);
+    }
     const notes = this.plugins.notes();
     if (notes.length > 0) result.report.notes = [...(result.report.notes ?? []), ...notes];
     this.history.record("mock-collection", await this.getRequest(path), result);
@@ -338,12 +352,17 @@ export class MockBackend implements Backend {
   private async sendNow(path: string, input: SendInput): Promise<StoredResponse> {
     const spec = await this.getRequest(path);
     const env = this.envs.find((e) => e.name === input.environment) ?? null;
+    // Session variables first in the runtime layer; the caller's own `vars` win.
+    const session = (await this.scripts.sessionVars(input.environment ?? "")).flatMap((c): [string, string][] =>
+      c.value === null ? [] : [[c.name, c.value]],
+    );
+    const runtimeVars = [...input.vars.slice().reverse(), ...session.reverse()];
     const used: VarUse[] = [];
     const unresolved: string[] = [];
     const secretValues: string[] = [];
     const resolve = (t: string) =>
       t.replace(/\{\{([^}]+)\}\}/g, (whole, name: string) => {
-        const runtime = input.vars.find(([n]) => n === name);
+        const runtime = runtimeVars.find(([n]) => n === name);
         if (runtime) {
           used.push({ name, source: { layer: "runtime" }, secret: false });
           return runtime[1];
@@ -385,6 +404,12 @@ export class MockBackend implements Backend {
       error: null,
     };
 
+    const outcome = this.scriptOutcome?.(path) ?? null;
+    if (outcome?.error) {
+      Object.assign(report, outcome, { request: null });
+      return { report, response_id: null, size: 0, line_count: 0, is_text: false };
+    }
+
     if (path === "demo/blocked.yml" && this.mode === "browser") {
       report.error = { kind: "transport", message: { kind: "blocked", message: "Failed to fetch" } };
       return { report, response_id: null, size: 0, line_count: 0, is_text: false };
@@ -406,11 +431,13 @@ export class MockBackend implements Backend {
       preview = stored.lines(0, 1024).join("\n");
       size = LARGE_SIZE;
     } else {
-      const body = JSON.stringify(
-        { method: spec.method, url: mask(url), headers: headers.map(([n, v]) => [n.toLowerCase(), reported(n, v)]) },
-        null,
-        2,
-      );
+      const body = /\/login(\?|$)/.test(url)
+        ? JSON.stringify({ token: "mock-token-123", user: { id: 7, name: "Ada" } }, null, 2)
+        : JSON.stringify(
+            { method: spec.method, url: mask(url), headers: headers.map(([n, v]) => [n.toLowerCase(), reported(n, v)]) },
+            null,
+            2,
+          );
       const lines = body.split("\n");
       stored = {
         lineCount: lines.length,
@@ -435,6 +462,22 @@ export class MockBackend implements Backend {
       timing: { dns: 1.2, connect: 2.5, tls: null, ttfb: 12.5 },
       total: 14.0,
     };
+    if (stored.text !== null) {
+      const lookup = (name: string) =>
+        runtimeVars.find(([n]) => n === name)?.[1] ??
+        env?.variables.find((v) => v.name === name && v.enabled && !v.secret)?.value ??
+        undefined;
+      const response = { status: 200, body: stored.text };
+      const assertions = mockEvaluate(spec.assertions, response, lookup);
+      if (assertions.length > 0) report.assertions = assertions;
+      const changes = mockActions(spec.actions, response);
+      if (changes.length > 0) report.var_changes = changes;
+    }
+    if (outcome) {
+      const { var_changes, ...rest } = outcome;
+      Object.assign(report, rest);
+      if (var_changes) report.var_changes = [...var_changes, ...(report.var_changes ?? [])];
+    }
     return { report, response_id: id, size, line_count: stored.lineCount, is_text: true };
   }
 
