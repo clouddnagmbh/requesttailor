@@ -317,7 +317,9 @@ jobs:
           npm run check -w apps/ui
           npm run check -w apps/web
       - name: Unit tests
-        run: npm test -w apps/ui
+        run: |
+          npm test -w apps/ui
+          npm test -w apps/web
       # The web app's real backend: the core as WebAssembly, and rt-testserver for the shell tests.
       - name: Install pinned toolchain and wasm32 target
         run: |
@@ -330,13 +332,18 @@ jobs:
           if ! wasm-bindgen --version 2>/dev/null | grep -qxF "wasm-bindgen $v"; then
             cargo install wasm-bindgen-cli --version "$v" --locked
           fi
-      - name: Build the core for the web app and rt-testserver
+      - name: Build the core for the web app, rt and rt-testserver
         run: |
           node scripts/build-wasm.mjs
-          cargo build -p rt-testserver --locked
+          cargo build -p rt-cli -p rt-testserver --locked
       # Uses the Google Chrome preinstalled on GitHub's ubuntu runners (channel "chrome").
-      # Runs the UI tests (mock backend) and the shell tests (e2e/shells, real core).
+      # Runs the UI tests (mock backend) and the shell tests (e2e/shells, real core). With
+      # RT_BIN the tests against a real `rt agent` run too (companion, web Git push/pull via
+      # `git http-backend`; git is preinstalled on the runners).
       - name: Playwright
+        env:
+          RT_BIN: ${{ github.workspace }}/target/debug/rt
+          RT_TESTSERVER_BIN: ${{ github.workspace }}/target/debug/rt-testserver
         run: npm run e2e -w apps/web
 
   # Single required status for branch protection.

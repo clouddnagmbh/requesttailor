@@ -48,7 +48,7 @@ Sie entscheiden jede Feature-Frage.
 | 100-MB-Antwort | rendert und scrollt ohne Ruckeln |
 | Bedienung | Request senden in unter drei Tastendrücken ab App-Start |
 
-Die Budgets werden als automatisierte Tests gemessen; eine Überschreitung bricht den Build. Die Schwellwerte stehen in `perf/budgets.toml`. Bis Welle 3 misst noch nichts, jede Messgröße meldet „not measured“. In Welle 4 schreibt die CI `perf/results.json` und ruft die Prüfung mit `--require-all` auf; dann bricht auch eine fehlende Messung den Build. Der Wert 16,7 ms (p95-Framezeit für „ohne Ruckeln“) ist ein Vorschlag und in Welle 4 zu bestätigen.
+Die Budgets werden als automatisierte Tests gemessen; eine Überschreitung bricht den Build. Die Schwellwerte stehen in `perf/budgets.toml` (dort auch `send_keystrokes`, höchstens 2). Seit Welle 4 misst `node scripts/perf/run.mjs` auf dem jeweiligen Betriebssystem und schreibt `perf/results.json`; die CI misst auf macOS, Linux und Windows, nimmt den schlechtesten Wert und prüft mit `--require-all`, also bricht auch eine fehlende Messung den Build. Definitionen in `perf/README.md`: Kaltstart = Median vom Prozessstart bis zum ersten bedienbaren Frame (Release-Build); RAM = App plus Webview-Prozesse in der Zahl des Betriebssystems (macOS footprint, Linux PSS, Windows private working set), nicht die RSS-Summe; „ohne Ruckeln“ = p95-Abstand der Animation-Frames höchstens 20 ms (ein verlorener Frame kostet mindestens 33 ms; 16,7 ms würde glatte Läufe zufällig reißen).
 
 ## Technische Leitplanken
 
@@ -127,7 +127,8 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo deny --all-features check
 npm ci --ignore-scripts && npm run check:licenses && npm run test:scripts
 npm run check -w apps/ui && npm test -w apps/ui      # Svelte/TS-Typprüfung inkl. Vertrag, Unit-Tests
-npm run check -w apps/web && npm run e2e -w apps/web # Playwright gegen die Web-Hülle (installiertes Chrome)
+npm run check -w apps/web && npm test -w apps/web   # Web-Hülle: Typen, Unit-Tests (Git-Adapter, Historie)
+RT_BIN=target/debug/rt RT_TESTSERVER_BIN=target/debug/rt-testserver npm run e2e -w apps/web  # Playwright (installiertes Chrome); mit RT_BIN auch echter `rt agent` und Web-Git
 npm run dev -w apps/web                              # Web-App lokal, http://127.0.0.1:5173/ (echt) oder ?backend=mock
 npm run e2e:shells -w apps/web                       # nur die Hüllen-Tests (echter Kern, OPFS, rt-testserver auf 47815)
 node scripts/build-wasm.mjs                          # Kern für die Web-App bauen (apps/web/public/wasm, gitignored)
