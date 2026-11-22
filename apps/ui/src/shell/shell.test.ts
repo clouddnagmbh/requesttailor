@@ -27,6 +27,18 @@ describe("shortcuts", () => {
     expect(matchShortcut(key("s"), false)).toBeUndefined();
   });
 
+  it("formats the body with Shift+Alt+F (by key code on macOS, where Alt changes the key)", () => {
+    const shiftAlt = { shiftKey: true, altKey: true };
+    expect(matchShortcut({ ...key("Ï", shiftAlt), code: "KeyF" }, true)?.command).toBe("format-body");
+    expect(matchShortcut({ ...key("F", shiftAlt), code: "KeyF" }, false)?.command).toBe("format-body");
+    expect(matchShortcut(key("F", shiftAlt), false)?.command).toBe("format-body");
+    expect(matchShortcut({ ...key("f", { ctrlKey: true }), code: "KeyF" }, false)).toBeUndefined();
+    expect(matchShortcut({ ...key("F", { ...shiftAlt, ctrlKey: true }), code: "KeyF" }, false)).toBeUndefined();
+    expect(matchShortcut({ ...key("S", shiftAlt), code: "KeyS" }, false)).toBeUndefined();
+    expect(formatShortcut({ command: "format-body", key: "f", shiftAlt: true }, true)).toBe("⇧⌥F");
+    expect(formatShortcut({ command: "format-body", key: "f", shiftAlt: true }, false)).toBe("Shift+Alt+F");
+  });
+
   it("has one entry per key and formats per platform", () => {
     expect(new Set(SHORTCUTS.map((s) => s.key)).size).toBe(SHORTCUTS.length);
     expect(new Set(SHORTCUTS.map((s) => s.command)).size).toBe(SHORTCUTS.length);

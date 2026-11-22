@@ -6,7 +6,7 @@
      debounced and flushed before anything else can use the backend's state). Variable
      highlighting comes from `backend.preview`; the editor never resolves a variable itself. -->
 <script lang="ts">
-  import { onMount, untrack, type Snippet } from "svelte";
+  import { onMount, tick, untrack, type Snippet } from "svelte";
 
   import type { Auth, Body, Param, Preview, RequestSpec, Variable } from "../commands/types";
   import { tabsFor } from "../plugins/permissions";
@@ -20,6 +20,7 @@
   import AuthEditor from "./AuthEditor.svelte";
   import BodyEditor from "./BodyEditor.svelte";
   import CodeField from "./CodeField.svelte";
+  import { canFormat, describeFormat, formatBody, onFormatRequest } from "./format-body";
   import KeyValueTable, { type Row } from "./KeyValueTable.svelte";
   import { paramsFromUrl, urlFromParams } from "./url";
   import { lookupFromPreview } from "./vars";
@@ -221,6 +222,27 @@
     flush();
     void app.send(path);
   }
+
+  // ---- format body (wave 8): button, Shift+Alt+F, palette ----
+
+  let formatStatus = $state<string | null>(null);
+  let formatTimer: ReturnType<typeof setTimeout> | undefined;
+  async function formatNow() {
+    if (!spec || !canFormat(spec.body)) return;
+    // Show the body first, so the change goes through its editor (and its undo history).
+    if (tab !== "body") {
+      tab = "body";
+      await tick();
+    }
+    const result = spec && formatBody(spec.body);
+    if (!result) return;
+    if (result.kind === "formatted") update((s) => (s.body = result.body));
+    formatStatus = describeFormat(result);
+    clearTimeout(formatTimer);
+    formatTimer = setTimeout(() => (formatStatus = null), 3000);
+  }
+  onMount(() => onFormatRequest(() => void formatNow()));
+  $effect(() => () => clearTimeout(formatTimer));
 </script>
 
 <section data-testid="request-editor" aria-label="Request editor" bind:this={section}>
@@ -364,6 +386,8 @@
             {lookup}
             {stash}
             onchange={(body: Body, typing: boolean) => update((s) => (s.body = body), typing)}
+            onformat={formatNow}
+            {formatStatus}
           />
         {:else if tab === "auth"}
           <AuthEditor

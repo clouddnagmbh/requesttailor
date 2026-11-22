@@ -17,6 +17,7 @@
   import AuthPromptDialog from "../auth/AuthPromptDialog.svelte";
   import type { Backend, CollectionInfo } from "../commands/backend";
   import CookiesDialog from "../cookies/CookiesDialog.svelte";
+  import { requestFormat } from "../editor/format-body";
   import RequestEditor from "../editor/RequestEditor.svelte";
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
@@ -183,6 +184,7 @@
     cookies: () => {
       if (app.collection) showingCookies = true;
     },
+    "format-body": requestFormat,
   };
   // ---- collection tabs of plugins (wave 6) ----
   // The list is read once a collection is open (listing loads the web core).

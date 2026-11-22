@@ -20,12 +20,15 @@ export type CommandId =
   | "history"
   | "git"
   | "plugins"
-  | "cookies";
+  | "cookies"
+  | "format-body";
 
 export interface Shortcut {
   command: CommandId;
-  /** `KeyboardEvent.key`, compared case-insensitively. Always combined with Mod. */
+  /** `KeyboardEvent.key`, compared case-insensitively. Combined with Mod unless `shiftAlt`. */
   key: string;
+  /** Shift+Alt instead of Mod (a letter key, matched by `KeyboardEvent.code` too: Alt changes `key` on macOS). */
+  shiftAlt?: boolean;
 }
 
 export const SHORTCUTS: readonly Shortcut[] = [
@@ -35,6 +38,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { command: "close-tab", key: "w" },
   { command: "open-folder", key: "o" },
   { command: "palette", key: "k" },
+  { command: "format-body", key: "f", shiftAlt: true },
 ];
 
 export function isMacPlatform(nav: { platform?: string; userAgent?: string } | undefined = globalThis.navigator): boolean {
@@ -42,22 +46,26 @@ export function isMacPlatform(nav: { platform?: string; userAgent?: string } | u
   return /Mac|iPhone|iPad|iPod/.test(p);
 }
 
-type KeyLike = Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">;
+type KeyLike = Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey"> & { code?: string };
 
 /** The shortcut this key event triggers, if any. */
 export function matchShortcut(e: KeyLike, mac: boolean): Shortcut | undefined {
+  const key = e.key.toLowerCase();
+  if (e.shiftKey && e.altKey && !e.metaKey && !e.ctrlKey) {
+    return SHORTCUTS.find((s) => s.shiftAlt && (e.code === `Key${s.key.toUpperCase()}` || s.key.toLowerCase() === key));
+  }
   const mod = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
   if (!mod || e.altKey || e.shiftKey) return undefined;
-  const key = e.key.toLowerCase();
-  return SHORTCUTS.find((s) => s.key.toLowerCase() === key);
+  return SHORTCUTS.find((s) => !s.shiftAlt && s.key.toLowerCase() === key);
 }
 
 export function shortcutFor(command: CommandId): Shortcut | undefined {
   return SHORTCUTS.find((s) => s.command === command);
 }
 
-/** Display form: "⌘S" on macOS, "Ctrl+S" elsewhere. */
+/** Display form: "⌘S" / "⇧⌥F" on macOS, "Ctrl+S" / "Shift+Alt+F" elsewhere. */
 export function formatShortcut(s: Shortcut, mac: boolean): string {
   const key = s.key === "Enter" ? (mac ? "↩" : "Enter") : s.key.toUpperCase();
+  if (s.shiftAlt) return mac ? `⇧⌥${key}` : `Shift+Alt+${key}`;
   return mac ? `⌘${key}` : `Ctrl+${key}`;
 }

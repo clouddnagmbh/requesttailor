@@ -4,6 +4,7 @@
 // The shell's commands, as the palette lists them. Shortcuts come from the one table in
 // ./shortcuts; a command without a row there has no shortcut.
 
+import { canFormat } from "../editor/format-body";
 import type { AppState } from "../state/app.svelte";
 import { formatShortcut, shortcutFor, type CommandId } from "./shortcuts";
 
@@ -35,6 +36,7 @@ export const LABELS: Record<CommandId, string> = {
   git: "Show Git",
   plugins: "Manage plugins…",
   cookies: "Show cookies…",
+  "format-body": "Format body",
 };
 
 /** Commands available in the current state. */
@@ -48,6 +50,7 @@ export function buildCommands(app: AppState, actions: Actions, mac: boolean): Co
     cmd("open-folder"),
     ...(open ? [cmd("new-request")] : []),
     ...(app.active ? [cmd("send")] : []),
+    ...(app.active && canFormat(app.drafts[app.active]?.body) ? [cmd("format-body")] : []),
     ...(app.dirty.length > 0 ? [cmd("save")] : []),
     ...app.environments.map(
       (e): Command => ({

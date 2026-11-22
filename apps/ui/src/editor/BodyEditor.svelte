@@ -1,8 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- Request body: none, raw (json, xml, text, sparql), form-url-encoded, multipart, file. -->
+<!-- Request body: none, raw (json, xml, text, sparql), form-url-encoded, multipart, file.
+     JSON and XML have a "Format" button (wave 8); the body is never reformatted on its own. -->
 <script lang="ts">
   import type { Body, MultipartPart, PartKind, RawKind } from "../commands/types";
+  import { formatShortcut, isMacPlatform, shortcutFor } from "../shell/shortcuts";
   import CodeField from "./CodeField.svelte";
   import type { Language } from "./codemirror";
   import KeyValueTable, { type Row } from "./KeyValueTable.svelte";
@@ -16,6 +18,8 @@
     lookup,
     stash,
     onchange,
+    onformat,
+    formatStatus = null,
   }: {
     body: Body;
     lookup: VarLookup;
@@ -23,7 +27,14 @@
     stash: Map<string, unknown>;
     /** `typing`: debounce the edit. */
     onchange: (body: Body, typing: boolean) => void;
+    /** Pretty-prints a JSON or XML body (an explicit, undoable edit); absent: no button. */
+    onformat?: () => void;
+    /** Outcome of the last format when nothing changed ("Already formatted", malformed). */
+    formatStatus?: string | null;
   } = $props();
+
+  const mac = isMacPlatform();
+  const formatKeys = $derived(shortcutFor("format-body"));
 
   const CHOICES: [BodyChoice, string][] = [
     ["none", "No body"],
@@ -94,14 +105,26 @@
 </script>
 
 <div class="body">
-  <label class="type">
-    <span>Body</span>
-    <select data-testid="body-type" value={choice} onchange={(e) => choose(e.currentTarget.value as BodyChoice)}>
-      {#each CHOICES as [value, text] (value)}
-        <option {value}>{text}</option>
-      {/each}
-    </select>
-  </label>
+  <div class="typebar">
+    <label class="type">
+      <span>Body</span>
+      <select data-testid="body-type" value={choice} onchange={(e) => choose(e.currentTarget.value as BodyChoice)}>
+        {#each CHOICES as [value, text] (value)}
+          <option {value}>{text}</option>
+        {/each}
+      </select>
+    </label>
+    {#if onformat && lang !== "text"}
+      <button
+        type="button"
+        class="format"
+        data-testid="body-format"
+        title="Pretty-print the {lang === 'json' ? 'JSON' : 'XML'} body{formatKeys ? ` (${formatShortcut(formatKeys, mac)})` : ''}"
+        onclick={onformat}>Format</button
+      >
+      {#if formatStatus}<span class="status" role="status" data-testid="body-format-status">{formatStatus}</span>{/if}
+    {/if}
+  </div>
 
   {#if body.type === "none"}
     <p class="hint">This request has no body.</p>
@@ -215,6 +238,28 @@
   .hint {
     color: var(--rt-fg-muted);
     margin: 0;
+  }
+  .format {
+    font: inherit;
+    font-size: var(--rt-size-small);
+    color: var(--rt-fg);
+    background: var(--rt-bg);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius);
+    padding: 2px var(--rt-gap);
+    cursor: pointer;
+  }
+  .format:hover {
+    background: var(--rt-bg-hover);
+  }
+  .typebar {
+    display: flex;
+    align-items: center;
+    gap: var(--rt-gap);
+  }
+  .status {
+    color: var(--rt-fg-muted);
+    font-size: var(--rt-size-small);
   }
   select {
     font: inherit;

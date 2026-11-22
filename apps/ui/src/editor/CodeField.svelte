@@ -3,6 +3,7 @@
 <!-- A CodeMirror 6 field with {{variable}} highlighting: single line (URL, table cells, auth
      fields) or multi line (body). Controlled: `value` in, `onchange` out. -->
 <script lang="ts">
+  import { isolateHistory } from "@codemirror/commands";
   import { Annotation, Compartment, EditorState } from "@codemirror/state";
   import { EditorView, placeholder as cmPlaceholder } from "@codemirror/view";
   import { onMount } from "svelte";
@@ -77,7 +78,8 @@
     view.dispatch({
       changes: { from: 0, to: current.length, insert: v },
       selection: { anchor: head },
-      annotations: external.of(true),
+      // Its own undo step (e.g. "Format"), never merged with typing around it.
+      annotations: [external.of(true), isolateHistory.of("full")],
     });
   });
 
