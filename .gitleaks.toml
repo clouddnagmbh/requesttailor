@@ -3,7 +3,7 @@
 useDefault = true
 
 [allowlist]
-description = "Bruno's public e2e fixtures carry fake test credentials (see testdata/collections/bruno/README.md); four import-corpus fixtures with dummy credentials (and one snapshot derived from a dummy), listed in testdata/import/SOURCES.md"
+description = "Bruno's public e2e fixtures carry fake test credentials (see testdata/collections/bruno/README.md); four import-corpus fixtures with dummy credentials (and one snapshot derived from a dummy), listed in testdata/import/SOURCES.md; public AWS SigV4 test suite vectors with AWS's documented example credentials (testdata/sigv4/SOURCES.md)"
 paths = [
   '''^testdata/collections/bruno/''',
   '''^testdata/import/curl/curlconverter-get-digest-auth\.sh$''',
@@ -12,4 +12,8 @@ paths = [
   '''^testdata/import/curl/curlconverter-multipart-with-headers\.sh$''',
   # Snapshot of a DCSA test request whose body is base64 for "another secret - not the same as before".
   '''^testdata/import/postman/dcsa-tnt-v2\.1\.postman_collection\.json\.expected/collection/test-unofficial-api-create-eswithsecretto-update-secret/update-eventsubscriptionwith-secret-body\.yml$''',
+  # Public AWS SigV4 test suite vectors: the session token and signatures are made with AWS's
+  # documented example key (AKIDEXAMPLE), not a real credential.
+  '''^testdata/sigv4/v4/get-vanilla-with-session-token/''',
+  '''^testdata/sigv4/v4/post-sts-header-before/''',
 ]

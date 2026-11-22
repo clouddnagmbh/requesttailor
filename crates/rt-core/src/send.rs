@@ -346,7 +346,15 @@ fn sent_request(request: &HttpRequest, secrets: &[String]) -> SentRequest {
     let mut headers: Vec<(String, String)> = request
         .headers
         .iter()
-        .map(|(name, value)| (name.clone(), mask_header(value, secrets)))
+        .map(|(name, value)| {
+            // Cookies are session secrets (wave 5): only their names are reported.
+            let value = if name.eq_ignore_ascii_case("cookie") {
+                mask(&crate::cookies::mask_cookie_header(value), secrets)
+            } else {
+                mask_header(value, secrets)
+            };
+            (name.clone(), value)
+        })
         .collect();
     if let Some(body) = &request.body
         && let Some(content_type) = &body.content_type
@@ -368,7 +376,20 @@ fn received(c: CompletedResponse) -> ReceivedResponse {
     ReceivedResponse {
         status: c.head.status,
         version: c.head.version,
-        headers: c.head.headers,
+        // Cookie values are session secrets (wave 5): `Set-Cookie` keeps name and attributes.
+        headers: c
+            .head
+            .headers
+            .into_iter()
+            .map(|(name, value)| {
+                let value = if name.eq_ignore_ascii_case("set-cookie") {
+                    crate::cookies::mask_set_cookie(&value)
+                } else {
+                    value
+                };
+                (name, value)
+            })
+            .collect(),
         url: c.head.url,
         redirects: c.head.redirects,
         body: report_body(&c.body, c.truncated),

@@ -212,6 +212,15 @@ const ERROR_BODY_LIMIT: usize = 64 * 1024;
 impl CompanionTransport {
     /// The `fetch` call to the companion that carries `request`.
     fn envelope(&self, request: &HttpRequest) -> Result<HttpRequest, super::TransportError> {
+        // Wave 5: the companion protocol carries no key material; never send without the
+        // certificate the request needs.
+        if request.options.client_identity.is_some() {
+            return Err(super::TransportError::Tls(
+                "client certificates (mTLS) are not sent through the companion; send this \
+                 request from the desktop app or the CLI"
+                    .to_owned(),
+            ));
+        }
         let json = serde_json::to_vec(&WireRequest::from(request))
             .map_err(|e| super::TransportError::Other(e.to_string()))?;
         Ok(HttpRequest {
