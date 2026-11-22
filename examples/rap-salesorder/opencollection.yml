@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+# Example collection: an OData V4 RAP business object with draft (S/4HANA, ABAP RESTful
+# Application Programming Model). Synthetic service of rt-odata-testserver; see README.md.
+opencollection: "1.0.0"
+info:
+  name: RAP Sales Order (OData V4, draft)
+
+request:
+  headers:
+    - name: Accept
+      value: application/json
+  auth:
+    type: basic
+    username: "{{user}}"
+    password: "{{password}}"
+  variables:
+    - name: service
+      value: /sap/opu/odata4/sap/zrt_salesorder/srvd_a2x/sap/zrt_salesorder/0001
+    - name: salesOrderUUID
+      value: 0b7e2f0a-6c1d-4e5f-9a10-000000000001
+    - name: customerId
+      value: "0000100003"

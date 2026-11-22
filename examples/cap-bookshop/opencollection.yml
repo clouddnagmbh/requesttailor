@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+# Example collection: the AdminService of a CAP bookshop, as OData V4 (draft-enabled Books)
+# and through the OData V2 adapter. Synthetic service of rt-odata-testserver; see README.md.
+opencollection: "1.0.0"
+info:
+  name: CAP Bookshop (OData V4 and V2)
+
+request:
+  headers:
+    - name: Accept
+      value: application/json
+  variables:
+    - name: bookId
+      value: "201"

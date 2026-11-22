@@ -1,0 +1,15 @@
+info:
+  name: Update draft
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}{{service}}/Books(ID={{bookId}},IsActiveEntity=false)"
+  body:
+    type: json
+    data: |-
+      {
+        "stock": 15
+      }
+  auth: inherit

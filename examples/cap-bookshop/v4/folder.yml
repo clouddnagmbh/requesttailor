@@ -1,0 +1,11 @@
+info:
+  name: OData V4
+  type: folder
+  seq: 1
+
+request:
+  variables:
+    - name: service
+      value: /odata/v4/admin
+    - name: newBookId
+      value: "901"

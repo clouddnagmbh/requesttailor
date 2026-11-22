@@ -1,0 +1,479 @@
+# SPDX-License-Identifier: Apache-2.0
+# Release: signed and notarized desktop installers and `rt` binaries for macOS, Windows and Linux,
+# SHA256SUMS with a GPG signature, uploaded to a DRAFT GitHub release. Nothing is published:
+# the project owner reviews the draft and publishes it by hand (RELEASING.md).
+#
+# - Tag push `v<version>`: everything signed; the tag must equal [workspace.package] version.
+# - Run by hand (workflow_dispatch): a dry run that keeps the files as a workflow artifact and
+#   creates no release; `signed` off builds without any secret.
+#
+# No updater: the app never checks for updates (product principle 2), so there is no update
+# manifest and no updater key.
+#
+# Secrets and variables: see RELEASING.md. A signed run checks them first and fails with the
+# list of what is missing.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: "Sign and notarize (needs every secret in RELEASING.md). Off: unsigned dry run."
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # A tag push is always signed; a manual run follows its input.
+  SIGNED: ${{ github.event_name == 'push' || inputs.signed }}
+  # Windows code signing: "azure" (Azure Artifact Signing, formerly Trusted Signing) or "pfx"
+  # (a certificate file). Repository variable WINDOWS_SIGNING; default azure.
+  WINDOWS_SIGNING: ${{ vars.WINDOWS_SIGNING || 'azure' }}
+  WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL || 'http://timestamp.digicert.com' }}
+  # Pinned tool for Azure Artifact Signing (MIT, crates.io); a CI tool, not shipped.
+  ARTIFACT_SIGNING_CLI_VERSION: 0.12.0
+  TAURI_LINUX_DEPS: libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev build-essential patchelf libfuse2
+
+jobs:
+  preflight:
+    name: preflight (version, secrets)
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Version from Cargo.toml, checked against the tag
+        id: version
+        run: |
+          version=$(awk -F'"' '/^\[workspace\.package\]/ { f = 1; next } /^\[/ { f = 0 } f && /^version *=/ { print $2; exit }' Cargo.toml)
+          if [ -z "$version" ]; then
+            echo "::error::No [workspace.package] version in Cargo.toml"; exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the workspace version $version. Set [workspace.package] version in Cargo.toml (and \"version\" in apps/desktop/src-tauri/tauri.conf.json) in a commit, then tag v$version."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Version $version, signed: $SIGNED, Windows signing: $WINDOWS_SIGNING"
+      - name: Signing secrets and variables are set
+        if: env.SIGNED == 'true'
+        env:
+          # Only whether each one is set reaches this step, never a value.
+          HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE != '' }}
+          HAS_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
+          HAS_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY != '' }}
+          HAS_APPLE_ID: ${{ secrets.APPLE_ID != '' }}
+          HAS_APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD != '' }}
+          HAS_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID != '' }}
+          HAS_APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER != '' }}
+          HAS_APPLE_API_KEY: ${{ secrets.APPLE_API_KEY != '' }}
+          HAS_APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 != '' }}
+          HAS_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID != '' }}
+          HAS_AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET != '' }}
+          HAS_AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID != '' }}
+          HAS_VAR_AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT != '' }}
+          HAS_VAR_AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT != '' }}
+          HAS_VAR_AZURE_CERTIFICATE_PROFILE: ${{ vars.AZURE_CERTIFICATE_PROFILE != '' }}
+          HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+          HAS_WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
+          HAS_GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+          HAS_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE != '' }}
+        run: |
+          secrets=(); variables=()
+          need() { for n in "$@"; do v="HAS_$n"; [ "${!v}" = "true" ] || secrets+=("$n"); done; }
+          need_var() { for n in "$@"; do v="HAS_VAR_$n"; [ "${!v}" = "true" ] || variables+=("$n"); done; }
+
+          # macOS: Developer ID certificate, and notarization with an Apple ID or an API key.
+          need APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY
+          if [ "$HAS_APPLE_API_KEY" = true ] || [ "$HAS_APPLE_API_ISSUER" = true ] || [ "$HAS_APPLE_API_KEY_P8" = true ]; then
+            need APPLE_API_ISSUER APPLE_API_KEY APPLE_API_KEY_P8
+          else
+            need APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+          fi
+
+          # Windows.
+          case "$WINDOWS_SIGNING" in
+            azure)
+              need AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID
+              need_var AZURE_SIGNING_ENDPOINT AZURE_SIGNING_ACCOUNT AZURE_CERTIFICATE_PROFILE ;;
+            pfx)
+              need WINDOWS_CERTIFICATE WINDOWS_CERTIFICATE_PASSWORD ;;
+            *)
+              echo "::error::Repository variable WINDOWS_SIGNING is \"$WINDOWS_SIGNING\"; use azure or pfx."; exit 1 ;;
+          esac
+
+          # Checksums.
+          need GPG_PRIVATE_KEY GPG_PASSPHRASE
+
+          if [ ${#secrets[@]} -gt 0 ] || [ ${#variables[@]} -gt 0 ]; then
+            [ ${#secrets[@]} -gt 0 ] && echo "::error::Missing secrets (Settings > Secrets and variables > Actions > Secrets): ${secrets[*]}"
+            [ ${#variables[@]} -gt 0 ] && echo "::error::Missing variables (Settings > Secrets and variables > Actions > Variables): ${variables[*]}"
+            echo "What each one is and where to get it: RELEASING.md. For a build without signing, run this workflow by hand with 'signed' off."
+            exit 1
+          fi
+          echo "All signing secrets and variables are set."
+
+  build:
+    name: build (${{ matrix.name }})
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos
+            os: macos-latest
+            target: universal-apple-darwin
+            rust_targets: aarch64-apple-darwin x86_64-apple-darwin
+            bundles: app,dmg
+          - name: windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust_targets: x86_64-pc-windows-msvc
+            bundles: nsis
+          # The oldest supported Ubuntu, so the AppImage runs on older glibc versions too.
+          - name: linux
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            rust_targets: x86_64-unknown-linux-gnu
+            bundles: appimage,deb
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+      TARGET: ${{ matrix.target }}
+      BUNDLES: ${{ matrix.bundles }}
+    steps:
+      - uses: actions/checkout@v7
+      # No build cache: release binaries are built from the tagged sources only.
+      - name: Install pinned toolchain and targets
+        run: |
+          rustup toolchain install
+          rustup target add wasm32-unknown-unknown ${{ matrix.rust_targets }}
+      - name: Desktop build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ${{ env.TAURI_LINUX_DEPS }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci --ignore-scripts
+      # The apps bundle the OData plugin (target/plugins/odata.wasm).
+      - name: Build the plugins
+        run: node scripts/build-plugins.mjs
+
+      # ------------------------------------------------------------------ signing material
+      - name: Import the Developer ID certificate (macOS)
+        if: runner.os == 'macOS' && env.SIGNED == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password=$(openssl rand -base64 24)
+          echo "::add-mask::$password"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -f pkcs12 -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" > /dev/null
+          # Add it to the search list next to the existing keychains (one path per word).
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          if ! security find-identity -v -p codesigning "$keychain" | grep -qF "$APPLE_SIGNING_IDENTITY"; then
+            echo "::error::APPLE_SIGNING_IDENTITY is not in the imported certificate. Identities found:"
+            security find-identity -v -p codesigning "$keychain"
+            exit 1
+          fi
+          echo "RELEASE_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          if [ -n "$APPLE_API_KEY_P8" ]; then
+            key="$RUNNER_TEMP/AuthKey_$APPLE_API_KEY.p8"
+            printf '%s\n' "$APPLE_API_KEY_P8" > "$key"
+            chmod 600 "$key"
+            echo "APPLE_API_KEY_PATH=$key" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install Azure Artifact Signing tool (Windows)
+        if: runner.os == 'Windows' && env.SIGNED == 'true' && env.WINDOWS_SIGNING == 'azure'
+        run: cargo install artifact-signing-cli --version "$ARTIFACT_SIGNING_CLI_VERSION" --locked
+
+      - name: Import the code signing certificate (Windows, pfx)
+        if: runner.os == 'Windows' && env.SIGNED == 'true' && env.WINDOWS_SIGNING == 'pfx'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP "certificate.pfx"
+          [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $path -CertStoreLocation Cert:\CurrentUser\My -Password $password |
+            Where-Object { $_.HasPrivateKey } | Select-Object -First 1
+          Remove-Item $path
+          if (-not $cert) { Write-Output "::error::WINDOWS_CERTIFICATE has no certificate with a private key"; exit 1 }
+          Write-Output "Signing certificate: $($cert.Subject), valid until $($cert.NotAfter)"
+          "WINDOWS_CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          "SIGNTOOL=$($signtool.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # Tauri configuration for this build, merged over apps/desktop/src-tauri/tauri.conf.json:
+      # version, installer bundles on, and the platform's signing settings.
+      - name: Release configuration for Tauri
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_CERTIFICATE_PROFILE: ${{ vars.AZURE_CERTIFICATE_PROFILE }}
+        run: |
+          node -e '
+            const env = process.env;
+            const config = { version: env.VERSION, bundle: { active: true, targets: env.BUNDLES.split(",") } };
+            if (env.SIGNED === "true" && env.RUNNER_OS === "macOS") {
+              config.bundle.macOS = { signingIdentity: env.APPLE_SIGNING_IDENTITY, hardenedRuntime: true };
+            }
+            if (env.SIGNED === "true" && env.RUNNER_OS === "Windows") {
+              config.bundle.windows = env.WINDOWS_SIGNING === "azure"
+                ? { signCommand: { cmd: "artifact-signing-cli", args: ["-e", env.AZURE_SIGNING_ENDPOINT, "-a", env.AZURE_SIGNING_ACCOUNT, "-c", env.AZURE_CERTIFICATE_PROFILE, "%1"] } }
+                : { certificateThumbprint: env.WINDOWS_CERT_THUMBPRINT, digestAlgorithm: "sha256", timestampUrl: env.WINDOWS_TIMESTAMP_URL };
+            }
+            require("node:fs").writeFileSync(process.argv[1], JSON.stringify(config, null, 2));
+          ' "$RUNNER_TEMP/tauri.release.json"
+          cat "$RUNNER_TEMP/tauri.release.json"
+
+      # ------------------------------------------------------------------ desktop app
+      # Tauri signs (and on macOS notarizes and staples) the app and the installer when the
+      # signing settings and the APPLE_* notarization variables are present.
+      - name: Build the desktop installers
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ env.SIGNED == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ env.SIGNED == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ env.SIGNED == 'true' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ env.SIGNED == 'true' && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_API_ISSUER: ${{ env.SIGNED == 'true' && secrets.APPLE_API_ISSUER || '' }}
+          APPLE_API_KEY: ${{ env.SIGNED == 'true' && secrets.APPLE_API_KEY || '' }}
+          AZURE_CLIENT_ID: ${{ env.SIGNED == 'true' && secrets.AZURE_CLIENT_ID || '' }}
+          AZURE_CLIENT_SECRET: ${{ env.SIGNED == 'true' && secrets.AZURE_CLIENT_SECRET || '' }}
+          AZURE_TENANT_ID: ${{ env.SIGNED == 'true' && secrets.AZURE_TENANT_ID || '' }}
+        run: |
+          # Unset empty variables, so Tauri does not read "" as a setting.
+          for v in APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID APPLE_API_ISSUER APPLE_API_KEY AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID; do
+            [ -n "${!v}" ] || unset "$v"
+          done
+          npm run tauri -w apps/desktop -- build --ci --target "$TARGET" --bundles "$BUNDLES" --config "$RUNNER_TEMP/tauri.release.json"
+
+      # ------------------------------------------------------------------ rt (CLI)
+      - name: Build rt
+        run: |
+          stage="$RUNNER_TEMP/rt-stage"
+          mkdir -p "$stage"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            for t in aarch64-apple-darwin x86_64-apple-darwin; do
+              cargo build -p rt-cli --release --locked --target "$t"
+            done
+            lipo -create -output "$stage/rt" target/aarch64-apple-darwin/release/rt target/x86_64-apple-darwin/release/rt
+            lipo -info "$stage/rt"
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            cargo build -p rt-cli --release --locked --target "$TARGET"
+            cp "target/$TARGET/release/rt.exe" "$stage/"
+          else
+            cargo build -p rt-cli --release --locked --target "$TARGET"
+            cp "target/$TARGET/release/rt" "$stage/"
+          fi
+          cp LICENSE NOTICE "$stage/"
+          echo "RT_STAGE=$stage" >> "$GITHUB_ENV"
+
+      - name: Sign rt (macOS)
+        if: runner.os == 'macOS' && env.SIGNED == 'true'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          codesign --force --options runtime --timestamp --keychain "$RELEASE_KEYCHAIN" --sign "$APPLE_SIGNING_IDENTITY" "$RT_STAGE/rt"
+          codesign --verify --strict --verbose=2 "$RT_STAGE/rt"
+
+      - name: Sign rt (Windows, Azure Artifact Signing)
+        if: runner.os == 'Windows' && env.SIGNED == 'true' && env.WINDOWS_SIGNING == 'azure'
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_CERTIFICATE_PROFILE: ${{ vars.AZURE_CERTIFICATE_PROFILE }}
+        run: artifact-signing-cli -e "$AZURE_SIGNING_ENDPOINT" -a "$AZURE_SIGNING_ACCOUNT" -c "$AZURE_CERTIFICATE_PROFILE" "$RT_STAGE/rt.exe"
+
+      - name: Sign rt (Windows, pfx)
+        if: runner.os == 'Windows' && env.SIGNED == 'true' && env.WINDOWS_SIGNING == 'pfx'
+        shell: pwsh
+        run: |
+          & $env:SIGNTOOL sign /sha1 $env:WINDOWS_CERT_THUMBPRINT /fd sha256 /tr $env:WINDOWS_TIMESTAMP_URL /td sha256 (Join-Path $env:RT_STAGE "rt.exe")
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # ------------------------------------------------------------------ collect
+      - name: Collect the release files
+        run: |
+          out="$GITHUB_WORKSPACE/dist"
+          mkdir -p "$out"
+          bundle="target/$TARGET/release/bundle"
+          one() { # exactly one file matching $2 below $1
+            local found; found=$(find "$1" -maxdepth 2 -type f -name "$2")
+            [ "$(printf '%s\n' "$found" | grep -c .)" = 1 ] || { echo "::error::expected one $2 in $1, found: $found"; exit 1; }
+            printf '%s' "$found"
+          }
+          case "$RUNNER_OS" in
+            macOS)
+              cp "$(one "$bundle/dmg" '*.dmg')" "$out/RequestTailor_${VERSION}_macos_universal.dmg"
+              dir="rt_${VERSION}_macos_universal"
+              mkdir "$RUNNER_TEMP/$dir" && cp "$RT_STAGE"/* "$RUNNER_TEMP/$dir/"
+              ditto -c -k --keepParent "$RUNNER_TEMP/$dir" "$out/$dir.zip" ;;
+            Windows)
+              cp "$(one "$bundle/nsis" '*-setup.exe')" "$out/RequestTailor_${VERSION}_windows_x64-setup.exe"
+              dir="rt_${VERSION}_windows_x64"
+              mkdir "$RUNNER_TEMP/$dir" && cp "$RT_STAGE"/* "$RUNNER_TEMP/$dir/"
+              (cd "$RUNNER_TEMP" && 7z a -tzip "$out/$dir.zip" "$dir" > /dev/null) ;;
+            Linux)
+              cp "$(one "$bundle/appimage" '*.AppImage')" "$out/RequestTailor_${VERSION}_linux_amd64.AppImage"
+              cp "$(one "$bundle/deb" '*.deb')" "$out/RequestTailor_${VERSION}_linux_amd64.deb"
+              dir="rt_${VERSION}_linux_x64"
+              mkdir "$RUNNER_TEMP/$dir" && cp "$RT_STAGE"/* "$RUNNER_TEMP/$dir/"
+              tar -C "$RUNNER_TEMP" -czf "$out/$dir.tar.gz" "$dir" ;;
+          esac
+          ls -l "$out"
+
+      # ------------------------------------------------------------------ notarize and verify
+      # Tauri notarizes and staples the .app; the disk image and the rt archive are submitted
+      # here. A bare binary cannot be stapled: Gatekeeper looks its ticket up online.
+      - name: Notarize the disk image and rt (macOS)
+        if: runner.os == 'macOS' && env.SIGNED == 'true'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          if [ -n "${APPLE_API_KEY_PATH:-}" ]; then
+            auth=(--key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER")
+          else
+            auth=(--apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID")
+          fi
+          dmg="dist/RequestTailor_${VERSION}_macos_universal.dmg"
+          codesign --force --timestamp --keychain "$RELEASE_KEYCHAIN" --sign "$APPLE_SIGNING_IDENTITY" "$dmg"
+          for f in "$dmg" "dist/rt_${VERSION}_macos_universal.zip"; do
+            xcrun notarytool submit "$f" "${auth[@]}" --wait --timeout 60m --output-format json | tee "$RUNNER_TEMP/notary.json"
+            grep -q '"status" *: *"Accepted"' "$RUNNER_TEMP/notary.json" || { echo "::error::Notarization of $f was not accepted (xcrun notarytool log <id> shows why)"; exit 1; }
+          done
+          xcrun stapler staple "$dmg"
+
+      - name: Verify signatures (macOS)
+        if: runner.os == 'macOS' && env.SIGNED == 'true'
+        run: |
+          app=$(find "target/$TARGET/release/bundle/macos" -maxdepth 1 -name '*.app' | head -n 1)
+          dmg="dist/RequestTailor_${VERSION}_macos_universal.dmg"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute -vv "$app" 2>&1 | tee "$RUNNER_TEMP/spctl.txt"
+          grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl.txt"
+          xcrun stapler validate "$app"
+          xcrun stapler validate "$dmg"
+          spctl --assess --type open --context context:primary-signature -vv "$dmg"
+          codesign --verify --strict --verbose=2 "$RT_STAGE/rt"
+
+      - name: Verify signatures (Windows)
+        if: runner.os == 'Windows' && env.SIGNED == 'true'
+        shell: pwsh
+        run: |
+          $files = @("dist\RequestTailor_$($env:VERSION)_windows_x64-setup.exe", (Join-Path $env:RT_STAGE "rt.exe"))
+          foreach ($f in $files) {
+            $s = Get-AuthenticodeSignature $f
+            Write-Output "$f : $($s.Status) $($s.SignerCertificate.Subject)"
+            if ($s.Status -ne "Valid") { Write-Output "::error::$f is not validly signed: $($s.StatusMessage)"; exit 1 }
+            if (-not $s.TimeStamperCertificate) { Write-Output "::error::$f has no timestamp"; exit 1 }
+          }
+
+      - name: Remove signing material
+        if: always()
+        run: |
+          if [ -n "${RELEASE_KEYCHAIN:-}" ]; then security delete-keychain "$RELEASE_KEYCHAIN" || true; fi
+          if [ -n "${APPLE_API_KEY_PATH:-}" ]; then rm -f "$APPLE_API_KEY_PATH"; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: checksums and draft release
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: SHA256SUMS
+        working-directory: dist
+        run: |
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+      - name: Sign SHA256SUMS with the release key (GPG)
+        if: env.SIGNED == 'true'
+        working-directory: dist
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -m 700 "$GNUPGHOME"
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          fpr=$(gpg --batch --with-colons --list-secret-keys | awk -F: '/^fpr:/ { print $10; exit }')
+          printf '%s' "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --local-user "$fpr" --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
+          gpg --batch --armor --export "$fpr" > release-key.asc
+          gpg --batch --verify SHA256SUMS.asc SHA256SUMS
+          echo "Release key fingerprint: $fpr (must equal the one on website/download/ and in RELEASING.md)"
+          rm -rf "$GNUPGHOME"
+      # Dry run: keep everything as a workflow artifact, no release.
+      - name: Keep the dry run
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run-${{ env.VERSION }}
+          path: dist/*
+          if-no-files-found: error
+      # Tag push: a draft release. Publishing it is done by hand after review.
+      - name: Create the draft release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes=(--generate-notes)
+          [ -f launch/RELEASE-NOTES.md ] && notes=(--notes-file launch/RELEASE-NOTES.md)
+          pre=()
+          case "$VERSION" in *-*) pre=(--prerelease) ;; esac
+          gh release create "$TAG" --draft --verify-tag --title "RequestTailor $VERSION" "${notes[@]}" "${pre[@]}" dist/*
+          echo "Draft release created. Review it under Releases and publish it by hand."

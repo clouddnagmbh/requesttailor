@@ -1,0 +1,9 @@
+info:
+  name: List books
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}{{service}}/Books?$filter=stock gt 10&$select=ID,title,stock,price&$orderby=title&$inlinecount=allpages"
+  auth: inherit

@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: Apache-2.0
+# Publishes website/ to GitHub Pages. Started by hand only (Actions > Website > Run workflow):
+# publishing is a decision of the project owner, never a side effect of a push.
+# One-time setup: Settings > Pages > Source: "GitHub Actions" (see RELEASING.md).
+name: Website
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # No external scripts, fonts or trackers, links and budgets correct (scripts/check-website.mjs).
+      - name: Check the site
+        run: |
+          node scripts/check-website.mjs
+          node --test scripts/check-website.test.mjs
+      - name: Assemble (pages and stylesheet only)
+        run: |
+          mkdir -p _site
+          cp -R website/. _site/
+          rm -f _site/README.md
+          touch _site/.nojekyll
+          find _site -type f | sort
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,12 @@
+name: Local
+variables:
+  - name: baseUrl
+    value: http://127.0.0.1:47830
+  - name: sapClient
+    value: "100"
+  - name: sapLanguage
+    value: EN
+  - name: user
+    value: RT_USER
+  - secret: true
+    name: password

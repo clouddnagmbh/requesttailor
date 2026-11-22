@@ -1,0 +1,129 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="RequestTailor is an open-source API client: collections are plain files in your Git repository, there is no account, and the same Rust core runs on the desktop, in the browser and in your pipeline.">
+<title>RequestTailor</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="./">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="./" aria-current="page">Home</a></li>
+<li><a href="sap/">SAP and OData</a></li>
+<li><a href="docs/">Docs</a></li>
+<li><a href="download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<section class="hero">
+<h1>An API client that stays yours</h1>
+<p class="lead">RequestTailor keeps your requests as plain text files in your Git repository.
+There is no account and no cloud. The same Rust core runs on the desktop, in the browser and
+in your pipeline, so a request that works in the app works in CI.</p>
+<div class="actions">
+<a class="button primary" href="download/">Download</a>
+<a class="button" href="docs/">Get started</a>
+<a class="button" href="sap/">SAP and OData</a>
+</div>
+</section>
+
+<h2 id="principles">What it stands for</h2>
+<div class="grid">
+<div class="card">
+<h3>Files are the truth</h3>
+<p>A request is a readable YAML file in the OpenCollection format, one file per request.
+Diffs and reviews work in any Git tool. The app is only a view on the folder, and reading and
+writing a file leaves it byte for byte as it was.</p>
+</div>
+<div class="card">
+<h3>No account, ever</h3>
+<p>Download, open a folder, send. Everything works offline. The free edition makes no
+connection to our servers: no login, no telemetry, no update check.</p>
+</div>
+<div class="card">
+<h3>Secrets stay local</h3>
+<p>Secret values live in your operating system's keychain or come from your secret manager.
+The collection holds only the variable name. A built-in scanner refuses commits that contain
+credentials.</p>
+</div>
+<div class="card">
+<h3>Same core everywhere</h3>
+<p>Desktop on macOS, Windows and Linux, the web app in WebAssembly and the <code>rt</code>
+command line share one core. A conformance suite runs the same cases against the native and
+the WebAssembly build.</p>
+</div>
+</div>
+
+<h2 id="performance">Performance has a budget</h2>
+<p>Speed is a feature with numbers attached. Each budget is measured automatically on macOS,
+Windows and Linux; the worst result counts, and a missed budget or a missing measurement
+fails the build.</p>
+<table>
+<thead><tr><th scope="col">Measure</th><th scope="col">Budget</th></tr></thead>
+<tbody>
+<tr><td>Cold start of the desktop app, to the first usable frame</td><td>at most <span data-budget="cold_start">500</span> ms</td></tr>
+<tr><td>Memory when idle, app and web view together</td><td>at most <span data-budget="idle_memory">150</span> MB</td></tr>
+<tr><td>Scrolling a 100 MB response, 95th percentile frame time</td><td>at most <span data-budget="large_response_frame">20</span> ms</td></tr>
+<tr><td>Keystrokes from app start to a sent request</td><td>at most <span data-budget="send_keystrokes">2</span></td></tr>
+</tbody>
+</table>
+<p>How each number is measured is described in <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/perf/README.md">perf/README.md</a>.</p>
+
+<h2 id="surfaces">Desktop, web, command line</h2>
+<table>
+<thead><tr><th scope="col">Surface</th><th scope="col">What it is</th></tr></thead>
+<tbody>
+<tr><td>Desktop</td><td>A native app for macOS, Windows and Linux (Tauri). Opens collection folders directly, keeps secrets in the OS keychain, has Git built in.</td></tr>
+<tr><td>Web</td><td>The same interface in the browser, with the core compiled to WebAssembly. Folders are opened with the browser's file access. Requests the browser blocks (CORS, client certificates) can go through <code>rt agent</code>, a companion on your own machine.</td></tr>
+<tr><td>Command line</td><td><code>rt send</code> sends a request from a collection and prints a JSON report, <code>rt import</code> converts other tools' exports, <code>rt scan</code> finds credentials before they reach Git.</td></tr>
+<tr><td>MCP server</td><td>Planned for a later release, so AI agents use the same core. <a href="docs/mcp/">What is planned</a></td></tr>
+</tbody>
+</table>
+
+<h2 id="features">What is in it</h2>
+<ul>
+<li>Opens OpenCollection YAML collections, the format Bruno writes, without changing them.</li>
+<li>Imports Postman, Insomnia, OpenAPI, cURL, HAR and <code>.http</code> files, with a report of everything that could not be carried over exactly.</li>
+<li>Variables in layers with a visible origin: global, collection, environment, folder, request, runtime.</li>
+<li>Authentication: Basic, Bearer, API key, OAuth 2.0 (client credentials, password, authorization code with PKCE, device code, SAML 2.0 bearer), AWS Signature Version 4, client certificates.</li>
+<li>Git without a staging area: commit, branches, pull, push and conflict resolution in the app.</li>
+<li>Large responses stay in the core; the interface fetches only the lines on screen.</li>
+<li>History without bodies or header values, and search across the collection.</li>
+<li>Plugins as sandboxed WebAssembly modules, on every surface.</li>
+</ul>
+
+<h2 id="plugins">Plugins instead of a heavy core</h2>
+<p>Protocols and domain knowledge come as plugins on a public, versioned plugin API. A plugin
+is a single WebAssembly file: no native code, no file system, and network access only to the
+hosts you grant. The first one is the <a href="sap/">OData plugin for SAP S/4HANA, CAP and
+RAP</a>. <a href="docs/plugins/">Write your own</a>.</p>
+
+<h2 id="open-source">Open source, and it stays that way</h2>
+<p>The code is under the Apache License 2.0. What is free once does not move behind a
+paywall later. Contributions are welcome under the Developer Certificate of Origin; see
+<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,15 @@
+info:
+  name: Update draft
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}{{service}}/SalesOrder(SalesOrderUUID={{salesOrderUUID}},IsActiveEntity=false)"
+  body:
+    type: json
+    data: |-
+      {
+        "CustomerID": "{{customerId}}"
+      }
+  auth: inherit

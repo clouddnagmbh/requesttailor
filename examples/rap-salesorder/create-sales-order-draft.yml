@@ -1,0 +1,16 @@
+info:
+  name: Create sales order (new draft)
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}{{service}}/SalesOrder"
+  body:
+    type: json
+    data: |-
+      {
+        "CustomerID": "{{customerId}}",
+        "Currency": "EUR"
+      }
+  auth: inherit

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+# Example collection: an OData V2 sales order service in SAP Gateway style (S/4HANA).
+# Synthetic service of rt-odata-testserver; see README.md.
+opencollection: "1.0.0"
+info:
+  name: S/4HANA Sales (OData V2)
+
+request:
+  headers:
+    - name: Accept
+      value: application/json
+  auth:
+    type: basic
+    username: "{{user}}"
+    password: "{{password}}"
+  variables:
+    - name: service
+      value: /sap/opu/odata/sap/ZRT_SALES_SRV
+    - name: salesOrderId
+      value: "0500000001"
+    - name: customerId
+      value: "0000100002"

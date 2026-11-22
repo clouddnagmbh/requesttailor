@@ -1,0 +1,9 @@
+info:
+  name: Read book
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}{{service}}/Books(ID={{bookId}},IsActiveEntity=true)?$expand=author,genre"
+  auth: inherit

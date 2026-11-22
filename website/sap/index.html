@@ -1,0 +1,160 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="The OData plugin for RequestTailor: OData V2 and V4 for SAP S/4HANA, CAP and RAP, with CSRF tokens, ETags, $batch, drafts and DEV/QAS/PRD landscapes with sap-client.">
+<title>SAP and OData · RequestTailor</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../">Home</a></li>
+<li><a href="../sap/" aria-current="page">SAP and OData</a></li>
+<li><a href="../docs/">Docs</a></li>
+<li><a href="../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<section class="hero">
+<h1>OData for S/4HANA, CAP and RAP</h1>
+<p class="lead">The OData plugin turns RequestTailor into a client that knows how SAP services
+behave: it reads <code>$metadata</code>, fetches CSRF tokens, keeps ETags, builds
+<code>$batch</code> requests and runs draft actions. Your requests stay plain files.</p>
+<div class="actions">
+<a class="button primary" href="../download/">Download</a>
+<a class="button" href="../docs/odata/">OData guide</a>
+</div>
+</section>
+
+<div class="note">
+<p><strong>Optional, and your choice.</strong> The OData plugin ships with the app but is
+switched on only if you choose <em>SAP and OData</em> when the app starts for the first time.
+If you don't, you see nothing of SAP. The RequestTailor core contains no SAP-specific code;
+the plugin uses the same public plugin API as any other plugin.</p>
+</div>
+
+<h2 id="services">Services it understands</h2>
+<table>
+<thead><tr><th scope="col">Service</th><th scope="col">Typical root</th><th scope="col">Protocol</th></tr></thead>
+<tbody>
+<tr><td>SAP Gateway services on S/4HANA</td><td><code>/sap/opu/odata/sap/&lt;SERVICE&gt;/</code></td><td>OData V2</td></tr>
+<tr><td>RAP business services (ABAP RESTful Application Programming Model)</td><td><code>/sap/opu/odata4/sap/&lt;service&gt;/srvd_a2x/…/0001/</code></td><td>OData V4, with draft</td></tr>
+<tr><td>CAP services (SAP Cloud Application Programming Model)</td><td><code>/odata/v4/&lt;service&gt;/</code>, V2 adapter <code>/odata/v2/&lt;service&gt;/</code></td><td>OData V4 with draft, and V2</td></tr>
+</tbody>
+</table>
+
+<h2 id="features">What the plugin does</h2>
+<div class="grid">
+<div class="card">
+<h3>Entity browser</h3>
+<p>Reads <code>$metadata</code> of V2 (EDMX 1.0) and V4 services and shows entity sets,
+types, keys, navigation properties and operations. The model is cached per service root.</p>
+</div>
+<div class="card">
+<h3>Query builder</h3>
+<p><code>$filter</code>, <code>$expand</code>, <code>$select</code>, <code>$orderby</code>,
+<code>$top</code>, <code>$skip</code>, and <code>$count</code> (V4) or
+<code>$inlinecount</code> (V2), offered from the service model and written back into the
+request URL.</p>
+</div>
+<div class="card">
+<h3>CSRF tokens</h3>
+<p>Before a <code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>MERGE</code> or
+<code>DELETE</code>, the plugin fetches an <code>X-CSRF-Token</code> in the same session as
+the request (the token is bound to the session cookie) and sets it. After a
+<code>403</code> with <code>X-CSRF-Token: Required</code> it fetches a new one.</p>
+</div>
+<div class="card">
+<h3>ETags and If-Match</h3>
+<p>Remembers <code>ETag</code> headers and <code>@odata.etag</code> or
+<code>__metadata.etag</code> per entity, and sets <code>If-Match</code> on updates and
+deletes that do not have one.</p>
+</div>
+<div class="card">
+<h3>$batch</h3>
+<p>Composes <code>$batch</code> bodies with read parts and changesets: multipart for V2 and
+V4, and the JSON batch format for V4. The response is shown part by part.</p>
+</div>
+<div class="card">
+<h3>Drafts</h3>
+<p>Draft actions for draft-enabled entity sets: Edit, Prepare, Activate and Discard in RAP;
+<code>draftEdit</code>, <code>draftPrepare</code>, <code>draftActivate</code> and discard in
+CAP.</p>
+</div>
+<div class="card">
+<h3>DEV, QAS, PRD</h3>
+<p>Creates one environment per system from a template: host, <code>sapClient</code>,
+<code>sapLanguage</code>, user, and the password as a secret without a value. Adds
+<code>sap-client</code> and <code>sap-language</code> to every URL unless it has them.</p>
+</div>
+<div class="card">
+<h3>Importers</h3>
+<p>Creates requests from a <code>$metadata</code> file: list, read by key, create, update and
+delete as the entity set allows, plus its operations. Also reads API specifications you have
+downloaded from the SAP Business Accelerator Hub (EDMX, or OpenAPI with <code>x-sap</code>
+extensions).</p>
+</div>
+</div>
+
+<h2 id="landscapes">One collection, three systems</h2>
+<p>Environments are files too, so the same requests run against DEV, QAS and PRD. Only the
+host, client and user differ; passwords stay in your keychain.</p>
+<pre><code># environments/QAS.yml
+name: QAS
+variables:
+  - name: baseUrl
+    value: https://s4-qas.example.com
+  - name: sapClient
+    value: "200"
+  - name: sapLanguage
+    value: EN
+  - name: user
+    value: JDOE
+  - secret: true
+    name: password</code></pre>
+
+<h2 id="examples">Three example collections</h2>
+<p>The repository contains three collections that run against a local, synthetic OData test
+server. Each has read, create, update and <code>$batch</code> requests.</p>
+<table>
+<thead><tr><th scope="col">Collection</th><th scope="col">Shows</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/clouddnagmbh/requesttailor/tree/main/examples/s4hana-sales"><code>examples/s4hana-sales</code></a></td><td>OData V2 in SAP Gateway style: sales orders, <code>$expand</code>, <code>MERGE</code>, a function import, <code>$batch</code> with a changeset</td></tr>
+<tr><td><a href="https://github.com/clouddnagmbh/requesttailor/tree/main/examples/cap-bookshop"><code>examples/cap-bookshop</code></a></td><td>A CAP bookshop as OData V4 with drafts and through the V2 adapter, JSON and multipart <code>$batch</code></td></tr>
+<tr><td><a href="https://github.com/clouddnagmbh/requesttailor/tree/main/examples/rap-salesorder"><code>examples/rap-salesorder</code></a></td><td>A RAP business object with the whole draft lifecycle: Edit, Prepare, Activate, Discard</td></tr>
+</tbody>
+</table>
+
+<h2 id="scope">What it does not do</h2>
+<ul>
+<li>It speaks OData over HTTP. RFC, BAPI calls, SOAP services and SAP GUI are not covered.</li>
+<li>It contains no SAP software and no SAP data. The test services in the repository are
+written from the public OData specifications and documented SAP Gateway behaviour.</li>
+<li>Sign-in uses the core's methods: Basic, OAuth 2.0 (including the SAML 2.0 bearer
+assertion flow) and client certificates.</li>
+</ul>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+<p>SAP, S/4HANA, SAP Gateway, ABAP and other SAP products named here are trademarks or registered trademarks of SAP SE in Germany and other countries. RequestTailor is not affiliated with, endorsed or sponsored by SAP SE.</p>
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>
