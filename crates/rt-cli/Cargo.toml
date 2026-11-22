@@ -18,6 +18,8 @@ lexopt = "0.3"
 # The secret scanner (`rt scan`) and external secret sources (`rt send`, `rt agent`), wave 5.
 rt-app = { path = "../rt-app" }
 rt-core = { path = "../rt-core" }
+# OAuth 2.0 tokens in the keychain entries the desktop app uses, the loopback listener and
+# the system browser (wave 5, strand C, `oauth.rs`).
 rt-format = { path = "../rt-format" }
 serde_json = "1"
 # Current-thread runtime only; the native transport needs the I/O and timer drivers.

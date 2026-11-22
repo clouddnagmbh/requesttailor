@@ -31,3 +31,10 @@ http:
       placement: basic_auth_header
     pkce:
       disabled: true
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true

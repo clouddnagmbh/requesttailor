@@ -24,6 +24,8 @@ serde_json_path = "0.7"
 thiserror = "2"
 # Timeouts of the secret managers' CLIs (`secret_sources`); std::time::Instant panics on wasm32.
 web-time = "1"
+# Loopback redirect URIs of the OAuth 2.0 browser step (`auth::loopback`); already in the tree.
+url = "2"
 
 # OS keychain for secret values (product principle 3). Native targets only: the web shell keeps
 # secrets in encrypted browser storage. Linux uses the Secret Service over zbus (pure Rust, no
@@ -36,6 +38,11 @@ keyring = { version = "3.6", features = ["windows-native"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3.6", features = ["async-secret-service", "async-io", "crypto-rust"] }
+
+# A fake token endpoint for `auth::fetch_token` (both already in the tree via rt-core).
+[dev-dependencies]
+bytes = "1"
+futures-core = "0.3"
 
 # Native-only test infrastructure for the send acceptance test (tests/workspace.rs).
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

@@ -6,12 +6,6 @@
     "format": "postman",
     "losses": [
       {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "auth code"
-      },
-      {
         "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
         "effect": "approximated",
         "kind": "auth",
@@ -22,12 +16,6 @@
         "effect": "dropped",
         "kind": "auth",
         "location": "auth code"
-      },
-      {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "client"
       },
       {
         "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
@@ -42,7 +30,7 @@
         "location": "client"
       },
       {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "detail": "OAuth 2.0 implicit flow kept in the file, but RequestTailor does not run it (OAuth 2.1 removes it); switch to authorization code with PKCE",
         "effect": "approximated",
         "kind": "auth",
         "location": "implicit"
@@ -52,12 +40,6 @@
         "effect": "dropped",
         "kind": "auth",
         "location": "implicit"
-      },
-      {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "password"
       },
       {
         "detail": "OAuth 2.0 clientSecret, password stored in the request file as typed; consider secret variables (set their values in Environments)",
@@ -70,12 +52,6 @@
         "effect": "dropped",
         "kind": "auth",
         "location": "password"
-      },
-      {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "pkce"
       },
       {
         "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",

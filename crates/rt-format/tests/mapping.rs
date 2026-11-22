@@ -108,12 +108,6 @@ fn folder_basic_auth_and_inherit_on_requests() {
 fn unsupported_auth_types_keep_their_kind() {
     let c = corpus("auth-inherited-auth").model().clone();
     assert_eq!(
-        c.defaults.auth,
-        Auth::Unsupported {
-            kind: "oauth2".into()
-        }
-    );
-    assert_eq!(
         folder(&c.items, "oauth1-folder").defaults.auth,
         Auth::Unsupported {
             kind: "oauth1".into()
@@ -507,4 +501,45 @@ fn version_check() {
         read_collection(&mem(&[("opencollection.yml", "info: [unclosed\n")])).unwrap_err(),
         FormatError::Invalid { .. }
     ));
+}
+
+/// Wave 5: OAuth 2.0 maps to the model (the two Bruno corpus files that use it).
+#[test]
+fn oauth2_from_the_bruno_corpus() {
+    use rt_core::model::{CredentialsPlacement, OAuth2Flow, OAuth2Step, TokenPlacement};
+    let c = corpus("auth-inherited-auth").model().clone();
+    let Auth::OAuth2(o) = &c.defaults.auth else {
+        panic!("{:?}", c.defaults.auth);
+    };
+    assert!(matches!(
+        &o.flow,
+        OAuth2Flow::AuthorizationCode { authorization_url, pkce: None, .. }
+            if authorization_url == "http://localhost:8081/authorize"
+    ));
+    assert_eq!(o.client_id, "inherited-client-id");
+    assert_eq!(o.credentials_placement, CredentialsPlacement::Body);
+    let steps: Vec<OAuth2Step> = o.parameters.iter().map(|p| p.step).collect();
+    assert_eq!(
+        steps,
+        [
+            OAuth2Step::Authorization,
+            OAuth2Step::AccessToken,
+            OAuth2Step::Refresh
+        ]
+    );
+    assert!(o.auto_fetch && !o.auto_refresh);
+
+    let Auth::OAuth2(f) = &folder(&c.items, "oauth2-folder").defaults.auth else {
+        panic!("folder auth");
+    };
+    assert_eq!(f.flow, OAuth2Flow::ClientCredentials);
+    assert_eq!(f.scope, "admin");
+    assert_eq!(f.token.id, "credentials");
+    assert_eq!(
+        f.token.placement,
+        TokenPlacement::Header {
+            prefix: "Bearer".into()
+        }
+    );
+    assert!(!f.auto_fetch && !f.auto_refresh);
 }

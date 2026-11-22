@@ -16,6 +16,13 @@ request:
     scope: root_readonly root_readwrite manage_app_users manage_managed_users manage_groups manage_webhook manage_enterprise_properties manage_data_retention manage_legal_hold
     pkce:
       disabled: true
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true
   variables:
     - name: baseUrl
       value: https://api.box.com/2.0

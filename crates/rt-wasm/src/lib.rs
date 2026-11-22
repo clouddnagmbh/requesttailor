@@ -466,6 +466,46 @@ mod workspace_js {
             }))
         }
 
+        /// "Get token" (wave 5, strand C, `auth_js`): runs the OAuth 2.0 flow of the request
+        /// at `path` now and stores the token through `services.auth`. Resolves with the
+        /// `TokenInfo` (no value); rejects with an `AppError` (kind `auth`).
+        #[wasm_bindgen(js_name = fetchToken)]
+        pub fn fetch_token(
+            &self,
+            path: &str,
+            input: JsValue,
+            companion: JsValue,
+            services: JsValue,
+        ) -> Result<Promise, JsValue> {
+            let input: SendInput = from_js(&input, "input")?;
+            let companion: Option<Companion> = if companion.is_null() || companion.is_undefined() {
+                None
+            } else {
+                Some(from_js(&companion, "companion")?)
+            };
+            let snapshot = self
+                .inner
+                .borrow()
+                .workspace
+                .snapshot(path, input)
+                .map_err(app_error)?;
+            let auth = crate::auth_js::AuthSend::from_js(&services)?;
+            Ok(wasm_bindgen_futures::future_to_promise(async move {
+                let services = auth.services();
+                let info = match companion {
+                    Some(c) => {
+                        let transport = CompanionTransport::new(c.url, c.token);
+                        rt_app::auth::fetch_token(&snapshot, &transport, &services).await
+                    }
+                    None => {
+                        rt_app::auth::fetch_token(&snapshot, &FetchTransport::new(), &services)
+                            .await
+                    }
+                };
+                to_js(&info.map_err(app_error)?)
+            }))
+        }
+
         #[wasm_bindgen(js_name = responseLines)]
         pub fn response_lines(&self, id: f64, start: f64, count: u32) -> Result<JsValue, JsValue> {
             let slice = self

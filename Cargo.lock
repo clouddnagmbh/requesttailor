@@ -1745,8 +1745,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -4886,6 +4888,8 @@ name = "rt-app"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "bytes",
+ "futures-core",
  "keyring",
  "memchr",
  "rt-core",
@@ -4898,6 +4902,7 @@ dependencies = [
  "similar",
  "thiserror 2.0.21",
  "tokio",
+ "url",
  "web-time",
 ]
 
@@ -4930,6 +4935,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "futures-core",
+ "getrandom 0.2.17",
  "hmac 0.12.1",
  "http",
  "http-body-util",

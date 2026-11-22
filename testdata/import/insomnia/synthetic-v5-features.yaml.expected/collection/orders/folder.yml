@@ -16,6 +16,13 @@ request:
       clientSecret: typed-client-secret
       placement: basic_auth_header
     scope: orders
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true
   variables:
     - name: region
       value: eu

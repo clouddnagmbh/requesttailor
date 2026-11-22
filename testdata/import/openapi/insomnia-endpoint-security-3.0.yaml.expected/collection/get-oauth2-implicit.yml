@@ -13,3 +13,10 @@ http:
     credentials:
       clientId: "{{clientId}}"
     scope: read:something write:something
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true

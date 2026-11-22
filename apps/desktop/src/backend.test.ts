@@ -207,7 +207,12 @@ describe("TauriBackend", () => {
     const capability = JSON.parse(
       readFileSync(new URL("../src-tauri/capabilities/default.json", import.meta.url), "utf8"),
     ) as { permissions: string[] };
-    const allowed = capability.permissions.map((p) => p.replace(/^allow-/, "").replaceAll("-", "_"));
+    // Besides the app's commands only listening to events (OAuth 2.0 prompts, `auth.ts`).
+    const core = capability.permissions.filter((p) => p.startsWith("core:"));
+    expect(core.sort()).toEqual(["core:event:allow-listen", "core:event:allow-unlisten"]);
+    const allowed = capability.permissions
+      .filter((p) => !p.startsWith("core:"))
+      .map((p) => p.replace(/^allow-/, "").replaceAll("-", "_"));
     expect(allowed.sort()).toEqual([...COMMANDS].sort());
     const buildRs = readFileSync(new URL("../src-tauri/build.rs", import.meta.url), "utf8");
     const libRs = readFileSync(new URL("../src-tauri/src/lib.rs", import.meta.url), "utf8");

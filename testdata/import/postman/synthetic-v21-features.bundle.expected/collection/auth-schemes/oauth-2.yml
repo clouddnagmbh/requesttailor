@@ -20,3 +20,10 @@ http:
     pkce:
       disabled: false
       method: S256
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true

@@ -873,6 +873,10 @@ fn write_auth(http: &mut Map, old: &Auth, new: &Auth, nl: &str) -> Result<()> {
                 crate::auth::awsv4::edit(auth, old, new, nl);
             }
         }
+        // Wave 5: OAuth 2.0 edits its mapping key by key (strand C).
+        Some(auth) if let (Auth::OAuth2(o), Auth::OAuth2(n)) = (old, new) => {
+            crate::auth::oauth2::apply(auth, o, n, nl)?
+        }
         _ => http.put("auth", &val, HTTP_ORDER, false, nl),
     }
     Ok(())

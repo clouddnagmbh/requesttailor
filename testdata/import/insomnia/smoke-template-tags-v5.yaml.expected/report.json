@@ -84,12 +84,6 @@
         "location": "File Tag Error"
       },
       {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "FolderWithRequest / Request Tag"
-      },
-      {
         "detail": "template tag `{% request %}` kept as text; RequestTailor does not evaluate it",
         "effect": "approximated",
         "kind": "variable",
