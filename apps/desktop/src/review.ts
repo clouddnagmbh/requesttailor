@@ -7,7 +7,7 @@
 
 import type { ReviewApi } from "@requesttailor/ui";
 
-import type { Call, Command } from "./backend";
+import type { Call } from "./backend";
 
 export function tauriReview(call: Call): ReviewApi {
   return {
@@ -27,22 +27,3 @@ export function tauriReview(call: Call): ReviewApi {
     ci: (number) => call("review_ci", { number }),
   };
 }
-
-/** Commands the shared mapping test in backend.test.ts leaves out: its call list is one
- *  sequence every strand would edit. `review.test.ts` checks all of them instead. */
-export const PENDING: readonly Command[] = [
-  "review_hosts",
-  "review_set_hosts",
-  "review_repo",
-  "review_has_token",
-  "review_set_token",
-  "review_delete_token",
-  "review_start_login",
-  "review_finish_login",
-  "review_list",
-  "review_open",
-  "review_comments",
-  "review_comment",
-  "review_submit",
-  "review_ci",
-];

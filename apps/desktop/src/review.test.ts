@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMANDS, type Command } from "./backend";
-import { PENDING, tauriReview } from "./review";
+import { tauriReview } from "./review";
 
 type Call = [Command, Record<string, unknown> | undefined];
 
@@ -50,6 +50,5 @@ describe("tauriReview", () => {
     ]);
     const reviewCommands = COMMANDS.filter((c) => c.startsWith("review_"));
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(reviewCommands));
-    expect(new Set(PENDING)).toEqual(new Set(reviewCommands));
   });
 });

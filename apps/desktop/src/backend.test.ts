@@ -13,14 +13,12 @@ import { PENDING as CONTRACT_PENDING } from "./contract";
 import { PENDING as DIFFS_PENDING } from "./diffs";
 import { PENDING as MERGES_PENDING } from "./merges";
 import { PENDING as RESCUE_PENDING } from "./rescue";
-import { PENDING as REVIEW_PENDING } from "./review";
 import { PENDING as TIMELINE_PENDING } from "./timeline";
 
 const PENDING = new Set<Command>([
   ...DIFFS_PENDING,
   ...MERGES_PENDING,
   ...TIMELINE_PENDING,
-  ...REVIEW_PENDING,
   ...CONTRACT_PENDING,
   ...RESCUE_PENDING,
 ]);
@@ -176,6 +174,21 @@ describe("TauriBackend", () => {
     await b.compare.compare({ from: "main", to: "feature" }, { environment: "Local", vars: [] });
     await b.compare.bisect({ good: "v1", bad: "HEAD" }, { environment: "Local", vars: [] }, () => {});
     await b.compare.cancel();
+    const r = b.review;
+    await r.repo();
+    await r.hosts();
+    await r.setHosts([{ host: "git.example.com", kind: "github", api: "https://git.example.com/api/v3" }]);
+    await r.hasToken("github.com");
+    await r.setToken("github.com", "t0k");
+    await r.deleteToken("github.com");
+    await r.startLogin("github.com");
+    await r.finishLogin("github.com");
+    await r.list();
+    await r.open(7);
+    await r.comments(7);
+    await r.comment(7, { path: "a.yml", line: 3, body: "hi" });
+    await r.submit(7, { verdict: "approve", body: "" });
+    await r.ci(7);
     // Wave 12, strand B.
     const choice = { kind: "file", path: "a.yml", side: "theirs" } as const;
     await b.merges.conflicts();
@@ -306,6 +319,20 @@ describe("TauriBackend", () => {
       ["compare_revisions", { request: { from: "main", to: "feature" }, input: { environment: "Local", vars: [] } }],
       ["compare_bisect", { request: { good: "v1", bad: "HEAD" }, input: { environment: "Local", vars: [] }, onStep: "step-channel" }],
       ["compare_cancel", undefined],
+      ["review_repo", undefined],
+      ["review_hosts", undefined],
+      ["review_set_hosts", { hosts: [{ host: "git.example.com", kind: "github", api: "https://git.example.com/api/v3" }] }],
+      ["review_has_token", { host: "github.com" }],
+      ["review_set_token", { host: "github.com", token: "t0k" }],
+      ["review_delete_token", { host: "github.com" }],
+      ["review_start_login", { host: "github.com" }],
+      ["review_finish_login", { host: "github.com" }],
+      ["review_list", undefined],
+      ["review_open", { number: 7 }],
+      ["review_comments", { number: 7 }],
+      ["review_comment", { number: 7, comment: { path: "a.yml", line: 3, body: "hi" } }],
+      ["review_submit", { number: 7, review: { verdict: "approve", body: "" } }],
+      ["review_ci", { number: 7 }],
       ["merge_conflicts", undefined],
       ["merge_resolve", { choices: [choice] }],
     ]);
