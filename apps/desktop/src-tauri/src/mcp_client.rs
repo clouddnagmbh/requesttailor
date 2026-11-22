@@ -386,7 +386,7 @@ mod tests {
         };
         let path = save_test(&core, None, test.clone()).unwrap();
         assert_eq!(path, "mcp/secret-header.mcp.yaml");
-        assert_eq!(core.dirty().unwrap(), [path.clone()]);
+        assert_eq!(core.dirty().unwrap(), std::slice::from_ref(&path));
         let result = run_test(&core, path.clone(), local()).await.unwrap();
         assert!(result.passed, "{result:?}");
         core.save().unwrap();
