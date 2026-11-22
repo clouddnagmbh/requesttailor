@@ -4,7 +4,14 @@ An API client that belongs to the developer: collections are plain files in your
 the same Rust core runs natively, in the browser (WebAssembly) and in CI, and humans and
 AI agents use the same interface.
 
-**Status:** scaffold (wave 1). Nothing here does anything yet.
+**Status:** pre-release. Working today: desktop app (macOS, Windows, Linux), web app and the
+`rt` CLI on one core; collections as OpenCollection files with environments, secrets in the
+OS keychain, Git without staging, importers with a loss report, history and search; OAuth 2.0,
+AWS SigV4, client certificates, cookies; WebAssembly plugins with a public API, and the
+optional OData plugin for SAP S/4HANA, CAP and RAP. Not yet: scripts and tests in requests,
+the MCP server, GraphQL.
+
+Try it with the demo collections: <https://github.com/clouddnagmbh/requesttailor-demos>.
 
 ## Layout
 
@@ -12,14 +19,19 @@ AI agents use the same interface.
 | --- | --- |
 | `crates/rt-core` | HTTP engine, variables, auth, runner |
 | `crates/rt-format` | OpenCollection read/write, importers |
-| `crates/rt-script` | Script sandbox (QuickJS) |
-| `crates/rt-plugin` | Plugin host (WASM) and SDK |
-| `crates/rt-cli` | CLI (`rt`), companion service, MCP server |
+| `crates/rt-script` | Script sandbox (QuickJS, planned) |
+| `crates/rt-plugin` | Plugin API and host (WASM) |
+| `crates/rt-plugin-sdk` | Rust SDK for plugins |
+| `crates/rt-app` | Command layer of the apps |
+| `crates/rt-git` | Git (gitoxide), native only |
+| `crates/rt-cli` | CLI (`rt`), companion service (MCP server planned) |
 | `crates/rt-wasm` | The core as WebAssembly |
 | `apps/ui` | Shared user interface |
 | `apps/desktop` | Tauri desktop shell |
 | `apps/web` | Web app |
-| `plugins/odata` | OData V2/V4 plugin |
+| `plugins/example` | Example plugin using every extension point |
+| `plugins/odata` | OData V2/V4 plugin, its test server and synthetic test services |
+| `sdk/typescript` | TypeScript types of the plugin API |
 
 ## Build
 
