@@ -14,6 +14,7 @@ use crate::SendArgs;
 use crate::cookies::CliCookies;
 use crate::oauth::CliAuth;
 use crate::plugins::CliPlugins;
+use crate::scripts::CliScripts;
 
 /// Owns the parts; [`CliServices::services`] lends them to `send_with`.
 pub struct CliServices {
@@ -21,6 +22,8 @@ pub struct CliServices {
     auth: CliAuth,
     /// Shared with the plugins: `http` with `session: true` uses the same jar (wave 6).
     cookies: Option<Rc<CliCookies>>,
+    /// Wave 7: the script sandbox, unless `--no-scripts`.
+    scripts: CliScripts,
 }
 
 impl CliServices {
@@ -32,6 +35,7 @@ impl CliServices {
             plugins: CliPlugins::new(args, root, cookies.clone())?,
             auth: CliAuth::new(args, root),
             cookies,
+            scripts: CliScripts::new(args),
         })
     }
 
@@ -41,7 +45,7 @@ impl CliServices {
             prompt: self.auth.prompt(),
             cookies: self.cookies.as_deref().map(CliCookies::jar),
             hooks: self.plugins.as_ref().map(CliPlugins::hooks),
-            scripts: None,
+            scripts: self.scripts.runner(),
         }
     }
 }

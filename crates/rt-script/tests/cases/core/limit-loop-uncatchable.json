@@ -1,0 +1,29 @@
+{
+  "name": "the time limit cannot be caught",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "try { while (true) {} } catch (e) { console.log('caught'); } finally { console.log('finally'); }\nconsole.log('after');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "limits": {
+    "time_ms": 300
+  },
+  "expect": {
+    "logs": [],
+    "error": "Script stopped: time limit of 300 ms exceeded",
+    "max_ms": 2500
+  }
+}

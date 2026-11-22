@@ -1,0 +1,36 @@
+{
+  "name": "statusText is empty for an unknown status",
+  "phase": "after-response",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(JSON.stringify(rt.response.statusText), rt.response.status);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 599,
+    "headers": [],
+    "body": "",
+    "time_ms": 0,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "\"\" 599"
+      }
+    ]
+  }
+}

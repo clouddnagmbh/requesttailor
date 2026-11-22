@@ -1,0 +1,27 @@
+{
+  "name": "running out of memory cannot be caught",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const hog = [];\ntry { while (true) hog.push(new ArrayBuffer(1 << 22)); } catch (e) { console.log('caught'); }\nconsole.log('after');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "limits": {
+    "memory_bytes": 33554432
+  },
+  "expect": {
+    "error": "Script stopped: memory limit of 32 MiB exceeded"
+  }
+}

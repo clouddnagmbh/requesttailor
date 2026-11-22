@@ -1,0 +1,37 @@
+{
+  "name": "rt and its parts cannot be replaced by a script",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "'use strict';\ntry { rt.vars = null; } catch (e) { console.log(e.name); }\ntry { globalThis.rt = 1; } catch (e) { console.log(e.name); }\nconsole.log(typeof rt.vars.get);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "TypeError"
+      },
+      {
+        "level": "log",
+        "text": "TypeError"
+      },
+      {
+        "level": "log",
+        "text": "function"
+      }
+    ]
+  }
+}

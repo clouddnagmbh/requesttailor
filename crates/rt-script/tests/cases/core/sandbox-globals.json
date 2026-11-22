@@ -1,0 +1,29 @@
+{
+  "name": "no host internals, files, network or timers besides the API",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(typeof __rt_host, typeof __rt_internal, typeof std, typeof os, typeof fetch, typeof XMLHttpRequest, typeof setTimeout, typeof process, typeof require);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "undefined undefined undefined undefined undefined undefined undefined undefined function"
+      }
+    ]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "after the send rt.request is what was sent and read-only",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(rt.request.url, rt.request.headers.get('Accept'));\nrt.request.url = 'http://other';"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "http://h/x application/json"
+      }
+    ],
+    "error": "TypeError: rt.request after the request was sent is read-only"
+  }
+}

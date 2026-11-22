@@ -1,0 +1,68 @@
+{
+  "name": "tests carry the origin of their script",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "collection",
+      "code": "test('from collection', () => {});"
+    },
+    {
+      "origin": "folder:api",
+      "code": "test('from folder', () => {});"
+    },
+    {
+      "origin": "request",
+      "code": "test('from request', () => {});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "from collection",
+        "passed": true,
+        "origin": "collection"
+      },
+      {
+        "name": "from folder",
+        "passed": true,
+        "origin": "folder:api"
+      },
+      {
+        "name": "from request",
+        "passed": true,
+        "origin": "request"
+      }
+    ]
+  }
+}

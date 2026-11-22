@@ -1,0 +1,30 @@
+{
+  "name": "a script that eats memory stops at the memory limit",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log('start');\nconst hog = [];\nwhile (true) hog.push(new Uint8Array(1 << 22));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "start"
+      }
+    ],
+    "error": "Script stopped: memory limit of 64 MiB exceeded"
+  }
+}

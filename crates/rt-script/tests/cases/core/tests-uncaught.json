@@ -1,0 +1,50 @@
+{
+  "name": "an uncaught exception is the error; earlier tests are kept",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test('first', () => {});\nundefinedFunction();\ntest('never', () => {});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "first",
+        "passed": true
+      }
+    ],
+    "error": "ReferenceError: undefinedFunction is not defined"
+  }
+}

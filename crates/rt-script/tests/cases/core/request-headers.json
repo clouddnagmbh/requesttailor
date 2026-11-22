@@ -1,0 +1,52 @@
+{
+  "name": "rt.request.headers: case-insensitive get/has, set replaces, add appends, delete",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const h = rt.request.headers;\nh.add('x-multi', 'a'); h.add('X-Multi', 'b');\nconsole.log(h.get('X-MULTI'), h.has('x-multi'), h.has('nope'), h.get('nope'));\nh.set('x-multi', 'c');\nconsole.log(JSON.stringify(h.entries()));\nh.add('ACCEPT', 'text/plain');\nconsole.log(JSON.stringify(h.toObject()));\nh.delete('accept');\nconsole.log(JSON.stringify(h.entries()));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "a true false undefined"
+      },
+      {
+        "level": "log",
+        "text": "[[\"Accept\",\"application/json\"],[\"x-multi\",\"c\"]]"
+      },
+      {
+        "level": "log",
+        "text": "{\"accept\":\"text/plain\",\"x-multi\":\"c\"}"
+      },
+      {
+        "level": "log",
+        "text": "[[\"x-multi\",\"c\"]]"
+      }
+    ],
+    "request": {
+      "method": "GET",
+      "url": "http://h/x",
+      "headers": [
+        [
+          "x-multi",
+          "c"
+        ]
+      ],
+      "body": null
+    }
+  }
+}

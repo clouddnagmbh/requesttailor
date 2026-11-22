@@ -1,0 +1,25 @@
+{
+  "name": "rt.vars.set with an unknown scope throws a TypeError",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.vars.set('a', 1, 'session');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "error": "TypeError: unknown variable scope \"session\"",
+    "var_changes": []
+  }
+}

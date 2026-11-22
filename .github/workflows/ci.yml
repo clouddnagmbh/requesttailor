@@ -172,6 +172,10 @@ jobs:
           node-version-file: .nvmrc
       - name: License headers
         run: node scripts/check-license-headers.mjs
+      # Wave 7: the committed QuickJS engine (crates/rt-script/engine) must be what its source
+      # and the pinned wasi-sdk build, byte for byte (downloads checked by SHA-256).
+      - name: Script engine is reproducible
+        run: node scripts/build-script-engine.mjs --check
       - name: Website (no third-party requests, links, budgets)
         run: node scripts/check-website.mjs
 

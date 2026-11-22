@@ -1,0 +1,70 @@
+{
+  "name": "rt.sendRequest: an object body goes as JSON with Content-Type; method defaults to GET",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "await rt.sendRequest({ url: 'http://h/a', method: 'PUT', body: { a: 1 } });\nawait rt.sendRequest({ url: 'http://h/b', headers: [['Accept', 'text/plain']] });"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "send": [
+    {
+      "url": "http://h/a",
+      "response": {
+        "status": 200,
+        "headers": [],
+        "body": "",
+        "time_ms": 1,
+        "url": "http://h/a"
+      }
+    },
+    {
+      "url": "http://h/b",
+      "response": {
+        "status": 200,
+        "headers": [],
+        "body": "",
+        "time_ms": 1,
+        "url": "http://h/b"
+      }
+    }
+  ],
+  "expect": {
+    "sent": [
+      {
+        "method": "PUT",
+        "url": "http://h/a",
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"a\":1}"
+      },
+      {
+        "method": "GET",
+        "url": "http://h/b",
+        "headers": [
+          [
+            "Accept",
+            "text/plain"
+          ]
+        ],
+        "body": null
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "a failed rt.sendRequest rejects with the transport's message",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "try { await rt.sendRequest({ url: 'http://h/down' }); } catch (e) { console.log(e.message); }\ntry { await rt.sendRequest({}); } catch (e) { console.log(e.name); }"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "send": [
+    {
+      "url": "http://h/down",
+      "error": "connection refused"
+    }
+  ],
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "connection refused"
+      },
+      {
+        "level": "log",
+        "text": "TypeError"
+      }
+    ],
+    "error": null
+  }
+}

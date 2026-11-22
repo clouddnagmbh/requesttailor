@@ -1,0 +1,29 @@
+{
+  "name": "standard JavaScript is there: JSON, Date, RegExp, Map, Promise, atob/btoa, typed arrays",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const d = new Date(Date.UTC(2026, 0, 2));\nconsole.log(d.toISOString(), /a(b+)/.exec('xabbb')[1], btoa('hi'), atob('aGk='), new Uint8Array([1, 2]).length, [3, 1, 2].sort().join(''), typeof Math.random(), Number.isInteger(42));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "2026-01-02T00:00:00.000Z bbb aGk= hi 2 123 number true"
+      }
+    ]
+  }
+}

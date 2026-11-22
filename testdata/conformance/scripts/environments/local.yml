@@ -1,0 +1,8 @@
+name: local
+variables:
+  - name: port
+    value: "47811"
+  - name: baseUrl
+    value: http://127.0.0.1:{{port}}
+  - secret: true
+    name: apiToken

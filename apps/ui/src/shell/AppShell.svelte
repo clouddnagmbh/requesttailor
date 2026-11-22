@@ -33,6 +33,7 @@
   import { reopenOnStart } from "../recent/startup";
   import RunnerPanel from "../runner/RunnerPanel.svelte";
   import { RunnerState } from "../runner/runner.svelte";
+  import TrustPrompt from "../scripts/TrustPrompt.svelte";
   import SearchPanel from "../search/SearchPanel.svelte";
   import ResponseView from "../response/ResponseView.svelte";
   import { AppState, provideApp } from "../state/app.svelte";
@@ -349,6 +350,7 @@
 
     <main>
       <TabBar panelId="rt-request-panel" />
+      <TrustPrompt />
       {#if runner.target}
         <RunnerPanel {runner} />
       {:else if showingCollection && collectionTab}

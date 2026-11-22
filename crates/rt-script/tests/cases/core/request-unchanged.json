@@ -1,0 +1,30 @@
+{
+  "name": "a before-request script that only reads leaves the request unchanged",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(rt.request.method, rt.request.url, rt.request.headers.get('accept'), rt.request.body);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "request": null,
+    "logs": [
+      {
+        "level": "log",
+        "text": "GET http://h/x application/json undefined"
+      }
+    ]
+  }
+}

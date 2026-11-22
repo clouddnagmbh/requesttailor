@@ -43,7 +43,7 @@ import { webAuth, type WebAuthApi } from "./auth";
 import { createCompanionClient, type CompanionClient } from "./companion/client";
 import { webCookies, type WebCookieApi } from "./cookies";
 import { webRunner } from "./runner";
-import { webScriptTrust } from "./scripts";
+import { webScriptTrust, type WebScriptTrust } from "./scripts";
 import { SessionStore, webSessionVars } from "./session-vars";
 import { webGit } from "./git";
 import { WebHistory } from "./history";
@@ -146,6 +146,8 @@ export class WebBackend implements Backend {
   readonly cookies: WebCookieApi;
   /** Wave 7: trust (strand A) and session variables (strand C); runner (strand D). */
   readonly scripts: ScriptsApi;
+  /** Wave 7: the trust part of `scripts`, read by every send (`send-services.ts`). */
+  readonly scriptTrust: WebScriptTrust;
   readonly runner: RunnerApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
@@ -178,7 +180,8 @@ export class WebBackend implements Backend {
     this.plugins = webPlugins(host);
     this.auth = webAuth(host);
     this.cookies = webCookies(host);
-    this.scripts = { ...webScriptTrust(host), ...webSessionVars(host, this.sessionVars) };
+    this.scriptTrust = webScriptTrust(host);
+    this.scripts = { ...this.scriptTrust, ...webSessionVars(host, this.sessionVars) };
     this.runner = webRunner({
       session: host.session,
       loadCore: deps.loadCore,

@@ -1,0 +1,39 @@
+{
+  "name": "rt.sleep: timers fire in order of their due time",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.sleep(40).then(() => console.log('b'));\nrt.sleep(10).then(() => console.log('a'));\nconsole.log('sync');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "sync"
+      },
+      {
+        "level": "log",
+        "text": "a"
+      },
+      {
+        "level": "log",
+        "text": "b"
+      }
+    ],
+    "min_ms": 40,
+    "error": null
+  }
+}

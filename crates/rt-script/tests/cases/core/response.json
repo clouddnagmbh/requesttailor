@@ -1,0 +1,58 @@
+{
+  "name": "rt.response: status, statusText, headers, text, json, time, size, url",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const r = rt.response;\nconsole.log(r.status, r.statusText, r.headers.get('x-id'), r.headers.has('content-type'), JSON.stringify(r.headers.toObject()));\nconsole.log(r.text(), r.json().items.length, r.json() === r.json(), r.time, r.size, r.url);\nconsole.log(JSON.stringify(r.headers.entries().length), typeof r.headers.set);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "200 OK 1 true {\"content-type\":\"application/json\",\"x-id\":\"2\"}"
+      },
+      {
+        "level": "log",
+        "text": "{\"id\":7,\"items\":[1,2]} 2 true 12 22 http://h/x"
+      },
+      {
+        "level": "log",
+        "text": "3 undefined"
+      }
+    ],
+    "error": null
+  }
+}

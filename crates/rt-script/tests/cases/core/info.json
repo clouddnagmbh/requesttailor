@@ -1,0 +1,56 @@
+{
+  "name": "rt.info outside a run: names, path, environment, phase, iteration 0 of 1",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const i = rt.info;\nconsole.log(i.requestName, i.requestPath, i.collectionName, i.environment, i.phase, i.iteration, i.iterationCount, JSON.stringify(i.iterationData));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "info": {
+    "request_path": "users/get.yml",
+    "request_name": "Get user",
+    "collection_name": "Demo",
+    "environment": "Local",
+    "iteration": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "Get user users/get.yml Demo Local tests 0 1 {}"
+      }
+    ]
+  }
+}

@@ -13,6 +13,8 @@
 
 use rt_core::model::{Collection, Item};
 use rt_core::script::VarChange;
+use rt_core::send::SendReport;
+use rt_core::services::{Note, NoteLevel};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -34,6 +36,35 @@ pub fn has_scripts(collection: &Collection) -> bool {
         })
     }
     !collection.defaults.scripts.is_empty() || any(&collection.items)
+}
+
+/// Whether sending `request_path` would run a script (collection, folders or request, any
+/// phase).
+pub fn request_has_scripts(collection: &Collection, request_path: &str) -> bool {
+    use rt_core::model::ScriptPhase;
+    collection.request(request_path).is_some_and(|context| {
+        [
+            ScriptPhase::BeforeRequest,
+            ScriptPhase::AfterResponse,
+            ScriptPhase::Tests,
+        ]
+        .into_iter()
+        .any(|phase| !rt_core::script::scripts_for(&context, phase).is_empty())
+    })
+}
+
+/// For a send that ran without the script runner because the collection is not trusted:
+/// adds the [`UNTRUSTED_NOTE`] warning (source `script`) if the request has scripts.
+pub fn note_untrusted(report: &mut SendReport, collection: &Collection) {
+    if request_has_scripts(collection, &report.request_path)
+        && !report.notes.iter().any(|n| n.text == UNTRUSTED_NOTE)
+    {
+        report.notes.push(Note {
+            source: "script".into(),
+            level: NoteLevel::Warning,
+            text: UNTRUSTED_NOTE.into(),
+        });
+    }
 }
 
 /// Variables of the session, per environment (`""` for none), in the order set.
@@ -86,6 +117,72 @@ mod tests {
             value: value.map(str::to_owned),
             scope: VarScope::Runtime,
         }
+    }
+
+    fn report_for(path: &str) -> SendReport {
+        SendReport {
+            version: 1,
+            request_path: path.into(),
+            environment: None,
+            request: None,
+            response: None,
+            variables: Vec::new(),
+            unresolved: Vec::new(),
+            error: None,
+            notes: Vec::new(),
+            tests: Vec::new(),
+            assertions: Vec::new(),
+            logs: Vec::new(),
+            var_changes: Vec::new(),
+            flow: None,
+        }
+    }
+
+    #[test]
+    fn untrusted_note_only_for_requests_with_scripts() {
+        use rt_core::model::{Script, ScriptPhase};
+        let files = rt_format::FileSet {
+            files: [
+                ("opencollection.yml", "opencollection: \"1.0.0\"\ninfo:\n  name: c\n"),
+                (
+                    "a.yml",
+                    "info:\n  name: a\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: http://h/\n",
+                ),
+                (
+                    "b.yml",
+                    "info:\n  name: b\n  type: http\n  seq: 2\n\nhttp:\n  method: GET\n  url: http://h/\n",
+                ),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_owned(), v.as_bytes().to_vec()))
+            .collect(),
+        };
+        let mut collection = rt_format::read_collection(&files).unwrap().model().clone();
+        assert!(!has_scripts(&collection));
+        let Some(Item::Request(b)) = collection.items.iter_mut().find(|i| match i {
+            Item::Request(r) => r.path == "b.yml",
+            _ => false,
+        }) else {
+            panic!("no b.yml");
+        };
+        b.spec.scripts.push(Script {
+            phase: ScriptPhase::Tests,
+            code: "test('x', () => {})".into(),
+        });
+        assert!(has_scripts(&collection));
+        assert!(!request_has_scripts(&collection, "a.yml"));
+        assert!(request_has_scripts(&collection, "b.yml"));
+
+        let mut report = report_for("a.yml");
+        note_untrusted(&mut report, &collection);
+        assert!(report.notes.is_empty());
+        let mut report = report_for("b.yml");
+        note_untrusted(&mut report, &collection);
+        note_untrusted(&mut report, &collection);
+        assert_eq!(report.notes.len(), 1);
+        assert_eq!(report.notes[0].source, "script");
+        assert_eq!(report.notes[0].level, NoteLevel::Warning);
+        assert_eq!(report.notes[0].text, UNTRUSTED_NOTE);
     }
 
     #[test]

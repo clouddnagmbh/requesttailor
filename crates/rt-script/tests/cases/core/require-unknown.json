@@ -1,0 +1,30 @@
+{
+  "name": "require of a module that is not built in throws",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "try { require('fs'); } catch (e) { console.log(String(e)); }\nrequire('child_process');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "Error: module \"fs\" is not available in RequestTailor scripts"
+      }
+    ],
+    "error": "Error: module \"child_process\" is not available in RequestTailor scripts"
+  }
+}

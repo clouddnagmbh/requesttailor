@@ -1,0 +1,125 @@
+{
+  "name": "rt.vars.unset removes the variable from that scope; lower layers show again",
+  "phase": "after-response",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.vars.unset('id');\nconsole.log(rt.vars.get('id'), rt.vars.has('id'));\nrt.vars.unset('base', 'environment');\nconsole.log(rt.vars.get('base'));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "variables": [
+    {
+      "name": "base",
+      "value": "http://global",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "only",
+      "value": "g",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "base",
+      "value": "http://coll",
+      "source": {
+        "layer": "collection"
+      },
+      "secret": false
+    },
+    {
+      "name": "base",
+      "value": "http://env",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "path",
+      "value": "{{base}}/v1",
+      "source": {
+        "layer": "folder",
+        "path": "api"
+      },
+      "secret": false
+    },
+    {
+      "name": "user",
+      "value": "u-{{id}}",
+      "source": {
+        "layer": "request"
+      },
+      "secret": false
+    },
+    {
+      "name": "id",
+      "value": "42",
+      "source": {
+        "layer": "runtime"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "var_changes": [
+      {
+        "name": "id",
+        "value": null,
+        "scope": "runtime"
+      },
+      {
+        "name": "base",
+        "value": null,
+        "scope": "environment"
+      }
+    ],
+    "logs": [
+      {
+        "level": "log",
+        "text": "undefined false"
+      },
+      {
+        "level": "log",
+        "text": "http://coll"
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "an endless chain of promises stops at the time limit",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "for (;;) { await null; }"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "limits": {
+    "time_ms": 300
+  },
+  "expect": {
+    "error": "Script stopped: time limit of 300 ms exceeded",
+    "max_ms": 2500
+  }
+}

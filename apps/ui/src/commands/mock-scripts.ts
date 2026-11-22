@@ -9,15 +9,25 @@ import type { ScriptsApi } from "./backend";
 import type { VarChange } from "./types";
 
 export interface MockScripts extends ScriptsApi {
-  /** Set by the mock backend when a collection is opened. */
+  /** Whether the open collection has scripts; `?backend=mock&scripts=1` starts with `true`
+   *  (UI tests of the trust banner). */
   hasScripts: boolean;
+}
+
+/** `?scripts=1` in the page URL (none outside a browser). */
+function scriptsParam(): boolean {
+  try {
+    return new URLSearchParams(globalThis.location?.search ?? "").get("scripts") === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function mockScripts(): MockScripts {
   let trusted = false;
   const session = new Map<string, VarChange[]>();
   return {
-    hasScripts: false,
+    hasScripts: scriptsParam(),
     async trust() {
       return { has_scripts: this.hasScripts, trusted };
     },

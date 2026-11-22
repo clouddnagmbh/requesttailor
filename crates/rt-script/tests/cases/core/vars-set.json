@@ -1,0 +1,126 @@
+{
+  "name": "rt.vars.set: strings as is, other values as JSON, default scope runtime; get sees it",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.vars.set('id', 7);\nrt.vars.set('obj', {a: [1]}, 'environment');\nrt.vars.set('s', 'text', 'collection');\nrt.vars.set('flag', true, 'global');\nrt.vars.set('nothing', undefined);\nconsole.log(rt.vars.get('id'), rt.vars.get('obj'), rt.vars.get('s'), rt.vars.get('flag'), rt.vars.get('nothing'));\nrt.vars.set('base', 'http://changed', 'environment');\nconsole.log(rt.vars.get('base'));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "base",
+      "value": "http://global",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "only",
+      "value": "g",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "base",
+      "value": "http://coll",
+      "source": {
+        "layer": "collection"
+      },
+      "secret": false
+    },
+    {
+      "name": "base",
+      "value": "http://env",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "path",
+      "value": "{{base}}/v1",
+      "source": {
+        "layer": "folder",
+        "path": "api"
+      },
+      "secret": false
+    },
+    {
+      "name": "user",
+      "value": "u-{{id}}",
+      "source": {
+        "layer": "request"
+      },
+      "secret": false
+    },
+    {
+      "name": "id",
+      "value": "42",
+      "source": {
+        "layer": "runtime"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "var_changes": [
+      {
+        "name": "id",
+        "value": "7",
+        "scope": "runtime"
+      },
+      {
+        "name": "obj",
+        "value": "{\"a\":[1]}",
+        "scope": "environment"
+      },
+      {
+        "name": "s",
+        "value": "text",
+        "scope": "collection"
+      },
+      {
+        "name": "flag",
+        "value": "true",
+        "scope": "global"
+      },
+      {
+        "name": "nothing",
+        "value": "undefined",
+        "scope": "runtime"
+      },
+      {
+        "name": "base",
+        "value": "http://changed",
+        "scope": "environment"
+      }
+    ],
+    "logs": [
+      {
+        "level": "log",
+        "text": "7 {\"a\":[1]} text true undefined"
+      },
+      {
+        "level": "log",
+        "text": "http://changed"
+      }
+    ],
+    "request": null
+  }
+}

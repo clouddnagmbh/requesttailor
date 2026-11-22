@@ -31,7 +31,7 @@ fn case_file_is_valid() {
     assert!(suite.cases.len() >= 30, "{} cases", suite.cases.len());
     let problems = harness::validate(&suite, |p| testdata().join(p).is_file());
     assert!(problems.is_empty(), "{problems:#?}");
-    assert_eq!(harness::BROWSER_PORT, rt_testserver::DEFAULT_PORT);
+    assert_eq!(harness::DEFAULT_BROWSER_PORT, rt_testserver::DEFAULT_PORT);
 }
 
 /// The comparison itself, without any strand: a hand-made report passes, a wrong one fails.

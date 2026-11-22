@@ -1,0 +1,11 @@
+info:
+  name: pre
+  type: folder
+  seq: 1
+
+request:
+  scripts:
+    - type: before-request
+      code: |-
+        rt.vars.set('fromFolder', 'folder-value');
+        console.log('folder');

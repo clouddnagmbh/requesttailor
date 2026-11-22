@@ -117,6 +117,12 @@ impl<S: SecretStore> Core<S> {
         lock(&self.session).as_ref().map(|s| s.id.clone())
     }
 
+    /// Whether the open collection (with unsaved changes) has any script (wave 7).
+    pub fn has_scripts(&self) -> bool {
+        self.with_session(|s| Ok(rt_app::scripts::has_scripts(s.workspace.collection())))
+            .unwrap_or(false)
+    }
+
     /// Whether the open collection has unsaved changes (Git refuses to change files then).
     pub fn has_unsaved_changes(&self) -> bool {
         lock(&self.session)
@@ -276,14 +282,19 @@ impl<S: SecretStore> Core<S> {
         let runtime = tokio::runtime::Handle::current();
         let report = tokio::task::spawn_blocking(move || {
             let services = parts.for_send(&send_collection);
-            runtime.block_on(snapshot.send_with(
+            let mut report = runtime.block_on(snapshot.send_with(
                 &transport,
                 &SendOptions {
                     iteration: None,
                     body_limit: BODY_LIMIT,
                 },
                 &services.services(),
-            ))
+            ));
+            // Wave 7: scripts of an untrusted collection did not run; say so.
+            parts
+                .scripts
+                .note_untrusted(&send_collection, &snapshot.collection, &mut report);
+            report
         })
         .await
         .map_err(|e| AppError::Shell(format!("send failed: {e}")))?;

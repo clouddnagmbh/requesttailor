@@ -1,0 +1,34 @@
+{
+  "name": "an unhandled rejection is logged as an error, like browsers do",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.sendRequest({ url: 'http://h/missing' });\nPromise.reject(new Error('lost'));\nPromise.reject(new Error('caught')).catch(() => {});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "error",
+        "text": "Uncaught (in promise) Error: lost"
+      },
+      {
+        "level": "error",
+        "text": "Uncaught (in promise) Error: no canned answer for GET http://h/missing"
+      }
+    ],
+    "error": null
+  }
+}

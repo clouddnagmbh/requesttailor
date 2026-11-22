@@ -3,10 +3,12 @@
 # Copyright 2026 The RequestTailor Authors
 #
 # Browser conformance suite: starts rt-testserver on its default port (47811), runs the rt-wasm
-# tests in headless Chrome, stops the server.
+# tests in headless Chrome (conformance, script cases), stops the server.
 #
 # Usage: scripts/conformance-wasm.sh [cargo test args...]
 #   e.g. scripts/conformance-wasm.sh -- conformance_browser
+# RT_CONFORMANCE_PORT=<port> uses another port (parallel checkouts); the browser tests are
+# built for it (`option_env!` in testdata/conformance/harness.rs). CARGO_TARGET_DIR is honoured.
 #
 # Needs: wasm-bindgen-test-runner of the same version as wasm-bindgen in Cargo.lock
 #   (cargo install wasm-bindgen-cli --version <v> --locked), Google Chrome, and a matching
@@ -28,9 +30,15 @@ if [ -z "$CHROMEDRIVER" ] || [ ! -x "$CHROMEDRIVER" ]; then
 fi
 export CHROMEDRIVER
 
+port=${RT_CONFORMANCE_PORT:-47811}
+case "$port" in
+  '' | *[!0-9]*) echo "conformance-wasm: RT_CONFORMANCE_PORT must be a port number" >&2; exit 1 ;;
+esac
+export RT_CONFORMANCE_PORT=$port
+
 cargo build -p rt-testserver --locked
 log=$(mktemp)
-target/debug/rt-testserver >"$log" 2>&1 &
+"${CARGO_TARGET_DIR:-target}/debug/rt-testserver" --port "$port" >"$log" 2>&1 &
 server=$!
 trap 'kill "$server" 2>/dev/null || true; rm -f "$log"' EXIT
 for _ in $(seq 1 100); do

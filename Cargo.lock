@@ -4948,6 +4948,7 @@ dependencies = [
  "rt-core",
  "rt-format",
  "rt-plugin",
+ "rt-script",
  "rt-testserver",
  "serde",
  "serde_json",
@@ -5002,6 +5003,7 @@ dependencies = [
  "rt-format",
  "rt-git",
  "rt-plugin",
+ "rt-script",
  "rt-testserver",
  "serde",
  "serde_json",
@@ -5100,7 +5102,15 @@ dependencies = [
 name = "rt-script"
 version = "0.0.0"
 dependencies = [
+ "js-sys",
  "rt-core",
+ "rt-script",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasmi",
+ "web-time",
 ]
 
 [[package]]
@@ -5128,6 +5138,7 @@ dependencies = [
  "rt-core",
  "rt-format",
  "rt-plugin",
+ "rt-script",
  "serde",
  "serde_json",
  "wasm-bindgen",

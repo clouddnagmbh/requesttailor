@@ -1,0 +1,60 @@
+{
+  "name": "async tests are awaited; a rejection fails the test",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test('waits', async () => { await rt.sleep(5); });\ntest('rejects', async () => { await rt.sleep(1); throw new Error('late'); });\ntest('promise', () => Promise.reject(new Error('nope')));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "waits",
+        "passed": true
+      },
+      {
+        "name": "rejects",
+        "passed": false,
+        "error": "late"
+      },
+      {
+        "name": "promise",
+        "passed": false,
+        "error": "nope"
+      }
+    ],
+    "error": null
+  }
+}

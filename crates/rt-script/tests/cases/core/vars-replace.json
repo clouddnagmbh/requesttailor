@@ -1,0 +1,93 @@
+{
+  "name": "rt.vars.replace resolves {{name}} recursively; unknown and cycles stay verbatim",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.vars.set('a', '{{b}}'); rt.vars.set('b', '{{a}}');\nconsole.log(rt.vars.replace('{{path}}/users/{{user}}?q={{nope}}&{{ id }}'));\nconsole.log(rt.vars.replace('{{a}}'));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "base",
+      "value": "http://global",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "only",
+      "value": "g",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "base",
+      "value": "http://coll",
+      "source": {
+        "layer": "collection"
+      },
+      "secret": false
+    },
+    {
+      "name": "base",
+      "value": "http://env",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "path",
+      "value": "{{base}}/v1",
+      "source": {
+        "layer": "folder",
+        "path": "api"
+      },
+      "secret": false
+    },
+    {
+      "name": "user",
+      "value": "u-{{id}}",
+      "source": {
+        "layer": "request"
+      },
+      "secret": false
+    },
+    {
+      "name": "id",
+      "value": "42",
+      "source": {
+        "layer": "runtime"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "http://env/v1/users/u-42?q={{nope}}&{{ id }}"
+      },
+      {
+        "level": "log",
+        "text": "{{a}}"
+      }
+    ]
+  }
+}

@@ -22,6 +22,7 @@ pub mod plugins;
 pub mod report;
 pub mod run;
 pub mod scan;
+pub mod scripts;
 pub mod secrets;
 pub mod services;
 

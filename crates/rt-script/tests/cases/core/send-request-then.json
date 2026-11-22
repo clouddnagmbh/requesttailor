@@ -1,0 +1,63 @@
+{
+  "name": "rt.sendRequest with then(): the phase waits for it",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.sendRequest({ url: 'http://h/a' }).then((r) => { test('later', () => { if (r.status !== 204) throw new Error('status'); }); });"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "send": [
+    {
+      "url": "http://h/a",
+      "delay_ms": 20,
+      "response": {
+        "status": 204,
+        "headers": [],
+        "body": "",
+        "time_ms": 1,
+        "url": "http://h/a"
+      }
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "later",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

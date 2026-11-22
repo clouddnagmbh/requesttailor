@@ -1,0 +1,29 @@
+{
+  "name": "rt.response is undefined before the request is sent",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(typeof rt.response, rt.info.phase);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "undefined before-request"
+      }
+    ]
+  }
+}

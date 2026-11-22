@@ -1,0 +1,28 @@
+info:
+  name: tests
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/status/201"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: rt.vars.set('status', rt.response.status);
+    - type: tests
+      code: |-
+        test('created', () => {
+          if (rt.response.status !== 201) throw new Error('status ' + rt.response.status);
+        });
+        test('json body', () => {
+          if (rt.response.json().status !== 201) throw new Error('body');
+        });
+        test('sees after-response', () => {
+          if (rt.vars.get('status') !== '201') throw new Error('no status variable');
+        });
+        test('fails', () => {
+          throw new Error('expected failure');
+        });

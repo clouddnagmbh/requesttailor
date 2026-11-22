@@ -70,7 +70,7 @@
 use std::collections::BTreeMap;
 
 use rt_core::prepare::{FileSource, PrepareInput};
-use rt_core::send::{SendOptions, SendReport, send};
+use rt_core::send::{SendOptions, SendReport, send_with};
 use rt_core::transport::Transport;
 use rt_format::{FileSet, FormatError, read_collection};
 use serde::Deserialize;
@@ -139,13 +139,20 @@ pub async fn send_files<T: Transport>(
             .body_limit
             .unwrap_or(SendOptions::default().body_limit),
     };
-    Ok(send(
+    // Wave 7: scripts run (as in `rt send`; the caller chose the files).
+    let sandbox = rt_script::Sandbox::default();
+    let services = rt_core::services::Services {
+        scripts: Some(&sandbox),
+        ..rt_core::services::Services::none()
+    };
+    Ok(send_with(
         doc.model(),
         request_path,
         &input,
         &MemFiles(files),
         transport,
         &send_options,
+        &services,
     )
     .await)
 }
@@ -339,6 +346,12 @@ mod workspace_js {
             self.inner.borrow().workspace.collection().name.clone()
         }
 
+        /// Whether the collection (with unsaved changes) has any script (wave 7, trust).
+        #[wasm_bindgen(js_name = hasScripts)]
+        pub fn has_scripts(&self) -> bool {
+            rt_app::scripts::has_scripts(self.inner.borrow().workspace.collection())
+        }
+
         pub fn tree(&self) -> Result<JsValue, JsValue> {
             to_js(&self.inner.borrow().workspace.tree())
         }
@@ -499,6 +512,8 @@ mod workspace_js {
                             .await
                     }
                 };
+                let mut report = report;
+                parts.scripts.finish(&snapshot.collection, &mut report);
                 let stored = inner.borrow_mut().responses.insert(report);
                 to_js(&stored)
             }))
@@ -628,6 +643,8 @@ mod import_js;
 mod plugins_js;
 #[cfg(target_arch = "wasm32")]
 mod runner_js;
+#[cfg(target_arch = "wasm32")]
+mod scripts_js;
 #[cfg(target_arch = "wasm32")]
 mod services_js;
 

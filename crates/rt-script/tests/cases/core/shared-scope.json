@@ -1,0 +1,38 @@
+{
+  "name": "the scripts of one phase share one global scope, in order",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "collection",
+      "code": "var counter = 1; function bump() { counter++; } const shared = 'c'; let mutable = [];"
+    },
+    {
+      "origin": "folder:api",
+      "code": "bump(); mutable.push('f');"
+    },
+    {
+      "origin": "request",
+      "code": "bump(); mutable.push('r'); console.log(counter, shared, mutable.join(','), eval('counter * 2'));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "3 c f,r 6"
+      }
+    ],
+    "error": null
+  }
+}

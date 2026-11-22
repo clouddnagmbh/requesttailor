@@ -6,6 +6,11 @@
       "environment": "local",
       "vars": [["port", "{port}"]]
     },
+    "scripts": {
+      "path": "conformance/scripts",
+      "environment": "local",
+      "vars": [["port", "{port}"]]
+    },
     "bruno-methods": {
       "path": "collections/bruno/mounting-method-indicators-yml",
       "vars": [["host", "{base}/echo"]]
@@ -398,6 +403,12 @@
         ],
         "var_changes": [{ "name": "echoedQuery", "value": "t=***", "scope": "runtime" }]
       }
-    }
+    },
+    {"name": "scripts: before-request scripts of collection, folder and request change the request and set variables", "collection": "scripts", "request": "pre/change.yml", "expect": {"status": 200, "unresolved": [], "echo": {"method": "POST", "path": "/echo/pre", "headers": [["x-collection-script", "yes"], ["x-script", "request"], ["x-from-folder", "folder-value"]], "body": "{\"seen\":\"folder-value\"}"}, "variables": [["fromFolder", "runtime"]], "script": {"logs": [["log", "collection"], ["log", "folder"], ["log", "request folder-value"]], "var_changes": [["fromFolder", "folder-value"]], "flow": null}}},
+    {"name": "scripts: rt.sendRequest goes through the same transport, its result feeds the request", "collection": "scripts", "request": "pre/send-request.yml", "expect": {"status": 200, "unresolved": [], "echo": {"method": "GET", "path": "/echo/main", "headers": [["x-side", "PUT"]]}, "script": {"var_changes": [["fromFolder", "folder-value"], ["sideMethod", "PUT"]]}}},
+    {"name": "scripts: after-response and tests scripts see the response; test results in order", "collection": "scripts", "request": "tests.yml", "expect": {"status": 201, "unresolved": [], "script": {"tests": [["created", true], ["json body", true], ["sees after-response", true], ["fails", false]], "var_changes": [["status", "201"]], "logs": [["log", "collection"]]}}},
+    {"name": "scripts: rt.runner.skip() in before-request sends nothing", "collection": "scripts", "request": "skip.yml", "expect": {"no_request": true, "no_response": true, "script": {"flow": {"kind": "skip"}}}},
+    {"name": "scripts: an exception in before-request stops the send with a script error; logs are kept", "collection": "scripts", "request": "error.yml", "expect": {"error": "script", "error_contains": "Error: broken 1", "no_request": true, "script": {"logs": [["log", "collection"], ["log", "before the error"]]}}},
+    {"name": "scripts: secret values are masked in logs and variable changes", "collection": "scripts", "request": "secret.yml", "vars": [["apiToken", "s3cr3t-token"]], "expect": {"status": 200, "sent": {"not_contains": "s3cr3t-token"}, "script": {"logs": [["log", "collection"], ["log", "token ***"]], "var_changes": [["copy", "***"]]}}}
   ]
 }

@@ -1,0 +1,33 @@
+{
+  "name": "a script finishes (awaits included) before the next one starts",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "collection",
+      "code": "await rt.sleep(20); globalThis.seen = 'collection';"
+    },
+    {
+      "origin": "request",
+      "code": "console.log(globalThis.seen);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "collection"
+      }
+    ]
+  }
+}
