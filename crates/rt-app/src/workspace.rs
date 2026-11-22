@@ -81,18 +81,31 @@ impl SendSnapshot {
     /// Sends the request through `transport`. `options.body_limit` should be large (the
     /// response store keeps the full body for virtual rendering).
     pub async fn send<T: Transport>(&self, transport: &T, options: &SendOptions) -> SendReport {
+        self.send_with(transport, options, &rt_core::services::Services::none())
+            .await
+    }
+
+    /// [`SendSnapshot::send`] with the shell's services (wave 5: tokens, prompts, cookies,
+    /// plugins).
+    pub async fn send_with<T: Transport>(
+        &self,
+        transport: &T,
+        options: &SendOptions,
+        services: &rt_core::services::Services<'_>,
+    ) -> SendReport {
         let input = PrepareInput {
             environment: self.environment.as_deref(),
             globals: Vec::new(),
             runtime: self.vars.clone(),
         };
-        rt_core::send::send(
+        rt_core::send::send_with(
             &self.collection,
             &self.request_path,
             &input,
             &MemFiles(&self.files),
             transport,
             options,
+            services,
         )
         .await
     }
@@ -354,7 +367,25 @@ impl Workspace {
             .request
             .spec;
         let mut files = FileSet::default();
-        for path in body_files(&spec.body) {
+        // Client certificates (wave 5) are read like body files: only collection-relative
+        // paths, from the collection's file set.
+        let environment = input
+            .environment
+            .as_deref()
+            .and_then(|name| collection.environment(name));
+        let certificates = collection
+            .config
+            .client_certificates
+            .iter()
+            .chain(environment.into_iter().flat_map(|e| &e.client_certificates))
+            .flat_map(|c| match &c.source {
+                rt_core::model::CertificateSource::Pem {
+                    certificate_path,
+                    private_key_path,
+                } => vec![certificate_path.as_str(), private_key_path.as_str()],
+                rt_core::model::CertificateSource::Pkcs12 { path } => vec![path.as_str()],
+            });
+        for path in body_files(&spec.body).into_iter().chain(certificates) {
             if let Some(key) = file_key(path)
                 && let Some(bytes) = self.files.files.get(&key)
             {

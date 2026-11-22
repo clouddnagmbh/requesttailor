@@ -70,7 +70,8 @@ Die Budgets werden als automatisierte Tests gemessen; eine Überschreitung brich
 crates/rt-core     HTTP-Engine, Variablen, Auth, Runner
 crates/rt-format   OpenCollection lesen und schreiben, Importer (`import`, ein Modul pro Quelle, Verlustbericht)
 crates/rt-script   Skript-Sandbox (QuickJS)
-crates/rt-plugin   Plugin-Host (WASM) und SDK
+crates/rt-plugin   Plugin-API (`api`, öffentlich, versioniert: `API.md`, `CHANGELOG.md`) und Plugin-Host (WASM)
+crates/rt-plugin-sdk  Rust-SDK für Plugins (wasm32-unknown-unknown)
 crates/rt-cli      CLI `rt`, Begleitdienst, MCP-Server
 crates/rt-wasm     Kern als WebAssembly
 crates/rt-app      Befehlsschicht der App (Rust-Seite): Workspace, Antwortspeicher, Secrets, Git-Typen, Import, Historie, Suche
@@ -89,7 +90,7 @@ perf/budgets.toml  Performance-Budgets, einzige Quelle für die Schwellwerte
 
 ## Kern-Schnittstellen
 
-Stand Welle 2. Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
+Stand Welle 2, ergänzt in den Wellen 3 bis 5 (unten). Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
 
 - `rt_core::model`: internes Request-Modell (Collection, Folder, RequestSpec, Environment). Formatneutral.
 - `rt_core::transport::Transport`: Grenze zum Netz. Nativ eigener HTTP-Stack, im Browser `fetch`. Antwort-Body als Stream.
@@ -112,6 +113,15 @@ Stand Welle 2. Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1
 - Git ohne Staging-Bereich: `commit(message, paths)`. Was Arbeitsdateien ändert (`checkout`, `pull`, `resolve`), verweigert bei ungespeicherten Änderungen; danach ruft die UI `AppState.reload()`. Nativ `rt-git` (gitoxide), im Web isomorphic-git, Netzwerk dort über den Begleitdienst.
 - Historie speichert keine Bodies und keine Header-Werte; die URL ist die maskierte aus dem Report.
 - Begleitdienst `rt agent` (`crates/rt-cli/src/agent`, Protokoll in `rt_core::transport::companion`): nur Loopback, Host- und Origin-Prüfung, Kopplung per Einmalcode, Token nur im Speicher. Sicherheitsmodell in `crates/rt-cli/README.md`.
+
+### Plugins und Auth (ab Welle 5)
+
+- Senden mit Diensten: `rt_core::send::send_with(…, &Services)`. `send` ist `send_with` ohne Dienste. `rt_core::services` hat `TokenStore` und `AuthPrompt` (OAuth), `CookieJar` und `RequestHooks` (Plugins); die Futures sind nicht `Send` (wasm32). Reihenfolge nach `prepare`: OAuth-Token, Plugin-`before_send` (maskiert), SigV4-Signatur, Client-Zertifikat (`rt_core::tls`), Cookies, Leitung, `Set-Cookie`, Plugin-`after_response`. Alles, was dabei an Werten dazukommt (Tokens, Schlüssel), wird im Report maskiert; `SendReport.notes` trägt Hinweise von Auth und Plugins.
+- Modell `rt_core::model::auth`: `Auth::OAuth2` (Flows Client Credentials, Password, Authorization Code mit PKCE, Implicit nur lesend, Device Code, SAML 2.0 Bearer) und `Auth::AwsSigV4`; `ClientCertificate` in `Collection.config` und `Environment.client_certificates`; `Environment.external_secrets`. Device Code und SAML Bearer kennt OpenCollection nicht: nur als Collection-Standard, in `extensions.requesttailor.auth` von `opencollection.yml`.
+- Format: je Bereich ein Modul in `rt-format/src/auth/` (`oauth2`, `awsv4`, `certs`, `secrets`). Schreiber lassen unveränderte Teile byte-gleich; die Rücklese-Prüfung jeder Änderung verweigert, was ein Schreiber nicht kann.
+- Plugin-API: `rt_plugin::api` und `crates/rt-plugin/API.md`. Ein Plugin ist eine `.wasm`-Datei mit dem Manifest in der Custom Section `rt-plugin`; JSON über `rt_call`/`rt.host`; Rechte `network` (Hosts), `storage`, `variables`; Plugins sehen nie Secret-Werte. Jede Änderung an der API braucht einen Eintrag in `crates/rt-plugin/CHANGELOG.md`.
+- `Backend` hat `plugins` (`PluginApi`), `auth` (`AuthApi`, Prompts über `onPrompt`), `cookies` (`CookieApi`), `git.scan` und `imports.analyzeWithPlugin`. Dateien je Strang wie in Welle 4 (Desktop `src-tauri/src/{plugins,auth,cookies}.rs`, Web `src/{plugins,auth,cookies}.ts`, Mock `commands/mock-{plugins,auth,cookies}.ts`, CLI `crates/rt-cli/src/{plugins,oauth,cookies,secrets,scan}.rs`, zusammengesetzt in `services.rs`).
+- Secret-Scanner: `rt_app::secret_scan::scan`; ein Commit mit Klartext-Zugangsdaten scheitert mit `AppError::SecretsFound`; `rt scan` für Pipelines und Git-Hooks.
 
 ## Befehle
 

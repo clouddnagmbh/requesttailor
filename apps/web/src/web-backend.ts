@@ -30,6 +30,9 @@ import {
   type RequestSpec,
   type SearchHit,
   type SecretsApi,
+  type AuthApi,
+  type CookieApi,
+  type PluginApi,
   type SendInput,
   type StoredResponse,
   type TransportApi,
@@ -37,10 +40,14 @@ import {
   type TreeNode,
 } from "@requesttailor/ui";
 
+import { webAuth } from "./auth";
 import { createCompanionClient, type CompanionClient } from "./companion/client";
+import { webCookies } from "./cookies";
 import { webGit } from "./git";
 import { WebHistory } from "./history";
 import { webImports } from "./import";
+import { webPlugins } from "./plugins";
+import { sendServices } from "./send-services";
 import { webRecent, type WebRecent } from "./recent";
 import { readDirectory, writeChanges } from "./fs/directory";
 import { lastFolder, rememberFolder } from "./fs/recent";
@@ -126,6 +133,9 @@ export class WebBackend implements Backend {
   readonly git: GitApi;
   readonly imports: ImportApi;
   readonly history: WebHistory;
+  readonly plugins: PluginApi;
+  readonly auth: AuthApi;
+  readonly cookies: CookieApi;
   private readonly recent: WebRecent;
 
   private current: Session | null = null;
@@ -149,6 +159,9 @@ export class WebBackend implements Backend {
     this.git = webGit(host);
     this.imports = webImports(host);
     this.history = new WebHistory(host);
+    this.plugins = webPlugins(host);
+    this.auth = webAuth(host);
+    this.cookies = webCookies(host);
     this.recent = webRecent(host);
     const store = () => this.secretStore(this.session());
     this.secrets = {
@@ -318,7 +331,8 @@ export class WebBackend implements Backend {
     return guard(async () => {
       const s = this.session();
       const companion = this.companionOn ? await this.companionCredentials() : null;
-      const result = await s.ws.send(path, await this.coreInput(s, input), companion);
+      const services = await sendServices(s.id, input.environment);
+      const result = await s.ws.send(path, await this.coreInput(s, input), companion, services);
       try {
         this.history.record(s.id, s.ws.request(path), result);
       } catch (e) {

@@ -11,10 +11,17 @@
 
 use std::time::Duration;
 
+use rt_app::auth::{AuthPrompt, DeviceCodePrompt, TokenInfo};
+use rt_app::cookies::CookieInfo;
 use rt_app::git::{
     DiffHunk, DiffLine, DiffLineKind, GitBranch, GitCommit, GitConflict, GitDiff, GitFile,
     GitFileState, GitIdentity, GitPullResult, GitResolution, GitStatus,
 };
+use rt_app::plugins::{
+    ActionButton, Block, Contributions, FieldKind, FormField, ImporterContribution, Manifest,
+    Permissions, PluginInfo, TabContribution, TabPlace, TabTarget, TreeItem, View, ViewReply,
+};
+use rt_app::secret_scan::SecretFinding;
 use rt_app::{
     AppError, FileChange, HistoryEntry, ImportPlan, LineSlice, Preview, PreviewVar, SearchField,
     SearchHit, SecretKey, StoredResponse, TreeNode,
@@ -23,9 +30,15 @@ use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
     RawKind, RequestSpec, Settings, Variable,
 };
+use rt_core::model::{
+    AwsSigV4, CertificateSource, ClientCertificate, CredentialsPlacement, ExternalSecret,
+    ExternalSecrets, OAuth2, OAuth2Flow, OAuth2Param, OAuth2Step, ParamPlacement, PkceMethod,
+    SecretProvider, TokenPlacement, TokenSource, TokenUse,
+};
 use rt_core::send::{
     REPORT_VERSION, ReceivedResponse, ReportBody, SendError, SendReport, SentRequest,
 };
+use rt_core::services::{Note, NoteLevel};
 use rt_core::transport::{HttpVersion, Redirect, Timing, TransportError};
 use rt_core::vars::{VarSource, VarUse};
 use rt_format::import::{ImportFormat, Loss, LossEffect, LossKind, LossReport};
@@ -114,13 +127,244 @@ fn auths() -> Vec<Auth> {
             placement: ApiKeyPlacement::Query,
         },
         Auth::Unsupported {
-            kind: "oauth2".into(),
+            kind: "digest".into(),
+        },
+        Auth::AwsSigV4(AwsSigV4 {
+            access_key_id: "{{awsKey}}".into(),
+            secret_access_key: "{{awsSecret}}".into(),
+            session_token: String::new(),
+            service: "execute-api".into(),
+            region: "eu-central-1".into(),
+            profile_name: String::new(),
+        }),
+    ]
+    .into_iter()
+    .chain(oauth2_flows().into_iter().map(|flow| {
+        Auth::OAuth2(Box::new(OAuth2 {
+            flow,
+            access_token_url: "https://idp/token".into(),
+            client_id: "app".into(),
+            client_secret: "{{clientSecret}}".into(),
+            scope: "openid api".into(),
+            parameters: vec![OAuth2Param {
+                step: OAuth2Step::AccessToken,
+                name: "audience".into(),
+                value: "api".into(),
+                placement: ParamPlacement::Body,
+            }],
+            ..OAuth2::default()
+        }))
+    }))
+    .chain([Auth::OAuth2(Box::new(OAuth2 {
+        credentials_placement: CredentialsPlacement::Body,
+        token: TokenUse {
+            id: "shared".into(),
+            placement: TokenPlacement::Query {
+                name: "access_token".into(),
+            },
+            source: TokenSource::IdToken,
+        },
+        auto_fetch: false,
+        auto_refresh: false,
+        ..OAuth2::default()
+    }))])
+    .collect()
+}
+
+fn oauth2_flows() -> Vec<OAuth2Flow> {
+    vec![
+        OAuth2Flow::ClientCredentials,
+        OAuth2Flow::Password {
+            username: "ada".into(),
+            password: "{{pw}}".into(),
+        },
+        OAuth2Flow::AuthorizationCode {
+            authorization_url: "https://idp/auth".into(),
+            callback_url: "http://127.0.0.1:8765/callback".into(),
+            state: String::new(),
+            pkce: Some(PkceMethod::S256),
+        },
+        OAuth2Flow::AuthorizationCode {
+            authorization_url: "https://idp/auth".into(),
+            callback_url: "https://app/cb".into(),
+            state: "s".into(),
+            pkce: Some(PkceMethod::Plain),
+        },
+        OAuth2Flow::AuthorizationCode {
+            authorization_url: "https://idp/auth".into(),
+            callback_url: "https://app/cb".into(),
+            state: String::new(),
+            pkce: None,
+        },
+        OAuth2Flow::Implicit {
+            authorization_url: "https://idp/auth".into(),
+            callback_url: "https://app/cb".into(),
+            state: String::new(),
+        },
+        OAuth2Flow::DeviceCode {
+            device_authorization_url: "https://idp/device".into(),
+        },
+        OAuth2Flow::Saml2Bearer {
+            assertion: "{{samlAssertion}}".into(),
         },
     ]
 }
 
+fn environment_with_config() -> Environment {
+    Environment {
+        client_certificates: vec![
+            ClientCertificate {
+                domain: "*.example.com".into(),
+                source: CertificateSource::Pem {
+                    certificate_path: "certs/client.pem".into(),
+                    private_key_path: "certs/client.key".into(),
+                },
+                passphrase: String::new(),
+                enabled: true,
+            },
+            ClientCertificate {
+                domain: "api.example.com:8443".into(),
+                source: CertificateSource::Pkcs12 {
+                    path: "certs/client.p12".into(),
+                },
+                passphrase: "{{p12Passphrase}}".into(),
+                enabled: false,
+            },
+        ],
+        external_secrets: Some(ExternalSecrets {
+            provider: SecretProvider::OnePassword,
+            variables: vec![ExternalSecret {
+                name: "token".into(),
+                reference: "op://Dev/API/token".into(),
+                enabled: true,
+            }],
+        }),
+        ..environment()
+    }
+}
+
+fn secret_providers() -> Vec<SecretProvider> {
+    vec![
+        SecretProvider::HashicorpVaultCloud,
+        SecretProvider::HashicorpVaultServer,
+        SecretProvider::AwsSecretsManager,
+        SecretProvider::AzureKeyVault,
+        SecretProvider::GcpSecretsManager,
+        SecretProvider::OnePassword,
+    ]
+}
+
+fn manifest() -> Manifest {
+    Manifest {
+        id: "jwt-inspector".into(),
+        name: "JWT inspector".into(),
+        version: "1.0.0".into(),
+        api: 1,
+        description: "Shows JWT claims.".into(),
+        license: Some("Apache-2.0".into()),
+        homepage: None,
+        permissions: Permissions {
+            network: vec!["{request}".into(), "*.example.com".into()],
+            storage: true,
+            variables: false,
+        },
+        contributes: Contributions {
+            prepare: true,
+            response: false,
+            tabs: vec![
+                TabContribution {
+                    id: "claims".into(),
+                    title: "JWT".into(),
+                    place: TabPlace::Response,
+                    content_types: vec!["application/json".into()],
+                },
+                TabContribution {
+                    id: "builder".into(),
+                    title: "Query".into(),
+                    place: TabPlace::Request,
+                    content_types: vec![],
+                },
+            ],
+            importers: vec![ImporterContribution {
+                id: "edmx".into(),
+                label: "OData metadata".into(),
+                extensions: vec!["edmx".into(), "xml".into()],
+            }],
+        },
+    }
+}
+
+fn view_reply() -> ViewReply {
+    ViewReply {
+        view: View {
+            blocks: vec![
+                Block::Heading {
+                    text: "Claims".into(),
+                },
+                Block::Text { text: "x".into() },
+                Block::Notice {
+                    level: NoteLevel::Warning,
+                    text: "expired".into(),
+                },
+                Block::KeyValue {
+                    rows: vec![("sub".into(), "ada".into())],
+                },
+                Block::Table {
+                    columns: vec!["a".into(), "b".into()],
+                    rows: vec![vec!["1".into(), "2".into()]],
+                },
+                Block::Code {
+                    language: Some("json".into()),
+                    text: "{}".into(),
+                },
+                Block::Code {
+                    language: None,
+                    text: "x".into(),
+                },
+                Block::Tree {
+                    nodes: vec![TreeItem {
+                        label: "Users".into(),
+                        detail: Some("EntitySet".into()),
+                        children: vec![TreeItem {
+                            label: "Id".into(),
+                            detail: None,
+                            children: vec![],
+                            action: Some("select:Id".into()),
+                        }],
+                        action: None,
+                    }],
+                },
+                Block::Form {
+                    id: "q".into(),
+                    fields: [FieldKind::Text, FieldKind::Select, FieldKind::Checkbox]
+                        .into_iter()
+                        .map(|kind| FormField {
+                            name: "f".into(),
+                            label: "F".into(),
+                            kind,
+                            value: "".into(),
+                            options: vec!["a".into()],
+                        })
+                        .collect(),
+                    submit: "Apply".into(),
+                },
+                Block::Actions {
+                    actions: vec![ActionButton {
+                        id: "refresh".into(),
+                        label: "Refresh".into(),
+                    }],
+                },
+            ],
+        },
+        state: Some(serde_json::json!({"page": 2})),
+        update_request: Some(request_spec()),
+    }
+}
+
 fn environment() -> Environment {
     Environment {
+        client_certificates: Vec::new(),
+        external_secrets: None,
         name: "Local".into(),
         variables: vec![
             Variable::new("baseUrl", "http://127.0.0.1"),
@@ -166,12 +410,26 @@ fn send_errors() -> Vec<SendError> {
     vec![
         SendError::NotFound("a.yml".into()),
         SendError::Prepare("auth type \"oauth2\" is not supported yet".into()),
+        SendError::Auth("token endpoint answered 401".into()),
+        SendError::Plugin("odata: no CSRF token".into()),
         SendError::Transport(TransportError::Timeout),
     ]
 }
 
 fn report_ok() -> SendReport {
     SendReport {
+        notes: vec![
+            Note {
+                source: "auth".into(),
+                level: NoteLevel::Info,
+                text: "token refreshed".into(),
+            },
+            Note {
+                source: "plugin:odata".into(),
+                level: NoteLevel::Error,
+                text: "x".into(),
+            },
+        ],
         version: REPORT_VERSION,
         request_path: "users/create.yml".into(),
         environment: Some("Local".into()),
@@ -260,6 +518,9 @@ fn app_errors() -> Vec<AppError> {
         AppError::Import("x".into()),
         AppError::Git("x".into()),
         AppError::GitAuth("github.com".into()),
+        AppError::Plugin("x".into()),
+        AppError::Auth("x".into()),
+        AppError::SecretsFound("x".into()),
         AppError::Unsupported("x".into()),
         AppError::Shell("x".into()),
     ]
@@ -509,7 +770,14 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
         ("importPlan", "ImportPlan", j(import_plan())),
-        ("importFormats", "ImportFormat[]", j(ImportFormat::ALL)),
+        (
+            "importFormats",
+            "ImportFormat[]",
+            j(ImportFormat::ALL
+                .into_iter()
+                .chain([ImportFormat::Plugin])
+                .collect::<Vec<_>>()),
+        ),
         (
             "lossKinds",
             "LossKind[]",
@@ -569,6 +837,89 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
         ),
         ("appErrors", "AppError[]", j(app_errors())),
         (
+            "environmentWithConfig",
+            "Environment",
+            j(environment_with_config()),
+        ),
+        ("secretProviders", "SecretProvider[]", j(secret_providers())),
+        (
+            "pluginInfo",
+            "PluginInfo",
+            j(PluginInfo {
+                manifest: manifest(),
+                granted: true,
+                enabled: false,
+            }),
+        ),
+        ("viewReply", "ViewReply", j(view_reply())),
+        ("viewReplyEmpty", "ViewReply", j(ViewReply::default())),
+        (
+            "tabTargets",
+            "TabTarget[]",
+            j(vec![
+                TabTarget {
+                    request_path: "a.yml".into(),
+                    response_id: Some(3),
+                },
+                TabTarget {
+                    request_path: "a.yml".into(),
+                    response_id: None,
+                },
+            ]),
+        ),
+        (
+            "tokenInfo",
+            "TokenInfo",
+            j(TokenInfo {
+                key: "k".into(),
+                label: "idp app openid".into(),
+                obtained_at: 1_790_000_000_000,
+                expires_at: Some(1_790_000_360_000),
+                refreshable: true,
+            }),
+        ),
+        (
+            "authPrompts",
+            "AuthPrompt[]",
+            j(vec![
+                AuthPrompt::Browser {
+                    url: "https://idp/auth?x".into(),
+                },
+                AuthPrompt::DeviceCode(DeviceCodePrompt {
+                    user_code: "ABCD-EFGH".into(),
+                    verification_uri: "https://idp/device".into(),
+                    verification_uri_complete: None,
+                    expires_in: 600,
+                }),
+                AuthPrompt::Done,
+            ]),
+        ),
+        (
+            "cookieInfo",
+            "CookieInfo",
+            j(CookieInfo {
+                name: "SAP_SESSIONID".into(),
+                value: "v".into(),
+                domain: "example.com".into(),
+                path: "/".into(),
+                expires: None,
+                secure: true,
+                http_only: true,
+                same_site: Some("Lax".into()),
+            }),
+        ),
+        (
+            "secretFinding",
+            "SecretFinding",
+            j(SecretFinding {
+                path: "a.yml".into(),
+                line: 12,
+                kind: "bearer token".into(),
+                snippet: "token: ***".into(),
+                hint: "use a secret variable".into(),
+            }),
+        ),
+        (
             "secretKey",
             "SecretKey",
             j(SecretKey {
@@ -624,4 +975,23 @@ fn typescript_contract_is_up_to_date() {
         actual == expected,
         "{path} is stale; run `RT_UPDATE_CONTRACT=1 cargo test -p rt-app --test contract`"
     );
+}
+
+/// What the UI sends back must deserialize to the same value (OAuth 2.0 flattens its flow
+/// into the tagged `Auth`, which serde only round-trips with buffering).
+#[test]
+fn wave5_values_round_trip_through_json() {
+    for auth in auths() {
+        let json = serde_json::to_string(&auth).unwrap();
+        assert_eq!(serde_json::from_str::<Auth>(&json).unwrap(), auth, "{json}");
+    }
+    let env = environment_with_config();
+    let json = serde_json::to_string(&env).unwrap();
+    assert_eq!(serde_json::from_str::<Environment>(&json).unwrap(), env);
+    let reply = view_reply();
+    let json = serde_json::to_string(&reply).unwrap();
+    assert_eq!(serde_json::from_str::<ViewReply>(&json).unwrap(), reply);
+    let report = report_ok();
+    let json = serde_json::to_string(&report).unwrap();
+    assert_eq!(serde_json::from_str::<SendReport>(&json).unwrap(), report);
 }

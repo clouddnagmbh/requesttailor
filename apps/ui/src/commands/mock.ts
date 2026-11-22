@@ -10,11 +10,14 @@
 // Everything else answers like rt-testserver's `/echo`.
 
 import type {
+  AuthApi,
   Backend,
   CollectionInfo,
   CompanionStatus,
+  CookieApi,
   GitApi,
   ImportApi,
+  PluginApi,
   RecentCollection,
   SecretsApi,
   SendInput,
@@ -22,9 +25,12 @@ import type {
   TransportMode,
 } from "./backend";
 import { BackendError } from "./backend";
+import { mockAuth } from "./mock-auth";
+import { mockCookies } from "./mock-cookies";
 import { mockGit } from "./mock-git";
 import { MockHistory, mockSearch } from "./mock-history";
 import { mockImports } from "./mock-import";
+import { mockPlugins } from "./mock-plugins";
 import { MockRecent } from "./mock-recent";
 import type {
   Environment,
@@ -92,6 +98,8 @@ function sampleRequests(): Map<string, RequestSpec> {
 const sampleEnvironments = (): Environment[] => [
   {
     name: "Local",
+    client_certificates: [],
+    external_secrets: null,
     variables: [
       { name: "baseUrl", value: "http://127.0.0.1:47811", enabled: true, secret: false },
       { name: "token", value: null, enabled: true, secret: true },
@@ -99,6 +107,8 @@ const sampleEnvironments = (): Environment[] => [
   },
   {
     name: "PRD",
+    client_certificates: [],
+    external_secrets: null,
     variables: [
       { name: "baseUrl", value: "https://api.example.com", enabled: true, secret: false },
       { name: "token", value: null, enabled: true, secret: true },
@@ -146,6 +156,10 @@ export class MockBackend implements Backend {
   readonly imports: ImportApi = mockImports(() => this.openCollection());
   readonly history = new MockHistory();
   readonly recent = new MockRecent();
+  // Wave 5 parts, one file per strand.
+  readonly plugins: PluginApi = mockPlugins();
+  readonly auth: AuthApi = mockAuth();
+  readonly cookies: CookieApi = mockCookies();
 
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;

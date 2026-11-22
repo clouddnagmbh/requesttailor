@@ -50,7 +50,103 @@ export type Auth =
   | { type: "basic"; username: string; password: string }
   | { type: "bearer"; token: string }
   | { type: "api-key"; key: string; value: string; placement: ApiKeyPlacement }
+  | ({ type: "oauth2" } & OAuth2)
+  | ({ type: "awsv4" } & AwsSigV4)
   | { type: "unsupported"; kind: string };
+
+// ---- auth (rt_core::model::auth, wave 5) ----
+
+export type PkceMethod = "S256" | "plain";
+export type CredentialsPlacement = "basic-auth-header" | "body";
+export type OAuth2Step = "authorization" | "access-token" | "refresh";
+export type ParamPlacement = "header" | "query" | "body";
+export type TokenSource = "access-token" | "id-token";
+
+export type OAuth2Flow =
+  | { flow: "client-credentials" }
+  | { flow: "password"; username: string; password: string }
+  | {
+      flow: "authorization-code";
+      authorization_url: string;
+      callback_url: string;
+      state: string;
+      /** `null`: PKCE disabled. */
+      pkce: PkceMethod | null;
+    }
+  | { flow: "implicit"; authorization_url: string; callback_url: string; state: string }
+  /** Collection default only. */
+  | { flow: "device-code"; device_authorization_url: string }
+  /** Collection default only. */
+  | { flow: "saml2-bearer"; assertion: string };
+
+export interface OAuth2Param {
+  step: OAuth2Step;
+  name: string;
+  value: string;
+  placement: ParamPlacement;
+}
+
+export type TokenPlacement = { in: "header"; prefix: string } | { in: "query"; name: string };
+
+export interface TokenUse {
+  id: string;
+  placement: TokenPlacement;
+  source: TokenSource;
+}
+
+/** The flow's fields are flattened into the same object (`flow` is the tag). */
+export type OAuth2 = OAuth2Flow & {
+  access_token_url: string;
+  refresh_token_url: string;
+  client_id: string;
+  client_secret: string;
+  credentials_placement: CredentialsPlacement;
+  scope: string;
+  parameters: OAuth2Param[];
+  token: TokenUse;
+  auto_fetch: boolean;
+  auto_refresh: boolean;
+};
+
+export interface AwsSigV4 {
+  access_key_id: string;
+  secret_access_key: string;
+  session_token: string;
+  service: string;
+  region: string;
+  profile_name: string;
+}
+
+export type CertificateSource =
+  | { type: "pem"; certificate_path: string; private_key_path: string }
+  | { type: "pkcs12"; path: string };
+
+export interface ClientCertificate {
+  domain: string;
+  source: CertificateSource;
+  passphrase: string;
+  enabled: boolean;
+}
+
+export type SecretProvider =
+  | "hashicorp-vault-cloud"
+  | "hashicorp-vault-server"
+  | "aws-secrets-manager"
+  | "azure-key-vault"
+  | "gcp-secrets-manager"
+  | "one-password";
+
+export interface ExternalSecret {
+  name: string;
+  /** Vault path, AWS secret name, Azure vault name, GCP project id, or `op://…`. */
+  reference: string;
+  enabled: boolean;
+}
+
+export interface ExternalSecrets {
+  provider: SecretProvider;
+  variables: ExternalSecret[];
+}
 
 export interface Settings {
   timeout_ms: number | null;
@@ -70,6 +166,8 @@ export interface Variable {
 export interface Environment {
   name: string;
   variables: Variable[];
+  client_certificates: ClientCertificate[];
+  external_secrets: ExternalSecrets | null;
 }
 
 export interface RequestSpec {
@@ -132,7 +230,18 @@ export type TransportError =
 export type SendError =
   | { kind: "not-found"; message: string }
   | { kind: "prepare"; message: string }
+  | { kind: "auth"; message: string }
+  | { kind: "plugin"; message: string }
   | { kind: "transport"; message: TransportError };
+
+export type NoteLevel = "info" | "warning" | "error";
+
+/** From the auth step (`source: "auth"`) or a plugin (`"plugin:<id>"`). */
+export interface Note {
+  source: string;
+  level: NoteLevel;
+  text: string;
+}
 
 export interface SentRequest {
   method: string;
@@ -166,6 +275,8 @@ export interface SendReport {
   variables: VarUse[];
   unresolved: string[];
   error: SendError | null;
+  /** Omitted when empty. */
+  notes?: Note[];
 }
 
 // ---- app (rt_app) ----
@@ -210,6 +321,10 @@ export type AppError =
   | { kind: "git"; message: string }
   /** The remote wants credentials or rejected them; `message` is the host. */
   | { kind: "git-auth"; message: string }
+  | { kind: "plugin"; message: string }
+  | { kind: "auth"; message: string }
+  /** A commit was refused: files contain credentials (see `GitApi.scan`). */
+  | { kind: "secrets-found"; message: string }
   | { kind: "unsupported"; message: string }
   | { kind: "shell"; message: string };
 
@@ -312,7 +427,7 @@ export interface GitDiff {
 
 // ---- import (rt_format::import, rt_app::import) ----
 
-export type ImportFormat = "postman" | "insomnia" | "openapi" | "curl" | "har" | "http";
+export type ImportFormat = "postman" | "insomnia" | "openapi" | "curl" | "har" | "http" | "plugin";
 
 export type LossKind =
   | "script"
@@ -382,4 +497,144 @@ export interface SearchHit {
   snippet: string;
   /** `[start, end)` offsets into `snippet` (JavaScript string indexes). */
   ranges: [number, number][];
+}
+
+// ---- plugins (rt_plugin::api, rt_app::plugins; wave 5) ----
+
+export interface Permissions {
+  /** Hosts for the `http` host call: exact, `*.example.com`, `{request}` or `*`. */
+  network: string[];
+  storage: boolean;
+  variables: boolean;
+}
+
+export type TabPlace = "request" | "response";
+
+export interface TabContribution {
+  id: string;
+  title: string;
+  place: TabPlace;
+  content_types: string[];
+}
+
+export interface ImporterContribution {
+  id: string;
+  label: string;
+  extensions: string[];
+}
+
+export interface Contributions {
+  prepare: boolean;
+  response: boolean;
+  tabs: TabContribution[];
+  importers: ImporterContribution[];
+}
+
+export interface Manifest {
+  id: string;
+  name: string;
+  version: string;
+  api: number;
+  description: string;
+  license: string | null;
+  homepage: string | null;
+  permissions: Permissions;
+  contributes: Contributions;
+}
+
+export interface PluginInfo {
+  manifest: Manifest;
+  granted: boolean;
+  enabled: boolean;
+}
+
+export interface TabTarget {
+  request_path: string;
+  response_id: number | null;
+}
+
+export interface TreeItem {
+  label: string;
+  detail: string | null;
+  children: TreeItem[];
+  action: string | null;
+}
+
+export type FieldKind = "text" | "select" | "checkbox";
+
+export interface FormField {
+  name: string;
+  label: string;
+  kind: FieldKind;
+  value: string;
+  options: string[];
+}
+
+export interface ActionButton {
+  id: string;
+  label: string;
+}
+
+export type Block =
+  | { type: "heading"; text: string }
+  | { type: "text"; text: string }
+  | { type: "notice"; level: NoteLevel; text: string }
+  | { type: "key-value"; rows: [string, string][] }
+  | { type: "table"; columns: string[]; rows: string[][] }
+  | { type: "code"; language: string | null; text: string }
+  | { type: "tree"; nodes: TreeItem[] }
+  | { type: "form"; id: string; fields: FormField[]; submit: string }
+  | { type: "actions"; actions: ActionButton[] };
+
+export interface View {
+  blocks: Block[];
+}
+
+export interface ViewReply {
+  view: View;
+  /** Opaque; passed back with the next call for the same tab. */
+  state: unknown;
+  /** Replaces the request in the editor (unsaved). */
+  update_request: RequestSpec | null;
+}
+
+// ---- auth, cookies, secret scan (rt_app; wave 5) ----
+
+export interface TokenInfo {
+  key: string;
+  label: string;
+  obtained_at: number;
+  expires_at: number | null;
+  refreshable: boolean;
+}
+
+export interface DeviceCodePrompt {
+  user_code: string;
+  verification_uri: string;
+  verification_uri_complete: string | null;
+  expires_in: number;
+}
+
+export type AuthPrompt =
+  | { kind: "browser"; url: string }
+  | ({ kind: "device-code" } & DeviceCodePrompt)
+  | { kind: "done" };
+
+export interface CookieInfo {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+  expires: number | null;
+  secure: boolean;
+  http_only: boolean;
+  same_site: string | null;
+}
+
+export interface SecretFinding {
+  path: string;
+  line: number;
+  kind: string;
+  snippet: string;
+  hint: string;
 }

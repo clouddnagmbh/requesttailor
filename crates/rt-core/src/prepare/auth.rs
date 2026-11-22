@@ -37,7 +37,13 @@ pub(super) fn apply(
     interp: &mut Interp<'_>,
 ) -> Option<(String, String)> {
     match auth {
-        Auth::Inherit | Auth::None | Auth::Unsupported { .. } => None,
+        // Applied when sending, after preparation: the OAuth 2.0 token is fetched over the
+        // network (`crate::auth::oauth2`), SigV4 signs the final request (`crate::auth::sigv4`).
+        Auth::Inherit
+        | Auth::None
+        | Auth::Unsupported { .. }
+        | Auth::OAuth2(_)
+        | Auth::AwsSigV4(_) => None,
         Auth::Basic { username, password } => {
             let credentials = format!("{}:{}", interp.text(username), interp.text(password));
             let value = format!("Basic {}", STANDARD.encode(credentials));

@@ -28,5 +28,6 @@ export function tauriGit(call: Call): GitApi {
     hasCredentials: (host) => call("git_has_credentials", { host }),
     setCredentials: (host, username, password) => call("git_set_credentials", { host, username, password }),
     deleteCredentials: (host) => call("git_delete_credentials", { host }),
+    scan: (paths) => call("git_scan", { paths }),
   };
 }

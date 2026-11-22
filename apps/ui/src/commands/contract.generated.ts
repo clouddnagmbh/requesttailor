@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AppError, Auth, Body, Environment, FileChange, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, Preview, ReportBody, RequestSpec, SearchHit, SecretKey, SendError, SendReport, StoredResponse, TransportError, TreeNode, VarSource } from "./types";
+import type { AppError, Auth, AuthPrompt, Body, CookieInfo, Environment, FileChange, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, PluginInfo, Preview, ReportBody, RequestSpec, SearchHit, SecretFinding, SecretKey, SecretProvider, SendError, SendReport, StoredResponse, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, ViewReply } from "./types";
 
 export const requestSpec: RequestSpec = {
   "auth": {
@@ -121,12 +121,287 @@ export const auths: Auth[] = [
     "value": "v"
   },
   {
-    "kind": "oauth2",
+    "kind": "digest",
     "type": "unsupported"
+  },
+  {
+    "access_key_id": "{{awsKey}}",
+    "profile_name": "",
+    "region": "eu-central-1",
+    "secret_access_key": "{{awsSecret}}",
+    "service": "execute-api",
+    "session_token": "",
+    "type": "awsv4"
+  },
+  {
+    "access_token_url": "https://idp/token",
+    "auto_fetch": true,
+    "auto_refresh": true,
+    "client_id": "app",
+    "client_secret": "{{clientSecret}}",
+    "credentials_placement": "basic-auth-header",
+    "flow": "client-credentials",
+    "parameters": [
+      {
+        "name": "audience",
+        "placement": "body",
+        "step": "access-token",
+        "value": "api"
+      }
+    ],
+    "refresh_token_url": "",
+    "scope": "openid api",
+    "token": {
+      "id": "",
+      "placement": {
+        "in": "header",
+        "prefix": "Bearer"
+      },
+      "source": "access-token"
+    },
+    "type": "oauth2"
+  },
+  {
+    "access_token_url": "https://idp/token",
+    "auto_fetch": true,
+    "auto_refresh": true,
+    "client_id": "app",
+    "client_secret": "{{clientSecret}}",
+    "credentials_placement": "basic-auth-header",
+    "flow": "password",
+    "parameters": [
+      {
+        "name": "audience",
+        "placement": "body",
+        "step": "access-token",
+        "value": "api"
+      }
+    ],
+    "password": "{{pw}}",
+    "refresh_token_url": "",
+    "scope": "openid api",
+    "token": {
+      "id": "",
+      "placement": {
+        "in": "header",
+        "prefix": "Bearer"
+      },
+      "source": "access-token"
+    },
+    "type": "oauth2",
+    "username": "ada"
+  },
+  {
+    "access_token_url": "https://idp/token",
+    "authorization_url": "https://idp/auth",
+    "auto_fetch": true,
+    "auto_refresh": true,
+    "callback_url": "http://127.0.0.1:8765/callback",
+    "client_id": "app",
+    "client_secret": "{{clientSecret}}",
+    "credentials_placement": "basic-auth-header",
+    "flow": "authorization-code",
+    "parameters": [
+      {
+        "name": "audience",
+        "placement": "body",
+        "step": "access-token",
+        "value": "api"
+      }
+    ],
+    "pkce": "S256",
+    "refresh_token_url": "",
+    "scope": "openid api",
+    "state": "",
+    "token": {
+      "id": "",
+      "placement": {
+        "in": "header",
+        "prefix": "Bearer"
+      },
+      "source": "access-token"
+    },
+    "type": "oauth2"
+  },
+  {
+    "access_token_url": "https://idp/token",
+    "authorization_url": "https://idp/auth",
+    "auto_fetch": true,
+    "auto_refresh": true,
+    "callback_url": "https://app/cb",
+    "client_id": "app",
+    "client_secret": "{{clientSecret}}",
+    "credentials_placement": "basic-auth-header",
+    "flow": "authorization-code",
+    "parameters": [
+      {
+        "name": "audience",
+        "placement": "body",
+        "step": "access-token",
+        "value": "api"
+      }
+    ],
+    "pkce": "plain",
+    "refresh_token_url": "",
+    "scope": "openid api",
+    "state": "s",
+    "token": {
+      "id": "",
+      "placement": {
+        "in": "header",
+        "prefix": "Bearer"
+      },
+      "source": "access-token"
+    },
+    "type": "oauth2"
+  },
+  {
+    "access_token_url": "https://idp/token",
+    "authorization_url": "https://idp/auth",
+    "auto_fetch": true,
+    "auto_refresh": true,
+    "callback_url": "https://app/cb",
+    "client_id": "app",
+    "client_secret": "{{clientSecret}}",
+    "credentials_placement": "basic-auth-header",
+    "flow": "authorization-code",
+    "parameters": [
+      {
+        "name": "audience",
+        "placement": "body",
+        "step": "access-token",
+        "value": "api"
+      }
+    ],
+    "pkce": null,
+    "refresh_token_url": "",
+    "scope": "openid api",
+    "state": "",
+    "token": {
+      "id": "",
+      "placement": {
+        "in": "header",
+        "prefix": "Bearer"
+      },
+      "source": "access-token"
+    },
+    "type": "oauth2"
+  },
+  {
+    "access_token_url": "https://idp/token",
+    "authorization_url": "https://idp/auth",
+    "auto_fetch": true,
+    "auto_refresh": true,
+    "callback_url": "https://app/cb",
+    "client_id": "app",
+    "client_secret": "{{clientSecret}}",
+    "credentials_placement": "basic-auth-header",
+    "flow": "implicit",
+    "parameters": [
+      {
+        "name": "audience",
+        "placement": "body",
+        "step": "access-token",
+        "value": "api"
+      }
+    ],
+    "refresh_token_url": "",
+    "scope": "openid api",
+    "state": "",
+    "token": {
+      "id": "",
+      "placement": {
+        "in": "header",
+        "prefix": "Bearer"
+      },
+      "source": "access-token"
+    },
+    "type": "oauth2"
+  },
+  {
+    "access_token_url": "https://idp/token",
+    "auto_fetch": true,
+    "auto_refresh": true,
+    "client_id": "app",
+    "client_secret": "{{clientSecret}}",
+    "credentials_placement": "basic-auth-header",
+    "device_authorization_url": "https://idp/device",
+    "flow": "device-code",
+    "parameters": [
+      {
+        "name": "audience",
+        "placement": "body",
+        "step": "access-token",
+        "value": "api"
+      }
+    ],
+    "refresh_token_url": "",
+    "scope": "openid api",
+    "token": {
+      "id": "",
+      "placement": {
+        "in": "header",
+        "prefix": "Bearer"
+      },
+      "source": "access-token"
+    },
+    "type": "oauth2"
+  },
+  {
+    "access_token_url": "https://idp/token",
+    "assertion": "{{samlAssertion}}",
+    "auto_fetch": true,
+    "auto_refresh": true,
+    "client_id": "app",
+    "client_secret": "{{clientSecret}}",
+    "credentials_placement": "basic-auth-header",
+    "flow": "saml2-bearer",
+    "parameters": [
+      {
+        "name": "audience",
+        "placement": "body",
+        "step": "access-token",
+        "value": "api"
+      }
+    ],
+    "refresh_token_url": "",
+    "scope": "openid api",
+    "token": {
+      "id": "",
+      "placement": {
+        "in": "header",
+        "prefix": "Bearer"
+      },
+      "source": "access-token"
+    },
+    "type": "oauth2"
+  },
+  {
+    "access_token_url": "",
+    "auto_fetch": false,
+    "auto_refresh": false,
+    "client_id": "",
+    "client_secret": "",
+    "credentials_placement": "body",
+    "flow": "client-credentials",
+    "parameters": [],
+    "refresh_token_url": "",
+    "scope": "",
+    "token": {
+      "id": "shared",
+      "placement": {
+        "in": "query",
+        "name": "access_token"
+      },
+      "source": "id-token"
+    },
+    "type": "oauth2"
   }
 ];
 
 export const environment: Environment = {
+  "client_certificates": [],
+  "external_secrets": null,
   "name": "Local",
   "variables": [
     {
@@ -211,6 +486,14 @@ export const sendErrors: SendError[] = [
     "message": "auth type \"oauth2\" is not supported yet"
   },
   {
+    "kind": "auth",
+    "message": "token endpoint answered 401"
+  },
+  {
+    "kind": "plugin",
+    "message": "odata: no CSRF token"
+  },
+  {
     "kind": "transport",
     "message": {
       "kind": "timeout"
@@ -221,6 +504,18 @@ export const sendErrors: SendError[] = [
 export const reportOk: SendReport = {
   "environment": "Local",
   "error": null,
+  "notes": [
+    {
+      "level": "info",
+      "source": "auth",
+      "text": "token refreshed"
+    },
+    {
+      "level": "error",
+      "source": "plugin:odata",
+      "text": "x"
+    }
+  ],
   "request": {
     "body_size": 2,
     "headers": [
@@ -324,6 +619,18 @@ export const reportError: SendReport = {
       "message": "Failed to fetch"
     }
   },
+  "notes": [
+    {
+      "level": "info",
+      "source": "auth",
+      "text": "token refreshed"
+    },
+    {
+      "level": "error",
+      "source": "plugin:odata",
+      "text": "x"
+    }
+  ],
   "request": null,
   "request_path": "users/create.yml",
   "response": null,
@@ -390,6 +697,18 @@ export const storedResponse: StoredResponse = {
   "report": {
     "environment": "Local",
     "error": null,
+    "notes": [
+      {
+        "level": "info",
+        "source": "auth",
+        "text": "token refreshed"
+      },
+      {
+        "level": "error",
+        "source": "plugin:odata",
+        "text": "x"
+      }
+    ],
     "request": {
       "body_size": 2,
       "headers": [
@@ -714,7 +1033,8 @@ export const importFormats: ImportFormat[] = [
   "openapi",
   "curl",
   "har",
-  "http"
+  "http",
+  "plugin"
 ];
 
 export const lossKinds: LossKind[] = [
@@ -900,6 +1220,18 @@ export const appErrors: AppError[] = [
     "message": "github.com"
   },
   {
+    "kind": "plugin",
+    "message": "x"
+  },
+  {
+    "kind": "auth",
+    "message": "x"
+  },
+  {
+    "kind": "secrets-found",
+    "message": "x"
+  },
+  {
     "kind": "unsupported",
     "message": "x"
   },
@@ -908,6 +1240,345 @@ export const appErrors: AppError[] = [
     "message": "x"
   }
 ];
+
+export const environmentWithConfig: Environment = {
+  "client_certificates": [
+    {
+      "domain": "*.example.com",
+      "enabled": true,
+      "passphrase": "",
+      "source": {
+        "certificate_path": "certs/client.pem",
+        "private_key_path": "certs/client.key",
+        "type": "pem"
+      }
+    },
+    {
+      "domain": "api.example.com:8443",
+      "enabled": false,
+      "passphrase": "{{p12Passphrase}}",
+      "source": {
+        "path": "certs/client.p12",
+        "type": "pkcs12"
+      }
+    }
+  ],
+  "external_secrets": {
+    "provider": "one-password",
+    "variables": [
+      {
+        "enabled": true,
+        "name": "token",
+        "reference": "op://Dev/API/token"
+      }
+    ]
+  },
+  "name": "Local",
+  "variables": [
+    {
+      "enabled": true,
+      "name": "baseUrl",
+      "secret": false,
+      "value": "http://127.0.0.1"
+    },
+    {
+      "enabled": true,
+      "name": "token",
+      "secret": true,
+      "value": null
+    }
+  ]
+};
+
+export const secretProviders: SecretProvider[] = [
+  "hashicorp-vault-cloud",
+  "hashicorp-vault-server",
+  "aws-secrets-manager",
+  "azure-key-vault",
+  "gcp-secrets-manager",
+  "one-password"
+];
+
+export const pluginInfo: PluginInfo = {
+  "enabled": false,
+  "granted": true,
+  "manifest": {
+    "api": 1,
+    "contributes": {
+      "importers": [
+        {
+          "extensions": [
+            "edmx",
+            "xml"
+          ],
+          "id": "edmx",
+          "label": "OData metadata"
+        }
+      ],
+      "prepare": true,
+      "response": false,
+      "tabs": [
+        {
+          "content_types": [
+            "application/json"
+          ],
+          "id": "claims",
+          "place": "response",
+          "title": "JWT"
+        },
+        {
+          "content_types": [],
+          "id": "builder",
+          "place": "request",
+          "title": "Query"
+        }
+      ]
+    },
+    "description": "Shows JWT claims.",
+    "homepage": null,
+    "id": "jwt-inspector",
+    "license": "Apache-2.0",
+    "name": "JWT inspector",
+    "permissions": {
+      "network": [
+        "{request}",
+        "*.example.com"
+      ],
+      "storage": true,
+      "variables": false
+    },
+    "version": "1.0.0"
+  }
+};
+
+export const viewReply: ViewReply = {
+  "state": {
+    "page": 2
+  },
+  "update_request": {
+    "auth": {
+      "token": "{{token}}",
+      "type": "bearer"
+    },
+    "body": {
+      "data": "{}",
+      "kind": "json",
+      "type": "raw"
+    },
+    "headers": [
+      {
+        "enabled": true,
+        "name": "Accept",
+        "value": "application/json"
+      }
+    ],
+    "method": "POST",
+    "name": "Create user",
+    "params": [
+      {
+        "enabled": true,
+        "kind": "query",
+        "name": "x",
+        "value": "1"
+      },
+      {
+        "enabled": false,
+        "kind": "path",
+        "name": "id",
+        "value": "7"
+      }
+    ],
+    "seq": 2.0,
+    "settings": {
+      "encode_url": false,
+      "follow_redirects": true,
+      "max_redirects": null,
+      "timeout_ms": 0
+    },
+    "url": "{{baseUrl}}/users/:id?x=1",
+    "vars": [
+      {
+        "enabled": true,
+        "name": "v",
+        "secret": false,
+        "value": "1"
+      }
+    ]
+  },
+  "view": {
+    "blocks": [
+      {
+        "text": "Claims",
+        "type": "heading"
+      },
+      {
+        "text": "x",
+        "type": "text"
+      },
+      {
+        "level": "warning",
+        "text": "expired",
+        "type": "notice"
+      },
+      {
+        "rows": [
+          [
+            "sub",
+            "ada"
+          ]
+        ],
+        "type": "key-value"
+      },
+      {
+        "columns": [
+          "a",
+          "b"
+        ],
+        "rows": [
+          [
+            "1",
+            "2"
+          ]
+        ],
+        "type": "table"
+      },
+      {
+        "language": "json",
+        "text": "{}",
+        "type": "code"
+      },
+      {
+        "language": null,
+        "text": "x",
+        "type": "code"
+      },
+      {
+        "nodes": [
+          {
+            "action": null,
+            "children": [
+              {
+                "action": "select:Id",
+                "children": [],
+                "detail": null,
+                "label": "Id"
+              }
+            ],
+            "detail": "EntitySet",
+            "label": "Users"
+          }
+        ],
+        "type": "tree"
+      },
+      {
+        "fields": [
+          {
+            "kind": "text",
+            "label": "F",
+            "name": "f",
+            "options": [
+              "a"
+            ],
+            "value": ""
+          },
+          {
+            "kind": "select",
+            "label": "F",
+            "name": "f",
+            "options": [
+              "a"
+            ],
+            "value": ""
+          },
+          {
+            "kind": "checkbox",
+            "label": "F",
+            "name": "f",
+            "options": [
+              "a"
+            ],
+            "value": ""
+          }
+        ],
+        "id": "q",
+        "submit": "Apply",
+        "type": "form"
+      },
+      {
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Refresh"
+          }
+        ],
+        "type": "actions"
+      }
+    ]
+  }
+};
+
+export const viewReplyEmpty: ViewReply = {
+  "state": null,
+  "update_request": null,
+  "view": {
+    "blocks": []
+  }
+};
+
+export const tabTargets: TabTarget[] = [
+  {
+    "request_path": "a.yml",
+    "response_id": 3
+  },
+  {
+    "request_path": "a.yml",
+    "response_id": null
+  }
+];
+
+export const tokenInfo: TokenInfo = {
+  "expires_at": 1790000360000,
+  "key": "k",
+  "label": "idp app openid",
+  "obtained_at": 1790000000000,
+  "refreshable": true
+};
+
+export const authPrompts: AuthPrompt[] = [
+  {
+    "kind": "browser",
+    "url": "https://idp/auth?x"
+  },
+  {
+    "expires_in": 600,
+    "kind": "device-code",
+    "user_code": "ABCD-EFGH",
+    "verification_uri": "https://idp/device",
+    "verification_uri_complete": null
+  },
+  {
+    "kind": "done"
+  }
+];
+
+export const cookieInfo: CookieInfo = {
+  "domain": "example.com",
+  "expires": null,
+  "http_only": true,
+  "name": "SAP_SESSIONID",
+  "path": "/",
+  "same_site": "Lax",
+  "secure": true,
+  "value": "v"
+};
+
+export const secretFinding: SecretFinding = {
+  "hint": "use a secret variable",
+  "kind": "bearer token",
+  "line": 12,
+  "path": "a.yml",
+  "snippet": "token: ***"
+};
 
 export const secretKey: SecretKey = {
   "collection": "c",

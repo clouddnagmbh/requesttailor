@@ -12,12 +12,6 @@
         "location": "collection"
       },
       {
-        "detail": "AWS Signature v4 settings kept in the file, but RequestTailor cannot send with AWS Signature v4 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "Auth schemes / AWS"
-      },
-      {
         "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
         "effect": "approximated",
         "kind": "auth",

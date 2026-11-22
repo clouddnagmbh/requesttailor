@@ -297,6 +297,7 @@ mod tests {
         let ptr = body.as_ptr();
         let mut store = ResponseStore::new();
         let report = SendReport {
+            notes: Vec::new(),
             version: 1,
             request_path: "a.yml".into(),
             environment: None,

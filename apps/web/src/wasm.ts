@@ -22,6 +22,8 @@ import {
   type TreeNode,
 } from "@requesttailor/ui";
 
+import type { CoreSendServices } from "./send-services";
+
 /** `rt_app::SendInput`: what the UI sends plus the secret values the shell adds. */
 export interface CoreSendInput {
   environment: string | null;
@@ -52,7 +54,12 @@ export interface CoreWorkspace {
   updateEnvironment(env: Environment): void;
   deleteEnvironment(name: string): void;
   preview(path: string, input: CoreSendInput): Preview;
-  send(path: string, input: CoreSendInput, companion: CompanionCredentials | null): Promise<StoredResponse>;
+  send(
+    path: string,
+    input: CoreSendInput,
+    companion: CompanionCredentials | null,
+    services: CoreSendServices | null,
+  ): Promise<StoredResponse>;
   responseLines(id: number, start: number, count: number): LineSlice;
   responseBytes(id: number, offset: number, length: number): Uint8Array;
   filterJson(id: number, expression: string): string;

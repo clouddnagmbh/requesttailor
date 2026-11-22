@@ -183,6 +183,8 @@ impl<'a> Cx<'a> {
             let mut variables = vec![Variable::new("baseUrl", url)];
             variables.extend(vars);
             environments.push(Environment {
+                client_certificates: Vec::new(),
+                external_secrets: None,
                 name: unique,
                 variables,
             });
@@ -358,6 +360,8 @@ impl<'a> Cx<'a> {
         let secrets: Vec<(String, bool)> = self.secrets.clone();
         if !secrets.is_empty() && environments.is_empty() {
             environments.push(Environment {
+                client_certificates: Vec::new(),
+                external_secrets: None,
                 name: "Default".into(),
                 variables: Vec::new(),
             });

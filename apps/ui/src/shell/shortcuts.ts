@@ -18,7 +18,9 @@ export type CommandId =
   | "import"
   | "search"
   | "history"
-  | "git";
+  | "git"
+  | "plugins"
+  | "cookies";
 
 export interface Shortcut {
   command: CommandId;

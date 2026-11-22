@@ -4,17 +4,21 @@
      request editor above the response (resizable split), command palette and global shortcuts.
      Owner: wave 3, strand A. Composes the other strands' components through their props only.
      Wave 4 mount points: GitPanel (A2), ImportDialog (B), RecentCollections and
-     reopenOnStart (C), SearchPanel and HistoryPanel (E). -->
+     reopenOnStart (C), SearchPanel and HistoryPanel (E).
+     Wave 5 mount points: PluginsDialog (A), AuthPromptDialog (C), CookiesDialog (D). -->
 <script lang="ts">
   import { onMount, tick } from "svelte";
 
+  import AuthPromptDialog from "../auth/AuthPromptDialog.svelte";
   import type { Backend, CollectionInfo } from "../commands/backend";
+  import CookiesDialog from "../cookies/CookiesDialog.svelte";
   import RequestEditor from "../editor/RequestEditor.svelte";
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
   import GitPanel from "../git/GitPanel.svelte";
   import HistoryPanel from "../history/HistoryPanel.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
+  import PluginsDialog from "../plugins/PluginsDialog.svelte";
   import RecentCollections from "../recent/RecentCollections.svelte";
   import { reopenOnStart } from "../recent/startup";
   import SearchPanel from "../search/SearchPanel.svelte";
@@ -45,6 +49,8 @@
 
   let managing = $state(false);
   let importing = $state(false);
+  let managingPlugins = $state(false);
+  let showingCookies = $state(false);
   let innerWidth = $state(1024);
   let paletteOpen = $state(false);
   /** Folder the inline "new request" prompt is open for (`""` = root). */
@@ -160,6 +166,10 @@
     search: () => showView("search"),
     history: () => showView("history"),
     git: () => showView("git"),
+    plugins: () => (managingPlugins = true),
+    cookies: () => {
+      if (app.collection) showingCookies = true;
+    },
   };
   const commands = $derived(buildCommands(app, actions, mac));
 
@@ -316,6 +326,9 @@
 <CommandPalette bind:open={paletteOpen} {commands} />
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
 <ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
+<PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />
+<CookiesDialog open={showingCookies} onclose={() => (showingCookies = false)} />
+<AuthPromptDialog />
 
 <svelte:window bind:innerWidth />
 

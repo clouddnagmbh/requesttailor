@@ -17,9 +17,9 @@
 use std::collections::BTreeMap;
 
 use rt_core::model::{
-    ApiKeyPlacement, Auth, Body, Collection, Environment, Folder, Item, KeyValue, MultipartPart,
-    Param, ParamKind, PartKind, RawKind, RequestDefaults, RequestEntry, RequestSpec, Settings,
-    Variable,
+    ApiKeyPlacement, Auth, Body, Collection, CollectionConfig, Environment, Folder, Item, KeyValue,
+    MultipartPart, Param, ParamKind, PartKind, RawKind, RequestDefaults, RequestEntry, RequestSpec,
+    Settings, Variable,
 };
 
 use crate::yaml::{Document, Node};
@@ -95,11 +95,20 @@ impl<'a> Builder<'a> {
                 environments.push(environment(&doc.root, file_stem(path)));
             }
         }
+        let mut defaults = self.defaults(COLLECTION_FILE, root.get("request"), Auth::None);
+        if let Some(auth) = crate::auth::oauth2::read_extension(root) {
+            defaults.auth = auth;
+        }
         let mut col = Collection {
             name: text(root.get("info").and_then(|i| i.get("name"))),
-            defaults: self.defaults(COLLECTION_FILE, root.get("request"), Auth::None),
+            defaults,
             items: Vec::new(),
             environments,
+            config: CollectionConfig {
+                client_certificates: crate::auth::certs::read(
+                    root.get("config").and_then(|c| c.get("clientCertificates")),
+                ),
+            },
         };
         if flag(root.get("bundled")) == Some(true) && root.get("items").is_some() {
             self.issue(
@@ -281,6 +290,8 @@ impl<'a> Builder<'a> {
                     _ => ApiKeyPlacement::Header,
                 },
             },
+            "oauth2" if node.is_map() => crate::auth::oauth2::read(node),
+            "awsv4" if node.is_map() => Auth::AwsSigV4(crate::auth::awsv4::read(node)),
             other => Auth::Unsupported {
                 kind: other.to_owned(),
             },
@@ -422,6 +433,8 @@ pub(crate) fn environment(e: &Node, fallback_name: &str) -> Environment {
             .unwrap_or(fallback_name)
             .to_owned(),
         variables: variables(e.get("variables")),
+        client_certificates: crate::auth::certs::read(e.get("clientCertificates")),
+        external_secrets: crate::auth::secrets::read(e.get("externalSecrets")),
     }
 }
 

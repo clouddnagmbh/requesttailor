@@ -41,6 +41,8 @@ describe("environment ops", () => {
   it("never hands secret values to files", () => {
     const env: Environment = {
       name: "X",
+      client_certificates: [],
+      external_secrets: null,
       variables: [
         { name: "token", value: "leak", enabled: true, secret: true },
         { name: "", value: "unnamed", enabled: true, secret: false },
@@ -56,6 +58,8 @@ describe("environment ops", () => {
   it("validates names", () => {
     const env = (name: string, vars: string[] = []): Environment => ({
       name,
+      client_certificates: [],
+      external_secrets: null,
       variables: vars.map((n) => ({ name: n, value: "", enabled: true, secret: false })),
     });
     expect(validate(env("New"), ["Local"])).toBeNull();

@@ -422,11 +422,14 @@ mod workspace_js {
         }
 
         /// Resolves with the `StoredResponse`; transport failures are in `report.error`.
+        /// `services`: plugins, token cache and prompts, cookie jar (wave 5,
+        /// `services_js`), or `null`.
         pub fn send(
             &self,
             path: &str,
             input: JsValue,
             companion: JsValue,
+            services: JsValue,
         ) -> Result<Promise, JsValue> {
             let input: SendInput = from_js(&input, "input")?;
             let companion: Option<Companion> = if companion.is_null() || companion.is_undefined() {
@@ -440,17 +443,23 @@ mod workspace_js {
                 .workspace
                 .snapshot(path, input)
                 .map_err(app_error)?;
+            let parts = crate::services_js::SendServices::from_js(&services)?;
             let inner = Rc::clone(&self.inner);
             Ok(wasm_bindgen_futures::future_to_promise(async move {
                 let options = SendOptions {
                     body_limit: BODY_LIMIT,
                 };
+                let services = parts.services();
                 let report = match companion {
                     Some(c) => {
                         let transport = CompanionTransport::new(c.url, c.token);
-                        snapshot.send(&transport, &options).await
+                        snapshot.send_with(&transport, &options, &services).await
                     }
-                    None => snapshot.send(&FetchTransport::new(), &options).await,
+                    None => {
+                        snapshot
+                            .send_with(&FetchTransport::new(), &options, &services)
+                            .await
+                    }
                 };
                 let stored = inner.borrow_mut().responses.insert(report);
                 to_js(&stored)
@@ -528,11 +537,19 @@ mod workspace_js {
 
 // Wave 4, one module per strand: git (A2), import (B), history (E).
 #[cfg(target_arch = "wasm32")]
+mod auth_js;
+#[cfg(target_arch = "wasm32")]
+mod cookies_js;
+#[cfg(target_arch = "wasm32")]
 mod git_js;
 #[cfg(target_arch = "wasm32")]
 mod history_js;
 #[cfg(target_arch = "wasm32")]
 mod import_js;
+#[cfg(target_arch = "wasm32")]
+mod plugins_js;
+#[cfg(target_arch = "wasm32")]
+mod services_js;
 
 #[cfg(test)]
 mod tests {

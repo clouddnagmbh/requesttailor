@@ -100,6 +100,7 @@ pub fn prepare(
         let url = url.finish(api_key_query, &url_unresolved)?;
 
         let options = SendOptions {
+            client_identity: None,
             timeout: match setting(context, |s| s.timeout_ms) {
                 None | Some(0) => None,
                 Some(ms) => Some(Duration::from_millis(ms)),

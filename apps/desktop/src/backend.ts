@@ -7,15 +7,18 @@
 
 import {
   BackendError,
+  type AuthApi,
   type Backend,
   type CollectionInfo,
   type CompanionStatus,
+  type CookieApi,
   type Environment,
   type FileChange,
   type GitApi,
   type HistoryApi,
   type ImportApi,
   type LineSlice,
+  type PluginApi,
   type Preview,
   type RecentCollection,
   type RequestSpec,
@@ -28,9 +31,12 @@ import {
   type TreeNode,
 } from "@requesttailor/ui";
 
+import { tauriAuth } from "./auth";
+import { tauriCookies } from "./cookies";
 import { tauriGit } from "./git";
 import { tauriHistory } from "./history";
 import { tauriImports } from "./import";
+import { tauriPlugins } from "./plugins";
 
 /** All commands the webview may call; must match `capabilities/default.json`. */
 export const COMMANDS = [
@@ -80,6 +86,22 @@ export const COMMANDS = [
   "search",
   "recent_collections",
   "open_recent",
+  "git_scan",
+  "import_analyze_plugin",
+  "plugin_list",
+  "plugin_inspect",
+  "plugin_install",
+  "plugin_remove",
+  "plugin_set_enabled",
+  "plugin_render_tab",
+  "plugin_action",
+  "auth_tokens",
+  "auth_fetch_token",
+  "auth_clear_tokens",
+  "auth_cancel_prompt",
+  "cookie_list",
+  "cookie_delete",
+  "cookie_clear",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -115,12 +137,18 @@ export class TauriBackend implements Backend {
   readonly git: GitApi;
   readonly imports: ImportApi;
   readonly history: HistoryApi;
+  readonly plugins: PluginApi;
+  readonly auth: AuthApi;
+  readonly cookies: CookieApi;
 
   constructor(private readonly invokeRaw: Invoke) {
     const call: Call = (cmd, args) => this.call(cmd, args);
     this.git = tauriGit(call);
     this.imports = tauriImports(call);
     this.history = tauriHistory(call);
+    this.plugins = tauriPlugins(call);
+    this.auth = tauriAuth(call);
+    this.cookies = tauriCookies(call);
     this.secrets = {
       has: (environment, variable) => this.call("secret_has", { environment, variable }),
       get: (environment, variable) => this.call("secret_get", { environment, variable }),

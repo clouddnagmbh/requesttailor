@@ -1099,6 +1099,8 @@ impl Cx {
             unique = "Environment".into();
         }
         c.environments.push(Environment {
+            client_certificates: Vec::new(),
+            external_secrets: None,
             name: unique,
             variables: vars,
         });

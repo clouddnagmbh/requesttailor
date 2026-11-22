@@ -87,6 +87,10 @@ export function describeError(error: SendError): string {
       return `Request not found: ${error.message}`;
     case "prepare":
       return `The request could not be prepared: ${error.message}`;
+    case "auth":
+      return `Authentication failed: ${error.message}`;
+    case "plugin":
+      return `A plugin stopped the request: ${error.message}`;
     case "transport": {
       const t = error.message;
       switch (t.kind) {

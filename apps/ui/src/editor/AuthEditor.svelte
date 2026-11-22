@@ -1,9 +1,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- Request auth: inherit, none, basic, bearer, API key. Auth the core cannot execute yet
+<!-- Request auth: inherit, none, basic, bearer, API key, OAuth 2.0 (`auth/OAuth2Editor`,
+     wave 5 strand C), AWS SigV4 (`auth/AwsSigV4Editor`, strand D). Auth the core cannot execute
      (`unsupported`) is shown read-only; replacing it is an explicit second step. -->
 <script lang="ts">
   import type { ApiKeyPlacement, Auth } from "../commands/types";
+  import AwsSigV4Editor from "./auth/AwsSigV4Editor.svelte";
+  import { FRESH_AWS_SIGV4, FRESH_OAUTH2 } from "./auth/fresh";
+  import OAuth2Editor from "./auth/OAuth2Editor.svelte";
   import CodeField from "./CodeField.svelte";
   import type { VarLookup } from "./vars";
 
@@ -28,6 +32,8 @@
     ["basic", "Basic"],
     ["bearer", "Bearer token"],
     ["api-key", "API key"],
+    ["oauth2", "OAuth 2.0"],
+    ["awsv4", "AWS Signature V4"],
   ];
   const FRESH: Record<AuthType, Auth> = {
     inherit: { type: "inherit" },
@@ -35,6 +41,8 @@
     basic: { type: "basic", username: "", password: "" },
     bearer: { type: "bearer", token: "" },
     "api-key": { type: "api-key", key: "", value: "", placement: "header" },
+    oauth2: FRESH_OAUTH2,
+    awsv4: FRESH_AWS_SIGV4,
   };
 
   let replacing = $state(false);
@@ -117,6 +125,10 @@
         </select>
       </label>
     </div>
+  {:else if auth.type === "oauth2"}
+    <OAuth2Editor {auth} {lookup} {onchange} />
+  {:else if auth.type === "awsv4"}
+    <AwsSigV4Editor {auth} {lookup} {onchange} />
   {/if}
 </div>
 

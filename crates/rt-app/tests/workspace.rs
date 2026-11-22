@@ -297,6 +297,8 @@ fn environments_are_created_updated_and_deleted() {
     let mut on_disk = sample();
     let mut ws = Workspace::open(on_disk.clone()).unwrap();
     let staging = Environment {
+        client_certificates: Vec::new(),
+        external_secrets: None,
         name: "Staging".into(),
         variables: vec![Variable::new("who", "staging")],
     };
@@ -346,6 +348,8 @@ fn environments_are_created_updated_and_deleted() {
 fn deleting_an_unsaved_environment_leaves_nothing_to_save() {
     let mut ws = Workspace::open(sample()).unwrap();
     ws.update_environment(Environment {
+        client_certificates: Vec::new(),
+        external_secrets: None,
         name: "Tmp".into(),
         variables: Vec::new(),
     })

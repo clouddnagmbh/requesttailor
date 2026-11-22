@@ -6,10 +6,16 @@
 //!
 //! Changes here are interface changes (working rule 1): they go in their own commit.
 
+mod auth;
 mod collection;
 mod env;
 mod request;
 
+pub use auth::{
+    AwsSigV4, CertificateSource, ClientCertificate, CollectionConfig, CredentialsPlacement,
+    ExternalSecret, ExternalSecrets, OAuth2, OAuth2Flow, OAuth2Param, OAuth2Step, ParamPlacement,
+    PkceMethod, SecretProvider, TokenPlacement, TokenSource, TokenUse,
+};
 pub use collection::{Collection, Folder, Item, RequestContext, RequestDefaults, RequestEntry};
 pub use env::{Environment, Variable};
 pub use request::{

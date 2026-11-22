@@ -487,6 +487,8 @@ fn all_bytes(set: &FileSet) -> String {
 fn new_environment_writes_secrets_without_value() {
     let mut doc = read_collection(&fresh_collection()).unwrap();
     let env = Environment {
+        client_certificates: Vec::new(),
+        external_secrets: None,
         name: "Local".into(),
         variables: vec![
             Variable::new("baseUrl", "http://localhost:8081"),
@@ -601,6 +603,8 @@ fn inline_environments_are_edited_in_place() {
     )]);
     let mut doc = read_collection(&input).unwrap();
     let env = Environment {
+        client_certificates: Vec::new(),
+        external_secrets: None,
         name: "B".into(),
         variables: vec![Variable::new("w", "2")],
     };

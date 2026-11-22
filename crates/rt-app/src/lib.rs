@@ -15,13 +15,19 @@
 //!
 //! Module owners in wave 3: `workspace` (strand F), `response` (strand C), `secrets` (strand D).
 //! Wave 4: `git` (strands A1/A2), `import` (strand B), `history` and `search` (strand E).
+//! Wave 5: `plugins` (strand A), `auth` (strand C), `cookies` (strand D), `secret_scan`
+//! (strand E).
 //! Changes to the public types here are interface changes (working rule 1).
 
+pub mod auth;
+pub mod cookies;
 pub mod git;
 pub mod history;
 pub mod import;
+pub mod plugins;
 pub mod response;
 pub mod search;
+pub mod secret_scan;
 pub mod secrets;
 mod workspace;
 
@@ -89,6 +95,15 @@ pub enum AppError {
     /// The remote asked for credentials, or rejected them; the value is the host.
     #[error("authentication required for {0}")]
     GitAuth(String),
+    /// A plugin could not be installed or failed (wave 5).
+    #[error("{0}")]
+    Plugin(String),
+    /// An OAuth 2.0 flow failed or was cancelled, or a token could not be stored (wave 5).
+    #[error("{0}")]
+    Auth(String),
+    /// A commit was refused because files contain credentials; `GitApi.scan` lists them.
+    #[error("{0}")]
+    SecretsFound(String),
     /// The command is not available in this shell (yet).
     #[error("{0}")]
     Unsupported(String),

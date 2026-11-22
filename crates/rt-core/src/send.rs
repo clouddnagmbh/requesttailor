@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::{Auth, Body, Collection, RequestContext, Variable};
 use crate::prepare::{FileSource, PrepareError, PrepareInput, Prepared, prepare};
+use crate::services::{HookContext, Note, Services};
 use crate::transport::{
     CompletedResponse, HttpRequest, HttpVersion, Redirect, Timing, Transport, TransportError,
     collect,
@@ -74,6 +75,11 @@ pub enum SendError {
     NotFound(String),
     /// Variable, auth or body preparation failed.
     Prepare(String),
+    /// Getting or applying credentials failed at send time (OAuth 2.0 token, SigV4 signing,
+    /// client certificate). Wave 5.
+    Auth(String),
+    /// A plugin hook stopped the send. Wave 5.
+    Plugin(String),
     Transport(TransportError),
 }
 
@@ -89,6 +95,10 @@ pub struct SendReport {
     pub variables: Vec<VarUse>,
     pub unresolved: Vec<String>,
     pub error: Option<SendError>,
+    /// Messages from the auth step and plugin hooks (wave 5). Omitted from the JSON when
+    /// empty, so wave 2 reports are unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<Note>,
 }
 
 /// What `rt send` prints in place of a secret value.
@@ -99,6 +109,8 @@ pub const MASK: &str = "***";
 /// Never fails: every outcome, including "request not found", is a [`SendReport`] with
 /// `error` set. Secret values are masked in `report.request`; the response is reported as
 /// received.
+///
+/// Without services: no token cache, no prompts, no cookies, no plugins. See [`send_with`].
 pub async fn send<T: Transport>(
     collection: &Collection,
     request_path: &str,
@@ -106,6 +118,38 @@ pub async fn send<T: Transport>(
     files: &dyn FileSource,
     transport: &T,
     options: &SendOptions,
+) -> SendReport {
+    send_with(
+        collection,
+        request_path,
+        input,
+        files,
+        transport,
+        options,
+        &Services::none(),
+    )
+    .await
+}
+
+/// [`send`] with the shell's services (wave 5). The pipeline after `prepare`, in order:
+///
+/// 1. OAuth 2.0 token: cached, refreshed or fetched (`auth::oauth2`, strand C).
+/// 2. Plugin `before_send` hooks, on the masked request (`services.hooks`, strand A).
+/// 3. AWS SigV4 signature over the final request (`auth::sigv4`, strand D).
+/// 4. Client certificate for the host (`tls::client_identity`, strand D).
+/// 5. Cookies from the environment's jar (`cookies`, strand D).
+/// 6. The wire; then `Set-Cookie` into the jar and the plugin `after_response` hooks.
+///
+/// Every value that step 1 or 3 adds (tokens, signatures' secret inputs) is masked in the
+/// report like a secret variable.
+pub async fn send_with<T: Transport>(
+    collection: &Collection,
+    request_path: &str,
+    input: &PrepareInput<'_>,
+    files: &dyn FileSource,
+    transport: &T,
+    options: &SendOptions,
+    services: &Services<'_>,
 ) -> SendReport {
     let report = SendReport {
         version: REPORT_VERSION,
@@ -116,6 +160,7 @@ pub async fn send<T: Transport>(
         variables: Vec::new(),
         unresolved: Vec::new(),
         error: None,
+        notes: Vec::new(),
     };
     let Some(context) = collection.request(request_path) else {
         return SendReport {
@@ -124,18 +169,24 @@ pub async fn send<T: Transport>(
         };
     };
     let prepared = prepare(&context, input, files);
-    finish(report, &context, input, prepared, transport, options).await
+    finish(
+        report, &context, input, files, prepared, transport, options, services,
+    )
+    .await
 }
 
 /// Everything after `prepare`. Split out so the orchestration can be tested with a
 /// hand-built `Prepared`.
+#[allow(clippy::too_many_arguments)]
 async fn finish<T: Transport>(
     mut report: SendReport,
     context: &RequestContext<'_>,
     input: &PrepareInput<'_>,
+    files: &dyn FileSource,
     prepared: Result<Prepared, PrepareError>,
     transport: &T,
     options: &SendOptions,
+    services: &Services<'_>,
 ) -> SendReport {
     let prepared = match prepared {
         Ok(p) => p,
@@ -146,23 +197,116 @@ async fn finish<T: Transport>(
             return report;
         }
     };
-    let secrets = secret_values(context, input, &prepared);
-    report.request = Some(sent_request(&prepared.request, &secrets));
-    report.variables = prepared.used;
-    report.unresolved = prepared.unresolved;
+    let mut secrets = secret_values(context, input, &prepared);
+    let Prepared {
+        mut request,
+        auth,
+        scope,
+        used,
+        unresolved,
+    } = prepared;
+    report.unresolved = unresolved;
+    let scope_name = input.environment.unwrap_or("");
+    let hook_context = HookContext {
+        request_path: report.request_path.clone(),
+        environment: input.environment.map(str::to_owned),
+        variables: used
+            .iter()
+            .filter(|u| !u.secret)
+            .filter_map(|u| {
+                let (value, _, secret) = scope.get(&u.name)?;
+                (!secret).then(|| (u.name.clone(), value.to_owned()))
+            })
+            .collect(),
+    };
+    report.variables = used;
+    let fail = |mut report: SendReport, error: SendError, secrets: &[String]| {
+        report.error = Some(match error {
+            SendError::Auth(m) => SendError::Auth(mask(&m, secrets)),
+            SendError::Plugin(m) => SendError::Plugin(mask(&m, secrets)),
+            e => e,
+        });
+        report
+    };
 
+    // 1. OAuth 2.0.
+    if let Auth::OAuth2(oauth) = &auth {
+        match crate::auth::oauth2::authorize(oauth, &scope, request, transport, services).await {
+            Ok(authorized) => {
+                request = authorized.request;
+                add_secrets(&mut secrets, authorized.secrets);
+                report.notes.extend(authorized.notes);
+            }
+            Err(e) => return fail(report, SendError::Auth(e), &secrets),
+        }
+    }
+    // 2. Plugins see the request with secrets masked; `rt-plugin` does the masking.
+    if let Some(hooks) = services.hooks {
+        match hooks.before_send(request, &secrets, &hook_context).await {
+            Ok((changed, notes)) => {
+                request = changed;
+                report.notes.extend(notes);
+            }
+            Err(e) => return fail(report, SendError::Plugin(e), &secrets),
+        }
+    }
+    // 3. SigV4 signs what goes on the wire, so it comes after every change.
+    if let Auth::AwsSigV4(aws) = &auth {
+        match crate::auth::sigv4::sign(&mut request, aws, &scope, web_time::SystemTime::now()) {
+            Ok(values) => add_secrets(&mut secrets, values),
+            Err(e) => return fail(report, SendError::Auth(e), &secrets),
+        }
+    }
+    // 4. Client certificate.
+    match crate::tls::client_identity(context, input.environment, &request.url, &scope, files) {
+        Ok(identity) => request.options.client_identity = identity,
+        Err(e) => return fail(report, SendError::Auth(e), &secrets),
+    }
+    // 5. Cookies.
+    if let Some(jar) = services.cookies
+        && let Some(cookie) = jar.cookie_header(scope_name, &request.url).await
+    {
+        crate::cookies::add_cookie_header(&mut request.headers, &cookie);
+    }
+
+    report.request = Some(sent_request(&request, &secrets));
     let started = web_time::Instant::now();
-    let result = match transport.send(prepared.request).await {
+    let result = match transport.send(request).await {
         Ok(response) => collect(response, options.body_limit, started).await,
         Err(e) => Err(e),
     };
     match result {
-        Ok(completed) => report.response = Some(received(completed)),
+        Ok(completed) => {
+            if let Some(jar) = services.cookies {
+                let set_cookie = crate::cookies::set_cookie_values(&completed.head);
+                if !set_cookie.is_empty() {
+                    jar.store(scope_name, &completed.head.url, &set_cookie)
+                        .await;
+                }
+            }
+            if let Some(hooks) = services.hooks {
+                let notes = hooks
+                    .after_response(&completed.head, &completed.body, &hook_context)
+                    .await;
+                report.notes.extend(notes);
+            }
+            report.response = Some(received(completed));
+        }
         // Transports quote the URL and header values in their messages; secrets must not
         // reach the report (CLI JSON, UI, agents) through an error either.
         Err(e) => report.error = Some(SendError::Transport(mask_transport_error(e, &secrets))),
     }
+    for note in &mut report.notes {
+        note.text = mask(&note.text, &secrets);
+    }
     report
+}
+
+/// Adds values to mask, keeping the order `mask` relies on (longest first).
+fn add_secrets(secrets: &mut Vec<String>, values: Vec<String>) {
+    secrets.extend(values.into_iter().filter(|v| !v.is_empty()));
+    secrets.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+    secrets.dedup();
 }
 
 /// `e` with every secret in its message replaced by [`MASK`].
@@ -611,6 +755,7 @@ mod tests {
             },
         };
         Collection {
+            config: Default::default(),
             name: "test".into(),
             defaults: RequestDefaults {
                 vars: vec![Variable::new("baseUrl", "{{scheme}}://{{host}}")],
@@ -629,6 +774,8 @@ mod tests {
                 ..Default::default()
             })],
             environments: vec![Environment {
+                client_certificates: Vec::new(),
+                external_secrets: None,
                 name: "Local".into(),
                 variables: vec![Variable::new("scheme", "http"), secret("apiKey")],
             }],
@@ -680,6 +827,7 @@ mod tests {
 
     fn base_report() -> SendReport {
         SendReport {
+            notes: Vec::new(),
             version: REPORT_VERSION,
             request_path: "api/get.yml".into(),
             environment: Some("Local".into()),
@@ -720,9 +868,11 @@ mod tests {
             base_report(),
             &ctx,
             &input(),
+            &NoFiles,
             Err(err.clone()),
             &t,
             &SendOptions::default(),
+            &Services::none(),
         ));
         assert_eq!(r.error, Some(SendError::Prepare(err.to_string())));
         // baseUrl -> {{scheme}}://{{host}}: host is missing; header {{nope}}; auth {{token}}.
@@ -740,9 +890,11 @@ mod tests {
             base_report(),
             &ctx,
             &input(),
+            &NoFiles,
             Ok(prepared()),
             &t,
             &SendOptions::default(),
+            &Services::none(),
         ));
         assert_eq!(
             r.error,
@@ -814,9 +966,11 @@ mod tests {
                 base_report(),
                 &ctx,
                 &input(),
+                &NoFiles,
                 Ok(prepared()),
                 &t,
                 &SendOptions::default(),
+                &Services::none(),
             ));
             let json = serde_json::to_string(&r.error).unwrap();
             assert!(!json.contains("s3cr3t"), "{json}");
@@ -943,9 +1097,11 @@ mod tests {
             base_report(),
             &ctx,
             &input(),
+            &NoFiles,
             Ok(prepared()),
             &t,
             &SendOptions { body_limit: 4 },
+            &Services::none(),
         ));
         assert_eq!(r.error, None);
         let resp = r.response.unwrap();

@@ -4575,6 +4575,7 @@ dependencies = [
  "memchr",
  "rt-core",
  "rt-format",
+ "rt-plugin",
  "rt-testserver",
  "serde",
  "serde_json",
@@ -4681,6 +4682,22 @@ dependencies = [
 [[package]]
 name = "rt-plugin"
 version = "0.0.0"
+dependencies = [
+ "rt-core",
+ "rt-format",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rt-plugin-sdk"
+version = "0.0.0"
+dependencies = [
+ "rt-plugin",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "rt-script"

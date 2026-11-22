@@ -12,7 +12,7 @@ import type { ImportFormat, ImportPlan, Loss } from "./types";
 
 const text = (f: ImportSource) => new TextDecoder().decode(f.data);
 
-function detect(f: ImportSource): ImportFormat | null {
+function detect(f: ImportSource): Exclude<ImportFormat, "plugin"> | null {
   const name = f.name.toLowerCase();
   const t = text(f).trimStart();
   if (name.endsWith(".http") || name.endsWith(".rest") || name.startsWith("http-client")) return "http";
@@ -25,7 +25,7 @@ function detect(f: ImportSource): ImportFormat | null {
   return null;
 }
 
-const LOSSES: Record<ImportFormat, Loss[]> = {
+const LOSSES: Record<Exclude<ImportFormat, "plugin">, Loss[]> = {
   postman: [
     { location: "Users", kind: "script", effect: "dropped", detail: "pre-request script (3 lines) not imported" },
     { location: "Users / Get user", kind: "test", effect: "dropped", detail: "test script (5 lines) not imported" },
@@ -80,7 +80,7 @@ const LOSSES: Record<ImportFormat, Loss[]> = {
   ],
 };
 
-const COUNTS: Record<ImportFormat, [number, number, number]> = {
+const COUNTS: Record<Exclude<ImportFormat, "plugin">, [number, number, number]> = {
   postman: [4, 1, 1],
   insomnia: [3, 1, 2],
   openapi: [6, 2, 1],
@@ -102,7 +102,7 @@ export function mockImports(open?: () => Promise<CollectionInfo | null>): Import
       if (files.length === 0) throw new BackendError("import", "no file to import");
       const bad = files.find((f) => text(f).includes("INVALID"));
       if (bad) throw new BackendError("import", `${bad.name} is not valid JSON: line 1, column 2: expected a value`);
-      const detected = format ?? detect(files[0]!);
+      const detected = format === "plugin" ? null : (format ?? detect(files[0]!));
       if (!detected) throw new BackendError("import", "unknown file format; choose the format explicitly");
       const [requests, folders, environments] = COUNTS[detected];
       const name = detected === "curl" ? "api.example.com" : stem(files[0]!.name);
@@ -132,6 +132,10 @@ export function mockImports(open?: () => Promise<CollectionInfo | null>): Import
     },
     discard: async (id) => {
       plans.delete(id);
+    },
+    // Wave 5, strand A: plugin importers in the mock. Interface commit: none installed.
+    analyzeWithPlugin: async (_files, plugin) => {
+      throw new BackendError("plugin", `plugin ${plugin} is not installed`);
     },
   };
 }

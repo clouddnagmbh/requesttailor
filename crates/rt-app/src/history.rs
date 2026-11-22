@@ -181,6 +181,8 @@ fn error_text(error: &SendError) -> String {
     match error {
         SendError::NotFound(m) => format!("not-found {m}"),
         SendError::Prepare(m) => format!("prepare {m}"),
+        SendError::Auth(m) => format!("auth {m}"),
+        SendError::Plugin(m) => format!("plugin {m}"),
         SendError::Transport(t) => {
             let kind = serde_json::to_value(t).unwrap_or_default();
             let kind = kind["kind"].as_str().unwrap_or_default().to_owned();
@@ -199,6 +201,9 @@ pub fn scrub_error(error: &SendError) -> SendError {
     match error {
         SendError::NotFound(path) => SendError::NotFound(path.clone()),
         SendError::Prepare(m) => SendError::Prepare(scrub_prepare(m)),
+        // Auth and plugin messages may quote token endpoints or plugin output: URLs go.
+        SendError::Auth(m) => SendError::Auth(scrub_urls(m)),
+        SendError::Plugin(m) => SendError::Plugin(scrub_urls(m)),
         SendError::Transport(t) => SendError::Transport(match t {
             TransportError::InvalidUrl(m) => TransportError::InvalidUrl(url_reason(m)),
             TransportError::Dns(m) => TransportError::Dns(scrub_urls(m)),

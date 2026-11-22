@@ -136,16 +136,14 @@ pub(crate) struct AwsV4 {
 }
 
 pub(crate) fn awsv4(a: &AwsV4) -> AuthOut {
-    let mut e = Vec::new();
-    put(&mut e, "accessKeyId", &a.access_key_id);
-    put(&mut e, "secretAccessKey", &a.secret_access_key);
-    put(&mut e, "sessionToken", &a.session_token);
-    put(&mut e, "service", &a.service);
-    put(&mut e, "region", &a.region);
-    AuthOut::Other {
-        kind: "awsv4",
-        fields: e,
-    }
+    AuthOut::Model(rt_core::model::Auth::AwsSigV4(rt_core::model::AwsSigV4 {
+        access_key_id: a.access_key_id.clone(),
+        secret_access_key: a.secret_access_key.clone(),
+        session_token: a.session_token.clone(),
+        service: a.service.clone(),
+        region: a.region.clone(),
+        profile_name: String::new(),
+    }))
 }
 
 #[derive(Debug, Clone, Default)]
@@ -215,18 +213,24 @@ const SECRET_FIELDS: &[&str] = &[
 
 /// Reports an auth that is kept but cannot be sent yet, and literal credentials in it.
 pub(crate) fn report(losses: &mut Losses, location: &str, auth: &AuthOut, label: &str) {
-    let AuthOut::Other { fields, .. } = auth else {
-        return;
+    let fields = match auth {
+        AuthOut::Other { fields, .. } => {
+            losses.approximated(
+                location,
+                LossKind::Auth,
+                format!(
+                    "{label} settings kept in the file, but RequestTailor cannot send with \
+                     {label} yet"
+                ),
+            );
+            fields.clone()
+        }
+        // Sent natively since wave 5; only literal credentials are worth a note.
+        AuthOut::Model(rt_core::model::Auth::AwsSigV4(a)) => crate::auth::awsv4::fields(a),
+        AuthOut::Model(_) => return,
     };
-    losses.approximated(
-        location,
-        LossKind::Auth,
-        format!(
-            "{label} settings kept in the file, but RequestTailor cannot send with {label} yet"
-        ),
-    );
     let mut literal = Vec::new();
-    collect_literals(fields, &mut literal);
+    collect_literals(&fields, &mut literal);
     if !literal.is_empty() {
         losses.approximated(
             location,

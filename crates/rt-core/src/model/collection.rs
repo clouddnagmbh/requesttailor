@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::auth::CollectionConfig;
 use super::env::{Environment, Variable};
 use super::request::{Auth, KeyValue, RequestSpec, Settings};
 
@@ -50,6 +51,9 @@ pub struct Collection {
     pub defaults: RequestDefaults,
     pub items: Vec<Item>,
     pub environments: Vec<Environment>,
+    /// OpenCollection `config` (wave 5): client certificates.
+    #[serde(default)]
+    pub config: CollectionConfig,
 }
 
 /// A request together with the chain of defaults above it, outermost first.

@@ -59,6 +59,8 @@ pub struct Core<S> {
     pub history: DesktopHistory,
     pub recent: Recent,
     pub imports: Mutex<Imports>,
+    /// Plugins, tokens and cookie jars for sends (wave 5, `services.rs`).
+    pub services: std::sync::Arc<crate::services::ServiceParts>,
 }
 
 fn shell(e: impl std::fmt::Display) -> AppError {
@@ -85,6 +87,7 @@ impl<S: SecretStore> Core<S> {
             history: DesktopHistory::new(data_dir.as_deref()),
             recent: Recent::new(data_dir.as_deref()),
             imports: Mutex::new(Imports::new()),
+            services: std::sync::Arc::new(crate::services::ServiceParts::new(data_dir.as_deref())),
             secrets,
             data_dir,
         })
@@ -222,15 +225,19 @@ impl<S: SecretStore> Core<S> {
             Ok((s.workspace.snapshot(path, input)?, s.id.clone(), spec))
         })?;
         let transport = self.transport.clone();
+        let parts = std::sync::Arc::clone(&self.services);
+        let send_collection = collection.clone();
         // The core's send future is not `Send` (response bodies are `!Send` streams, as in
         // the browser), so it runs on a blocking thread driven by the app's tokio runtime.
         let runtime = tokio::runtime::Handle::current();
         let report = tokio::task::spawn_blocking(move || {
-            runtime.block_on(snapshot.send(
+            let services = parts.for_send(&send_collection, snapshot.environment.as_deref());
+            runtime.block_on(snapshot.send_with(
                 &transport,
                 &SendOptions {
                     body_limit: BODY_LIMIT,
                 },
+                &services.services(),
             ))
         })
         .await
@@ -385,6 +392,8 @@ mod tests {
         store.set(&key("Local", "plain"), "not-a-secret").unwrap();
         let envs = vec![
             Environment {
+                client_certificates: Vec::new(),
+                external_secrets: None,
                 name: "Local".into(),
                 variables: vec![
                     secret("password", true),
@@ -394,6 +403,8 @@ mod tests {
                 ],
             },
             Environment {
+                client_certificates: Vec::new(),
+                external_secrets: None,
                 name: "Prod".into(),
                 variables: vec![secret("password", true)],
             },

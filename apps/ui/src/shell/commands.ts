@@ -33,6 +33,8 @@ export const LABELS: Record<CommandId, string> = {
   search: "Search in collection",
   history: "Show history",
   git: "Show Git",
+  plugins: "Manage plugins…",
+  cookies: "Show cookies…",
 };
 
 /** Commands available in the current state. */
@@ -57,6 +59,8 @@ export function buildCommands(app: AppState, actions: Actions, mac: boolean): Co
     ),
     cmd("import"),
     ...(open ? [cmd("search"), cmd("history"), cmd("git")] : []),
+    cmd("plugins"),
+    ...(open ? [cmd("cookies")] : []),
     cmd("toggle-theme"),
     ...(app.active ? [cmd("close-tab")] : []),
     ...(open ? [cmd("focus-sidebar")] : []),

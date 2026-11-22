@@ -146,6 +146,7 @@ impl TryFrom<WireRequest> for HttpRequest {
             headers: wire.headers,
             body,
             options: SendOptions {
+                client_identity: None,
                 timeout: wire.timeout_ms.map(Duration::from_millis),
                 follow_redirects: wire.follow_redirects,
                 max_redirects: wire.max_redirects,
@@ -222,6 +223,7 @@ impl CompanionTransport {
                 bytes: json.into(),
             }),
             options: SendOptions {
+                client_identity: None,
                 timeout: request.options.timeout.map(|t| t + FETCH_GRACE),
                 follow_redirects: false,
                 max_redirects: 0,

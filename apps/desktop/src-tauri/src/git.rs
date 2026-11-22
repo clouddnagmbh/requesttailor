@@ -347,3 +347,15 @@ pub async fn git_delete_credentials(
 ) -> Result<(), CommandError> {
     blocking(app, move |core| delete_credentials(core, &host)).await
 }
+
+/// Credentials typed into `paths` of the collection (wave 5, strand E: `rt_app::secret_scan`;
+/// `git_commit` refuses with `secrets-found` when this finds any). Interface commit: the
+/// scanner finds nothing.
+#[tauri::command]
+pub async fn git_scan(
+    app: tauri::AppHandle,
+    paths: Vec<String>,
+) -> Result<Vec<rt_app::secret_scan::SecretFinding>, CommandError> {
+    let _ = (app, paths);
+    Ok(Vec::new())
+}

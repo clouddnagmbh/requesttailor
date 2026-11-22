@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- Manage environments and secret values. Owner: wave 3, strand D.
+<!-- Manage environments and secret values. Owner: wave 3, strand D. Wave 5 mount points:
+     ClientCertificates (strand D), ExternalSecrets (strand E); both edit the draft through
+     `onchange`, which stores it like any other change.
      Every change goes to the backend at once (in memory) and is written to files by the global
      Save. Secret values never travel in an `Environment`: they go to `backend.secrets` (OS
      keychain on desktop, encrypted browser storage on the web). -->
@@ -9,6 +11,8 @@
 
   import type { Environment, Variable } from "../commands/types";
   import { getApp } from "../state/app.svelte";
+  import ClientCertificates from "./ClientCertificates.svelte";
+  import ExternalSecrets from "./ExternalSecrets.svelte";
   import {
     createEnvironment,
     deleteEnvironment,
@@ -113,7 +117,7 @@
   function create() {
     const name = newName.trim();
     void run(async () => {
-      const problem = validate({ name, variables: [] }, names);
+      const problem = validate({ name, variables: [], client_certificates: [], external_secrets: null }, names);
       if (problem) throw new Error(problem);
       await createEnvironment(app.backend, name);
       await refresh();
@@ -416,6 +420,8 @@
             </tbody>
           </table>
           <button data-testid="var-add" onclick={addVariable}>Add variable</button>
+          <ExternalSecrets env={draft} onchange={(next) => run(() => commit(next))} />
+          <ClientCertificates env={draft} onchange={(next) => run(() => commit(next))} />
           <p class="hint">
             Secret values stay on this device ({app.backend.kind === "web"
               ? "encrypted in this browser"

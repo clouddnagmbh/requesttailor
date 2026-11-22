@@ -23,7 +23,7 @@ export function uniqueName(base: string, taken: readonly string[]): string {
 /** What may be written to files: named variables, secrets without value. */
 export function forFiles(env: Environment): Environment {
   return {
-    name: env.name,
+    ...env,
     variables: env.variables
       .filter((v) => v.name.trim() !== "")
       .map((v) => ({ ...v, value: v.secret ? null : v.value })),
@@ -60,7 +60,7 @@ async function deleteSecrets(backend: Backend, env: Environment): Promise<void> 
 }
 
 export async function createEnvironment(backend: Backend, name: string): Promise<Environment> {
-  const env: Environment = { name, variables: [] };
+  const env: Environment = { name, variables: [], client_certificates: [], external_secrets: null };
   await backend.updateEnvironment(env);
   return env;
 }

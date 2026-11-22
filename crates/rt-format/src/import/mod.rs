@@ -52,6 +52,9 @@ pub enum ImportFormat {
     Har,
     /// `.http` / `.rest` files (VS Code REST Client, JetBrains HTTP Client).
     Http,
+    /// Converted by a plugin's importer (wave 5). Not in [`ImportFormat::ALL`]: never detected
+    /// and never passed to [`import`]; the plugin host produces the [`Import`] itself.
+    Plugin,
 }
 
 impl ImportFormat {
@@ -73,6 +76,7 @@ impl ImportFormat {
             ImportFormat::Curl => "cURL",
             ImportFormat::Har => "HAR",
             ImportFormat::Http => ".http",
+            ImportFormat::Plugin => "plugin",
         }
     }
 }
@@ -498,6 +502,9 @@ pub fn import_files(
         ImportFormat::Curl => curl::import(&mains),
         ImportFormat::Har => har::import(&first),
         ImportFormat::Http => http::import(&mains, &http_envs),
+        ImportFormat::Plugin => Err(ImportError::Files {
+            message: "plugin importers run in the plugin host, not here".to_owned(),
+        }),
     }
 }
 

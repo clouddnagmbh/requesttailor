@@ -22,13 +22,21 @@ import type {
   GitStatus,
   HistoryEntry,
   ImportFormat,
+  AuthPrompt,
+  CookieInfo,
   ImportPlan,
   LineSlice,
+  Manifest,
+  PluginInfo,
   Preview,
   RequestSpec,
   SearchHit,
+  SecretFinding,
   StoredResponse,
+  TabTarget,
+  TokenInfo,
   TreeNode,
+  ViewReply,
 } from "./types";
 
 export interface CollectionInfo {
@@ -121,6 +129,9 @@ export interface GitApi {
   hasCredentials(host: string): Promise<boolean>;
   setCredentials(host: string, username: string, password: string): Promise<void>;
   deleteCredentials(host: string): Promise<void>;
+  /** Credentials typed into `paths` (as they are on disk). `commit` runs the same scan and
+   *  rejects with kind `secrets-found` when it finds any. Owner in wave 5: strand E. */
+  scan(paths: string[]): Promise<SecretFinding[]>;
 }
 
 /** One file handed to `ImportApi.analyze`: its name as picked (only the last path component
@@ -139,6 +150,9 @@ export interface ImportApi {
    *  cURL files (one folder each). `format: null` detects it. Rejects with kind `import` for
    *  unknown, invalid or mismatched files. */
   analyze(files: ImportSource[], format: ImportFormat | null): Promise<ImportPlan>;
+  /** Converts with an installed plugin's importer (`ImporterContribution`); the plan's
+   *  `format` is `plugin`. Owner in wave 5: strand A. */
+  analyzeWithPlugin(files: ImportSource[], plugin: string, importer: string): Promise<ImportPlan>;
   /** `null` if the user cancelled the folder picker (the plan stays available). */
   write(id: number): Promise<CollectionInfo | null>;
   discard(id: number): Promise<void>;
@@ -151,6 +165,59 @@ export interface HistoryApi {
   list(query: string, limit: number): Promise<HistoryEntry[]>;
   /** Forgets the open collection's entries. */
   clear(): Promise<void>;
+}
+
+/** Installed plugins (rt-plugin, `crates/rt-plugin/API.md`). Desktop and CLI share one plugin
+ *  directory; the web keeps plugins in browser storage. Owner in wave 5: strand A (install,
+ *  permissions, enable, importers); tabs render `ViewReply.view` with the UI's plugin view
+ *  (strand B). */
+export interface PluginApi {
+  list(): Promise<PluginInfo[]>;
+  /** Reads the manifest of a `.wasm` file without installing it (to show its permissions).
+   *  Rejects with kind `plugin` for anything that is not a valid plugin. */
+  inspect(file: ImportSource): Promise<Manifest>;
+  /** Installs (or updates) the plugin and grants the permissions its manifest requests; the
+   *  UI asks the user first. Enabled after install. */
+  install(file: ImportSource): Promise<PluginInfo>;
+  remove(id: string): Promise<void>;
+  setEnabled(id: string, enabled: boolean): Promise<void>;
+  /** Renders a plugin tab for `target` (unsaved request state included). */
+  renderTab(plugin: string, tab: string, target: TabTarget, state: unknown): Promise<ViewReply>;
+  /** Runs an action of a plugin tab (button, tree item, form submit with `input`). */
+  action(
+    plugin: string,
+    tab: string,
+    action: string,
+    target: TabTarget,
+    state: unknown,
+    input: [string, string][],
+  ): Promise<ViewReply>;
+}
+
+/** OAuth 2.0 tokens of the open collection and the prompts of running flows. Tokens are
+ *  fetched by `send` itself (auto fetch / refresh); `fetchToken` runs the flow on demand.
+ *  Owner in wave 5: strand C. */
+export interface AuthApi {
+  /** Cached tokens of the open collection, without their values. */
+  tokens(): Promise<TokenInfo[]>;
+  /** Runs the OAuth 2.0 flow of the request at `path` now (prompts as needed). */
+  fetchToken(path: string, input: SendInput): Promise<TokenInfo>;
+  /** Forgets one cached token (`key`) or all of the collection (`null`). */
+  clearTokens(key: string | null): Promise<void>;
+  /** Called while a flow waits for the user (open browser, device code) and when it ends.
+   *  Returns the unsubscribe function. */
+  onPrompt(handler: (prompt: AuthPrompt) => void): () => void;
+  /** Cancels the flow that is waiting for the user. */
+  cancelPrompt(): Promise<void>;
+}
+
+/** The cookie jar of the open collection, per environment (`""` for none). Cookies from
+ *  responses are stored and sent automatically (desktop; web through the companion only:
+ *  the browser keeps its own). Owner in wave 5: strand D. */
+export interface CookieApi {
+  list(environment: string): Promise<CookieInfo[]>;
+  delete(environment: string, domain: string, path: string, name: string): Promise<void>;
+  clear(environment: string): Promise<void>;
 }
 
 export interface Backend {
@@ -202,6 +269,10 @@ export interface Backend {
   readonly git: GitApi;
   readonly imports: ImportApi;
   readonly history: HistoryApi;
+  /** Wave 5. */
+  readonly plugins: PluginApi;
+  readonly auth: AuthApi;
+  readonly cookies: CookieApi;
 }
 
 /** Errors from a backend are rejected promises carrying this shape. */

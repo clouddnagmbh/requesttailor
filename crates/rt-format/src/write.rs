@@ -190,6 +190,8 @@ fn auth_type(auth: &Auth) -> &str {
         Auth::Basic { .. } => "basic",
         Auth::Bearer { .. } => "bearer",
         Auth::ApiKey { .. } => "apikey",
+        Auth::OAuth2(_) => "oauth2",
+        Auth::AwsSigV4(_) => "awsv4",
         Auth::Unsupported { kind } => kind,
     }
 }
@@ -232,6 +234,16 @@ fn auth_val(auth: &Auth) -> Result<Option<Val>> {
         Auth::Unsupported { kind } => Err(format!(
             "auth type `{kind}` cannot be written; it can only be kept as it is in the file"
         )),
+        Auth::OAuth2(oauth) => {
+            let mut e = vec![("type", Val::str("oauth2"))];
+            e.extend(crate::auth::oauth2::fields(oauth)?);
+            Ok(Some(Val::Map(e)))
+        }
+        Auth::AwsSigV4(aws) => {
+            let mut e = vec![("type", Val::str("awsv4"))];
+            e.extend(crate::auth::awsv4::fields(aws));
+            Ok(Some(Val::Map(e)))
+        }
         _ => {
             let mut e = vec![("type", Val::str(auth_type(auth)))];
             e.extend(auth_fields(auth).into_iter().map(|(k, v)| (k, Val::Str(v))));
@@ -986,6 +998,9 @@ pub(crate) fn apply_environment(
         &env.variables,
         nl,
     );
+    // Both leave the map untouched when nothing changed (byte-identical round trip).
+    crate::auth::certs::apply(env_map, &env.client_certificates, nl);
+    crate::auth::secrets::apply(env_map, &env.external_secrets, nl);
     // Whatever the file held before: a secret's value never stays in it.
     strip_secret_values(env_map, "variables");
 }

@@ -73,5 +73,10 @@ export function webImports(host: WebHost): ImportApi {
       folders.delete(id);
       if (importer) (await importer).discard(id);
     },
+
+    // Wave 5, strand A: plugin importers through the web plugin host.
+    analyzeWithPlugin: async (_files, plugin) => {
+      throw new BackendError("unsupported", `plugin ${plugin} is not available yet`);
+    },
   };
 }

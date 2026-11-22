@@ -1,0 +1,165 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The RequestTailor Authors
+
+//! What `send` needs from its surroundings beyond the transport (wave 5): a token cache and
+//! interactive prompts for OAuth 2.0, a cookie jar, and request hooks (plugins). Every shell
+//! (desktop, web, CLI) passes its own implementations to [`crate::send::send_with`];
+//! [`Services::none`] gives the wave 2 behaviour (no tokens, no cookies, no plugins).
+//!
+//! The traits are object safe and their futures are not `Send`, so the same code runs on
+//! wasm32. Implementations must never put a secret value anywhere but the shell's secret
+//! storage: tokens are secrets (product principle 3).
+//!
+//! Owners in wave 5: `TokenStore` and `AuthPrompt` strand C, `CookieJar` strand D,
+//! `RequestHooks` strand A. Changes here are interface changes.
+
+use std::future::Future;
+use std::pin::Pin;
+
+use serde::{Deserialize, Serialize};
+
+use crate::transport::{HttpRequest, ResponseHead};
+
+/// A boxed future that need not be `Send` (wasm32 has no threads).
+pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+
+/// Everything optional `send_with` can use. Missing services switch the feature off: OAuth
+/// without a `TokenStore` fetches a token for every send, without an `AuthPrompt` the
+/// interactive flows fail with a clear error.
+#[derive(Clone, Copy, Default)]
+pub struct Services<'a> {
+    pub tokens: Option<&'a dyn TokenStore>,
+    pub prompt: Option<&'a dyn AuthPrompt>,
+    pub cookies: Option<&'a dyn CookieJar>,
+    pub hooks: Option<&'a dyn RequestHooks>,
+}
+
+impl Services<'_> {
+    pub fn none() -> Self {
+        Self::default()
+    }
+}
+
+// -------------------------------------------------------------------------------------------
+// OAuth 2.0 (strand C)
+
+/// A cached OAuth 2.0 token. Stored by the shell in its secret storage under `key`
+/// (see [`crate::auth::oauth2::cache_key`]), never in collection files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoredToken {
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub id_token: Option<String>,
+    pub token_type: Option<String>,
+    pub scope: Option<String>,
+    /// Unix milliseconds; `None`: the provider gave no lifetime.
+    pub expires_at: Option<i64>,
+    /// Unix milliseconds of the fetch.
+    pub obtained_at: i64,
+}
+
+pub trait TokenStore {
+    fn get<'a>(&'a self, key: &'a str) -> LocalBoxFuture<'a, Option<StoredToken>>;
+    fn put<'a>(&'a self, key: &'a str, token: &'a StoredToken) -> LocalBoxFuture<'a, ()>;
+    fn remove<'a>(&'a self, key: &'a str) -> LocalBoxFuture<'a, ()>;
+}
+
+/// The interactive part of a flow, done by the shell: open the system browser (desktop, CLI)
+/// or a popup (web), and show device codes.
+pub trait AuthPrompt {
+    /// Runs the browser step of the authorization code flow: show `url` to the user and
+    /// return the full URL the provider redirected to (`redirect_uri` with `code`, `state`
+    /// or `error`). For a loopback `redirect_uri` the shell listens on it itself.
+    fn authorize<'a>(
+        &'a self,
+        url: &'a str,
+        redirect_uri: &'a str,
+    ) -> LocalBoxFuture<'a, Result<String, String>>;
+
+    /// Shows the device code to the user. Returns at once; `send_with` polls the token
+    /// endpoint and calls [`AuthPrompt::device_code_done`] when it stops.
+    fn device_code<'a>(&'a self, prompt: &'a DeviceCodePrompt) -> LocalBoxFuture<'a, ()>;
+
+    fn device_code_done<'a>(&'a self) -> LocalBoxFuture<'a, ()>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeviceCodePrompt {
+    pub user_code: String,
+    pub verification_uri: String,
+    pub verification_uri_complete: Option<String>,
+    /// Seconds.
+    pub expires_in: u64,
+}
+
+// -------------------------------------------------------------------------------------------
+// Cookies (strand D)
+
+/// One cookie jar per environment (`scope` is the environment name, or `""`). `send_with`
+/// adds matching cookies to the request and stores `Set-Cookie` of every response,
+/// including redirects.
+pub trait CookieJar {
+    /// The `Cookie` header value for `url`, or `None`.
+    fn cookie_header<'a>(
+        &'a self,
+        scope: &'a str,
+        url: &'a str,
+    ) -> LocalBoxFuture<'a, Option<String>>;
+    /// Stores the `Set-Cookie` headers of a response to `url`.
+    fn store<'a>(
+        &'a self,
+        scope: &'a str,
+        url: &'a str,
+        set_cookie: &'a [String],
+    ) -> LocalBoxFuture<'a, ()>;
+}
+
+// -------------------------------------------------------------------------------------------
+// Plugins (strand A)
+
+/// Where the request comes from, for hooks.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HookContext {
+    pub request_path: String,
+    pub environment: Option<String>,
+    /// Non-secret variables in scope, resolved (only handed to plugins with the
+    /// `variables` permission).
+    pub variables: Vec<(String, String)>,
+}
+
+/// A message a hook (or the auth step) attaches to the report.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Note {
+    /// `"auth"`, or `"plugin:<id>"`.
+    pub source: String,
+    pub level: NoteLevel,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NoteLevel {
+    Info,
+    Warning,
+    Error,
+}
+
+/// Plugin hooks around the wire. Implemented by `rt-plugin`; `rt-core` knows no plugins.
+pub trait RequestHooks {
+    /// Runs after auth is applied and before signing. `secrets` are the values that must be
+    /// masked before anything reaches a plugin. An `Err` stops the send with that message.
+    fn before_send<'a>(
+        &'a self,
+        request: HttpRequest,
+        secrets: &'a [String],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, Result<(HttpRequest, Vec<Note>), String>>;
+
+    /// Runs on the complete response. `body` is at most the report's body limit.
+    fn after_response<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, Vec<Note>>;
+}

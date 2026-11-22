@@ -1,22 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! `rt-cli`: the `rt` command line: `rt send` (wave 2), the companion `rt agent` (wave 3) and
-//! `rt import` (wave 4).
+//! `rt-cli`: the `rt` command line: `rt send` (wave 2), the companion `rt agent` (wave 3),
+//! `rt import` (wave 4) and `rt scan` (wave 5).
+//!
+//! Wave 5: `rt send` runs with the same services as the apps (`services`): plugins (strand A,
+//! `plugins.rs`), OAuth 2.0 token cache and terminal prompts (strand C, `oauth.rs`), cookie
+//! jar (strand D, `cookies.rs`), external secrets (strand E, `secrets.rs`); `rt scan` is
+//! strand E's (`scan.rs`).
 //! The MCP server follows in a later wave.
 //!
 //! Everything the binary does is here, so it can be tested without spawning a process:
 //! argument parsing, finding the collection root, the file-system [`FileSource`], exit codes.
 
 pub mod agent;
+pub mod cookies;
 pub mod import;
+pub mod oauth;
+pub mod plugins;
+pub mod scan;
+pub mod secrets;
+pub mod services;
 
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
 use rt_core::prepare::{FileSource, PrepareInput};
-use rt_core::send::{REPORT_VERSION, SendError, SendOptions, SendReport, send};
+use rt_core::send::{REPORT_VERSION, SendError, SendOptions, SendReport, send_with};
 use rt_core::transport::Transport;
 use rt_format::{COLLECTION_FILE, CollectionDoc, FileSet, read_collection};
 
@@ -39,6 +50,7 @@ Usage:
   rt send <request-file> [options]
   rt agent [--port <PORT>] [--allow-origin <ORIGIN>]...
   rt import <file>... --out <dir> [--format <FORMAT>] [--json]
+  rt scan [<path>...]
   rt --help | --version
 
 Options for send:
@@ -46,6 +58,10 @@ Options for send:
       --var <NAME=VALUE>    Set a runtime variable (highest precedence); repeatable
       --body-limit <BYTES>  Keep at most BYTES of the response body (default {limit})
       --pretty              Indent the JSON report
+      --plugin <FILE.wasm>  Also run this plugin; repeatable
+      --no-plugins          Do not run the installed plugins
+      --cookie-jar <FILE>   Send cookies from FILE and store new ones in it
+      --no-prompt           Fail instead of asking for an OAuth 2.0 login
   -h, --help                Show this help
 
 rt agent runs the companion for the web app on 127.0.0.1 until stopped:
@@ -76,7 +92,8 @@ Exit codes:
   {EXIT_OK}  a response was received, whatever its HTTP status
   {EXIT_TRANSPORT}  transport error, no response (connect, DNS, TLS, timeout, redirects)
   {EXIT_USAGE}  usage error, no collection, invalid files, or request not in the collection
-  {EXIT_PREPARE}  the request could not be prepared (environment, variables, auth, body)
+  {EXIT_PREPARE}  the request could not be prepared (environment, variables, auth, body),
+     authentication failed, or a plugin stopped it
 ",
         version = env!("CARGO_PKG_VERSION"),
         agent_port = agent::DEFAULT_PORT,
@@ -95,6 +112,7 @@ pub enum Command {
     Send(SendArgs),
     Agent(agent::AgentArgs),
     Import(import::ImportArgs),
+    Scan(scan::ScanArgs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -104,6 +122,32 @@ pub struct SendArgs {
     pub vars: Vec<(String, String)>,
     pub body_limit: usize,
     pub pretty: bool,
+    /// `--plugin <FILE.wasm>`, repeatable: run these plugins in addition to the installed
+    /// ones (wave 5, strand A).
+    pub plugins: Vec<PathBuf>,
+    /// `--no-plugins`: do not load the installed plugins.
+    pub no_plugins: bool,
+    /// `--cookie-jar <FILE>`: read cookies from and store them in FILE (wave 5, strand D).
+    pub cookie_jar: Option<PathBuf>,
+    /// `false` with `--no-prompt`: OAuth 2.0 flows that need the user fail instead of opening
+    /// the browser or showing a device code (wave 5, strand C).
+    pub prompt: bool,
+}
+
+impl Default for SendArgs {
+    fn default() -> Self {
+        Self {
+            file: PathBuf::new(),
+            environment: None,
+            vars: Vec::new(),
+            body_limit: SendOptions::default().body_limit,
+            pretty: false,
+            plugins: Vec::new(),
+            no_plugins: false,
+            cookie_jar: None,
+            prompt: true,
+        }
+    }
 }
 
 /// Parses the arguments after the program name.
@@ -127,6 +171,9 @@ where
         Some(Value(cmd)) if cmd == "agent" => {
             Ok(agent::parse(&mut parser)?.map_or(Command::Help, Command::Agent))
         }
+        Some(Value(cmd)) if cmd == "scan" => {
+            Ok(scan::parse(&mut parser)?.map_or(Command::Help, Command::Scan))
+        }
         Some(Value(cmd)) => Err(format!("unknown command {:?}", cmd.to_string_lossy())),
         Some(other) => Err(other.unexpected().to_string()),
     }
@@ -137,13 +184,7 @@ fn parse_send(parser: &mut lexopt::Parser) -> Result<Command, String> {
 
     let err = |e: lexopt::Error| e.to_string();
     let mut file = None;
-    let mut args = SendArgs {
-        file: PathBuf::new(),
-        environment: None,
-        vars: Vec::new(),
-        body_limit: SendOptions::default().body_limit,
-        pretty: false,
-    };
+    let mut args = SendArgs::default();
     while let Some(arg) = parser.next().map_err(err)? {
         match arg {
             Short('h') | Long("help") => return Ok(Command::Help),
@@ -162,6 +203,10 @@ fn parse_send(parser: &mut lexopt::Parser) -> Result<Command, String> {
                 args.body_limit = parser.value().map_err(err)?.parse().map_err(err)?;
             }
             Long("pretty") => args.pretty = true,
+            Long("plugin") => args.plugins.push(parser.value().map_err(err)?.into()),
+            Long("no-plugins") => args.no_plugins = true,
+            Long("cookie-jar") => args.cookie_jar = Some(parser.value().map_err(err)?.into()),
+            Long("no-prompt") => args.prompt = false,
             Value(v) if file.is_none() => file = Some(PathBuf::from(v)),
             other => return Err(other.unexpected().to_string()),
         }
@@ -223,6 +268,11 @@ impl DirFiles {
             root: std::fs::canonicalize(root)?,
         })
     }
+
+    /// The collection root (canonical).
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
 }
 
 impl FileSource for DirFiles {
@@ -248,7 +298,8 @@ impl FileSource for DirFiles {
     }
 }
 
-/// Sends one request of a loaded collection.
+/// Sends one request of a loaded collection, with the services `args` ask for (plugins,
+/// token cache and prompts, cookie jar) and external secrets resolved.
 pub async fn send_request<T: Transport>(
     doc: &CollectionDoc,
     request_path: &str,
@@ -264,13 +315,22 @@ pub async fn send_request<T: Transport>(
     let options = SendOptions {
         body_limit: args.body_limit,
     };
-    send(
-        doc.model(),
+    let collection = match secrets::resolve(doc.model(), args.environment.as_deref()).await {
+        Ok(c) => c,
+        Err(e) => return services::failed(request_path, args, SendError::Auth(e)),
+    };
+    let cli = match services::CliServices::new(args, files.root()) {
+        Ok(s) => s,
+        Err(e) => return services::failed(request_path, args, SendError::Plugin(e)),
+    };
+    send_with(
+        &collection,
         request_path,
         &input,
         files,
         transport,
         &options,
+        &cli.services(),
     )
     .await
 }
@@ -280,7 +340,7 @@ pub fn exit_code(report: &SendReport) -> i32 {
         None => EXIT_OK,
         Some(SendError::Transport(_)) => EXIT_TRANSPORT,
         Some(SendError::NotFound(_)) => EXIT_USAGE,
-        Some(SendError::Prepare(_)) => EXIT_PREPARE,
+        Some(SendError::Prepare(_) | SendError::Auth(_) | SendError::Plugin(_)) => EXIT_PREPARE,
     }
 }
 
@@ -317,6 +377,7 @@ where
         Ok(Command::Send(args)) => args,
         Ok(Command::Agent(args)) => return agent::run(args, stderr),
         Ok(Command::Import(args)) => return import::run(args, stdout, stderr),
+        Ok(Command::Scan(args)) => return scan::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
     let (root, request_path) = match find_root(&args.file) {
@@ -484,6 +545,7 @@ mod tests {
     fn exit_codes() {
         use rt_core::transport::TransportError;
         let mut r = SendReport {
+            notes: Vec::new(),
             version: REPORT_VERSION,
             request_path: "a.yml".into(),
             environment: None,

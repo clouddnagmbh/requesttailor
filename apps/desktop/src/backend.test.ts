@@ -7,7 +7,7 @@ import { BackendError } from "@requesttailor/ui";
 import { describe, expect, it } from "vitest";
 
 import { COMMANDS, TauriBackend, type Command, type Invoke } from "./backend";
-import { packImport } from "./import";
+import { packImport, packPluginImport } from "./import";
 
 function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown) {
   const calls: [Command, Record<string, unknown> | undefined][] = [];
@@ -22,7 +22,7 @@ describe("TauriBackend", () => {
   it("maps every Backend method to its command with camelCase arguments", async () => {
     const { backend: b, calls } = fake(() => null);
     const spec = { name: "x" } as never;
-    const env = { name: "Local", variables: [] };
+    const env = { name: "Local", variables: [], client_certificates: [], external_secrets: null };
     await b.openCollection();
     await b.tree();
     await b.getRequest("a.yml");
@@ -65,11 +65,29 @@ describe("TauriBackend", () => {
     await g.hasCredentials("example.com");
     await g.setCredentials("example.com", "ada", "pw");
     await g.deleteCredentials("example.com");
+    await g.scan(["a.yml"]);
     await b.imports.analyze([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman");
     await b.imports.write(1);
     await b.imports.discard(1);
     await b.history.list("q", 20);
     await b.history.clear();
+    const wasm = { name: "p.wasm", data: new Uint8Array([0, 97, 115, 109]) };
+    const target = { request_path: "a.yml", response_id: 3 };
+    await b.imports.analyzeWithPlugin([wasm], "odata", "edmx");
+    await b.plugins.list();
+    await b.plugins.inspect(wasm);
+    await b.plugins.install(wasm);
+    await b.plugins.remove("odata");
+    await b.plugins.setEnabled("odata", false);
+    await b.plugins.renderTab("odata", "query", target, null);
+    await b.plugins.action("odata", "query", "run", target, { a: 1 }, [["top", "5"]]);
+    await b.auth.tokens();
+    await b.auth.fetchToken("a.yml", { environment: "Local", vars: [] });
+    await b.auth.clearTokens(null);
+    await b.auth.cancelPrompt();
+    await b.cookies.list("Local");
+    await b.cookies.delete("Local", "example.com", "/", "sid");
+    await b.cookies.clear("Local");
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -112,11 +130,27 @@ describe("TauriBackend", () => {
       ["git_has_credentials", { host: "example.com" }],
       ["git_set_credentials", { host: "example.com", username: "ada", password: "pw" }],
       ["git_delete_credentials", { host: "example.com" }],
+      ["git_scan", { paths: ["a.yml"] }],
       ["import_analyze", packImport([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman")],
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],
       ["history_list", { query: "q", limit: 20 }],
       ["history_clear", undefined],
+      ["import_analyze_plugin", packPluginImport([wasm], "odata", "edmx")],
+      ["plugin_list", undefined],
+      ["plugin_inspect", wasm.data],
+      ["plugin_install", wasm.data],
+      ["plugin_remove", { id: "odata" }],
+      ["plugin_set_enabled", { id: "odata", enabled: false }],
+      ["plugin_render_tab", { plugin: "odata", tab: "query", target, state: null }],
+      ["plugin_action", { plugin: "odata", tab: "query", action: "run", target, state: { a: 1 }, input: [["top", "5"]] }],
+      ["auth_tokens", undefined],
+      ["auth_fetch_token", { path: "a.yml", input: { environment: "Local", vars: [] } }],
+      ["auth_clear_tokens", { key: null }],
+      ["auth_cancel_prompt", undefined],
+      ["cookie_list", { environment: "Local" }],
+      ["cookie_delete", { environment: "Local", domain: "example.com", path: "/", name: "sid" }],
+      ["cookie_clear", { environment: "Local" }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

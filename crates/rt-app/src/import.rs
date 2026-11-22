@@ -58,6 +58,13 @@ impl Imports {
     ) -> Result<ImportPlan, AppError> {
         let import = rt_format::import::import_files(format, files)
             .map_err(|e| AppError::Import(e.to_string()))?;
+        Ok(self.add(import))
+    }
+
+    /// Adds a collection converted elsewhere, by a plugin's importer (wave 5): the shell runs
+    /// `PluginHost::import`, checks the files with `rt_format::read_collection`, and hands the
+    /// result here so it is written like any other import.
+    pub fn add(&mut self, import: rt_format::import::Import) -> ImportPlan {
         self.next += 1;
         let id = self.next;
         let plan = ImportPlan {
@@ -70,7 +77,7 @@ impl Imports {
         };
         self.pending
             .insert(id, (plan.folder_name.clone(), import.files));
-        Ok(plan)
+        plan
     }
 
     /// The suggested folder name and the files of plan `id`; the plan stays, so a cancelled

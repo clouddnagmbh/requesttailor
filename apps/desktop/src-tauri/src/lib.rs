@@ -8,15 +8,19 @@
 //! capability (`capabilities/default.json`) allows exactly the app's commands; the folder
 //! picker runs on the Rust side. The content security policy is in `tauri.conf.json`.
 
+mod auth;
 mod commands;
+mod cookies;
 pub mod core;
 pub mod files;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
 pub mod history;
 mod import;
+mod plugins;
 pub mod recent;
 mod search;
+mod services;
 
 pub use crate::core::{CollectionInfo, Core};
 
@@ -83,6 +87,22 @@ pub fn run() {
             search::search,
             recent::recent_collections,
             recent::open_recent,
+            git::git_scan,
+            plugins::import_analyze_plugin,
+            plugins::plugin_list,
+            plugins::plugin_inspect,
+            plugins::plugin_install,
+            plugins::plugin_remove,
+            plugins::plugin_set_enabled,
+            plugins::plugin_render_tab,
+            plugins::plugin_action,
+            auth::auth_tokens,
+            auth::auth_fetch_token,
+            auth::auth_clear_tokens,
+            auth::auth_cancel_prompt,
+            cookies::cookie_list,
+            cookies::cookie_delete,
+            cookies::cookie_clear,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the RequestTailor desktop app");

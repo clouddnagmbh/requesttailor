@@ -149,6 +149,14 @@ fn request_fields(spec: &RequestSpec, add: &mut impl FnMut(SearchField, &str)) {
         Auth::Basic { username, .. } => add(SearchField::Auth, &format!("username: {username}")),
         Auth::Bearer { token } => add(SearchField::Auth, &format!("token: {token}")),
         Auth::ApiKey { key, value, .. } => add(SearchField::Auth, &format!("{key}: {value}")),
+        Auth::OAuth2(o) => add(
+            SearchField::Auth,
+            &format!("oauth2: {} {} {}", o.access_token_url, o.client_id, o.scope),
+        ),
+        Auth::AwsSigV4(a) => add(
+            SearchField::Auth,
+            &format!("awsv4: {} {} {}", a.service, a.region, a.access_key_id),
+        ),
         Auth::Inherit | Auth::None | Auth::Unsupported { .. } => {}
     }
     for v in &spec.vars {

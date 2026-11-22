@@ -23,6 +23,7 @@ use std::collections::BTreeMap;
 
 use rt_core::model::Collection;
 
+mod auth;
 mod edit;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs;

@@ -307,6 +307,16 @@ fn auth_val(auth: &AuthOut, absent: &Auth) -> Option<Val> {
         Auth::Unsupported { kind } => {
             return Some(Val::Map(vec![("type", Val::str(kind))]));
         }
+        Auth::OAuth2(oauth) => {
+            let mut e = vec![("type", Val::str("oauth2"))];
+            e.extend(crate::auth::oauth2::fields(oauth).unwrap_or_default());
+            return Some(Val::Map(e));
+        }
+        Auth::AwsSigV4(aws) => {
+            let mut e = vec![("type", Val::str("awsv4"))];
+            e.extend(crate::auth::awsv4::fields(aws));
+            return Some(Val::Map(e));
+        }
     };
     let kind = match a {
         Auth::None => "none",

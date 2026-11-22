@@ -53,6 +53,22 @@ const COMMANDS: &[&str] = &[
     "search",
     "recent_collections",
     "open_recent",
+    "git_scan",
+    "import_analyze_plugin",
+    "plugin_list",
+    "plugin_inspect",
+    "plugin_install",
+    "plugin_remove",
+    "plugin_set_enabled",
+    "plugin_render_tab",
+    "plugin_action",
+    "auth_tokens",
+    "auth_fetch_token",
+    "auth_clear_tokens",
+    "auth_cancel_prompt",
+    "cookie_list",
+    "cookie_delete",
+    "cookie_clear",
 ];
 
 fn main() {

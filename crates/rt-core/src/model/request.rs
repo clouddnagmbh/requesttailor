@@ -120,7 +120,15 @@ pub enum Auth {
         value: String,
         placement: ApiKeyPlacement,
     },
-    /// Declared in the file but not executable yet (OAuth 2.0, Digest, AWS SigV4, ...).
+    /// OAuth 2.0 (wave 5, strand C): the token is fetched, cached and refreshed by
+    /// `rt_core::auth::oauth2` when sending.
+    #[serde(rename = "oauth2")]
+    OAuth2(Box<super::auth::OAuth2>),
+    /// AWS Signature V4 (wave 5, strand D): signed by `rt_core::auth::sigv4` as the last
+    /// step before the wire.
+    #[serde(rename = "awsv4")]
+    AwsSigV4(super::auth::AwsSigV4),
+    /// Declared in the file but not executable (Digest, NTLM, WSSE, OAuth 1.0, ...).
     /// `kind` is the type name from the file, e.g. "oauth2". Sending fails with a clear error.
     Unsupported {
         kind: String,

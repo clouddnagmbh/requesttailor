@@ -18,12 +18,6 @@
         "location": "collection"
       },
       {
-        "detail": "AWS Signature v4 settings kept in the file, but RequestTailor cannot send with AWS Signature v4 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "AWS"
-      },
-      {
         "detail": "API key in a cookie not imported; send it as a header instead",
         "effect": "dropped",
         "kind": "auth",

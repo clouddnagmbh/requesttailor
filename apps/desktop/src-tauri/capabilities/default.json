@@ -49,6 +49,22 @@
     "allow-history-clear",
     "allow-search",
     "allow-recent-collections",
-    "allow-open-recent"
+    "allow-open-recent",
+    "allow-git-scan",
+    "allow-import-analyze-plugin",
+    "allow-plugin-list",
+    "allow-plugin-inspect",
+    "allow-plugin-install",
+    "allow-plugin-remove",
+    "allow-plugin-set-enabled",
+    "allow-plugin-render-tab",
+    "allow-plugin-action",
+    "allow-auth-tokens",
+    "allow-auth-fetch-token",
+    "allow-auth-clear-tokens",
+    "allow-auth-cancel-prompt",
+    "allow-cookie-list",
+    "allow-cookie-delete",
+    "allow-cookie-clear"
   ]
 }

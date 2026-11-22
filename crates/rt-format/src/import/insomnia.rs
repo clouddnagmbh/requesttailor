@@ -374,9 +374,12 @@ impl Cx {
                     let name = unique_env(&collection.environments, &sub.v.string("name"));
                     let sub_here = format!("environment {name}");
                     let variables = self.environment_vars(sub.v, &sub_here);
-                    collection
-                        .environments
-                        .push(Environment { name, variables });
+                    collection.environments.push(Environment {
+                        client_certificates: Vec::new(),
+                        external_secrets: None,
+                        name,
+                        variables,
+                    });
                 }
             }
             let jar_cookies: usize = resources
@@ -527,9 +530,12 @@ impl Cx {
                 let name = unique_env(&collection.environments, &sub.v.string("name"));
                 let here = format!("environment {name}");
                 let variables = self.environment_vars(sub.v, &here);
-                collection
-                    .environments
-                    .push(Environment { name, variables });
+                collection.environments.push(Environment {
+                    client_certificates: Vec::new(),
+                    external_secrets: None,
+                    name,
+                    variables,
+                });
             }
         }
         let cookies = root

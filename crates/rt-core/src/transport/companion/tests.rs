@@ -20,6 +20,7 @@ fn request(body: Option<HttpBody>) -> HttpRequest {
         ],
         body,
         options: SendOptions {
+            client_identity: None,
             timeout: Some(Duration::from_millis(2500)),
             follow_redirects: false,
             max_redirects: 3,

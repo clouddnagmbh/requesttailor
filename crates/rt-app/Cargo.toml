@@ -13,6 +13,7 @@ base64 = "0.22"
 memchr = "2"
 rt-core = { path = "../rt-core" }
 rt-format = { path = "../rt-format" }
+rt-plugin = { path = "../rt-plugin" }
 serde = { version = "1", features = ["derive"] }
 # float_roundtrip: history entries (duration_ms) read back exactly as written.
 serde_json = { version = "1", features = ["float_roundtrip"] }

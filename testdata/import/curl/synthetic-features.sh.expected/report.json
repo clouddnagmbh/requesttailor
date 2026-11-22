@@ -60,12 +60,6 @@
         "location": "GET api.example.com/unknown"
       },
       {
-        "detail": "AWS Signature v4 settings kept in the file, but RequestTailor cannot send with AWS Signature v4 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "GET s3.example.com/bucket"
-      },
-      {
         "detail": "body file `body.json` refers to the original computer; copy it into the collection folder and update the path",
         "effect": "approximated",
         "kind": "body",

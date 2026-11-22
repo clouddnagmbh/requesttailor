@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::auth::{ClientCertificate, ExternalSecrets};
+
 /// A variable as declared in a file. Secret variables carry no value in the file
 /// (product principle 3); their value comes from the keychain, a vault or the command line.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,4 +34,11 @@ impl Variable {
 pub struct Environment {
     pub name: String,
     pub variables: Vec<Variable>,
+    /// Client certificates that apply only in this environment; checked before the
+    /// collection's (wave 5, strand D).
+    #[serde(default)]
+    pub client_certificates: Vec<ClientCertificate>,
+    /// Secret values from an external manager (wave 5, strand E).
+    #[serde(default)]
+    pub external_secrets: Option<ExternalSecrets>,
 }

@@ -20,6 +20,7 @@ fn report(body: ReportBody) -> SendReport {
             .len() as u64,
     };
     SendReport {
+        notes: Vec::new(),
         version: REPORT_VERSION,
         request_path: "a.yml".into(),
         environment: None,

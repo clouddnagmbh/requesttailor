@@ -258,5 +258,9 @@ export function webGit(host: WebHost): GitApi {
       await s.delete(h, "username");
       await s.delete(h, "password");
     },
+
+    // Wave 5, strand E: `rt_app::secret_scan` through rt-wasm; `commit` refuses with
+    // `secrets-found`. Interface commit: finds nothing.
+    scan: async () => [],
   };
 }

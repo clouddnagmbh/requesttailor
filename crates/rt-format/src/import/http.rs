@@ -656,6 +656,8 @@ fn environments(
             Some(i) => i,
             None => {
                 c.environments.push(Environment {
+                    client_certificates: Vec::new(),
+                    external_secrets: None,
                     name: env_name.clone(),
                     variables: Vec::new(),
                 });

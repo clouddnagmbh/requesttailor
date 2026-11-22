@@ -23,6 +23,7 @@ const FORMAT_NAMES: Record<ImportFormat, string> = {
   curl: "cURL",
   har: "HAR",
   http: ".http",
+  plugin: "Plugin",
 };
 
 export function formatName(f: ImportFormat): string {

@@ -174,6 +174,8 @@ fn precedence_tree(skip: Option<&str>) -> (Tree, PrepareInput<'static>) {
         t.collection.defaults.vars.push(var("x", "collection"));
     }
     let mut dev = Environment {
+        client_certificates: Vec::new(),
+        external_secrets: None,
         name: "dev".into(),
         variables: vec![],
     };
@@ -254,6 +256,8 @@ fn precedence_table_through_prepare() {
     for keep in 1..=order.len() {
         let mut t = Tree::new("https://example.com/{{x}}");
         t.collection.environments.push(Environment {
+            client_certificates: Vec::new(),
+            external_secrets: None,
             name: "dev".into(),
             variables: vec![],
         });
@@ -350,6 +354,8 @@ fn secret_without_value_is_unresolved_unless_runtime_provides_it() {
     let mut t = Tree::new("https://example.com/");
     t.request.headers.push(kv("X-Token", "{{token}}"));
     t.collection.environments.push(Environment {
+        client_certificates: Vec::new(),
+        external_secrets: None,
         name: "dev".into(),
         variables: vec![
             Variable {
@@ -779,6 +785,7 @@ fn settings_inherit_request_folders_collection() {
     assert_eq!(
         p.request.options,
         SendOptions {
+            client_identity: None,
             timeout: Some(Duration::from_millis(1000)),
             follow_redirects: false,
             max_redirects: 3,
