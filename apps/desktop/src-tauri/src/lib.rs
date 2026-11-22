@@ -39,15 +39,9 @@ mod streams;
 
 pub use crate::core::{CollectionInfo, Core};
 
-/// Starts the app. Returns when the last window is closed.
-pub fn run() {
-    builder()
-        .run(tauri::generate_context!())
-        .expect("error while running the RequestTailor desktop app");
-}
-
-/// The configured app (plugins, state, commands) without its context, for a distribution that
-/// builds its own binary from this crate: it adds its Tauri plugins with `.plugin(…)` and runs
+/// The configured app (plugins, state, commands) without its context. `main.rs` runs it with
+/// the context of this crate's `tauri.conf.json`; a distribution that builds its own binary
+/// from this crate: it adds its Tauri plugins with `.plugin(…)` and runs
 /// with the context of its own `tauri.conf.json` (wave 9). Its plugins' commands need their own
 /// capability file; the app's commands keep `capabilities/default.json`.
 pub fn builder() -> tauri::Builder<tauri::Wry> {
@@ -55,8 +49,11 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             use tauri::Manager as _;
-            // History and recent collections live in the app's data folder.
-            let data_dir = app.path().app_data_dir().ok();
+            // History and recent collections live in the app's data folder: the same folder
+            // `rt` uses (`$RT_DATA_DIR`, else the folder of this app's identifier), also when a
+            // distribution runs under another bundle identifier.
+            let data_dir =
+                rt_plugin::host::dir::data_dir().or_else(|| app.path().app_data_dir().ok());
             // The app's keychain store (service "RequestTailor"); collection = canonical root.
             let core = commands::AppCore::with_data_dir(
                 rt_app::secrets::keychain::KeychainStore::default(),

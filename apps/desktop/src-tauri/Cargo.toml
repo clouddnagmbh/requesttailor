@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+# Lets build scripts of crates that depend on this one read the command list and the
+# capabilities folder (`DEP_RT_DESKTOP_COMMANDS`, `DEP_RT_DESKTOP_CAPABILITIES`).
+links = "rt-desktop"
 
 # Desktop only (macOS, Windows, Linux). Excluded from the wasm32 build and the iOS check.
 

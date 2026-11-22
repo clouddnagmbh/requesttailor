@@ -120,4 +120,9 @@ fn main() {
             .app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)),
     )
     .expect("tauri-build");
+    // For a distribution that builds its own binary from this crate: its build script gets
+    // the command list and the capabilities folder as `DEP_RT_DESKTOP_*` (see `links`).
+    println!("cargo::metadata=commands={}", COMMANDS.join(","));
+    let capabilities = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("capabilities");
+    println!("cargo::metadata=capabilities={}", capabilities.display());
 }

@@ -5,5 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    rt_desktop::run();
+    rt_desktop::builder()
+        .run(tauri::generate_context!())
+        .expect("error while running the RequestTailor desktop app");
 }
