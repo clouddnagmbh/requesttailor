@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// `MergeApi` of the desktop app (wave 12, strand B; src-tauri/src/merges.rs). Interface
-// placeholder: the Tauri commands are registered and refuse; the strand calls them here.
+// `MergeApi` of the desktop app (wave 12, strand B; src-tauri/src/merges.rs): the conflicts
+// come from the index stages on the Rust side, `resolve` writes the files and reopens the
+// collection there.
 
-import { stubMerges, type MergeApi } from "@requesttailor/ui";
+import type { ConflictChoice, MergeApi, MergeState } from "@requesttailor/ui";
 
 import type { Call, Command } from "./backend";
 
 export function tauriMerges(call: Call): MergeApi {
-  void call;
-  return stubMerges();
+  return {
+    conflicts: () => call<MergeState>("merge_conflicts"),
+    resolve: (choices: ConflictChoice[]) => call<void>("merge_resolve", { choices }),
+  };
 }
 
 /** Commands of this strand no method calls yet; backend.test.ts leaves them out of its
- *  "every command is mapped" check. The strand empties the list as it maps them. */
-export const PENDING: readonly Command[] = [
-  "merge_conflicts",
-  "merge_resolve",
-];
+ *  "every command is mapped" check. */
+export const PENDING: readonly Command[] = [];

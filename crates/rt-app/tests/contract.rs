@@ -1862,6 +1862,7 @@ mod wave12 {
                     merging: true,
                     conflicts: vec![field_conflict()],
                     text_conflicts: vec!["notes.yml".into()],
+                    clean: vec!["users/list.yml".into()],
                 }),
             ),
             (

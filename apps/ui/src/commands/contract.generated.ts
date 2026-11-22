@@ -2984,6 +2984,9 @@ export const diffScopes: DiffScope[] = [
 ];
 
 export const mergeState: MergeState = {
+  "clean": [
+    "users/list.yml"
+  ],
   "conflicts": [
     {
       "base": {

@@ -176,6 +176,10 @@ describe("TauriBackend", () => {
     await b.compare.compare({ from: "main", to: "feature" }, { environment: "Local", vars: [] });
     await b.compare.bisect({ good: "v1", bad: "HEAD" }, { environment: "Local", vars: [] }, () => {});
     await b.compare.cancel();
+    // Wave 12, strand B.
+    const choice = { kind: "file", path: "a.yml", side: "theirs" } as const;
+    await b.merges.conflicts();
+    await b.merges.resolve([choice]);
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -302,6 +306,8 @@ describe("TauriBackend", () => {
       ["compare_revisions", { request: { from: "main", to: "feature" }, input: { environment: "Local", vars: [] } }],
       ["compare_bisect", { request: { good: "v1", bad: "HEAD" }, input: { environment: "Local", vars: [] }, onStep: "step-channel" }],
       ["compare_cancel", undefined],
+      ["merge_conflicts", undefined],
+      ["merge_resolve", { choices: [choice] }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS.filter((c) => !PENDING.has(c))));
     for (const c of PENDING) expect(COMMANDS).toContain(c);
