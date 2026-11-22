@@ -160,7 +160,9 @@ pub(crate) fn coverage_of(api: &str) -> Option<(String, Entry)> {
         return Some(found);
     }
     if api.starts_with("require(") {
-        return list.get("require('*')").map(|e| ("require('*')".to_owned(), *e));
+        return list
+            .get("require('*')")
+            .map(|e| ("require('*')".to_owned(), *e));
     }
     let rest = api.strip_prefix("insomnia.")?;
     let (name, e) = lookup(&format!("pm.{rest}"))?;
@@ -471,7 +473,10 @@ pub(crate) fn api_uses(code: &str, dialect: Dialect) -> Vec<String> {
             }
             continue;
         }
-        if (root == "pm" || root == "insomnia") && segments[0] == "response" && segments.get(1) == Some(&"to") {
+        if (root == "pm" || root == "insomnia")
+            && segments[0] == "response"
+            && segments.get(1) == Some(&"to")
+        {
             let word = segments[2..]
                 .iter()
                 .find(|w| !CHAINS.contains(w) && **w != "not");
@@ -502,33 +507,68 @@ mod tests {
     #[test]
     fn member_paths_calls_and_words() {
         assert_eq!(
-            uses("pm.environment.set('a', 1); // pm.globals.get('x')\nconst s = \"pm.vault.get()\";"),
+            uses(
+                "pm.environment.set('a', 1); // pm.globals.get('x')\nconst s = \"pm.vault.get()\";"
+            ),
             ["pm.environment.set"]
         );
         assert_eq!(
             uses("pm.expect(x).to.not.have.property('a');"),
             ["pm.expect", "expect().not", "expect().property"]
         );
-        assert_eq!(uses("pm.response.to.have.status(200);"), ["pm.response.to.status"]);
-        assert_eq!(uses("tests['ok'] = responseCode.code === 200;"), ["tests[]", "responseCode.code"]);
+        assert_eq!(
+            uses("pm.response.to.have.status(200);"),
+            ["pm.response.to.status"]
+        );
+        assert_eq!(
+            uses("tests['ok'] = responseCode.code === 200;"),
+            ["tests[]", "responseCode.code"]
+        );
         assert_eq!(
             uses("const C = require('crypto-js'); const x = require(\"xml2js\");"),
             ["require('crypto-js')", "require('xml2js')"]
         );
-        assert_eq!(uses("const x = `${pm.variables.get('a')}`;"), ["pm.variables.get"]);
-        assert_eq!(uses("const r = /pm.vault/g; xml2Json(responseBody);"), ["xml2Json()", "responseBody"]);
-        assert_eq!(uses("const request = {}; request.foo = 1; a.pm.x;"), Vec::<String>::new());
+        assert_eq!(
+            uses("const x = `${pm.variables.get('a')}`;"),
+            ["pm.variables.get"]
+        );
+        assert_eq!(
+            uses("const r = /pm.vault/g; xml2Json(responseBody);"),
+            ["xml2Json()", "responseBody"]
+        );
+        assert_eq!(
+            uses("const request = {}; request.foo = 1; a.pm.x;"),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
     fn coverage_lookup() {
-        assert_eq!(coverage_of("pm.environment.get").unwrap().1.status, Status::Supported);
-        assert_eq!(coverage_of("pm.environment.clear").unwrap().1.status, Status::Unsupported);
+        assert_eq!(
+            coverage_of("pm.environment.get").unwrap().1.status,
+            Status::Supported
+        );
+        assert_eq!(
+            coverage_of("pm.environment.clear").unwrap().1.status,
+            Status::Unsupported
+        );
         let (name, e) = coverage_of("insomnia.parentFolders.get").unwrap();
-        assert_eq!((name.as_str(), e.status), ("insomnia.parentFolders", Status::Unsupported));
-        assert_eq!(coverage_of("insomnia.environment.get").unwrap().0, "insomnia.environment.get");
-        assert_eq!(coverage_of("require('fs')").unwrap().1.status, Status::Unsupported);
-        assert_eq!(coverage_of("require('crypto-js')").unwrap().1.status, Status::Partial);
+        assert_eq!(
+            (name.as_str(), e.status),
+            ("insomnia.parentFolders", Status::Unsupported)
+        );
+        assert_eq!(
+            coverage_of("insomnia.environment.get").unwrap().0,
+            "insomnia.environment.get"
+        );
+        assert_eq!(
+            coverage_of("require('fs')").unwrap().1.status,
+            Status::Unsupported
+        );
+        assert_eq!(
+            coverage_of("require('crypto-js')").unwrap().1.status,
+            Status::Partial
+        );
         assert!(coverage_of("nothing.at.all").is_none());
     }
 
@@ -536,14 +576,30 @@ mod tests {
     fn gaps_once_each_in_order() {
         let code = "pm.vault.get('a'); const x = require('fs'); pm.vault.set('b');\n\
                     pm.environment.set('c', 1); pm.somethingNew(); xml2Json(responseBody);";
-        let got: Vec<String> = gaps(code, Dialect::Postman).into_iter().map(|g| g.api).collect();
-        assert_eq!(got, ["pm.vault", "require('fs')", "pm.somethingNew", "xml2Json()"]);
-        assert!(gaps("pm.test('t', () => pm.expect(1).to.equal(1));", Dialect::Postman).is_empty());
+        let got: Vec<String> = gaps(code, Dialect::Postman)
+            .into_iter()
+            .map(|g| g.api)
+            .collect();
+        assert_eq!(
+            got,
+            ["pm.vault", "require('fs')", "pm.somethingNew", "xml2Json()"]
+        );
+        assert!(
+            gaps(
+                "pm.test('t', () => pm.expect(1).to.equal(1));",
+                Dialect::Postman
+            )
+            .is_empty()
+        );
     }
 
     #[test]
     fn the_list_parses() {
         assert!(list().len() > 300);
-        assert!(list().values().all(|e| e.status != Status::Partial || !e.note.is_empty()));
+        assert!(
+            list()
+                .values()
+                .all(|e| e.status != Status::Partial || !e.note.is_empty())
+        );
     }
 }

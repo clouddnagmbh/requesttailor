@@ -27,8 +27,8 @@ use rt_core::model::{
 
 use super::auth::{self, AwsV4, OAuth1, OAuth2};
 use super::common::{Losses, finish, invalid, location, plural, raw_kind, url_params, utf8};
-use super::shims::Dialect;
 use super::out::{AuthOut, CollectionOut, DefaultsOut, FolderOut, ItemOut, RequestOut};
+use super::shims::Dialect;
 use super::value::{Value, parse_any};
 use super::{Import, ImportError, ImportFormat, LossKind, SourceFile, stem};
 
@@ -632,7 +632,8 @@ impl Cx {
             if code.trim().is_empty() {
                 continue;
             }
-            self.losses.script_kept(here, what, &code, Dialect::Insomnia);
+            self.losses
+                .script_kept(here, what, &code, Dialect::Insomnia);
             out.push(Script { phase, code });
         }
         out

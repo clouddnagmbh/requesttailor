@@ -28,8 +28,8 @@ use rt_core::model::{
 
 use super::auth::{self, AwsV4, OAuth1, OAuth2};
 use super::common::{Losses, finish, invalid, location, raw_kind, url_params, utf8};
-use super::shims::Dialect;
 use super::out::{AuthOut, CollectionOut, DefaultsOut, ExampleOut, FolderOut, ItemOut, RequestOut};
+use super::shims::Dialect;
 use super::value::{Value, parse_json};
 use super::{Import, ImportError, ImportFormat, LossKind, SourceFile, stem};
 
@@ -309,14 +309,17 @@ impl Cx {
                 continue;
             }
             match phase {
-                _ if e.flag("disabled") => self.losses.script(here, &format!("disabled {what}"), &code),
+                _ if e.flag("disabled") => {
+                    self.losses.script(here, &format!("disabled {what}"), &code)
+                }
                 Some(phase) => {
                     self.losses.script_kept(here, what, &code, Dialect::Postman);
                     scripts.push(Script { phase, code });
                 }
-                None => self
-                    .losses
-                    .script(here, &format!("script for the `{listen}` event"), &code),
+                None => {
+                    self.losses
+                        .script(here, &format!("script for the `{listen}` event"), &code)
+                }
             }
         }
         scripts
