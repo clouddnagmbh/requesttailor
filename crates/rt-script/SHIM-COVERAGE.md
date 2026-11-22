@@ -248,8 +248,8 @@ runtime variable of the same name shadows; the engine has no read of a single la
 - **No Node.js.** There is no `fs`, `path`, `Buffer`, `process`, `URL`, `fetch` or other
   Node.js or browser API, and `require` loads only the modules below. Scripts have no file
   access, and network access only through `sendRequest`.
-- **gRPC and WebSocket scripts** of Bruno (`bru.grpc`, `onMessage`) do not run; RequestTailor
-  has no gRPC or WebSocket requests.
+- **gRPC and WebSocket.** Their scripts run in fewer places than HTTP ones; see "gRPC and
+  WebSocket" below.
 - **Safe mode.** `bru.isSafeMode()` returns `true`: RequestTailor has one sandbox for every
   script, like Bruno's safe mode.
 - **Messages.** `expect` and the response assertions (`pm.response.to.have.status(200)`)
@@ -258,6 +258,42 @@ runtime variable of the same name shadows; the engine has no read of a single la
 - **JSON Schema** (`pm.response.to.have.jsonSchema`, `expect(x).to.have.jsonSchema`,
   `tv4`, `ajv`): drafts 4 to 2020-12 with local `$ref`; `format` is not checked and remote
   `$ref` is refused. Errors read like Ajv's: `data.id should be integer`.
+
+## gRPC and WebSocket
+
+gRPC and WebSocket requests (and Server-Sent Events, which are HTTP requests read as a
+session) are *sessions*. A session opens with the pipeline of a send, including scripts, but
+it has no single response, so the `bru.*`, `req`, `res` and `pm.*` shims cover only the part
+before the session opens. Source: `open` in
+[`rt-core/src/stream.rs`](../rt-core/src/stream.rs).
+
+| Part of the script API | gRPC | WebSocket |
+| --- | --- | --- |
+| `before-request` scripts (collection, folder, request) | run before the session opens | run before the session opens |
+| `after-response` and `tests` scripts | do not run | do not run |
+| Assertions (`runtime.assertions`) and actions | not evaluated (gRPC items keep them in the file) | none in the item |
+| `req.getUrl`, `req.setUrl`, `pm.request.url` | the request's URL as written | the request's URL as written |
+| `req.getHeaders`, `req.setHeader`, `pm.request.headers` | the gRPC metadata | the handshake headers |
+| `req.getMethod`, `pm.request.method` | `GRPC` | `WS` |
+| `req.setBody`, `req.getBody`, `pm.request.body` | no effect: messages are not the body | no effect: messages are not the body |
+| `bru.setVar`, `bru.getVar`, `pm.variables.*`, environment, collection and global scopes | as for HTTP | as for HTTP |
+| `console.log` | logs become notes of the session (source `script:before-request`) | same |
+| `res`, `pm.response` | no response exists yet when a `before-request` script runs | same |
+| `sendRequest` (`pm.`, `bru.`, `insomnia.`, `rt.`) | not available (a session's scripts cannot send requests) | same |
+| Bruno's gRPC script API (`bru.grpc`, `onMessage`, stream hooks) | unsupported, as listed in `shim-apis.txt` | none |
+
+Notes:
+
+- A script that fails stops the session before it opens (`a before-request script failed:
+  ...`). A script that calls `skip()` does the same (`a before-request script skipped the
+  request`).
+- Variables set by a script reach `{{...}}` in the URL, metadata, messages and auth, because
+  the pipeline prepares the request after the scripts, as for HTTP.
+- The messages of a session (gRPC messages, WebSocket variants) live in the item's protocol
+  part, not in the body, so a script cannot read or change them. Use variables in the message
+  text instead.
+- Bruno's gRPC script phases stay untouched in the file. The loss report of an import names
+  `bru.grpc` when a script uses it.
 
 ## Modules
 
