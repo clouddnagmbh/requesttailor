@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Get user
+  type: http
+  seq: 1
+  description: Reads one user by id.
+
+http:
+  method: GET
+  url: "{{baseUrl}}/{{apiVersion}}/users/:id"
+  params:
+    - name: id
+      value: "42"
+      type: path
+  headers:
+    - name: Accept
+      value: application/json
+  auth: inherit
+
+docs: |-
+  Returns the user with the given id, or 404.
+
+examples:
+  - name: Found
+    request:
+      url: "{{baseUrl}}/{{apiVersion}}/users/42"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+        - name: X-Request-Id
+          value: example-1
+      body:
+        type: json
+        data: |-
+          {
+            "id": 42,
+            "name": "Ada"
+          }
+  - name: Not found
+    request:
+      url: "{{baseUrl}}/{{apiVersion}}/users/999"
+    response:
+      status: 404
+      statusText: Not Found
+      body:
+        type: json
+        data: '{"error": "no user 999"}'

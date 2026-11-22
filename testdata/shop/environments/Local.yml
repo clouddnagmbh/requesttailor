@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+name: Local
+variables:
+  - name: baseUrl
+    value: http://localhost:4010/api
+  - name: token
+    secret: true
+  - name: adminUser
+    value: admin
+  - name: adminPassword
+    secret: true

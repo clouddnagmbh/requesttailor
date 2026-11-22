@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+# Synthetic fixture for `rt mock` and `rt docs` (crates/rt-cli/tests/mock_docs.rs).
+opencollection: 1.0.0
+info:
+  name: Shop
+request:
+  auth:
+    type: bearer
+    token: "{{token}}"
+  variables:
+    - name: apiVersion
+      value: v1
+docs: |-
+  A small shop API with saved examples.
+  Start `rt mock testdata/shop --env Local` and send the requests against it.
