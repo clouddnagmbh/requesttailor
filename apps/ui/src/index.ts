@@ -13,15 +13,6 @@ export type * from "./commands/backend";
 export type * from "./commands/types";
 export { BackendError } from "./commands/backend";
 export { MockBackend } from "./commands/mock";
-/** Wave 8 interface placeholders, until each strand has its own implementation. */
-export {
-  stubAgents,
-  stubAi,
-  stubGraphQl,
-  stubGrpc,
-  stubMcp,
-  stubStreams,
-} from "./commands/wave8-stubs";
 
 /** Mounts the app into `target` with the given backend. */
 export function startApp(target: HTMLElement, backend: Backend) {
