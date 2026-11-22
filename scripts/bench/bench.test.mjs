@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 import { discover, electronIsolation, executableOf, expandPath } from "./apps.mjs";
 import { ownProcesses, summarizeStarts } from "./launch.mjs";
-import { END, START, budgetMaxima, cell, latestResult, markdown, replaceBlock, rows, websiteBlock } from "./report.mjs";
+import { END, NO_RESULT, START, budgetMaxima, cell, latestResult, markdown, replaceBlock, rows, websiteBlock } from "./report.mjs";
 import { osSlug, parseArgs } from "./run.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -137,15 +137,22 @@ test("the newest result file wins", () => {
   try {
     for (const f of ["2026-11-01-macos.json", "2026-11-22-macos.json", "notes.json", "2026-11-22-macos.md"]) writeFileSync(join(dir, f), "{}");
     assert.equal(latestResult(dir), join(dir, "2026-11-22-macos.json"));
+    assert.equal(latestResult(join(dir, "missing")), null);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("the website shows the latest committed result with the budgets of perf/budgets.toml", () => {
-  const latest = JSON.parse(readFileSync(latestResult(), "utf8"));
-  const budgets = budgetMaxima(readFileSync(join(ROOT, "perf", "budgets.toml"), "utf8"));
   const page = readFileSync(join(ROOT, "website", "benchmark", "index.html"), "utf8");
   const block = page.slice(page.indexOf(START), page.indexOf(END) + END.length);
+  const file = latestResult();
+  if (file === null) {
+    // Before the first measurement on a quiet machine is committed.
+    assert.equal(block, NO_RESULT);
+    return;
+  }
+  const budgets = budgetMaxima(readFileSync(join(ROOT, "perf", "budgets.toml"), "utf8"));
+  const latest = JSON.parse(readFileSync(file, "utf8"));
   assert.equal(block, websiteBlock(latest, budgets), "run: node scripts/bench/report.mjs --website website/benchmark/index.html");
 });

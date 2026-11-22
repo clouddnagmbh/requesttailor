@@ -8,7 +8,7 @@
 // Usage: node scripts/bench/report.mjs [<result.json>] [--website <page.html>] [--markdown <file>]
 //   Without a file: the newest result in bench/results/. Without options: prints Markdown.
 
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -35,12 +35,16 @@ export function budgetMaxima(text) {
 
 /** The newest `<date>-<os>.json` in `dir` (names sort by date). */
 export function latestResult(dir = RESULTS_DIR) {
-  const files = readdirSync(dir)
-    .filter((f) => /^\d{4}-\d{2}-\d{2}-[a-z]+\.json$/.test(f))
-    .sort();
-  if (files.length === 0) throw new Error(`no results in ${dir}; run node scripts/bench/run.mjs`);
-  return join(dir, files[files.length - 1]);
+  const files = existsSync(dir)
+    ? readdirSync(dir)
+        .filter((f) => /^\d{4}-\d{2}-\d{2}-[a-z]+\.json$/.test(f))
+        .sort()
+    : [];
+  return files.length === 0 ? null : join(dir, files[files.length - 1]);
 }
+
+/** The block the page shows before the first result is committed. */
+export const NO_RESULT = `${START}\n<p>No measurement yet.</p>\n${END}`;
 
 const fmt = (v, unit) => (unit ? `${v} ${unit}` : String(v));
 
@@ -144,6 +148,7 @@ function main(argv) {
     else throw new Error(`unknown option ${argv[i]}`);
   }
   file ??= latestResult();
+  if (!file) throw new Error(`no results in ${RESULTS_DIR}; run node scripts/bench/run.mjs`);
   const result = JSON.parse(readFileSync(file, "utf8"));
   const budgets = budgetMaxima(readFileSync(join(ROOT, "perf", "budgets.toml"), "utf8"));
   if (md) writeFileSync(md, markdown(result, budgets));
