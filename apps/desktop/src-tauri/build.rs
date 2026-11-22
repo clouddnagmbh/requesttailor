@@ -81,6 +81,12 @@ const COMMANDS: &[&str] = &[
     "runner_parse_data",
     "runner_run",
     "runner_cancel",
+    // Wave 8, strand C.
+    "agents_policy",
+    "agents_set_policy",
+    "agents_pending",
+    "agents_decide",
+    "agents_audit",
 ];
 
 fn main() {

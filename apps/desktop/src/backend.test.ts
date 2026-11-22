@@ -101,6 +101,11 @@ describe("TauriBackend", () => {
     const plan = { requests: ["a.yml"], data: [], iterations: 1, delay_ms: 0, bail: false };
     await b.runner.run(plan, { environment: "Local", vars: [] }, () => {});
     await b.runner.cancel();
+    await b.agents.policy();
+    await b.agents.setPolicy({ access: "read", environments: [] });
+    await b.agents.pending();
+    await b.agents.decide("abc", "denied");
+    await b.agents.audit(10);
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -176,6 +181,12 @@ describe("TauriBackend", () => {
       ["runner_parse_data", { name: "d.csv", data: [97] }],
       ["runner_run", { plan, input: { environment: "Local", vars: [] }, onEvent: "channel" }],
       ["runner_cancel", undefined],
+      ["agents_policy", undefined],
+      ["agents_set_policy", { policy: { access: "read", environments: [] } }],
+      ["agents_pending", undefined],
+      ["agents_decide", { id: "abc", decision: "denied" }],
+      ["agents_pending", undefined],
+      ["agents_audit", { limit: 10 }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

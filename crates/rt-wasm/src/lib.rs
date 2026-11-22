@@ -326,6 +326,11 @@ mod workspace_js {
         pub(crate) fn workspace(&self) -> std::cell::Ref<'_, Workspace> {
             std::cell::Ref::map(self.inner.borrow(), |i| &i.workspace)
         }
+
+        /// The open workspace for edits (wave 8: `agents_js`).
+        pub(crate) fn workspace_mut(&self) -> std::cell::RefMut<'_, Workspace> {
+            std::cell::RefMut::map(self.inner.borrow_mut(), |i| &mut i.workspace)
+        }
     }
 
     #[wasm_bindgen(js_class = Workspace)]
@@ -630,6 +635,8 @@ mod workspace_js {
 
 // Wave 4, one module per strand: git (A2), import (B), history (E).
 // Wave 8: one module per strand.
+#[cfg(target_arch = "wasm32")]
+mod agents_js;
 #[cfg(target_arch = "wasm32")]
 mod ai_js;
 #[cfg(target_arch = "wasm32")]

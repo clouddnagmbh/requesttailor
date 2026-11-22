@@ -78,6 +78,11 @@
     "allow-runner-parse-data",
     "allow-runner-run",
     "allow-runner-cancel",
+    "allow-agents-policy",
+    "allow-agents-set-policy",
+    "allow-agents-pending",
+    "allow-agents-decide",
+    "allow-agents-audit",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]
