@@ -5199,9 +5199,11 @@ dependencies = [
  "prost-reflect",
  "protox",
  "rt-core",
+ "rt-testserver",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
@@ -5288,6 +5290,8 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "prost-reflect",
+ "protox",
  "rustls",
  "serde_json",
  "sha2 0.10.9",

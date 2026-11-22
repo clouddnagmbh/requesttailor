@@ -23,6 +23,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "time",
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 sha2 = "0.10"
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+protox = { version = "0.10", default-features = false }
+prost-reflect = "0.16"
 
 [lints]
 workspace = true

@@ -24,6 +24,10 @@
 //! by a given CA; every request then carries `x-rt-client-cert-sha256` (hex SHA-256 of the
 //! presented leaf certificate), visible through `/echo`.
 
+// Wave 8, strand B: gRPC echo server (`spawn_grpc`) and `POST /graphql`.
+pub mod grpc;
+pub use grpc::{GrpcOptions, spawn_grpc, spawn_grpc_with};
+
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
