@@ -2,7 +2,8 @@
 // Copyright 2026 The RequestTailor Authors
 
 // Pretty view of response bodies (wave 8): pretty-printed, highlighted by content type and
-// foldable, against the mock backend (`/json-compact`, `/xml`, `/html` answer fixed bodies).
+// foldable and searchable, against the mock backend (`/json-compact`, `/xml`, `/html`, `/css`
+// answer fixed bodies).
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
@@ -113,6 +114,49 @@ test("HTML is highlighted and foldable but never reflowed", async ({ page }) => 
   await expect(line(view, "<p>Hello<br>world</p>")).toHaveCount(1);
   await clickFoldMarker(view, line(view, "<head>"));
   await expect(line(view, "<title>Mock</title>")).toHaveCount(0);
+});
+
+test("CSS is highlighted and foldable", async ({ page }) => {
+  await sendTo(page, "css");
+  const view = pretty(page);
+  await expect(view).toHaveAttribute("data-language", "css");
+  const colors = await line(view, "color: #333;")
+    .locator("span")
+    .evaluateAll((spans) => new Set(spans.map((s) => getComputedStyle(s).color)).size);
+  expect(colors).toBeGreaterThanOrEqual(2);
+  await clickFoldMarker(view, line(view, "@media"));
+  await expect(line(view, "display: none;")).toHaveCount(0);
+});
+
+test("Mod+F searches the pretty view: next, previous, Escape closes", async ({ page }) => {
+  await sendTo(page, "json-compact");
+  const view = pretty(page);
+  await lines(view).first().click();
+  await page.keyboard.press("ControlOrMeta+f");
+  const panel = view.locator(".cm-search");
+  await expect(panel).toBeVisible();
+  // Read-only: no replace fields.
+  await expect(panel.locator("input[name=replace]")).toHaveCount(0);
+  await expect(panel.locator("input[name=search]")).toBeFocused();
+  await page.keyboard.type('"name"');
+  await page.keyboard.press("Enter");
+  const selected = view.locator(".cm-searchMatch-selected");
+  await expect(view.locator(".cm-searchMatch")).toHaveCount(2);
+  await expect(line(view, '"name": "a"').locator(".cm-searchMatch-selected")).toHaveCount(1);
+  await page.keyboard.press("Enter");
+  await expect(line(view, '"name": "b"').locator(".cm-searchMatch-selected")).toHaveCount(1);
+  await page.keyboard.press("Shift+Enter");
+  await expect(line(view, '"name": "a"').locator(".cm-searchMatch-selected")).toHaveCount(1);
+  await expect(selected).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+});
+
+test("Mod+F does not open a search panel in single-line fields", async ({ page }) => {
+  await sendTo(page, "json-compact");
+  await page.getByTestId("url-input").locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+f");
+  await expect(page.locator(".cm-search")).toHaveCount(0);
 });
 
 test("JSONPath results are highlighted JSON", async ({ page }) => {

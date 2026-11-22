@@ -8,7 +8,7 @@
 //   - `demo/blocked.yml` fails like a request the browser blocks (CORS), to show the
 //                        companion offer
 //   - a URL ending in `/login` answers `{"token": "mock-token-123", "user": {...}}` (wave 7)
-//   - a URL ending in `/xml`, `/html` or `/json-compact` answers a fixed compact body of
+//   - a URL ending in `/xml`, `/html`, `/css` or `/json-compact` answers a fixed body of
 //     that type (pretty view tests, wave 8)
 // Everything else answers like rt-testserver's `/echo`.
 // Wave 7 (strand C): session variables go into the runtime layer, assertions and actions run
@@ -135,8 +135,13 @@ const sampleEnvironments = (): Environment[] => [
 
 /** Compact sample bodies by URL ending, for the pretty view (wave 8). */
 function sampleBody(url: string): { body: string; contentType: string } | null {
-  const end = /\/(xml|html|json-compact)(\?|$)/.exec(url)?.[1];
+  const end = /\/(xml|html|css|json-compact)(\?|$)/.exec(url)?.[1];
   switch (end) {
+    case "css":
+      return {
+        contentType: "text/css; charset=utf-8",
+        body: "body {\n  color: #333;\n  margin: 0;\n}\n\n@media (max-width: 600px) {\n  .nav {\n    display: none;\n  }\n}\n",
+      };
     case "xml":
       return {
         contentType: "application/xml; charset=utf-8",
