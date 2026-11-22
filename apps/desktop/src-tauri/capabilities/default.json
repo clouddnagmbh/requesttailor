@@ -78,6 +78,12 @@
     "allow-runner-parse-data",
     "allow-runner-run",
     "allow-runner-cancel",
+    "allow-stream-open",
+    "allow-stream-send",
+    "allow-stream-finish",
+    "allow-stream-close",
+    "allow-stream-log",
+    "allow-stream-release",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

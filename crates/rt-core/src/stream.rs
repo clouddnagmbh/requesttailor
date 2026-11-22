@@ -522,6 +522,18 @@ pub async fn open<'a, T: Transport, S: StreamTransport + ?Sized>(
     })
 }
 
+/// A readable text of a failed [`open`] (what the shells show).
+pub fn error_text(error: &SendError) -> String {
+    match error {
+        SendError::NotFound(path) => format!("request not found: {path}"),
+        SendError::Prepare(m) => m.clone(),
+        SendError::Auth(m) => format!("authentication failed: {m}"),
+        SendError::Plugin(m) => format!("a plugin stopped the request: {m}"),
+        SendError::Script(m) => format!("a before-request script failed: {m}"),
+        SendError::Transport(e) => e.to_string(),
+    }
+}
+
 /// Version of the [`StreamLog`] JSON shape.
 pub const LOG_VERSION: u32 = 1;
 

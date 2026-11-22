@@ -139,6 +139,13 @@ pub fn run() {
             runner::runner_parse_data,
             runner::runner_run,
             runner::runner_cancel,
+            // Wave 8, strand A.
+            streams::stream_open,
+            streams::stream_send,
+            streams::stream_finish,
+            streams::stream_close,
+            streams::stream_log,
+            streams::stream_release,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the RequestTailor desktop app");

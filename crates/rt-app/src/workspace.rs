@@ -109,6 +109,39 @@ impl SendSnapshot {
         )
         .await
     }
+
+    /// Opens the request as a session (wave 8, strand A): WebSocket, gRPC, or an HTTP
+    /// request read as SSE. Prepared like [`SendSnapshot::send_with`]; `http` carries what
+    /// the preparation sends itself (OAuth token requests), `streams` opens the session. See
+    /// [`rt_core::stream::open`].
+    pub async fn open_stream<'a, T: Transport, S: rt_core::stream::StreamTransport + ?Sized>(
+        &self,
+        http: &T,
+        streams: &'a S,
+        options: &SendOptions,
+        services: &rt_core::services::Services<'_>,
+    ) -> Result<rt_core::stream::Session<'a>, rt_core::send::SendError> {
+        let Some(context) = self.collection.request(&self.request_path) else {
+            return Err(rt_core::send::SendError::NotFound(
+                self.request_path.clone(),
+            ));
+        };
+        let input = PrepareInput {
+            environment: self.environment.as_deref(),
+            globals: Vec::new(),
+            runtime: self.vars.clone(),
+        };
+        rt_core::stream::open(
+            &context,
+            &input,
+            &MemFiles(&self.files),
+            options,
+            services,
+            http,
+            streams,
+        )
+        .await
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -81,6 +81,13 @@ const COMMANDS: &[&str] = &[
     "runner_parse_data",
     "runner_run",
     "runner_cancel",
+    // Wave 8, strand A.
+    "stream_open",
+    "stream_send",
+    "stream_finish",
+    "stream_close",
+    "stream_log",
+    "stream_release",
 ];
 
 fn main() {

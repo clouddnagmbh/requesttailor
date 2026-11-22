@@ -13,6 +13,7 @@ import {
   type CompanionStatus,
   type CookieApi,
   type RunnerApi,
+  type StreamsApi,
   type ScriptsApi,
   type Environment,
   type FileChange,
@@ -36,7 +37,7 @@ import {
 import { tauriAuth } from "./auth";
 import { tauriCookies } from "./cookies";
 import { tauriRunner, type MakeChannel } from "./runner";
-import { tauriStreams } from "./streams";
+import { tauriStreams, type MakeStreamChannel } from "./streams";
 import { tauriGrpc } from "./grpc";
 import { tauriGraphQl } from "./graphql";
 import { tauriAgents } from "./agents";
@@ -124,6 +125,13 @@ export const COMMANDS = [
   "runner_parse_data",
   "runner_run",
   "runner_cancel",
+  // Wave 8, strand A.
+  "stream_open",
+  "stream_send",
+  "stream_finish",
+  "stream_close",
+  "stream_log",
+  "stream_release",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -165,7 +173,7 @@ export class TauriBackend implements Backend {
   readonly scripts: ScriptsApi;
   readonly runner: RunnerApi;
   /** Wave 8 (one file per strand). */
-  readonly streams = tauriStreams();
+  readonly streams: StreamsApi;
   readonly grpc = tauriGrpc();
   readonly graphql = tauriGraphQl();
   readonly agents = tauriAgents();
@@ -175,6 +183,8 @@ export class TauriBackend implements Backend {
   constructor(
     private readonly invokeRaw: Invoke,
     makeChannel?: MakeChannel,
+    /** Wave 8: the channel of `streams.open` (injectable for tests, like `makeChannel`). */
+    makeStreamChannel?: MakeStreamChannel,
   ) {
     const call: Call = (cmd, args) => this.call(cmd, args);
     this.git = tauriGit(call);
@@ -185,6 +195,7 @@ export class TauriBackend implements Backend {
     this.cookies = tauriCookies(call);
     this.scripts = tauriScripts(call);
     this.runner = tauriRunner(call, makeChannel);
+    this.streams = tauriStreams(call, makeStreamChannel);
     this.secrets = {
       has: (environment, variable) => this.call("secret_has", { environment, variable }),
       get: (environment, variable) => this.call("secret_get", { environment, variable }),
