@@ -51,11 +51,11 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
 use tokio::net::TcpListener;
 
+/// Wave 8, strand D: an MCP server (Streamable HTTP and stdio) for the MCP client's tests.
+pub mod mcp;
 /// WebSocket and SSE routes (wave 8, strand A).
 mod sse;
 mod ws;
-/// Wave 8, strand D: an MCP server (Streamable HTTP and stdio) for the MCP client's tests.
-pub mod mcp;
 pub use mcp::spawn_mcp;
 
 type Body = BoxBody<Bytes, Infallible>;
