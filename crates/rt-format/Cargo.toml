@@ -14,5 +14,11 @@ rt-core = { path = "../rt-core" }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
+[dev-dependencies]
+# Snapshots of the import corpus (loss reports as JSON).
+serde_json = "1"
+# Time limits in the hostile-input tests (std::time::Instant is not used in this workspace).
+web-time = "1"
+
 [lints]
 workspace = true
