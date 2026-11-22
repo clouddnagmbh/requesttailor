@@ -811,13 +811,13 @@ fn tests_script(root: &Path) {
 }
 
 #[test]
-#[ignore = "wave 7: needs strands A, D"]
 fn failing_tests_exit_4_and_no_scripts_skips_them() {
     let (_server, base) = server();
     let tmp = TempDir::new("tests");
     let root = collection(&tmp.0, &base);
     tests_script(&root);
-    let args = ["-e", "Local", "--var", "token=t", "--var", "id=1"];
+    // A realistic secret: a one-letter one would mask every "t" in the output.
+    let args = ["-e", "Local", "--var", "token=s3cr3t-token", "--var", "id=1"];
     let r = rt(&root, &[&args[..], &["--reporter", "junit"]].concat());
     assert_eq!(r.code, EXIT_TESTS, "{}", r.stderr);
     assert!(

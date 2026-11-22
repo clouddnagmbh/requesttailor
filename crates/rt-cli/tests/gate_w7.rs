@@ -34,7 +34,6 @@ fn rt(args: &[&str], data: &Path) -> (i32, String, String) {
 }
 
 #[test]
-#[ignore = "wave 7: needs strands A, B, D"]
 fn imported_postman_collection_runs_green_in_ci() {
     let server = tokio::runtime::Runtime::new().unwrap();
     let addr = server.block_on(rt_testserver::spawn_local());
