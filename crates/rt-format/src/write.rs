@@ -273,7 +273,7 @@ fn settings_entries(s: &Settings) -> Vec<(&'static str, Val)> {
 // Editing helpers
 
 /// Sets or removes `disabled` (and a legacy `enabled`) so the item reads as `enabled`.
-fn set_enabled(m: &mut Map, enabled: bool, order: &[&str], nl: &str) {
+pub(crate) fn set_enabled(m: &mut Map, enabled: bool, order: &[&str], nl: &str) {
     m.remove("enabled");
     if enabled {
         m.remove("disabled");
@@ -345,27 +345,27 @@ fn align<T: PartialEq>(old: &[T], new: &[T], same: impl Fn(&T, &T) -> bool) -> V
 
 /// How a list is written when it becomes empty.
 #[derive(Clone, Copy, PartialEq)]
-enum Empty {
+pub(crate) enum Empty {
     /// Remove the key (Bruno omits empty lists).
     Remove,
     /// `key: []`.
     Flow,
 }
 
-struct ListSpec<'f, T> {
-    key: &'static str,
-    order: &'f [&'f str],
-    empty: Empty,
-    read: &'f dyn Fn(&Node) -> T,
+pub(crate) struct ListSpec<'f, T> {
+    pub key: &'static str,
+    pub order: &'f [&'f str],
+    pub empty: Empty,
+    pub read: &'f dyn Fn(&Node) -> T,
     /// Whether two items are the same entry, possibly edited (e.g. the same name).
-    same: &'f dyn Fn(&T, &T) -> bool,
-    render: &'f dyn Fn(&T) -> Val,
+    pub same: &'f dyn Fn(&T, &T) -> bool,
+    pub render: &'f dyn Fn(&T) -> Val,
     /// Edits an item mapping in place from the old to the new value.
-    edit: &'f dyn Fn(&mut Map, &T, &T, &str),
+    pub edit: &'f dyn Fn(&mut Map, &T, &T, &str),
 }
 
 /// Makes the list under `spec.key` read as `new`, touching as little as possible.
-fn sync_list<T: PartialEq>(map: &mut Map, spec: &ListSpec<'_, T>, new: &[T], nl: &str) {
+pub(crate) fn sync_list<T: PartialEq>(map: &mut Map, spec: &ListSpec<'_, T>, new: &[T], nl: &str) {
     let present = map.index(spec.key).is_some();
     let old: Vec<T> = map
         .get_mut(spec.key)
@@ -865,6 +865,12 @@ fn write_auth(http: &mut Map, old: &Auth, new: &Auth, nl: &str) -> Result<()> {
                 if value != old_value {
                     auth.put(key, &Val::Str(value), AUTH_ORDER, false, nl);
                 }
+            }
+        }
+        // AWS SigV4 to AWS SigV4: field by field, so the rest of the mapping stays (wave 5).
+        Some(auth) if matches!((old, new), (Auth::AwsSigV4(_), Auth::AwsSigV4(_))) => {
+            if let (Auth::AwsSigV4(old), Auth::AwsSigV4(new)) = (old, new) {
+                crate::auth::awsv4::edit(auth, old, new, nl);
             }
         }
         _ => http.put("auth", &val, HTTP_ORDER, false, nl),
