@@ -4583,6 +4583,7 @@ dependencies = [
  "similar",
  "thiserror 2.0.21",
  "tokio",
+ "web-time",
 ]
 
 [[package]]

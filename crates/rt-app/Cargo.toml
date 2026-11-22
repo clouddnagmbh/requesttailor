@@ -22,6 +22,8 @@ similar = "3"
 # JSONPath (RFC 9535) for filtering response bodies; MIT, builds on wasm32 and iOS.
 serde_json_path = "0.7"
 thiserror = "2"
+# Timeouts of the secret managers' CLIs (`secret_sources`); std::time::Instant panics on wasm32.
+web-time = "1"
 
 # OS keychain for secret values (product principle 3). Native targets only: the web shell keeps
 # secrets in encrypted browser storage. Linux uses the Secret Service over zbus (pure Rust, no
