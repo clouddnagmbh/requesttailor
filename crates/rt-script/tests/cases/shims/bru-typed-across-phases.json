@@ -1,0 +1,56 @@
+{
+  "name": "bru: values from earlier phases and files come back as strings (documented difference)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"petId comes back as a string\", function() {\n  expect(bru.getVar(\"petId\")).to.equal(\"9091\");\n  expect(typeof bru.getEnvVar(\"env_num\")).to.equal(\"string\");\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "variables": [
+    {
+      "name": "env_num",
+      "value": "300",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "petId",
+      "value": "9091",
+      "source": {
+        "layer": "runtime"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "petId comes back as a string",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

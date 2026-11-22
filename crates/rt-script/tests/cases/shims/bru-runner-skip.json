@@ -1,0 +1,22 @@
+{
+  "name": "bru: bru.runner.skipRequest (corpus: collection-collection-run-skipped-run)",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "bru.runner.skipRequest();"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "flow": {
+      "kind": "skip"
+    },
+    "error": null
+  }
+}

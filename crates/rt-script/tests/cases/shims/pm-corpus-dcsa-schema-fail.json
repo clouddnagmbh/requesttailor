@@ -1,0 +1,48 @@
+{
+  "name": "pm: a failing jsonSchema test names the error",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const schemaObject = JSON.parse(pm.collectionVariables.get(\"EVENTS_SCHEMA\"));\npm.test('Schema is valid', () => {\n    pm.response.to.have.jsonSchema(schemaObject);\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "[{\"eventID\":\"1\",\"eventType\":\"UNKNOWN\"}]",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "variables": [
+    {
+      "name": "EVENTS_SCHEMA",
+      "value": "{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"eventID\",\"eventType\"],\"properties\":{\"eventID\":{\"type\":\"string\"},\"eventType\":{\"type\":\"string\",\"enum\":[\"SHIPMENT\",\"EQUIPMENT\",\"TRANSPORT\"]}}}}",
+      "source": {
+        "layer": "collection"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "Schema is valid",
+        "passed": false,
+        "error": "data[0].eventType should be equal to one of the allowed values"
+      }
+    ],
+    "error": null
+  }
+}

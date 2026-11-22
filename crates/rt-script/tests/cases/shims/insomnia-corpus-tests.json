@@ -1,0 +1,37 @@
+{
+  "name": "insomnia: insomnia.test and insomnia.expect (corpus: synthetic-v5-features after-response)",
+  "phase": "after-response",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const body = insomnia.response.json();\ninsomnia.test('has id', () => insomnia.expect(body.id).to.exist);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"id\":7}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "has id",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

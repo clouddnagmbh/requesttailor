@@ -1,0 +1,56 @@
+{
+  "name": "atob and btoa are globals",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.request.headers.add({ key: \"Authorization\", value: \"Basic \" + btoa(pm.variables.get(\"user\") + \":\" + pm.variables.get(\"pass\")) });\nconsole.log(atob(\"aGVsbG8gd29ybGQ=\"));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "user",
+      "value": "ada",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "pass",
+      "value": "s3cret",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": true
+    }
+  ],
+  "expect": {
+    "request": {
+      "method": "GET",
+      "url": "http://h/x",
+      "headers": [
+        [
+          "Authorization",
+          "Basic YWRhOnMzY3JldA=="
+        ]
+      ],
+      "body": null
+    },
+    "logs": [
+      {
+        "level": "log",
+        "text": "hello world"
+      }
+    ],
+    "error": null
+  }
+}

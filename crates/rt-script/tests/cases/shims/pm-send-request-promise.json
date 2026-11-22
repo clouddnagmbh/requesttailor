@@ -1,0 +1,54 @@
+{
+  "name": "pm: await pm.sendRequest (promise style) and its response assertions",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const res = await pm.sendRequest(\"http://h/health\");\npm.test(\"health is up\", () => {\n  pm.expect(res.code).to.equal(200);\n  res.to.have.status(200);\n  pm.expect(res.json().status).to.equal(\"up\");\n  pm.expect(res).to.have.header(\"content-type\");\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "send": [
+    {
+      "url": "http://h/health",
+      "response": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"status\":\"up\"}",
+        "time_ms": 5,
+        "url": "http://h/health"
+      }
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "health is up",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

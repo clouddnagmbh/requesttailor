@@ -1,0 +1,49 @@
+{
+  "name": "bru: res properties, getters and res(query)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"status and headers\", () => {\n  expect(res.status).to.equal(200);\n  expect(res.getStatus()).to.equal(200);\n  expect(res.statusText).to.equal(\"OK\");\n  expect(res.getHeader(\"X-Request-Id\")).to.equal(\"r-1\");\n  expect(res.headers[\"content-type\"]).to.equal(\"application/json\");\n  expect(res.getResponseTime()).to.equal(42);\n});\ntest(\"body\", () => {\n  expect(res.body.items[0].id).to.equal(1);\n  expect(res.getBody().total).to.equal(2);\n  expect(res(\"items[1].name\")).to.equal(\"b\");\n  expect(res(\"items.id\")).to.eql([1, 2]);\n  expect(res(\"..name\")).to.eql([\"a\", \"b\"]);\n  expect(res(\"total\")).to.equal(2);\n});\ntest(\"expect(res).to.have.status\", () => expect(res).to.have.status(200));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Request-Id",
+        "r-1"
+      ]
+    ],
+    "body": "{\"items\":[{\"id\":1,\"name\":\"a\"},{\"id\":2,\"name\":\"b\"}],\"total\":2}",
+    "time_ms": 42,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "status and headers",
+        "passed": true
+      },
+      {
+        "name": "body",
+        "passed": true
+      },
+      {
+        "name": "expect(res).to.have.status",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

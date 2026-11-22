@@ -1,0 +1,37 @@
+{
+  "name": "atob, btoa: as modules (corpus: Insomnia require('atob'))",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const atob2 = require('atob');\nconst btoa2 = require('btoa');\ntest(\"round trip\", () => {\n  expect(btoa2(\"user:pass\")).to.equal(\"dXNlcjpwYXNz\");\n  expect(atob2(\"dXNlcjpwYXNz\")).to.equal(\"user:pass\");\n  expect(() => btoa2(\"ü€\")).to.throw(\"Latin-1\");\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "round trip",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

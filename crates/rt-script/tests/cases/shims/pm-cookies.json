@@ -1,0 +1,41 @@
+{
+  "name": "pm: response cookies from Set-Cookie",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.test(\"cookies\", () => {\n  pm.expect(pm.response.cookies.get(\"session\")).to.equal(\"s1\");\n  pm.expect(pm.cookies.has(\"theme\")).to.be.true;\n  pm.expect(postman.getResponseCookie(\"session\").value).to.equal(\"s1\");\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Set-Cookie",
+        "session=s1; Path=/; HttpOnly"
+      ],
+      [
+        "Set-Cookie",
+        "theme=dark"
+      ]
+    ],
+    "body": "",
+    "time_ms": 1,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "cookies",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

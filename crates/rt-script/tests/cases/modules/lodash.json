@@ -1,0 +1,45 @@
+{
+  "name": "lodash: the functions request scripts use",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const _ = require('lodash');\nconst users = [{ id: 2, name: \"b\", role: \"admin\" }, { id: 1, name: \"a\", role: \"user\" }, { id: 3, name: \"c\", role: \"admin\" }];\ntest(\"collections\", () => {\n  expect(_.map(users, \"name\")).to.eql([\"b\", \"a\", \"c\"]);\n  expect(_.filter(users, { role: \"admin\" }).length).to.equal(2);\n  expect(_.find(users, (u) => u.id === 1).name).to.equal(\"a\");\n  expect(_.sortBy(users, \"id\").map((u) => u.id)).to.eql([1, 2, 3]);\n  expect(_.orderBy(users, [\"id\"], [\"desc\"])[0].id).to.equal(3);\n  expect(Object.keys(_.groupBy(users, \"role\"))).to.eql([\"admin\", \"user\"]);\n  expect(_.keyBy(users, \"id\")[3].name).to.equal(\"c\");\n  expect(_.sumBy(users, \"id\")).to.equal(6);\n  expect(_.uniq([1, 1, 2])).to.eql([1, 2]);\n  expect(_.chunk([1, 2, 3], 2)).to.eql([[1, 2], [3]]);\n  expect(_.flattenDeep([1, [2, [3]]])).to.eql([1, 2, 3]);\n  expect(_.range(3)).to.eql([0, 1, 2]);\n});\ntest(\"objects\", () => {\n  const o = { a: { b: [{ c: 1 }] } };\n  expect(_.get(o, \"a.b[0].c\")).to.equal(1);\n  expect(_.get(o, \"a.x\", \"d\")).to.equal(\"d\");\n  expect(_.has(o, \"a.b\")).to.be.true;\n  expect(_.set({}, \"x.y\", 2)).to.eql({ x: { y: 2 } });\n  expect(_.pick({ a: 1, b: 2 }, \"a\")).to.eql({ a: 1 });\n  expect(_.omit({ a: 1, b: 2 }, [\"a\"])).to.eql({ b: 2 });\n  expect(_.merge({ a: { x: 1 } }, { a: { y: 2 } })).to.eql({ a: { x: 1, y: 2 } });\n  const deep = _.cloneDeep(o);\n  deep.a.b[0].c = 9;\n  expect(o.a.b[0].c).to.equal(1);\n  expect(_.isEqual({ a: [1, { b: 2 }] }, { a: [1, { b: 2 }] })).to.be.true;\n  expect(_.isEmpty({})).to.be.true;\n  expect(_.isEmpty([1])).to.be.false;\n});\ntest(\"strings\", () => {\n  expect(_.camelCase(\"Foo Bar\")).to.equal(\"fooBar\");\n  expect(_.snakeCase(\"fooBar\")).to.equal(\"foo_bar\");\n  expect(_.kebabCase(\"Foo Bar\")).to.equal(\"foo-bar\");\n  expect(_.capitalize(\"hELLO\")).to.equal(\"Hello\");\n  expect(_.padStart(\"5\", 3, \"0\")).to.equal(\"005\");\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "collections",
+        "passed": true
+      },
+      {
+        "name": "objects",
+        "passed": true
+      },
+      {
+        "name": "strings",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

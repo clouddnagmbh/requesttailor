@@ -1,0 +1,20 @@
+{
+  "name": "bru: bru.isSafeMode() is true, so file access is skipped (corpus: dirname-request.yml)",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "// fs is only reachable in the developer (node-vm) sandbox, so skip in safe mode.\nif (!bru.isSafeMode()) {\n  const fs = require('fs');\n  const path = require('path');\n  const raw = fs.readFileSync(path.join(__dirname, 'data.json'), 'utf-8');\n  bru.setEnvVar(\"readData\", JSON.parse(raw).greeting);\n}"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "var_changes": [],
+    "error": null
+  }
+}

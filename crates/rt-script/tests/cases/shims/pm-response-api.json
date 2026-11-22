@@ -1,0 +1,50 @@
+{
+  "name": "pm: pm.response code, status, headers, json, text, time",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.test(\"response\", () => {\n  pm.expect(pm.response.code).to.equal(404);\n  pm.expect(pm.response.status).to.equal(\"Not Found\");\n  pm.expect(pm.response.reason()).to.equal(\"Not Found\");\n  pm.expect(pm.response.headers.get(\"content-type\")).to.equal(\"application/json\");\n  pm.expect(pm.response.headers.has(\"X-Trace\")).to.be.true;\n  pm.expect(pm.response.headers.toObject()[\"X-Trace\"]).to.equal(\"t\");\n  pm.expect(pm.response.json().error).to.equal(\"missing\");\n  pm.expect(pm.response.text()).to.include(\"missing\");\n  pm.expect(pm.response.responseTime).to.equal(12);\n  pm.expect(pm.response.responseSize).to.equal(19);\n});\npm.test(\"to.have\", () => {\n  pm.response.to.have.status(\"Not Found\");\n  pm.response.to.have.header(\"X-Trace\", \"t\");\n  pm.response.to.be.clientError;\n  pm.response.to.be.notFound;\n  pm.response.to.not.be.ok;\n  pm.response.to.have.jsonBody(\"error\", \"missing\");\n  pm.response.to.be.json;\n});\npm.test(\"ok fails\", () => pm.response.to.be.ok);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 404,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Trace",
+        "t"
+      ]
+    ],
+    "body": "{\"error\":\"missing\"}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "response",
+        "passed": true
+      },
+      {
+        "name": "to.have",
+        "passed": true
+      },
+      {
+        "name": "ok fails",
+        "passed": false,
+        "error": "expected response code to be 2XX but found 404"
+      }
+    ],
+    "error": null
+  }
+}

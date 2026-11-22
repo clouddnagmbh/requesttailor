@@ -1,0 +1,52 @@
+{
+  "name": "insomnia: environment.set (corpus: synthetic-v4-features folder script) and baseEnvironment",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "folder:Folder",
+      "code": "insomnia.environment.set('x', 1);\nconsole.log('folder');"
+    },
+    {
+      "origin": "request",
+      "code": "insomnia.baseEnvironment.set('fallbackToBase', 'fallbackToBase');\ninsomnia.request.headers.add({ key: 'X-From', value: 'insomnia' });\ninsomnia.request.url.addQueryParams('a=1');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "var_changes": [
+      {
+        "name": "x",
+        "value": "1",
+        "scope": "environment"
+      },
+      {
+        "name": "fallbackToBase",
+        "value": "fallbackToBase",
+        "scope": "collection"
+      }
+    ],
+    "logs": [
+      {
+        "level": "log",
+        "text": "folder"
+      }
+    ],
+    "request": {
+      "method": "GET",
+      "url": "http://h/x?a=1",
+      "headers": [
+        [
+          "X-From",
+          "insomnia"
+        ]
+      ],
+      "body": null
+    },
+    "error": null
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "pm: pm.globals.set and pm.environment.set (corpus: newman-globals-env-data-files pre-request)",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.globals.set(\"prsG\", \"prsG\");\npm.globals.set(\"prsE\", \"prsEaRDDDROR\");\npm.environment.set(\"prsE\", \"prsE\");\n"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "https://postman-echo.com/get?prsG={{prsG}}&prsE={{prsE}}",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "var_changes": [
+      {
+        "name": "prsG",
+        "value": "prsG",
+        "scope": "global"
+      },
+      {
+        "name": "prsE",
+        "value": "prsEaRDDDROR",
+        "scope": "global"
+      },
+      {
+        "name": "prsE",
+        "value": "prsE",
+        "scope": "environment"
+      }
+    ],
+    "request": null,
+    "error": null
+  }
+}

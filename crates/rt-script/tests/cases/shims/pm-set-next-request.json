@@ -1,0 +1,35 @@
+{
+  "name": "pm: pm.execution.setNextRequest and postman.setNextRequest",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.execution.setNextRequest(\"Step 3\");"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "flow": {
+      "kind": "next",
+      "request": "Step 3"
+    },
+    "error": null
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "pm: pm.test with a done callback, setTimeout",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.test(\"done style\", function (done) {\n  setTimeout(function () {\n    pm.expect(pm.response.code).to.equal(200);\n    done();\n  }, 10);\n});\npm.test(\"done with error\", function (done) {\n  setTimeout(() => done(new Error(\"boom\")), 5);\n});\npm.test.skip(\"skipped\", function () { throw new Error(\"never\"); });"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "done style",
+        "passed": true
+      },
+      {
+        "name": "done with error",
+        "passed": false,
+        "error": "boom"
+      }
+    ],
+    "error": null
+  }
+}

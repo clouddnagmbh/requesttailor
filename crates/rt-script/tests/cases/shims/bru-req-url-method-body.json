@@ -1,0 +1,48 @@
+{
+  "name": "bru: req URL, method and body",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(req.getUrl(), req.getMethod(), req.getBody().name, typeof req.getBody({ raw: true }), req.getHeader(\"content-type\"), req.getName());\nreq.setUrl(req.getUrl() + \"?page=2\");\nreq.setMethod(\"put\");\nconst body = req.getBody();\nbody.name = \"Grace\";\nreq.setBody(body);"
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "{{base}}/users/1",
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"name\":\"Ada\"}"
+  },
+  "info": {
+    "request_path": "users/update.yml",
+    "request_name": "Update user",
+    "collection_name": "C",
+    "environment": null,
+    "iteration": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "{{base}}/users/1 POST Ada string application/json Update user"
+      }
+    ],
+    "request": {
+      "method": "PUT",
+      "url": "{{base}}/users/1?page=2",
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"name\":\"Grace\"}"
+    },
+    "error": null
+  }
+}

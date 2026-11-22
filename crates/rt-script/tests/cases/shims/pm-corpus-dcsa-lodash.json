@@ -1,0 +1,55 @@
+{
+  "name": "pm: the global _ (lodash) and helpers on JSON (corpus: dcsa-tnt folder test)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "folder:Event Subscriptions",
+      "code": "// Helper functions for removing empty/nulls from json - This function is used with deep equal comp as API does not return null keys\nJSON.cleanObject = obj =>\n  _.transform(obj, (acc, v, k) => {\n    const val = _.isObject(v) ? cleanObject(v) : v // if current value is an object clean it\n\n    if(_.isEmpty(val)) return // ignore null, undefined, or empty objects / arrays\n\n    acc[k] = val // assign to key\n  })\n\nfunction isObject(v) {\n    return '[object Object]' === Object.prototype.toString.call(v);\n};\n\n// Helper functions for sorting deep json for comparison - This function is used with deep equal comp as order of list fails comparison\nJSON.sort = function(o) {\nif (Array.isArray(o)) {\n        return o.sort().map(JSON.sort);\n    } else if (isObject(o)) {\n        return Object\n            .keys(o)\n        .sort()\n            .reduce(function(a, k) {\n                a[k] = JSON.sort(o[k]);\n\n                return a;\n            }, {});\n    }\n\n    return o;\n}"
+    },
+    {
+      "origin": "request",
+      "code": "pm.test(\"Response matches posted body\", () => {\n    const jsonData = JSON.sort(pm.response.json());\n    const postRequestBody = JSON.sort(JSON.parse(pm.collectionVariables.get(\"POST_BODY\")));\n    delete jsonData[\"subscriptionID\"];\n    const isEqual = _.isEqual(jsonData, postRequestBody);\n    pm.expect(isEqual).to.be.true;\n});\npm.test(\"cleanObject drops empty values\", () => {\n    pm.expect(JSON.cleanObject({ a: \"x\", b: \"\", c: null })).to.eql({ a: \"x\" });\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"subscriptionID\":\"s-1\",\"callbackUrl\":\"http://cb\",\"eventType\":[\"TRANSPORT\",\"EQUIPMENT\"]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "variables": [
+    {
+      "name": "POST_BODY",
+      "value": "{\"eventType\":[\"EQUIPMENT\",\"TRANSPORT\"],\"callbackUrl\":\"http://cb\"}",
+      "source": {
+        "layer": "collection"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "Response matches posted body",
+        "passed": true
+      },
+      {
+        "name": "cleanObject drops empty values",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

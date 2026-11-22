@@ -1,0 +1,42 @@
+{
+  "name": "expect: async tests are awaited and fail with the assertion message",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"async pass\", async () => { await rt.sleep(5); expect(1).to.equal(1); });\ntest(\"async fail\", async () => { await rt.sleep(5); expect(\"actual\").to.equal(\"this-will-never-match\"); });"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"id\":7}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "async pass",
+        "passed": true
+      },
+      {
+        "name": "async fail",
+        "passed": false,
+        "error": "expected 'actual' to equal 'this-will-never-match'"
+      }
+    ],
+    "error": null
+  }
+}

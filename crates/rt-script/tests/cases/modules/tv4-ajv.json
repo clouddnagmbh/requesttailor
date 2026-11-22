@@ -1,0 +1,41 @@
+{
+  "name": "tv4 and ajv: JSON Schema validation",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const schema = { type: \"object\", required: [\"id\"], properties: { id: { type: \"number\" } } };\ntest(\"tv4\", () => {\n  expect(tv4.validate({ id: 1 }, schema)).to.be.true;\n  expect(require('tv4').validate({}, schema)).to.be.false;\n  expect(tv4.error.message).to.include(\"required property 'id'\");\n});\ntest(\"ajv\", () => {\n  const Ajv = require('ajv');\n  const validate = new Ajv().compile(schema);\n  expect(validate({ id: \"x\" })).to.be.false;\n  expect(validate.errors[0].message).to.equal(\"data.id should be number\");\n  expect(new Ajv().validate(schema, { id: 2 })).to.be.true;\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "tv4",
+        "passed": true
+      },
+      {
+        "name": "ajv",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

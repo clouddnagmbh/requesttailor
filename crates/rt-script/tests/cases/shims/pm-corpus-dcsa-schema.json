@@ -1,0 +1,55 @@
+{
+  "name": "pm: collection variable as JSON schema, to.have.jsonSchema, expect().to.gt (corpus: dcsa-tnt)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "pm.test(\"Non-empty response\", () => {\n    const jsonData = pm.response.json();\n    // The positive test cases will have created at least 10 events at this point.\n    pm.expect(jsonData.length).to.gt(1);\n});\nconst schema = pm.collectionVariables.get(\"EVENTS_SCHEMA\");\nconst schemaObject = JSON.parse(schema);\n\npm.test('Schema is valid', () => {\n    pm.response.to.have.jsonSchema(schemaObject);\n});\n\npm.test(\"All requests match query parameters payload schema\", () => {\n  const jsonData = pm.response.json();\n  jsonData.map((item) =>\n  pm.expect(item).to.have.jsonSchema(schemaObject.items)\n  );\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "{{TNT_BASE_URL}}/events",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "[{\"eventID\":\"1\",\"eventType\":\"SHIPMENT\"},{\"eventID\":\"2\",\"eventType\":\"TRANSPORT\"}]",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "variables": [
+    {
+      "name": "EVENTS_SCHEMA",
+      "value": "{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"eventID\",\"eventType\"],\"properties\":{\"eventID\":{\"type\":\"string\"},\"eventType\":{\"type\":\"string\",\"enum\":[\"SHIPMENT\",\"EQUIPMENT\",\"TRANSPORT\"]}}}}",
+      "source": {
+        "layer": "collection"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "tests": [
+      {
+        "name": "Non-empty response",
+        "passed": true
+      },
+      {
+        "name": "Schema is valid",
+        "passed": true
+      },
+      {
+        "name": "All requests match query parameters payload schema",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "pm: pm.execution.skipRequest in a pre-request script",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "if (!pm.environment.get(\"enabled\")) pm.execution.skipRequest();"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "expect": {
+    "flow": {
+      "kind": "skip"
+    },
+    "error": null
+  }
+}

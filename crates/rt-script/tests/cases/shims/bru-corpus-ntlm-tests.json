@@ -1,0 +1,37 @@
+{
+  "name": "bru: res.status and res.body in tests (corpus: auth-ntlm-ntlm/api.yml)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"api authenticates\", function() {\n  expect(res.status).to.equal(200);\n  expect(res.body.authenticated).to.equal(true);\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:8081/api",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"authenticated\":true}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "api authenticates",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

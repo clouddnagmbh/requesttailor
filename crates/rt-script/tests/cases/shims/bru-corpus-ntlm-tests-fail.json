@@ -1,0 +1,38 @@
+{
+  "name": "bru: a failing res.status test (corpus: auth-ntlm-ntlm/other-host-blocked.yml)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"another host is left unauthenticated\", function() {\n  expect(res.status).to.equal(401);\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:8081/api",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"authenticated\":true}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "another host is left unauthenticated",
+        "passed": false,
+        "error": "expected 200 to equal 401"
+      }
+    ],
+    "error": null
+  }
+}

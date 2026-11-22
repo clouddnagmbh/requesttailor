@@ -1,0 +1,122 @@
+{
+  "name": "expect: the chai matchers of api.d.ts",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"types\", () => { expect(\"s\").to.be.a(\"string\"); expect([]).to.be.an(\"array\"); expect(null).to.be.a(\"null\"); expect({}).to.be.an(\"object\"); });\ntest(\"type fails\", () => expect(5).to.be.a(\"string\"));\ntest(\"truthiness\", () => { expect(1).to.be.ok; expect(0).to.not.be.ok; expect(true).to.be.true; expect(false).to.be.false; expect(null).to.be.null; expect(undefined).to.be.undefined; expect(0).to.exist; expect(null).to.not.exist; });\ntest(\"ok fails\", () => expect(0).to.be.ok);\ntest(\"numbers\", () => { expect(5).to.be.above(4).and.below(6); expect(5).to.be.at.least(5); expect(5).to.be.at.most(5); expect(5).to.be.within(1, 10); expect(5).gt(4); expect(5).lte(5); expect(1.5).to.be.closeTo(1.4, 0.2); });\ntest(\"above fails\", () => expect(3).to.be.above(5));\ntest(\"include\", () => { expect(\"foobar\").to.include(\"oba\"); expect([1, 2, 3]).to.include(2); expect({ a: 1, b: 2 }).to.include({ a: 1 }); expect([{ a: 1 }]).to.deep.include({ a: 1 }); expect([1, 2]).to.contain(1); });\ntest(\"include fails\", () => expect([1, 2, 3]).to.include(4));\ntest(\"property\", () => { expect({ a: { b: 2 } }).to.have.property(\"a\").that.has.property(\"b\", 2); expect({ a: { b: [5] } }).to.have.nested.property(\"a.b[0]\", 5); expect({ x: 1 }).to.have.own.property(\"x\"); expect({ x: 1 }).to.not.have.property(\"y\"); });\ntest(\"property fails\", () => expect({ a: 1 }).to.have.property(\"a\", 2));\ntest(\"length\", () => { expect([1, 2, 3]).to.have.lengthOf(3); expect(\"abc\").to.have.length(3); expect([1, 2, 3]).to.have.length.above(2); });\ntest(\"length fails\", () => expect([1, 2]).to.have.lengthOf(3));\ntest(\"empty\", () => { expect([]).to.be.empty; expect(\"\").to.be.empty; expect({}).to.be.empty; expect([1]).to.not.be.empty; });\ntest(\"keys and members\", () => { expect({ a: 1, b: 2 }).to.have.all.keys(\"a\", \"b\"); expect({ a: 1, b: 2 }).to.have.any.keys(\"a\", \"z\"); expect({ a: 1, b: 2 }).to.include.keys(\"a\"); expect([1, 2, 3]).to.have.members([3, 2, 1]); expect([1, 2, 3]).to.include.members([2]); expect([{ a: 1 }]).to.have.deep.members([{ a: 1 }]); });\ntest(\"keys fail\", () => expect({ a: 1 }).to.have.all.keys(\"a\", \"b\"));\ntest(\"oneOf, match, string\", () => { expect(2).to.be.oneOf([1, 2]); expect(\"abc\").to.match(/^a/); expect(\"abc\").to.have.string(\"bc\"); });\ntest(\"oneOf fails\", () => expect(3).to.be.oneOf([1, 2]));\ntest(\"throw, satisfy, instanceOf\", () => { expect(() => { throw new TypeError(\"bad thing\"); }).to.throw(TypeError, \"bad\"); expect(() => 1).to.not.throw(); expect(4).to.satisfy((n) => n % 2 === 0); expect([]).to.be.instanceOf(Array); });\ntest(\"throw fails\", () => expect(() => 1).to.throw());\ntest(\"NaN\", () => expect(NaN).to.be.NaN);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{\"id\":7}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "types",
+        "passed": true
+      },
+      {
+        "name": "type fails",
+        "passed": false,
+        "error": "expected 5 to be a string"
+      },
+      {
+        "name": "truthiness",
+        "passed": true
+      },
+      {
+        "name": "ok fails",
+        "passed": false,
+        "error": "expected 0 to be truthy"
+      },
+      {
+        "name": "numbers",
+        "passed": true
+      },
+      {
+        "name": "above fails",
+        "passed": false,
+        "error": "expected 3 to be above 5"
+      },
+      {
+        "name": "include",
+        "passed": true
+      },
+      {
+        "name": "include fails",
+        "passed": false,
+        "error": "expected [ 1, 2, 3 ] to include 4"
+      },
+      {
+        "name": "property",
+        "passed": true
+      },
+      {
+        "name": "property fails",
+        "passed": false,
+        "error": "expected { a: 1 } to have property 'a' of 2, but got 1"
+      },
+      {
+        "name": "length",
+        "passed": true
+      },
+      {
+        "name": "length fails",
+        "passed": false,
+        "error": "expected [ 1, 2 ] to have a length of 3 but got 2"
+      },
+      {
+        "name": "empty",
+        "passed": true
+      },
+      {
+        "name": "keys and members",
+        "passed": true
+      },
+      {
+        "name": "keys fail",
+        "passed": false,
+        "error": "expected { a: 1 } to have keys 'a', and 'b'"
+      },
+      {
+        "name": "oneOf, match, string",
+        "passed": true
+      },
+      {
+        "name": "oneOf fails",
+        "passed": false,
+        "error": "expected 3 to be one of [ 1, 2 ]"
+      },
+      {
+        "name": "throw, satisfy, instanceOf",
+        "passed": true
+      },
+      {
+        "name": "throw fails",
+        "passed": false,
+        "error": "to throw an error"
+      },
+      {
+        "name": "NaN",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

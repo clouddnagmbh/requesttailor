@@ -1,0 +1,53 @@
+{
+  "name": "pm: pm.iterationData and pm.info in a data-driven run",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(pm.iterationData.get(\"user\"), String(pm.iterationData.get(\"age\")), String(pm.iterationData.has(\"user\")), JSON.stringify(pm.iterationData.toObject()));\nconsole.log(pm.info.eventName, pm.info.iteration, pm.info.iterationCount, pm.info.requestName, pm.info.requestId);\nconsole.log(String(iteration), data.user);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "info": {
+    "request_path": "users/get.yml",
+    "request_name": "Get user",
+    "collection_name": "C",
+    "environment": null,
+    "iteration": {
+      "index": 1,
+      "count": 3,
+      "data": [
+        [
+          "user",
+          "ada"
+        ],
+        [
+          "age",
+          36
+        ]
+      ]
+    }
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "ada 36 true {\"user\":\"ada\",\"age\":36}"
+      },
+      {
+        "level": "log",
+        "text": "prerequest 1 3 Get user users/get.yml"
+      },
+      {
+        "level": "log",
+        "text": "1 ada"
+      }
+    ],
+    "error": null
+  }
+}

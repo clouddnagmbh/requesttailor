@@ -1,0 +1,44 @@
+{
+  "name": "bru: a value keeps its type within the phase (corpus: quickjs-safe-mode 03-recovered)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test(\"scripts still run after the trap: fresh engine module serves\", function() {\n  bru.setVar('recovered', true);\n  expect(bru.getVar('recovered')).to.equal(true);\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:8081/ping",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "scripts still run after the trap: fresh engine module serves",
+        "passed": true
+      }
+    ],
+    "var_changes": [
+      {
+        "name": "recovered",
+        "value": "true",
+        "scope": "runtime"
+      }
+    ],
+    "error": null
+  }
+}

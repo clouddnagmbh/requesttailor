@@ -1,0 +1,45 @@
+{
+  "name": "crypto-js: Base64, Hex, Utf8, Latin1 encoders and WordArray",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const C = require('crypto-js');\ntest(\"utf8 and base64\", () => {\n  const words = C.enc.Utf8.parse(\"hällo wörld\");\n  expect(C.enc.Base64.stringify(words)).to.equal(\"aMOkbGxvIHfDtnJsZA==\");\n  expect(C.enc.Base64.parse(\"aMOkbGxvIHfDtnJsZA==\").toString(C.enc.Utf8)).to.equal(\"hällo wörld\");\n  expect(words.sigBytes).to.equal(13);\n});\ntest(\"hex and latin1\", () => {\n  expect(C.enc.Hex.parse(\"48656c6c6f\").toString(C.enc.Latin1)).to.equal(\"Hello\");\n  expect(C.enc.Latin1.parse(\"Hi\").toString()).to.equal(\"4869\");\n  expect(C.enc.Base64url.stringify(C.enc.Hex.parse(\"fbff\"))).to.equal(\"-_8\");\n});\ntest(\"concat\", () => {\n  const a = C.enc.Utf8.parse(\"ab\");\n  a.concat(C.enc.Utf8.parse(\"c\"));\n  expect(C.SHA256(a).toString()).to.equal(C.SHA256(\"abc\").toString());\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "{}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "utf8 and base64",
+        "passed": true
+      },
+      {
+        "name": "hex and latin1",
+        "passed": true
+      },
+      {
+        "name": "concat",
+        "passed": true
+      }
+    ],
+    "error": null
+  }
+}

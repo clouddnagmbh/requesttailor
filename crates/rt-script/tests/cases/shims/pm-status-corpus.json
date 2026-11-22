@@ -1,0 +1,46 @@
+{
+  "name": "pm: pm.test and pm.response.to.have.status (corpus: dcsa-tnt)",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "folder:Events",
+      "code": "\npm.test(\"Status code is 200\", () => {\n    pm.response.to.have.status(200);\n});\n"
+    },
+    {
+      "origin": "request",
+      "code": "pm.test(\"Status code is 201\", () => {\n    pm.response.to.have.status(201);\n});"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": "[]",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "Status code is 200",
+        "passed": true
+      },
+      {
+        "name": "Status code is 201",
+        "passed": false,
+        "error": "expected response to have status code 201 but got 200"
+      }
+    ],
+    "error": null
+  }
+}

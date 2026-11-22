@@ -1,0 +1,43 @@
+{
+  "name": "bru: a body that is not JSON stays text",
+  "phase": "after-response",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "bru.setVar(\"len\", res.getBody().length);\nbru.setVar(\"first\", res.body.slice(0, 5));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "text/plain"
+      ]
+    ],
+    "body": "hello world",
+    "time_ms": 1,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "var_changes": [
+      {
+        "name": "len",
+        "value": "11",
+        "scope": "runtime"
+      },
+      {
+        "name": "first",
+        "value": "hello",
+        "scope": "runtime"
+      }
+    ],
+    "error": null
+  }
+}

@@ -194,6 +194,8 @@ jobs:
         run: npm run check:licenses
       - name: Tests for the npm license check
         run: npm run test:scripts
+      - name: Script shims
+        run: npm run test:shims
       - name: Canaries (GPL dependencies must be rejected)
         run: ci/canary/run.sh
 

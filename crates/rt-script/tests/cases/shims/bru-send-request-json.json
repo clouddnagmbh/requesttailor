@@ -1,0 +1,48 @@
+{
+  "name": "bru: bru.sendRequest parses a JSON response into data",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const r = await bru.sendRequest({ url: \"http://auth/token\", method: \"POST\", data: { user: \"ada\" } });\nbru.setVar(\"token\", r.data.access_token);\nbru.setVar(\"status\", r.status);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [],
+    "body": null
+  },
+  "send": [
+    {
+      "url": "http://auth/token",
+      "response": {
+        "status": 201,
+        "headers": [
+          [
+            "content-type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"access_token\":\"t-1\"}",
+        "time_ms": 2,
+        "url": "http://auth/token"
+      }
+    }
+  ],
+  "expect": {
+    "var_changes": [
+      {
+        "name": "token",
+        "value": "t-1",
+        "scope": "runtime"
+      },
+      {
+        "name": "status",
+        "value": "201",
+        "scope": "runtime"
+      }
+    ],
+    "error": null
+  }
+}
