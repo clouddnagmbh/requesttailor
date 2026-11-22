@@ -21,8 +21,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { gitCli, hasGit, startGitServer, startProcess, type GitServer } from "../git/server";
 import { fakePicker, fillFolder, readFolderFile, sampleCollection } from "./env";
 
-const AGENT_PORT = 47830;
-const GIT_PORT = 47831;
+// Not 47830/47831: rt-odata-testserver listens there (wave 6).
+const AGENT_PORT = 47824;
+const GIT_PORT = 47825;
 const { RT_BIN } = process.env;
 
 type W = Window & { __rt: { backend: import("@requesttailor/ui").Backend } };
