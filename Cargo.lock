@@ -5100,6 +5100,7 @@ dependencies = [
  "rt-app",
  "rt-core",
  "rt-format",
+ "rt-grpc",
  "rt-plugin",
  "rt-script",
  "rt-testserver",

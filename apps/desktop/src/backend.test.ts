@@ -101,6 +101,11 @@ describe("TauriBackend", () => {
     const plan = { requests: ["a.yml"], data: [], iterations: 1, delay_ms: 0, bail: false };
     await b.runner.run(plan, { environment: "Local", vars: [] }, () => {});
     await b.runner.cancel();
+    // Wave 8, strand B: secret values never go to the Rust side from the webview.
+    const local = { environment: "Local", vars: [] as [string, string][], secrets: [["t", "x"]] } as never;
+    await b.grpc.services("g.yml", local);
+    await b.grpc.template("g.yml", "/a.B/C", local);
+    await b.graphql.schema("q.yml", local, true);
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -176,6 +181,9 @@ describe("TauriBackend", () => {
       ["runner_parse_data", { name: "d.csv", data: [97] }],
       ["runner_run", { plan, input: { environment: "Local", vars: [] }, onEvent: "channel" }],
       ["runner_cancel", undefined],
+      ["grpc_services", { path: "g.yml", input: { environment: "Local", vars: [] } }],
+      ["grpc_template", { path: "g.yml", method: "/a.B/C", input: { environment: "Local", vars: [] } }],
+      ["graphql_schema", { path: "q.yml", input: { environment: "Local", vars: [] }, refresh: true }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

@@ -18,6 +18,8 @@ pub mod agent;
 pub mod approvals;
 pub mod cookies;
 pub mod docs;
+/// Wave 8, strand B: `rt send` on gRPC requests.
+pub mod grpc;
 pub mod import;
 pub mod mcp;
 pub mod mcp_test;
@@ -517,6 +519,29 @@ where
             );
         }
     };
+    // Wave 8, strand B: gRPC requests print the decoded `StreamLog`.
+    if let Some(spec) = grpc::spec(&doc, &request_path) {
+        let sent = runtime.block_on(grpc::send(
+            &doc,
+            &request_path,
+            &spec,
+            &args,
+            &files,
+            &transport,
+        ));
+        return match sent {
+            Ok((log, code)) => {
+                let json = if args.pretty {
+                    serde_json::to_string_pretty(&log)
+                } else {
+                    serde_json::to_string(&log)
+                };
+                let _ = writeln!(stdout, "{}", json.expect("log serializes"));
+                code
+            }
+            Err((e, code)) => fail(stderr, code, &e),
+        };
+    }
     let report = runtime.block_on(send_request(&doc, &request_path, &args, &files, &transport));
     let _ = stdout.write_all(render(&report, args.pretty).as_bytes());
     let _ = stdout.flush();
