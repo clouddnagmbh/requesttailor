@@ -68,8 +68,8 @@ on Apple M-series:
 
 | Measurement | Result |
 | --- | --- |
-| Engine start, once per process, lazily on the first script (compile plus start-up) | about 35 ms |
-| One trivial script | about 1.5 ms per run |
+| Engine start, once per process, lazily on the first script (compile plus start-up) | about 38 ms |
+| One trivial script | about 1.1 ms per run |
 
 A busy loop runs at about 0.5 G fuel per millisecond.
 
