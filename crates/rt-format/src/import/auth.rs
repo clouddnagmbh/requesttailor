@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! Auth schemes that OpenCollection can hold but the core cannot execute yet (OAuth 2.0,
-//! OAuth 1.0, Digest, NTLM, AWS Signature v4, WSSE). Importers keep their settings in the
-//! file (so nothing typed is lost and a later version can use them) and report them.
+//! Auth schemes beyond the simple ones. OAuth 2.0 and AWS Signature v4 map to the model and
+//! are sent natively (wave 5); OAuth 1.0, Digest, NTLM and WSSE the core cannot execute yet:
+//! importers keep their settings in the file (so nothing typed is lost and a later version
+//! can use them) and report them.
 
 use super::LossKind;
 use super::common::{Losses, is_literal};
@@ -53,59 +54,55 @@ pub(crate) fn oauth2_flow(grant: &str) -> Option<&'static str> {
     }
 }
 
+/// OAuth 2.0 as the model has it (sent natively since wave 5; implicit is kept but not run).
+/// An unknown flow name is imported as authorization code (the importers report that).
 pub(crate) fn oauth2(o: &OAuth2) -> AuthOut {
-    let mut e = vec![("flow", Val::str(o.flow))];
-    let code = o.flow == "authorization_code";
+    use rt_core::model::{CredentialsPlacement, OAuth2Flow, PkceMethod};
     let implicit = o.flow == "implicit";
-    if code || implicit {
-        put(&mut e, "authorizationUrl", &o.authorization_url);
-    }
-    if !implicit {
-        put(&mut e, "accessTokenUrl", &o.access_token_url);
-        put(&mut e, "refreshTokenUrl", &o.refresh_token_url);
-    }
-    if code || implicit {
-        put(&mut e, "callbackUrl", &o.callback_url);
-    }
-    let mut cred = Vec::new();
-    put(&mut cred, "clientId", &o.client_id);
-    if !implicit {
-        put(&mut cred, "clientSecret", &o.client_secret);
-        cred.push((
-            "placement",
-            Val::str(if o.credentials_in_body {
-                "body"
-            } else {
-                "basic_auth_header"
+    let flow = match o.flow {
+        "client_credentials" => OAuth2Flow::ClientCredentials,
+        "resource_owner_password_credentials" => OAuth2Flow::Password {
+            username: o.username.clone(),
+            password: o.password.clone(),
+        },
+        "implicit" => OAuth2Flow::Implicit {
+            authorization_url: o.authorization_url.clone(),
+            callback_url: o.callback_url.clone(),
+            state: o.state.clone(),
+        },
+        _ => OAuth2Flow::AuthorizationCode {
+            authorization_url: o.authorization_url.clone(),
+            callback_url: o.callback_url.clone(),
+            state: o.state.clone(),
+            pkce: o.pkce.map(|m| match m {
+                "plain" => PkceMethod::Plain,
+                _ => PkceMethod::S256,
             }),
-        ));
-    }
-    if !cred.is_empty() {
-        e.push(("credentials", Val::Map(cred)));
-    }
-    if o.flow == "resource_owner_password_credentials" {
-        let mut owner = Vec::new();
-        put(&mut owner, "username", &o.username);
-        put(&mut owner, "password", &o.password);
-        if !owner.is_empty() {
-            e.push(("resourceOwner", Val::Map(owner)));
+        },
+    };
+    let unless_implicit = |s: &str| {
+        if implicit {
+            String::new()
+        } else {
+            s.to_owned()
         }
-    }
-    put(&mut e, "scope", &o.scope);
-    if code || implicit {
-        put(&mut e, "state", &o.state);
-    }
-    if code {
-        let pkce = match o.pkce {
-            Some(method) => vec![("disabled", Val::bool(false)), ("method", Val::str(method))],
-            None => vec![("disabled", Val::bool(true))],
-        };
-        e.push(("pkce", Val::Map(pkce)));
-    }
-    AuthOut::Other {
-        kind: "oauth2",
-        fields: e,
-    }
+    };
+    AuthOut::Model(rt_core::model::Auth::OAuth2(Box::new(
+        rt_core::model::OAuth2 {
+            flow,
+            access_token_url: unless_implicit(&o.access_token_url),
+            refresh_token_url: unless_implicit(&o.refresh_token_url),
+            client_id: o.client_id.clone(),
+            client_secret: unless_implicit(&o.client_secret),
+            credentials_placement: if o.credentials_in_body {
+                CredentialsPlacement::Body
+            } else {
+                CredentialsPlacement::BasicAuthHeader
+            },
+            scope: o.scope.clone(),
+            ..rt_core::model::OAuth2::default()
+        },
+    )))
 }
 
 pub(crate) fn user_password(kind: &'static str, username: &str, password: &str) -> AuthOut {
@@ -227,6 +224,19 @@ pub(crate) fn report(losses: &mut Losses, location: &str, auth: &AuthOut, label:
         }
         // Sent natively since wave 5; only literal credentials are worth a note.
         AuthOut::Model(rt_core::model::Auth::AwsSigV4(a)) => crate::auth::awsv4::fields(a),
+        AuthOut::Model(rt_core::model::Auth::OAuth2(o)) => {
+            if let rt_core::model::OAuth2Flow::Implicit { .. } = o.flow {
+                losses.approximated(
+                    location,
+                    LossKind::Auth,
+                    format!(
+                        "{label} implicit flow kept in the file, but RequestTailor does not run \
+                         it (OAuth 2.1 removes it); switch to authorization code with PKCE"
+                    ),
+                );
+            }
+            crate::auth::oauth2::fields(o).unwrap_or_default()
+        }
         AuthOut::Model(_) => return,
     };
     let mut literal = Vec::new();

@@ -14,3 +14,10 @@ http:
     credentials:
       clientId: implicit
     scope: openid
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true

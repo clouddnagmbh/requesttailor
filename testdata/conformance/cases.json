@@ -335,10 +335,10 @@
       }
     },
     {
-      "name": "bruno corpus, unchanged: inherited OAuth 2.0 is reported as unsupported",
+      "name": "bruno corpus, unchanged: inherited OAuth 2.0 without a token and with auto fetch off fails before sending",
       "collection": "bruno-oauth2",
       "request": "oauth2-folder/oauth2-request.yml",
-      "expect": { "error": "prepare", "no_request": true }
+      "expect": { "error": "auth", "no_request": true }
     },
     {
       "name": "bruno corpus, unchanged: typed variables in a form body",

@@ -96,12 +96,6 @@
         "location": "OAuth 2"
       },
       {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "OAuth 2"
-      },
-      {
         "detail": "WebSocket request not imported",
         "effect": "dropped",
         "kind": "protocol",

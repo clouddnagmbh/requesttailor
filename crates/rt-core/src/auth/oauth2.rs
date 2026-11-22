@@ -498,6 +498,8 @@ fn check(r: &Resolved) -> Result<(), String> {
     Ok(())
 }
 
+const NO_TOKEN: &str = "no token yet and auto fetch is off; get one with “Get token”";
+
 /// The token to use for this send: cached, refreshed or new.
 async fn obtain<T: Transport>(
     r: &Resolved,
@@ -508,6 +510,11 @@ async fn obtain<T: Transport>(
 ) -> Result<StoredToken, String> {
     check(r)?;
     let Some(store) = services.tokens else {
+        // Nothing can be cached: with auto fetch every send fetches, without it none can
+        // (the same answer natively and in the browser).
+        if !r.auto_fetch {
+            return Err(NO_TOKEN.to_owned());
+        }
         return fetch(r, transport, services.prompt, clock, run).await;
     };
     let key = key_of(r);
@@ -547,7 +554,7 @@ async fn obtain<T: Transport>(
             );
         }
     } else if !r.auto_fetch {
-        return Err("no token yet and auto fetch is off; get one with “Get token”".to_owned());
+        return Err(NO_TOKEN.to_owned());
     }
     let t = fetch(r, transport, services.prompt, clock, run).await?;
     store.put(&key, &t).await;

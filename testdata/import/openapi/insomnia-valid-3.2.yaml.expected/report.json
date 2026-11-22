@@ -6,12 +6,6 @@
     "format": "openapi",
     "losses": [
       {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "collection"
-      },
-      {
         "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
         "effect": "dropped",
         "kind": "documentation",

@@ -16,7 +16,7 @@
 //!
 //! | Field | Checks |
 //! | --- | --- |
-//! | `error` | `null`/absent: no error. Else `not-found`, `prepare` or `transport/<kind>` |
+//! | `error` | `null`/absent: no error. Else `not-found`, `prepare`, `auth`, `plugin` or `transport/<kind>` |
 //! | `status` | response status |
 //! | `unresolved` | exactly these names, order ignored |
 //! | `no_request`, `no_response` | `request` / `response` is `null` |

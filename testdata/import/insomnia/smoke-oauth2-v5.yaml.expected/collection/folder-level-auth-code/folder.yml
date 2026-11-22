@@ -17,3 +17,10 @@ request:
     scope: openid offline_access
     pkce:
       disabled: true
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true

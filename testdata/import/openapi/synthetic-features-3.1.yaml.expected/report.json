@@ -66,12 +66,6 @@
         "location": "Pets / DELETE /pets/{petId}"
       },
       {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "Pets / DELETE /pets/{petId}"
-      },
-      {
         "detail": "cookie parameters imported as a disabled `Cookie` header",
         "effect": "approximated",
         "kind": "other",

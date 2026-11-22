@@ -898,6 +898,10 @@ fn without_auto_fetch_a_missing_token_fails() {
     .unwrap_err();
     assert!(err.contains("auto fetch"), "{err}");
     assert!(idp.requests().is_empty());
+    // Without a token store nothing can be cached: the same error.
+    let err = run_with(&auth, &idp, &services(None, None), &FakeClock::new()).unwrap_err();
+    assert!(err.contains("auto fetch"), "{err}");
+    assert!(idp.requests().is_empty());
 
     // An explicit fetch ("Get token") still works and fills the cache.
     let (key, got) = block_on(fetch_with(

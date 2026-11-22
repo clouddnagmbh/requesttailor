@@ -48,28 +48,10 @@
         "location": "GET /none/basic"
       },
       {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "GET /oauth2/authorization-code"
-      },
-      {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "GET /oauth2/client-credentials"
-      },
-      {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "detail": "OAuth 2.0 implicit flow kept in the file, but RequestTailor does not run it (OAuth 2.1 removes it); switch to authorization code with PKCE",
         "effect": "approximated",
         "kind": "auth",
         "location": "GET /oauth2/implicit"
-      },
-      {
-        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
-        "effect": "approximated",
-        "kind": "auth",
-        "location": "GET /oauth2/password"
       }
     ],
     "requests": 12

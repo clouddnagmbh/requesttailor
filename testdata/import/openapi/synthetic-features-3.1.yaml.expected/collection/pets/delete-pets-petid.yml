@@ -22,3 +22,10 @@ http:
     scope: pets:write
     pkce:
       disabled: true
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true

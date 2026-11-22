@@ -15,3 +15,10 @@ http:
       clientId: test
     scope: test
     state: test
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true

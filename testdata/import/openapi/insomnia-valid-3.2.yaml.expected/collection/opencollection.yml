@@ -15,6 +15,13 @@ request:
     scope: read:pets
     pkce:
       disabled: true
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true
   variables:
     - name: baseUrl
       value: https://{{env}}.example.com/v1

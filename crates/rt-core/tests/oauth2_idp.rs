@@ -220,9 +220,7 @@ impl Browser {
             } else {
                 None
             };
-            let Some(mut fields) = form else {
-                return None;
-            };
+            let mut fields = form?;
             let action = form_action(&page.body).expect("form with action");
             fields.extend(hidden_inputs(&page.body));
             page = self.request(&join(&page.url, &action), Some(&fields)).await;
