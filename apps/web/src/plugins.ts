@@ -9,7 +9,12 @@ import { BackendError, type PluginApi } from "@requesttailor/ui";
 
 import type { WebHost } from "./web-backend";
 
-export function webPlugins(_host: WebHost): PluginApi {
+/** `PluginApi` plus the plugin part of a send (the `plugins` field `services_js` reads). */
+export interface WebPluginApi extends PluginApi {
+  forSend(collectionId: string, environment: string | null): Promise<unknown>;
+}
+
+export function webPlugins(_host: WebHost): WebPluginApi {
   const notYet = () => new BackendError("unsupported", "plugins are not available yet");
   return {
     list: async () => [],
@@ -31,5 +36,6 @@ export function webPlugins(_host: WebHost): PluginApi {
     action: async () => {
       throw notYet();
     },
+    forSend: async () => undefined,
   };
 }

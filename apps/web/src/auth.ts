@@ -10,7 +10,12 @@ import { BackendError, type AuthApi, type AuthPrompt } from "@requesttailor/ui";
 
 import type { WebHost } from "./web-backend";
 
-export function webAuth(_host: WebHost): AuthApi {
+/** `AuthApi` plus the auth part of a send (the `auth` field `services_js` reads). */
+export interface WebAuthApi extends AuthApi {
+  forSend(collectionId: string, environment: string | null): Promise<unknown>;
+}
+
+export function webAuth(_host: WebHost): WebAuthApi {
   const handlers = new Set<(prompt: AuthPrompt) => void>();
   return {
     tokens: async () => [],
@@ -23,5 +28,6 @@ export function webAuth(_host: WebHost): AuthApi {
       return () => handlers.delete(handler);
     },
     cancelPrompt: async () => {},
+    forSend: async () => undefined,
   };
 }

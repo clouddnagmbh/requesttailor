@@ -9,10 +9,16 @@ import type { CookieApi } from "@requesttailor/ui";
 
 import type { WebHost } from "./web-backend";
 
-export function webCookies(_host: WebHost): CookieApi {
+/** `CookieApi` plus the jar of a send (the `cookies` field `services_js` reads). */
+export interface WebCookieApi extends CookieApi {
+  forSend(collectionId: string, environment: string | null): Promise<unknown>;
+}
+
+export function webCookies(_host: WebHost): WebCookieApi {
   return {
     list: async () => [],
     delete: async () => {},
     clear: async () => {},
+    forSend: async () => undefined,
   };
 }
