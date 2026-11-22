@@ -315,6 +315,29 @@ impl<S: SecretStore> Core<S> {
         Ok(lock(&self.responses).insert(report))
     }
 
+    /// The request at `path` ready to open as a session (wave 8, strand A, `streams.rs`), and
+    /// the collection id: like [`Core::send`] up to the wire (session variables, keychain and
+    /// external secrets).
+    pub async fn stream_snapshot(
+        &self,
+        path: &str,
+        input: SendInput,
+    ) -> Result<(rt_app::SendSnapshot, String), AppError> {
+        let pending = self.with_session(|s| self.external_pending(s, &input))?;
+        if let Some((external, skip)) = pending {
+            let resolver = std::sync::Arc::clone(&self.external_secrets);
+            tokio::task::spawn_blocking(move || resolver.resolve(&external, &skip))
+                .await
+                .map_err(|e| AppError::Shell(format!("reading secrets failed: {e}")))?
+                .map_err(AppError::Shell)?;
+        }
+        self.with_session(|s| {
+            let input = self.services.session.input_for(&s.id, input);
+            let input = self.with_secrets(s, input)?;
+            Ok((s.workspace.snapshot(path, input)?, s.id.clone()))
+        })
+    }
+
     /// Request paths below `folder` in run order (wave 7, strand D, `runner.rs`).
     pub fn run_plan(&self, folder: Option<&str>) -> Result<Vec<String>, AppError> {
         self.with_session(|s| Ok(rt_core::runner::plan(s.workspace.collection(), folder)))

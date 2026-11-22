@@ -73,6 +73,11 @@ impl<'a> Builder<'a> {
         }
     }
 
+    /// The root node of the file at `path` (wave 8: protocol items in `protocols`).
+    pub(crate) fn root(&self, path: &str) -> Option<&'a Node> {
+        self.docs.get(path).map(|d| &d.root)
+    }
+
     fn issue(&mut self, path: &str, message: impl Into<String>) {
         self.issues.push(FormatError::Invalid {
             path: path.to_owned(),

@@ -15,7 +15,7 @@ function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown)
     calls.push([cmd, args]);
     return answer(cmd, args);
   };
-  return { backend: new TauriBackend(invoke, () => "channel"), calls };
+  return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel"), calls };
 }
 
 describe("TauriBackend", () => {
@@ -112,6 +112,15 @@ describe("TauriBackend", () => {
     await b.agents.pending();
     await b.agents.decide("abc", "denied");
     await b.agents.audit(10);
+    // Wave 8, strand A.
+    const message = { title: "", selected: true, kind: "text" as const, data: "hi" };
+    const leaky = { environment: "Local", vars: [], secrets: [["t", "leak"]] };
+    await b.streams.open("ws.yml", leaky as never, () => {});
+    await b.streams.send(1, message);
+    await b.streams.finish(1);
+    await b.streams.close(1);
+    await b.streams.log(1);
+    await b.streams.release(1);
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -199,6 +208,12 @@ describe("TauriBackend", () => {
       ["agents_decide", { id: "abc", decision: "denied" }],
       ["agents_pending", undefined],
       ["agents_audit", { limit: 10 }],
+      ["stream_open", { path: "ws.yml", input: { environment: "Local", vars: [] }, onEvent: "stream-channel" }],
+      ["stream_send", { session: 1, message }],
+      ["stream_finish", { session: 1 }],
+      ["stream_close", { session: 1 }],
+      ["stream_log", { session: 1 }],
+      ["stream_release", { session: 1 }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

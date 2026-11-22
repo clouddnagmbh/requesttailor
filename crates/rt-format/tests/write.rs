@@ -229,6 +229,11 @@ fn every_corpus_request_can_be_edited_and_restored() {
             let ctx = format!("{}: {path}", root.display());
             let mut doc = base.clone();
             let before = spec(&doc, &path);
+            // Wave 8: WebSocket and gRPC items have their own edit tests
+            // (`tests/websocket.rs`, strand B's), since `edited` changes HTTP-only fields.
+            if !before.protocol.is_http() {
+                continue;
+            }
             let after = edited(&before);
             doc.set_request(&path, &after)
                 .unwrap_or_else(|e| panic!("{ctx}: {e}"));

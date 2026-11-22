@@ -27,7 +27,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
-tokio = { version = "1", features = ["rt"] }
+# `sync`: the command channel of a session (wave 8, `streams.rs`).
+tokio = { version = "1", features = ["rt", "sync"] }
 
 [dev-dependencies]
 # Bare remotes for the Git tests.

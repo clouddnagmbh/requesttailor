@@ -93,6 +93,13 @@ const COMMANDS: &[&str] = &[
     "agents_pending",
     "agents_decide",
     "agents_audit",
+    // Wave 8, strand A.
+    "stream_open",
+    "stream_send",
+    "stream_finish",
+    "stream_close",
+    "stream_log",
+    "stream_release",
 ];
 
 fn main() {

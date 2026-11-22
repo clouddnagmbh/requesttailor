@@ -30,6 +30,29 @@ that contains `opencollection.yml`.
 | `--cookie-jar FILE` | Send cookies from `FILE` and store new ones in it |
 | `--no-prompt` | Fail instead of asking for an OAuth 2.0 login (pipelines) |
 | `--no-scripts` | Do not run the collection's scripts; declarative assertions still run |
+| `--sse` | Read an HTTP request's response as Server-Sent Events (a session, see below) |
+| `--message TITLE` | Sessions: send this message variant instead of the selected one |
+| `--duration SECONDS` | Sessions: keep the session open this long |
+| `--until-close` | Sessions: keep the session open until the server ends it |
+
+### Sessions: WebSocket, gRPC and SSE
+
+WebSocket and gRPC requests, and HTTP requests with `--sse`, are sessions (wave 8). `rt send`
+opens the session with the same preparation as a send (variables, auth including OAuth 2.0,
+plugins, cookies, `before-request` scripts), sends the selected message (or `--message`) once
+the session is open, and by default closes it after the first received message or after
+10 s. `--duration` and `--until-close` change that; the later option wins.
+
+The output is the masked message history (`StreamLog`): `version`, `request_path`,
+`environment`, `kind` (`websocket`, `sse` or `grpc`), the masked `url`, `events` (`opened`
+with the handshake or response head, `message` with `direction` `sent`/`received`, a `frame`
+`{"type": "text" | "binary", "data": ...}` (binary as base64) and for SSE `name` and `id`,
+`closed` with `code`, `reason` and `by_client`, or `error`), `notes`, and `error` (as in the
+send report) when the session could not be opened. Secret values are `***` everywhere,
+also in received messages. Exit codes as for a send: 0 when the session opened (whatever
+the close code), 1 for a transport error (also an `error` event during the session), 2 when
+the request or the `--message` variant is not found, 3 when the request could not be
+prepared.
 
 ## Output
 
@@ -488,7 +511,10 @@ access, including internal hosts. Each of these rules is tested in `tests/agent.
    successful pairing returns a 256-bit random token bound to that origin.
 5. **Tokens.** `POST /v1/send` and `POST /v1/secrets` need `Authorization: Bearer <token>`, and the token must
    belong to the request's `Origin`; otherwise `401` (with CORS headers, so the web app can
-   offer to pair again). Tokens are compared in constant time and live in memory only:
+   offer to pair again). The session relay `GET /v1/stream` (wave 8) takes the token as
+   `?token=` because browsers cannot set headers on a WebSocket; the `Host` and `Origin`
+   checks apply to the upgrade as to every request (browsers always send `Origin` on a
+   WebSocket), and a wrong or missing token gets `401` before the upgrade. Tokens are compared in constant time and live in memory only:
    nothing is written to disk, and a restart revokes all of them.
 6. **Secrets only when asked for.** `POST /v1/secrets` answers `403` unless the companion
    was started with `--allow-secrets` (the start banner says so), and like send it needs an
@@ -498,15 +524,19 @@ access, including internal hosts. Each of these rules is tested in `tests/agent.
    values (no cache, nothing on disk). Answers carry `Cache-Control: no-store`. A page on an
    allowed origin with a token can read any secret your CLI logins can, so enable the flag
    only for origins you trust as much as your terminal.
-7. **Nothing else.** Four endpoints, no file access, no configuration over HTTP. The
-   companion refuses to send requests to itself. Requests are capped at 64 MiB (`413`), the
+7. **Nothing else.** Five endpoints, no file access, no configuration over HTTP. The
+   companion refuses to send requests to itself, and to open sessions to itself. A session
+   WebSocket carries exactly one session: the first message must be `open` (within 10 s),
+   and the relay ends when either side does. Requests are capped at 64 MiB (`413`), the
    pairing request at 4 KiB, the secrets request at 64 KiB; the request head must arrive
    within 10 s.
 8. **Logging.** One line per request on stderr with method and host only (`rt agent: GET
    api.internal:8443 -> 200 (35 ms to first byte)`), plus pairings and rejections. Paths,
    queries, headers and bodies are never logged. For secrets, only the provider, the number
    of values and the origin (`rt agent: read 2 secret(s) from 1Password for
-   http://127.0.0.1:5173`); never references or values.
+   http://127.0.0.1:5173`); never references or values. Sessions log their kind, host and
+   origin when they open and close (`rt agent: WebSocket api.internal:443 for
+   http://127.0.0.1:5173: open`), never URLs, the token, headers or messages.
 
 What it does not protect against: other programs running as you on the same machine can
 talk to `127.0.0.1` too, but they cannot pair without the code printed in your terminal. A
@@ -519,10 +549,11 @@ Types: `rt_core::transport::companion`.
 
 | Endpoint | Request | Answer |
 | --- | --- | --- |
-| `GET /v1/status` | optional `Authorization: Bearer <token>` | `200 {"protocol": 1, "version": "...", "paired": bool}`; `paired` is true when the token belongs to the `Origin` |
+| `GET /v1/status` | optional `Authorization: Bearer <token>` | `200 {"protocol": 1, "version": "...", "paired": bool, "features": ["stream"]}`; `paired` is true when the token belongs to the `Origin`; `features` lists optional endpoints |
 | `POST /v1/pair` | `{"code": "7KQ2-M9XD"}` (dash, spaces and case do not matter) | `200 {"token": "..."}`, or `403 {"error": "wrong code" \| "code expired" \| ...}` |
 | `POST /v1/secrets` | `Authorization: Bearer <token>`, JSON `SecretsRequest` (`{"provider": "one-password", "variables": [{"name": "...", "reference": "...", "enabled": true}]}`) | `200 {"values": [["name", "value"], ...]}` for the enabled entries; `422 {"error": "..."}` when a secret cannot be read (CLI missing, not signed in, timeout); `403 {"error": "..."}` without `--allow-secrets`; `401` without a valid token |
 | `POST /v1/send` | `Authorization: Bearer <token>`, JSON `WireRequest` (method, url, headers, base64 body, content type, timeout, redirect settings) | `200`, header `x-rt-head` with the JSON `WireHead` (status, version, headers, final URL, redirects, timing; non-ASCII escaped), body = the response body, streamed; `502` with a JSON transport error (`{"kind": "timeout"}`, `{"kind": "connect", "message": "..."}`, ...); `401` without a valid token |
+| `GET /v1/stream?token=<token>` | WebSocket upgrade (wave 8); then JSON text messages `StreamClientMessage`: first `{"op": "open", "open": {"kind": "websocket" \| "sse" \| "grpc", ...}}`, then `{"op": "send", "frame": {"type": "text", "data": "..."}}`, `{"op": "finish"}`, `{"op": "close"}` | `101`; then `StreamServerMessage`s: `{"op": "event", "event": {...}}` for every event of the native session (`opened` first, `closed` or `error` last), or `{"op": "failed", "error": {...}}` when opening or sending failed; the WebSocket then closes. `401` without a valid token, `400` without a WebSocket upgrade |
 
 The timeout and redirect settings of the `WireRequest` apply exactly as in `rt send`; the
 timeout covers the whole exchange including the body. If it fires while the body is

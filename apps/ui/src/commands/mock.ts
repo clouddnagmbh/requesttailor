@@ -225,7 +225,7 @@ export class MockBackend implements Backend {
    *  A report with `error` set stops before the response, like `SendError::Script`. */
   scriptOutcome: ((path: string) => Partial<SendReport> | null) | null = null;
   /** Wave 8 (one file per strand). */
-  readonly streams = mockStreams();
+  readonly streams = mockStreams({ getRequest: (path) => this.getRequest(path) });
   readonly grpc = mockGrpc();
   readonly graphql = mockGraphQl();
   readonly agents = mockAgents();

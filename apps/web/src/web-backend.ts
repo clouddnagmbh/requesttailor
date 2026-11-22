@@ -30,6 +30,7 @@ import {
   type RecentCollection,
   type RequestSpec,
   type RunnerApi,
+  type StreamsApi,
   type ScriptsApi,
   type SearchHit,
   type SecretsApi,
@@ -157,7 +158,7 @@ export class WebBackend implements Backend {
   readonly scriptTrust: WebScriptTrust;
   readonly runner: RunnerApi;
   /** Wave 8 (one file per strand). */
-  readonly streams = webStreams();
+  readonly streams: StreamsApi;
   readonly grpc = webGrpc();
   readonly graphql = webGraphQl();
   readonly agents = webAgents(() => this.session());
@@ -196,19 +197,22 @@ export class WebBackend implements Backend {
     this.cookies = webCookies(host);
     this.scriptTrust = webScriptTrust(host);
     this.scripts = { ...this.scriptTrust, ...webSessionVars(host, this.sessionVars) };
+    // Each request of a run, and each session (wave 8), goes out like `send`: secret
+    // values, companion, services.
+    const sendContext = async (input: SendInput) => {
+      const s = this.session();
+      return {
+        companion: this.companionOn ? await this.companionCredentials() : null,
+        services: await sendServices(this, s.id, input.environment),
+        input: await this.coreInput(s, input, true),
+      };
+    };
     this.runner = webRunner({
       session: host.session,
       loadCore: deps.loadCore,
-      // Each request of a run goes out like `send`: secret values, companion, services.
-      sendContext: async (input) => {
-        const s = this.session();
-        return {
-          companion: this.companionOn ? await this.companionCredentials() : null,
-          services: await sendServices(this, s.id, input.environment),
-          input: await this.coreInput(s, input, true),
-        };
-      },
+      sendContext,
     });
+    this.streams = webStreams({ session: host.session, sendContext });
     this.recent = webRecent(host);
     this.ai = webAi({
       session: host.session,

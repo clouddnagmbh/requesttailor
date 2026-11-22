@@ -11,7 +11,9 @@
      while an enabled plugin has one.
      Wave 7 mount point (strand D): RunnerPanel in the main area, opened from a folder's run
      button in the sidebar, the header button "Run" and the palette ("Run collection").
-     Wave 8 mount point (strand E): AiDialogs and the AI palette entries. -->
+     Wave 8 mount point (strand E): AiDialogs and the AI palette entries.
+     Wave 8 mount point (strand A): WebSocket, SSE and gRPC requests show Connect instead of
+     Send and the SessionPane instead of the response. -->
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
 
@@ -42,6 +44,9 @@
   import { RunnerState } from "../runner/runner.svelte";
   import TrustPrompt from "../scripts/TrustPrompt.svelte";
   import SearchPanel from "../search/SearchPanel.svelte";
+  import ConnectButton from "../stream/ConnectButton.svelte";
+  import SessionPane from "../stream/SessionPane.svelte";
+  import { provideSessions, SessionsState } from "../stream/sessions.svelte";
   import ResponseView from "../response/ResponseView.svelte";
   import { AppState, provideApp } from "../state/app.svelte";
   import "../styles/base.css";
@@ -60,6 +65,12 @@
   // The backend is fixed for the lifetime of the shell.
   // svelte-ignore state_referenced_locally
   const app = provideApp(new AppState(backend));
+  const sessions = provideSessions(new SessionsState(app));
+  // A session lives while its request's tab is open.
+  $effect(() => {
+    const open = [...app.tabs];
+    untrack(() => void sessions.keepOnly(open));
+  });
   const theme = new Theme();
   const mac = isMacPlatform();
   const keys = (id: CommandId) => {
@@ -174,7 +185,7 @@
     "new-request": () => {
       if (app.collection) newIn = "";
     },
-    send: () => app.send(),
+    send: () => (app.active && sessions.kindOf(app.active) ? sessions.primary(app.active) : app.send()),
     save: () => app.save(),
     "close-tab": () => {
       if (app.active) app.close(app.active);
@@ -266,6 +277,7 @@
   const themeLabel = { system: "System", light: "Light", dark: "Dark" } as const;
   const themeIcon = { system: "◐", light: "☀", dark: "☾" } as const;
   const sending = $derived(app.active ? (app.sending[app.active] ?? false) : false);
+  const sessionKind = $derived(sessions.kindOf(app.active));
   const activeTabId = $derived(app.active ? tabElementId(app.tabs.indexOf(app.active)) : undefined);
 </script>
 
@@ -376,6 +388,9 @@
           <div class="pane editor" style:height="{editorHeight}px">
             <RequestEditor path={app.active}>
               {#snippet actions()}
+                {#if sessionKind && app.active}
+                  <ConnectButton path={app.active} {sessions} shortcut={keys("send")} />
+                {:else}
                 <button
                   class="button primary send"
                   data-testid="send"
@@ -384,6 +399,7 @@
                   onclick={() => app.send()}
                   >{sending ? "Sending…" : "Send"}<kbd>{keys("send")}</kbd></button
                 >
+                {/if}
               {/snippet}
             </RequestEditor>
           </div>
@@ -397,8 +413,12 @@
             testid="split-resizer"
           />
           <div class="pane response">
-            <CompanionOffer path={app.active} />
-            <ResponseView path={app.active} />
+            {#if sessionKind}
+              <SessionPane path={app.active} {sessions} />
+            {:else}
+              <CompanionOffer path={app.active} />
+              <ResponseView path={app.active} />
+            {/if}
           </div>
         </div>
       {:else}

@@ -441,14 +441,7 @@ fn ordering_and_paths() {
 fn non_http_items_are_not_requests() {
     let c = corpus("grpc-subpath").model().clone();
     assert!(c.items.is_empty());
-    let c = corpus("websockets-multi-message-yml").model().clone();
-    fn has_requests(items: &[Item]) -> bool {
-        items.iter().any(|i| match i {
-            Item::Request(_) => true,
-            Item::Folder(f) => has_requests(&f.items),
-        })
-    }
-    assert!(!has_requests(&c.items));
+    // Wave 8: WebSocket items are requests (`tests/websocket.rs`).
 }
 
 #[test]
