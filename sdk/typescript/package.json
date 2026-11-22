@@ -1,0 +1,20 @@
+{
+  "name": "@requesttailor/plugin-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "TypeScript types of the RequestTailor plugin API and a test host for plugin modules.",
+  "type": "module",
+  "exports": {
+    ".": "./src/api.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json",
+    "test": "node ../../scripts/build-plugins.mjs && node --test \"test/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^6.0.3"
+  }
+}
