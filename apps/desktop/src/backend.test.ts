@@ -161,6 +161,10 @@ describe("TauriBackend", () => {
     await b.mcp.getTest("mcp/t.mcp.yaml");
     await b.mcp.saveTest(null, test);
     await b.mcp.runTest("mcp/t.mcp.yaml", secretInput);
+    // Wave 12, strand A.
+    await b.diffs.working();
+    await b.diffs.commit("abc");
+    await b.diffs.between("main", "feature");
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -272,6 +276,9 @@ describe("TauriBackend", () => {
       ["mcp_get_test", { path: "mcp/t.mcp.yaml" }],
       ["mcp_save_test", { path: null, test }],
       ["mcp_run_test", { path: "mcp/t.mcp.yaml", input: { environment: "Local", vars: [] } }],
+      ["diff_working", undefined],
+      ["diff_commit", { rev: "abc" }],
+      ["diff_between", { from: "main", to: "feature" }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS.filter((c) => !PENDING.has(c))));
     for (const c of PENDING) expect(COMMANDS).toContain(c);
