@@ -813,6 +813,7 @@ fn app_errors() -> Vec<AppError> {
         AppError::Plugin("x".into()),
         AppError::Auth("x".into()),
         AppError::SecretsFound("x".into()),
+        AppError::Review("x".into()),
         AppError::Unsupported("x".into()),
         AppError::Shell("x".into()),
     ]
@@ -906,6 +907,12 @@ fn history_entry() -> HistoryEntry {
 
 /// `(TypeScript name, TypeScript type, value)`
 fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+    let mut all = base_fixtures();
+    all.extend(wave12::fixtures());
+    all
+}
+
+fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
     fn j<T: Serialize>(v: T) -> serde_json::Value {
         serde_json::to_value(v).unwrap()
     }
@@ -1565,6 +1572,669 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
     ]
+}
+
+/// Wave 12 (Git for APIs): revisions, semantic diff and merge, compare and bisect, timeline,
+/// review, contract, rescue.
+mod wave12 {
+    use super::{report_ok, request_spec};
+    use rt_app::bisect::{BisectOutcome, BisectRequest, BisectStep, BisectVerdict};
+    use rt_app::compare::{
+        BodyChange, CompareRequest, HeaderChange, RequestComparison, RevisionRun,
+        RevisionRunRequest, RunComparison, TestChange, ValueChange,
+    };
+    use rt_app::contract::{
+        ContractFinding, ContractReport, ContractSpec, FindingKind, SpecChange, SpecChangeKind,
+        SpecChanges,
+    };
+    use rt_app::diffs::{
+        ChangeKind, ChangeTarget, ChangedFile, CollectionDiff, DiffScope, DiffValue, FieldChange,
+        FileStatus, ModelChange,
+    };
+    use rt_app::git::{GitCommit, GitFileChange, GitFileCommit, GitTree};
+    use rt_app::merges::{ConflictChoice, FieldConflict, MergeState, Side};
+    use rt_app::rescue::{
+        HistoryFinding, HistoryScan, RescuePlan, RescueResult, RewrittenBranch, ScanProgress,
+    };
+    use rt_app::review::{
+        CiCheck, CiState, CiStatus, NewReviewComment, PullRequest, PullState, ReviewComment,
+        ReviewError, ReviewHost, ReviewKind, ReviewRepo, ReviewSession, ReviewSubmission,
+        ReviewVerdict,
+    };
+    use rt_app::secret_scan::SecretFinding;
+    use rt_app::timeline::{
+        FieldBlame, RecordSource, RecordedTest, RequestTimeline, TestRecord, TimelineEntry,
+    };
+    use rt_core::runner::{RunStep, RunSummary};
+    use serde::Serialize;
+
+    fn j<T: Serialize>(v: T) -> serde_json::Value {
+        serde_json::to_value(v).unwrap()
+    }
+
+    fn path(p: &[&str]) -> Vec<String> {
+        p.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    fn text(t: &str) -> Option<DiffValue> {
+        Some(DiffValue::Text { text: t.into() })
+    }
+
+    fn commit(oid: &str, summary: &str) -> GitCommit {
+        GitCommit {
+            oid: oid.repeat(40 / oid.len()),
+            summary: summary.into(),
+            author: "Ada".into(),
+            time: 1_795_000_000,
+        }
+    }
+
+    fn summary() -> RunSummary {
+        RunSummary {
+            requests: 1,
+            passed: 1,
+            failed: 0,
+            skipped: 0,
+            tests_passed: 1,
+            tests_failed: 0,
+            assertions_passed: 1,
+            assertions_failed: 0,
+            duration_ms: 20,
+            stopped: false,
+        }
+    }
+
+    fn field_change() -> FieldChange {
+        FieldChange {
+            path: path(&["url"]),
+            old: text("{{baseUrl}}/v1/users"),
+            new: text("{{baseUrl}}/v2/users"),
+            line: Some(4),
+        }
+    }
+
+    fn collection_diff() -> CollectionDiff {
+        CollectionDiff {
+            changes: vec![
+                ModelChange {
+                    target: ChangeTarget::Request {
+                        path: "users/get.yml".into(),
+                    },
+                    change: ChangeKind::Modified,
+                    file: "users/get.yml".into(),
+                    name: "Get user".into(),
+                    fields: vec![
+                        field_change(),
+                        FieldChange {
+                            path: path(&["headers", "Authorization"]),
+                            old: None,
+                            new: text("Bearer {{token}}"),
+                            line: None,
+                        },
+                        FieldChange {
+                            path: path(&["auth"]),
+                            old: Some(DiffValue::Json {
+                                value: serde_json::json!({"type": "none"}),
+                            }),
+                            new: None,
+                            line: Some(9),
+                        },
+                    ],
+                },
+                ModelChange {
+                    target: ChangeTarget::Request {
+                        path: "users/list.yml".into(),
+                    },
+                    change: ChangeKind::Moved {
+                        from: "list.yml".into(),
+                    },
+                    file: "users/list.yml".into(),
+                    name: "List users".into(),
+                    fields: Vec::new(),
+                },
+                ModelChange {
+                    target: ChangeTarget::Folder {
+                        path: "admin".into(),
+                    },
+                    change: ChangeKind::Added,
+                    file: "admin/folder.yml".into(),
+                    name: "admin".into(),
+                    fields: Vec::new(),
+                },
+                ModelChange {
+                    target: ChangeTarget::Collection,
+                    change: ChangeKind::Removed,
+                    file: "opencollection.yml".into(),
+                    name: "Demo".into(),
+                    fields: Vec::new(),
+                },
+                ModelChange {
+                    target: ChangeTarget::Environment { name: "PRD".into() },
+                    change: ChangeKind::Modified,
+                    file: "environments/PRD.yml".into(),
+                    name: "PRD".into(),
+                    fields: vec![FieldChange {
+                        path: path(&["variables", "apiKey"]),
+                        old: Some(DiffValue::Secret),
+                        new: Some(DiffValue::Secret),
+                        line: None,
+                    }],
+                },
+            ],
+            files: vec![
+                ChangedFile {
+                    path: "users/get.yml".into(),
+                    status: FileStatus::Modified,
+                    covered: true,
+                },
+                ChangedFile {
+                    path: "admin/folder.yml".into(),
+                    status: FileStatus::Added,
+                    covered: true,
+                },
+                ChangedFile {
+                    path: "list.yml".into(),
+                    status: FileStatus::Removed,
+                    covered: false,
+                },
+            ],
+        }
+    }
+
+    fn field_conflict() -> FieldConflict {
+        FieldConflict {
+            target: ChangeTarget::Request {
+                path: "users/get.yml".into(),
+            },
+            file: "users/get.yml".into(),
+            field: path(&["url"]),
+            base: text("/v1"),
+            ours: text("/v2"),
+            theirs: None,
+        }
+    }
+
+    fn run_step() -> RunStep {
+        RunStep {
+            iteration: 0,
+            request_path: "users/get.yml".into(),
+            request_name: "Get user".into(),
+            report: report_ok(),
+            passed: true,
+            skipped: false,
+        }
+    }
+
+    fn pull() -> PullRequest {
+        PullRequest {
+            number: 7,
+            title: "Users v2".into(),
+            author: "grace".into(),
+            state: PullState::Open,
+            draft: false,
+            source: "users-v2".into(),
+            target: "main".into(),
+            head: "b".repeat(40),
+            base: "a".repeat(40),
+            url: "https://github.com/acme/orders/pull/7".into(),
+            updated: 1_795_000_000,
+        }
+    }
+
+    fn test_record() -> TestRecord {
+        TestRecord {
+            collection: "".into(),
+            request: "users/get.yml".into(),
+            environment: Some("Local".into()),
+            time: 1_795_000_000,
+            source: RecordSource::Runner,
+            passed: false,
+            status: Some(200),
+            tests: vec![RecordedTest {
+                name: "status is 200".into(),
+                passed: true,
+            }],
+        }
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        vec![
+            (
+                "gitTree",
+                "GitTree",
+                j(GitTree {
+                    oid: "a".repeat(40),
+                    files: [(
+                        "opencollection.yml".to_string(),
+                        "opencollection: 1.0.0\n".to_string(),
+                    )]
+                    .into_iter()
+                    .collect(),
+                }),
+            ),
+            (
+                "gitFileCommits",
+                "GitFileCommit[]",
+                j(vec![
+                    GitFileCommit {
+                        commit: commit("b", "Rename"),
+                        path: "users/get.yml".into(),
+                        change: GitFileChange::Renamed,
+                        from: Some("get.yml".into()),
+                    },
+                    GitFileCommit {
+                        commit: commit("a", "Add"),
+                        path: "get.yml".into(),
+                        change: GitFileChange::Added,
+                        from: None,
+                    },
+                    GitFileCommit {
+                        commit: commit("c", "Change"),
+                        path: "get.yml".into(),
+                        change: GitFileChange::Modified,
+                        from: None,
+                    },
+                    GitFileCommit {
+                        commit: commit("d", "Drop"),
+                        path: "get.yml".into(),
+                        change: GitFileChange::Deleted,
+                        from: None,
+                    },
+                ]),
+            ),
+            ("collectionDiff", "CollectionDiff", j(collection_diff())),
+            (
+                "diffScopes",
+                "DiffScope[]",
+                j(vec![
+                    DiffScope::Working,
+                    DiffScope::Commit { rev: "HEAD".into() },
+                    DiffScope::Between {
+                        from: "main".into(),
+                        to: "users-v2".into(),
+                    },
+                ]),
+            ),
+            (
+                "mergeState",
+                "MergeState",
+                j(MergeState {
+                    merging: true,
+                    conflicts: vec![field_conflict()],
+                    text_conflicts: vec!["notes.yml".into()],
+                }),
+            ),
+            (
+                "conflictChoices",
+                "ConflictChoice[]",
+                j(vec![
+                    ConflictChoice::Field {
+                        target: field_conflict().target,
+                        field: path(&["url"]),
+                        side: Side::Theirs,
+                    },
+                    ConflictChoice::File {
+                        path: "notes.yml".into(),
+                        side: Side::Ours,
+                    },
+                ]),
+            ),
+            (
+                "revisionRunRequest",
+                "RevisionRunRequest",
+                j(RevisionRunRequest {
+                    rev: "refs/requesttailor/review/github/7".into(),
+                    folder: None,
+                    paths: Some(vec!["users/get.yml".into()]),
+                }),
+            ),
+            (
+                "revisionRun",
+                "RevisionRun",
+                j(RevisionRun {
+                    commit: commit("b", "Users v2"),
+                    steps: vec![run_step()],
+                    summary: summary(),
+                }),
+            ),
+            (
+                "compareRequest",
+                "CompareRequest",
+                j(CompareRequest {
+                    from: "main".into(),
+                    to: "users-v2".into(),
+                    folder: Some("users".into()),
+                    paths: None,
+                }),
+            ),
+            (
+                "runComparison",
+                "RunComparison",
+                j(RunComparison {
+                    from: commit("a", "main"),
+                    to: commit("b", "Users v2"),
+                    requests: vec![RequestComparison {
+                        path: "users/get.yml".into(),
+                        name: "Get user".into(),
+                        same: false,
+                        status: Some(ValueChange {
+                            old: Some(200),
+                            new: Some(404),
+                        }),
+                        headers: vec![HeaderChange {
+                            name: "content-type".into(),
+                            old: Some("application/json".into()),
+                            new: None,
+                        }],
+                        body: vec![BodyChange {
+                            pointer: "/items/0/id".into(),
+                            old: Some(serde_json::json!(1)),
+                            new: None,
+                        }],
+                        body_text: false,
+                        tests: vec![TestChange {
+                            name: "status is 200".into(),
+                            old: Some(true),
+                            new: Some(false),
+                        }],
+                        error: Some(ValueChange {
+                            old: None,
+                            new: Some("connection refused".into()),
+                        }),
+                    }],
+                    from_summary: summary(),
+                    to_summary: summary(),
+                }),
+            ),
+            (
+                "bisectRequest",
+                "BisectRequest",
+                j(BisectRequest {
+                    good: "v1.0".into(),
+                    bad: "HEAD".into(),
+                    folder: None,
+                }),
+            ),
+            (
+                "bisectOutcome",
+                "BisectOutcome",
+                j(BisectOutcome {
+                    first_bad: Some(commit("c", "Break it")),
+                    candidates: 49,
+                    steps: [BisectVerdict::Good, BisectVerdict::Bad, BisectVerdict::Skip]
+                        .into_iter()
+                        .map(|verdict| BisectStep {
+                            commit: commit("c", "Break it"),
+                            verdict,
+                            failed: vec!["Get user: status is 200".into()],
+                            remaining: 12,
+                        })
+                        .collect(),
+                }),
+            ),
+            ("testRecord", "TestRecord", j(test_record())),
+            (
+                "requestTimeline",
+                "RequestTimeline",
+                j(RequestTimeline {
+                    path: "users/get.yml".into(),
+                    entries: vec![TimelineEntry {
+                        commit: GitFileCommit {
+                            commit: commit("b", "v2"),
+                            path: "users/get.yml".into(),
+                            change: GitFileChange::Modified,
+                            from: None,
+                        },
+                        fields: vec![field_change()],
+                        tests: vec![test_record()],
+                    }],
+                }),
+            ),
+            (
+                "fieldBlames",
+                "FieldBlame[]",
+                j(vec![FieldBlame {
+                    field: path(&["url"]),
+                    commit: commit("b", "v2"),
+                    value: text("{{baseUrl}}/v2/users"),
+                }]),
+            ),
+            (
+                "reviewHosts",
+                "ReviewHost[]",
+                j(vec![ReviewHost {
+                    host: "git.example.com:8443".into(),
+                    kind: ReviewKind::Github,
+                    api: "https://git.example.com:8443/api/v3".into(),
+                }]),
+            ),
+            (
+                "reviewRepo",
+                "ReviewRepo",
+                j(ReviewRepo {
+                    kind: ReviewKind::Gitlab,
+                    host: "gitlab.example.com".into(),
+                    api: "https://gitlab.example.com/api/v4".into(),
+                    project: "group/sub/api".into(),
+                }),
+            ),
+            (
+                "pullRequests",
+                "PullRequest[]",
+                j([PullState::Open, PullState::Closed, PullState::Merged]
+                    .into_iter()
+                    .map(|state| PullRequest { state, ..pull() })
+                    .collect::<Vec<_>>()),
+            ),
+            (
+                "reviewComments",
+                "ReviewComment[]",
+                j(vec![
+                    ReviewComment {
+                        id: "1".into(),
+                        author: "grace".into(),
+                        body: "Why v2?".into(),
+                        created: 1_795_000_000,
+                        path: Some("users/get.yml".into()),
+                        line: Some(4),
+                        field: Some(path(&["url"])),
+                        outdated: false,
+                    },
+                    ReviewComment {
+                        id: "2".into(),
+                        author: "ada".into(),
+                        body: "LGTM".into(),
+                        created: 1_795_000_100,
+                        path: None,
+                        line: None,
+                        field: None,
+                        outdated: false,
+                    },
+                ]),
+            ),
+            (
+                "newReviewComment",
+                "NewReviewComment",
+                j(NewReviewComment {
+                    path: "users/get.yml".into(),
+                    line: 4,
+                    body: "Why v2?".into(),
+                }),
+            ),
+            (
+                "reviewSubmissions",
+                "ReviewSubmission[]",
+                j([
+                    ReviewVerdict::Approve,
+                    ReviewVerdict::RequestChanges,
+                    ReviewVerdict::Comment,
+                ]
+                .into_iter()
+                .map(|verdict| ReviewSubmission {
+                    verdict,
+                    body: "".into(),
+                })
+                .collect::<Vec<_>>()),
+            ),
+            (
+                "ciStatus",
+                "CiStatus",
+                j(CiStatus {
+                    state: CiState::Failure,
+                    checks: [
+                        CiState::Pending,
+                        CiState::Success,
+                        CiState::Failure,
+                        CiState::Neutral,
+                        CiState::None,
+                    ]
+                    .into_iter()
+                    .map(|state| CiCheck {
+                        name: "rt run".into(),
+                        state,
+                        url: None,
+                    })
+                    .collect(),
+                }),
+            ),
+            (
+                "reviewSession",
+                "ReviewSession",
+                j(ReviewSession {
+                    pull: pull(),
+                    head_ref: rt_app::review::review_ref(ReviewKind::Github, 7),
+                    merge_base: "a".repeat(40),
+                }),
+            ),
+            (
+                "reviewErrors",
+                "ReviewError[]",
+                j(vec![
+                    ReviewError::NoToken("github.com".into()),
+                    ReviewError::Auth("token expired".into()),
+                    ReviewError::NotFound("pull 9".into()),
+                    ReviewError::Transport("timeout".into()),
+                    ReviewError::Host("422".into()),
+                ]),
+            ),
+            (
+                "contractSpec",
+                "ContractSpec",
+                j(ContractSpec {
+                    path: "/openapi.yaml".into(),
+                    title: "Orders API".into(),
+                    version: "1.3.0".into(),
+                    configured: false,
+                }),
+            ),
+            (
+                "contractReport",
+                "ContractReport",
+                j(ContractReport {
+                    findings: [
+                        FindingKind::NoOperation,
+                        FindingKind::UnknownParameter,
+                        FindingKind::MissingParameter,
+                        FindingKind::BodyMismatch,
+                    ]
+                    .into_iter()
+                    .map(|kind| ContractFinding {
+                        request: "users/get.yml".into(),
+                        kind,
+                        operation: Some("GET /users/{id}".into()),
+                        message: "x".into(),
+                    })
+                    .collect(),
+                    uncovered: vec!["DELETE /users/{id}".into()],
+                    operations: 5,
+                    covered: 4,
+                }),
+            ),
+            (
+                "specChanges",
+                "SpecChanges",
+                j(SpecChanges {
+                    from_version: Some("1.2.0".into()),
+                    to_version: None,
+                    changes: [
+                        SpecChangeKind::OperationAdded,
+                        SpecChangeKind::OperationRemoved,
+                        SpecChangeKind::ParameterAdded,
+                        SpecChangeKind::ParameterRemoved,
+                        SpecChangeKind::RequiredAdded,
+                        SpecChangeKind::FieldRemoved,
+                        SpecChangeKind::FieldAdded,
+                        SpecChangeKind::TypeChanged,
+                        SpecChangeKind::ResponseChanged,
+                        SpecChangeKind::Other,
+                    ]
+                    .into_iter()
+                    .map(|kind| SpecChange {
+                        kind,
+                        breaking: true,
+                        operation: None,
+                        location: "response 200: items[].id".into(),
+                        message: "x".into(),
+                        requests: vec!["users/get.yml".into()],
+                    })
+                    .collect(),
+                }),
+            ),
+            (
+                "historyScan",
+                "HistoryScan",
+                j(HistoryScan {
+                    commits: 50,
+                    findings: vec![HistoryFinding {
+                        id: format!("{}:users/get.yml:4", "a".repeat(40)),
+                        finding: SecretFinding {
+                            path: "users/get.yml".into(),
+                            line: 4,
+                            kind: "bearer token".into(),
+                            snippet: "Authorization: Bearer ***".into(),
+                            hint: "Use a {{variable}}".into(),
+                        },
+                        first: commit("a", "Add"),
+                        commits: vec!["a".repeat(40)],
+                        branches: vec!["main".into()],
+                        in_head: true,
+                    }],
+                }),
+            ),
+            (
+                "scanProgress",
+                "ScanProgress",
+                j(ScanProgress {
+                    scanned: 10,
+                    total: 50,
+                }),
+            ),
+            (
+                "rescuePlan",
+                "RescuePlan",
+                j(RescuePlan {
+                    findings: vec![format!("{}:users/get.yml:4", "a".repeat(40))],
+                    variable: "apiToken".into(),
+                    environment: "Local".into(),
+                }),
+            ),
+            (
+                "rescueResult",
+                "RescueResult",
+                j(RescueResult {
+                    rewritten: 12,
+                    branches: vec![RewrittenBranch {
+                        name: "main".into(),
+                        old: "a".repeat(40),
+                        new: "b".repeat(40),
+                        pushed: true,
+                    }],
+                    backup: format!("{}1795000000/", rt_app::rescue::BACKUP_PREFIX),
+                }),
+            ),
+            ("wave12RequestSpec", "RequestSpec", j(request_spec())),
+        ]
+    }
 }
 
 fn render() -> String {

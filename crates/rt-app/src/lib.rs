@@ -18,12 +18,19 @@
 //! Wave 5: `plugins` (strand A), `auth` (strand C), `cookies` (strand D), `secret_scan` and
 //! `secret_sources` (strand E).
 //! Wave 7: `scripts` (strands A and C), `runner` (strand D).
+//! Wave 12 (Git for APIs): `diffs` (strand A), `merges` (strand B), `compare` and `bisect`
+//! (strand C), `timeline` (strand D), `review` (strand E), `contract` (strand F), `rescue`
+//! (strand G); revisions in `git` (interface).
 //! Changes to the public types here are interface changes (working rule 1).
 
 pub mod agents;
 pub mod ai;
 pub mod auth;
+pub mod bisect;
+pub mod compare;
+pub mod contract;
 pub mod cookies;
+pub mod diffs;
 pub mod git;
 // Wave 8, strand B: gRPC services and templates, GraphQL schemas.
 pub mod graphql;
@@ -31,14 +38,18 @@ pub mod grpc;
 pub mod history;
 pub mod import;
 pub mod mcp_client;
+pub mod merges;
 pub mod plugins;
+pub mod rescue;
 pub mod response;
+pub mod review;
 pub mod runner;
 pub mod scripts;
 pub mod search;
 pub mod secret_scan;
 pub mod secret_sources;
 pub mod secrets;
+pub mod timeline;
 mod workspace;
 
 pub use history::{History, HistoryEntry};
@@ -114,6 +125,9 @@ pub enum AppError {
     /// A commit was refused because files contain credentials; `GitApi.scan` lists them.
     #[error("{0}")]
     SecretsFound(String),
+    /// A Git host's review API failed or refused (wave 12, `review`); token masked.
+    #[error("{0}")]
+    Review(String),
     /// The command is not available in this shell (yet).
     #[error("{0}")]
     Unsupported(String),

@@ -17,6 +17,7 @@ import {
 } from "@requesttailor/ui";
 
 import type { CoreSendServices } from "./send-services";
+import { runRecorder } from "./timeline";
 import { toBackendError, type CompanionCredentials, type CoreModule, type CoreSendInput } from "./wasm";
 import type { Session } from "./web-backend";
 
@@ -82,7 +83,13 @@ export function webRunner(host: WebRunnerHost): RunnerApi {
         try {
           const ws = workspace(host);
           const context = await host.sendContext(input);
-          return await ws.run(plan, context.input, context.companion, context.services, onEvent, () => token.cancelled);
+          // Wave 12, strand D: results of a run of `HEAD`'s files are recorded per commit.
+          const record = runRecorder(host.session());
+          const events = (event: RunEvent) => {
+            record(event);
+            onEvent(event);
+          };
+          return await ws.run(plan, context.input, context.companion, context.services, events, () => token.cancelled);
         } finally {
           active = null;
         }

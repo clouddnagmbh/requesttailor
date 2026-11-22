@@ -80,6 +80,12 @@ pub async fn run<S: SecretStore>(
     emit: impl Fn(RunEvent) + Send + 'static,
 ) -> Result<RunSummary, AppError> {
     let active = runs.start()?;
+    // Wave 12, strand D: results of a run of `HEAD`'s files are recorded per commit.
+    let recorder = crate::timeline::RunRecorder::for_run(core);
+    let emit = move |event: RunEvent| {
+        recorder.observe(&event);
+        emit(event);
+    };
     // Never trusted from the webview, as at send.
     let input = SendInput {
         secrets: Vec::new(),

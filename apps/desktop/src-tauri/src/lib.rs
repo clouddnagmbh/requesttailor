@@ -15,8 +15,14 @@ mod agents;
 mod ai;
 mod auth;
 mod commands;
+/// Wave 12, strand C: runs at a revision, comparison, bisect.
+mod compare;
+/// Wave 12, strand F: OpenAPI contract.
+mod contract;
 mod cookies;
 pub mod core;
+/// Wave 12, strand A: semantic diff.
+mod diffs;
 pub mod files;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
@@ -26,8 +32,14 @@ pub mod history;
 mod import;
 /// Wave 8, strand D.
 mod mcp_client;
+/// Wave 12, strand B: semantic merge.
+mod merges;
 mod plugins;
 pub mod recent;
+/// Wave 12, strand G: secret rescue.
+mod rescue;
+/// Wave 12, strand E: pull-request review.
+mod review;
 // Wave 7: scripts (strand A), session variables (C), runner (D).
 mod runner;
 mod scripts;
@@ -36,6 +48,8 @@ mod services;
 mod session_vars;
 /// Wave 8, strand A.
 mod streams;
+/// Wave 12, strand D: request history and test results per commit.
+mod timeline;
 
 /// The app's core as managed Tauri state (wave 10). A distribution's Tauri plugin may use it,
 /// e.g. to open a collection it placed on disk: `app.state::<AppCore>().open(&root)`, then
@@ -190,5 +204,52 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             mcp_client::mcp_get_test,
             mcp_client::mcp_save_test,
             mcp_client::mcp_run_test,
+            // Wave 12 (interface): revisions.
+            git::git_rev_parse,
+            git::git_tree_at,
+            git::git_show,
+            git::git_file_log,
+            git::git_merge_base,
+            git::git_commits,
+            // Wave 12, strand A.
+            diffs::diff_working,
+            diffs::diff_commit,
+            diffs::diff_between,
+            // Wave 12, strand B.
+            merges::merge_conflicts,
+            merges::merge_resolve,
+            // Wave 12, strand C.
+            compare::compare_run,
+            compare::compare_revisions,
+            compare::compare_bisect,
+            compare::compare_cancel,
+            // Wave 12, strand D.
+            timeline::timeline_history,
+            timeline::timeline_blame,
+            timeline::timeline_version,
+            timeline::timeline_results,
+            // Wave 12, strand E.
+            review::review_hosts,
+            review::review_set_hosts,
+            review::review_repo,
+            review::review_has_token,
+            review::review_set_token,
+            review::review_delete_token,
+            review::review_start_login,
+            review::review_finish_login,
+            review::review_list,
+            review::review_open,
+            review::review_comments,
+            review::review_comment,
+            review::review_submit,
+            review::review_ci,
+            // Wave 12, strand F.
+            contract::contract_spec,
+            contract::contract_check,
+            contract::contract_changes,
+            contract::contract_changelog,
+            // Wave 12, strand G.
+            rescue::rescue_scan,
+            rescue::rescue_rewrite,
         ])
 }

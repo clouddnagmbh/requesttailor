@@ -10,6 +10,7 @@ and how.
 | `idle_memory` | ≤ 150 MB | desktop release build, app + webview processes, median of 3 starts |
 | `large_response_frame` | ≤ 20 ms | p95 frame interval while scrolling a 100 MB body, Chrome |
 | `send_keystrokes` | ≤ 2 | keystrokes from app start to a sent request, Chrome |
+| `semantic_diff` | ≤ 200 ms | semantic diff of 1000 requests (100 changed), release build, median of 9 |
 
 ```sh
 npm run build -w apps/desktop          # the release binary the desktop part starts
@@ -118,13 +119,23 @@ response must arrive. The result is the larger count of the two (measured: 1). T
 reopens the same way (`recent_collections`/`open_recent`, covered by
 `apps/desktop/src-tauri/tests/recent.rs`; the start-up logic in `apps/ui/src/recent` is shared).
 
+## Semantic diff (`semantic_diff`, wave 12)
+
+**Median time of `rt_format::diff::diff` over 9 runs** on a generated collection: 1000 requests
+in 20 folders, every tenth with a new URL (100 changed files). `crates/rt-format/tests/diff_perf.rs`
+in a release build (`run.mjs --only diff`) writes `diff.json`; it is native code, so every OS
+measures it and the worst value counts. A second test in the same file checks what the diff
+finds; it is `#[ignore]`d until wave 12 strand A replaces the file-level interface `diff` and
+then runs with `cargo test`. The measurement runs from the interface commit on, so the budget
+is gated before strand A lands and stays gated after. The WASM build of the same diff is not measured yet (later wave).
+
 ## CI
 
 `.github/workflows/ci.yml`:
 
 - `perf-measure` (macOS, Windows, Linux under `xvfb-run`): builds the desktop release binary and
   runs `run.mjs --only <parts> --check`; an exceeded budget fails the job. Linux runs all parts,
-  macOS and Windows the desktop part: frame times and keystrokes are browser measurements of the
+  macOS and Windows the desktop and diff parts: frame times and keystrokes are browser measurements of the
   shared UI in Chrome, the same code on every OS, so they run once. Results are uploaded as
   artifacts `perf-<os>`.
 - `perf`: requires the results of all three OSes (a missing one fails), merges them with the

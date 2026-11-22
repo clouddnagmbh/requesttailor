@@ -259,9 +259,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: linux, os: ubuntu-latest, parts: "desktop,frames,keystrokes" }
-          - { name: macos, os: macos-latest, parts: desktop }
-          - { name: windows, os: windows-latest, parts: desktop }
+          - { name: linux, os: ubuntu-latest, parts: "desktop,frames,keystrokes,diff" }
+          - { name: macos, os: macos-latest, parts: "desktop,diff" }
+          - { name: windows, os: windows-latest, parts: "desktop,diff" }
     runs-on: ${{ matrix.os }}
     defaults:
       run:

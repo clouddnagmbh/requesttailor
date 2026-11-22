@@ -5101,6 +5101,7 @@ dependencies = [
  "rt-app",
  "rt-core",
  "rt-format",
+ "rt-git",
  "rt-grpc",
  "rt-plugin",
  "rt-script",

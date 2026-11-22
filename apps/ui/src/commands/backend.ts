@@ -62,6 +62,37 @@ import type {
   PendingApproval,
   StreamEvent,
   StreamLog,
+  BisectOutcome,
+  BisectRequest,
+  BisectStep,
+  CiStatus,
+  CollectionDiff,
+  CompareRequest,
+  ConflictChoice,
+  ContractReport,
+  ContractSpec,
+  DeviceCodePrompt,
+  FieldBlame,
+  GitFileCommit,
+  GitTree,
+  HistoryScan,
+  MergeState,
+  NewReviewComment,
+  PullRequest,
+  RequestTimeline,
+  RescuePlan,
+  RescueResult,
+  ReviewComment,
+  ReviewHost,
+  ReviewRepo,
+  ReviewSession,
+  ReviewSubmission,
+  RevisionRun,
+  RevisionRunRequest,
+  RunComparison,
+  ScanProgress,
+  SpecChanges,
+  TestRecord,
 } from "./types";
 
 export interface CollectionInfo {
@@ -157,6 +188,118 @@ export interface GitApi {
   /** Credentials typed into `paths` (as they are on disk). `commit` runs the same scan and
    *  rejects with kind `secrets-found` when it finds any. Owner in wave 5: strand E. */
   scan(paths: string[]): Promise<SecretFinding[]>;
+
+  // Wave 12 (interface): revisions, read without a checkout. A `rev` is a full or abbreviated
+  // commit id, a branch (`main`, `origin/main`), a ref (`refs/...`) or `HEAD`, optionally
+  // followed by `~<n>` or `^`. Paths are relative to the collection root.
+  /** The commit `rev` names (full id). Rejects with kind `git` for an unknown rev. */
+  revParse(rev: string): Promise<string>;
+  /** The collection's files at `rev`, as the shells read them from disk. */
+  treeAt(rev: string): Promise<GitTree>;
+  /** Text of `path` at `rev`, `null` if it does not exist there. A leading `/` makes the path
+   *  relative to the repository root (the web: the collection folder is the root). */
+  show(rev: string, path: string): Promise<string | null>;
+  /** Commits of `HEAD`'s history that changed `path`, newest first (renames: strand D). */
+  fileLog(path: string, limit: number): Promise<GitFileCommit[]>;
+  /** Best common ancestor; `null` if the histories are unrelated. */
+  mergeBase(a: string, b: string): Promise<string | null>;
+  /** Commits reachable from `to` along first parents but not from `from` (`null`: down to
+   *  the root), newest first. */
+  commits(from: string | null, to: string, limit: number): Promise<GitCommit[]>;
+}
+
+/** Semantic diffs: per request, folder, collection and environment field, secrets only by
+ *  name. Owner in wave 12: strand A. */
+export interface DiffApi {
+  /** The saved files against `HEAD`. */
+  working(): Promise<CollectionDiff>;
+  /** A commit against its first parent. */
+  commit(rev: string): Promise<CollectionDiff>;
+  /** `from` → `to` (branch compare, PR review: merge base → head). */
+  between(from: string, to: string): Promise<CollectionDiff>;
+}
+
+/** Semantic merge: `git.pull` merges on the model; what is left are conflicts per field.
+ *  Owner in wave 12: strand B. */
+export interface MergeApi {
+  /** The conflicts of the merge in progress (recomputed from Git's index). */
+  conflicts(): Promise<MergeState>;
+  /** Writes the merged files with these choices and marks them resolved (like
+   *  `git.resolve`); refuses with unsaved changes; the next `git.commit` concludes the merge.
+   *  The UI reloads afterwards. */
+  resolve(choices: ConflictChoice[]): Promise<void>;
+}
+
+/** The collection at a revision, run without a checkout, with today's environment and
+ *  secrets; comparisons and bisect. Owner in wave 12: strand C. */
+export interface CompareApi {
+  run(request: RevisionRunRequest, input: SendInput): Promise<RevisionRun>;
+  compare(request: CompareRequest, input: SendInput): Promise<RunComparison>;
+  /** The first commit between good and bad at which something fails; `onStep` after each
+   *  tested commit. */
+  bisect(request: BisectRequest, input: SendInput, onStep: (step: BisectStep) => void): Promise<BisectOutcome>;
+  /** Stops the running compare or bisect. */
+  cancel(): Promise<void>;
+}
+
+/** Time travel per request: history across renames, blame per field, old versions, test
+ *  results per commit (recorded by the runner, kept in the data folder or IndexedDB, never
+ *  in the repository). Sending or restoring an old version goes through `updateRequest`.
+ *  Owner in wave 12: strand D. */
+export interface TimelineApi {
+  history(path: string, limit: number): Promise<RequestTimeline>;
+  blame(path: string): Promise<FieldBlame[]>;
+  /** The request as it was at `rev` (`path` as at that commit). */
+  version(rev: string, path: string): Promise<RequestSpec>;
+  /** Results recorded under the commit `rev` for this collection. */
+  results(rev: string): Promise<TestRecord[]>;
+}
+
+/** Pull requests (GitHub) and merge requests (GitLab) of the collection's `origin`, with the
+ *  user's own token (keychain / encrypted browser storage). Owner in wave 12: strand E. */
+export interface ReviewApi {
+  /** The Git host and project of `origin`; `null` if it is none the app knows. */
+  repo(): Promise<ReviewRepo | null>;
+  /** Self-hosted Git hosts the user added (GitHub Enterprise, GitLab), per device;
+   *  `github.com` and `gitlab.com` need none. */
+  hosts(): Promise<ReviewHost[]>;
+  setHosts(hosts: ReviewHost[]): Promise<void>;
+  hasToken(host: string): Promise<boolean>;
+  setToken(host: string, token: string): Promise<void>;
+  deleteToken(host: string): Promise<void>;
+  /** Device-code login: the code to show; then `finishLogin` waits for the user. */
+  startLogin(host: string): Promise<DeviceCodePrompt>;
+  finishLogin(host: string): Promise<void>;
+  list(): Promise<PullRequest[]>;
+  /** Fetches the PR's head into a local ref (no checkout) for diff and runs. */
+  open(number: number): Promise<ReviewSession>;
+  comments(number: number): Promise<ReviewComment[]>;
+  comment(number: number, comment: NewReviewComment): Promise<ReviewComment>;
+  submit(number: number, review: ReviewSubmission): Promise<void>;
+  ci(number: number): Promise<CiStatus>;
+}
+
+/** The OpenAPI spec in the repository against the collection, and its changes over the
+ *  history. Owner in wave 12: strand F. */
+export interface ContractApi {
+  /** The spec the collection is checked against; `null` if none is configured or found. */
+  spec(): Promise<ContractSpec | null>;
+  /** The collection against the spec, at `rev` (`null`: the saved files). */
+  check(rev: string | null): Promise<ContractReport>;
+  /** Changes of the spec from `from` to `to`, breaking ones marked. */
+  changes(from: string, to: string): Promise<SpecChanges>;
+  /** API changelog (Markdown) of the range, as `rt changelog`. */
+  changelog(from: string, to: string): Promise<string>;
+}
+
+/** Credentials anywhere in the history, and rewriting it so they become variables. The
+ *  value never reaches the UI; `rewrite` puts it into the secret store itself. Owner in
+ *  wave 12: strand G. */
+export interface RescueApi {
+  scanHistory(onProgress?: (progress: ScanProgress) => void): Promise<HistoryScan>;
+  /** Rewrites the local branches after the user confirmed (backup refs first); refuses with
+   *  unsaved or uncommitted changes. The UI reloads afterwards. */
+  rewrite(plan: RescuePlan): Promise<RescueResult>;
 }
 
 /** One file handed to `ImportApi.analyze`: its name as picked (only the last path component
@@ -427,6 +570,14 @@ export interface Backend {
   readonly agents: AgentsApi;
   readonly ai: AiApi;
   readonly mcp: McpClientApi;
+  /** Wave 12 (Git for APIs), one file per strand in each shell. */
+  readonly diffs: DiffApi;
+  readonly merges: MergeApi;
+  readonly compare: CompareApi;
+  readonly timeline: TimelineApi;
+  readonly review: ReviewApi;
+  readonly contract: ContractApi;
+  readonly rescue: RescueApi;
 }
 
 /** Errors from a backend are rejected promises carrying this shape. */

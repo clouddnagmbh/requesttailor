@@ -4,7 +4,7 @@
 // `GitApi` of the web app: isomorphic-git over the collection's directory handle (./fs.ts,
 // operations in ./repo.ts); network (push, pull, clone) through the companion (./http.ts),
 // since browsers block Git hosts (CORS). Diffs come from the core (`textDiff`), so they match
-// the desktop app. Owner: wave 4, strand A2.
+// the desktop app. Owner: wave 4, strand A2. Wave 12 (interface): revisions (./revisions.ts).
 //
 // - The repository root is the collection folder itself: the browser grants no access above
 //   the folder the user picked. Without `.git` there, `status` says "not a repository".
@@ -32,6 +32,7 @@ import type { Network, Repo } from "./repo";
 import { refuseSecrets, scanPaths } from "./scan";
 
 type RepoModule = typeof import("./repo");
+type RevisionsModule = typeof import("./revisions");
 
 /** Secret-store collection id for Git credentials. */
 export const CREDENTIALS_STORE = "git:credentials";
@@ -44,6 +45,16 @@ function ops(): Promise<RepoModule> {
     throw e;
   });
   return loading;
+}
+
+// Wave 12 (interface): revisions, loaded with isomorphic-git on first use.
+let loadingRevisions: Promise<RevisionsModule> | null = null;
+function revisions(): Promise<RevisionsModule> {
+  loadingRevisions ??= import("./revisions").catch((e: unknown) => {
+    loadingRevisions = null;
+    throw e;
+  });
+  return loadingRevisions;
 }
 
 function repoAt(handle: FileSystemDirectoryHandle): Repo {
@@ -270,5 +281,13 @@ export function webGit(host: WebHost): GitApi {
     // Wave 5, strand E: `rt_app::secret_scan` through rt-wasm (./scan.ts); `commit` refuses
     // with `secrets-found`.
     scan: (paths) => run(async () => scanPaths(session().handle, paths, await host.deps.loadCore())),
+
+    // Wave 12 (interface): revisions, read without a checkout (./revisions.ts).
+    revParse: (rev) => run(async () => (await revisions()).revParse(repo(), rev)),
+    treeAt: (rev) => run(async () => (await revisions()).treeAt(repo(), rev)),
+    show: (rev, path) => run(async () => (await revisions()).show(repo(), rev, path)),
+    fileLog: (path, limit) => run(async () => (await revisions()).fileLog(repo(), path, limit)),
+    mergeBase: (a, b) => run(async () => (await revisions()).mergeBase(repo(), a, b)),
+    commits: (from, to, limit) => run(async () => (await revisions()).commits(repo(), from, to, limit)),
   };
 }

@@ -13,7 +13,9 @@
      button in the sidebar, the header button "Run" and the palette ("Run collection").
      Wave 8 mount point (strand E): AiDialogs and the AI palette entries.
      Wave 8 mount point (strand A): WebSocket, SSE and gRPC requests show Connect instead of
-     Send and the SessionPane instead of the response. -->
+     Send and the SessionPane instead of the response.
+     Wave 12 mount points (interface): GitViewHost in the main area (one Git-for-APIs view at
+     a time, `git/views.svelte.ts`) and the strands' palette entries (`git/api-commands.ts`). -->
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
 
@@ -31,7 +33,10 @@
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
   import SessionVarsButton from "../scripts/SessionVarsButton.svelte";
+  import { gitApiCommands } from "../git/api-commands";
   import GitPanel from "../git/GitPanel.svelte";
+  import GitViewHost from "../git/GitViewHost.svelte";
+  import { GitViews, provideGitViews } from "../git/views.svelte";
   import HistoryPanel from "../history/HistoryPanel.svelte";
   import { McpState } from "../mcp/mcp.svelte";
   import McpPanel from "../mcp/McpPanel.svelte";
@@ -279,6 +284,28 @@
     untrack(() => mcp.reset());
   });
 
+  // ---- Git for APIs (wave 12): one view at a time in the main area ----
+  const gitViews = provideGitViews(new GitViews());
+  // Opening a request or another collection shows the editor again.
+  $effect(() => {
+    void app.active;
+    void app.collection?.id;
+    untrack(() => gitViews.close());
+  });
+  // A Git view replaces the runner, the MCP client and a collection tab, and the other way round.
+  $effect(() => {
+    if (gitViews.current) {
+      untrack(() => {
+        runner.close();
+        mcp.close();
+        collectionTab = null;
+      });
+    }
+  });
+  $effect(() => {
+    if (runner.target || mcp.open || showingCollection) untrack(() => gitViews.close());
+  });
+
   const commands = $derived([
     ...buildCommands(app, actions, mac),
     ...collectionTabs.map((t) => ({
@@ -289,6 +316,7 @@
     ...(app.collection ? [{ id: "run-collection", label: "Run collection…", run: () => openRunner(null) }] : []),
     ...aiCommands(app, ai),
     ...agentCommands(app),
+    ...gitApiCommands(app, gitViews),
     ...(app.collection ? [{ id: "mcp", label: "Test an MCP server", run: () => openMcp() }] : []),
     ...extensions.flatMap((x) =>
       (x.commands?.(extensionContext) ?? []).map((c) => ({ id: `${x.id}:${c.id}`, label: c.label, run: c.run })),
@@ -425,7 +453,9 @@
       <TabBar panelId="rt-request-panel" />
       <TrustPrompt />
       <AgentsHost />
-      {#if mcp.open}
+      {#if gitViews.current}
+        <GitViewHost views={gitViews} />
+      {:else if mcp.open}
         <McpPanel {mcp} />
       {:else if runner.target}
         <RunnerPanel {runner} />

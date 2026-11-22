@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, Body, Caller, CookieInfo, Effect, Environment, FileChange, Flow, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, GrpcError, GrpcService, GuardVerdict, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, PendingApproval, PluginInfo, Preview, Protocol, ReportBody, RequestSpec, RunEvent, RunPlan, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, StoredResponse, StreamEvent, StreamLog, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionDiff, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, FieldBlame, FileChange, Flow, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitFileCommit, GitIdentity, GitPullResult, GitResolution, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -1678,6 +1678,10 @@ export const appErrors: AppError[] = [
     "message": "x"
   },
   {
+    "kind": "review",
+    "message": "x"
+  },
+  {
     "kind": "unsupported",
     "message": "x"
   },
@@ -2777,4 +2781,1124 @@ export const mcpTestResult: McpTestResult = {
     },
     "time_ms": 12
   }
+};
+
+export const gitTree: GitTree = {
+  "files": {
+    "opencollection.yml": "opencollection: 1.0.0\n"
+  },
+  "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+};
+
+export const gitFileCommits: GitFileCommit[] = [
+  {
+    "change": "renamed",
+    "commit": {
+      "author": "Ada",
+      "oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "summary": "Rename",
+      "time": 1795000000
+    },
+    "from": "get.yml",
+    "path": "users/get.yml"
+  },
+  {
+    "change": "added",
+    "commit": {
+      "author": "Ada",
+      "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "summary": "Add",
+      "time": 1795000000
+    },
+    "path": "get.yml"
+  },
+  {
+    "change": "modified",
+    "commit": {
+      "author": "Ada",
+      "oid": "cccccccccccccccccccccccccccccccccccccccc",
+      "summary": "Change",
+      "time": 1795000000
+    },
+    "path": "get.yml"
+  },
+  {
+    "change": "deleted",
+    "commit": {
+      "author": "Ada",
+      "oid": "dddddddddddddddddddddddddddddddddddddddd",
+      "summary": "Drop",
+      "time": 1795000000
+    },
+    "path": "get.yml"
+  }
+];
+
+export const collectionDiff: CollectionDiff = {
+  "changes": [
+    {
+      "change": {
+        "kind": "modified"
+      },
+      "fields": [
+        {
+          "line": 4,
+          "new": {
+            "kind": "text",
+            "text": "{{baseUrl}}/v2/users"
+          },
+          "old": {
+            "kind": "text",
+            "text": "{{baseUrl}}/v1/users"
+          },
+          "path": [
+            "url"
+          ]
+        },
+        {
+          "new": {
+            "kind": "text",
+            "text": "Bearer {{token}}"
+          },
+          "old": null,
+          "path": [
+            "headers",
+            "Authorization"
+          ]
+        },
+        {
+          "line": 9,
+          "new": null,
+          "old": {
+            "kind": "json",
+            "value": {
+              "type": "none"
+            }
+          },
+          "path": [
+            "auth"
+          ]
+        }
+      ],
+      "file": "users/get.yml",
+      "name": "Get user",
+      "target": {
+        "kind": "request",
+        "path": "users/get.yml"
+      }
+    },
+    {
+      "change": {
+        "from": "list.yml",
+        "kind": "moved"
+      },
+      "fields": [],
+      "file": "users/list.yml",
+      "name": "List users",
+      "target": {
+        "kind": "request",
+        "path": "users/list.yml"
+      }
+    },
+    {
+      "change": {
+        "kind": "added"
+      },
+      "fields": [],
+      "file": "admin/folder.yml",
+      "name": "admin",
+      "target": {
+        "kind": "folder",
+        "path": "admin"
+      }
+    },
+    {
+      "change": {
+        "kind": "removed"
+      },
+      "fields": [],
+      "file": "opencollection.yml",
+      "name": "Demo",
+      "target": {
+        "kind": "collection"
+      }
+    },
+    {
+      "change": {
+        "kind": "modified"
+      },
+      "fields": [
+        {
+          "new": {
+            "kind": "secret"
+          },
+          "old": {
+            "kind": "secret"
+          },
+          "path": [
+            "variables",
+            "apiKey"
+          ]
+        }
+      ],
+      "file": "environments/PRD.yml",
+      "name": "PRD",
+      "target": {
+        "kind": "environment",
+        "name": "PRD"
+      }
+    }
+  ],
+  "files": [
+    {
+      "covered": true,
+      "path": "users/get.yml",
+      "status": "modified"
+    },
+    {
+      "covered": true,
+      "path": "admin/folder.yml",
+      "status": "added"
+    },
+    {
+      "covered": false,
+      "path": "list.yml",
+      "status": "removed"
+    }
+  ]
+};
+
+export const diffScopes: DiffScope[] = [
+  {
+    "kind": "working"
+  },
+  {
+    "kind": "commit",
+    "rev": "HEAD"
+  },
+  {
+    "from": "main",
+    "kind": "between",
+    "to": "users-v2"
+  }
+];
+
+export const mergeState: MergeState = {
+  "conflicts": [
+    {
+      "base": {
+        "kind": "text",
+        "text": "/v1"
+      },
+      "field": [
+        "url"
+      ],
+      "file": "users/get.yml",
+      "ours": {
+        "kind": "text",
+        "text": "/v2"
+      },
+      "target": {
+        "kind": "request",
+        "path": "users/get.yml"
+      },
+      "theirs": null
+    }
+  ],
+  "merging": true,
+  "text_conflicts": [
+    "notes.yml"
+  ]
+};
+
+export const conflictChoices: ConflictChoice[] = [
+  {
+    "field": [
+      "url"
+    ],
+    "kind": "field",
+    "side": "theirs",
+    "target": {
+      "kind": "request",
+      "path": "users/get.yml"
+    }
+  },
+  {
+    "kind": "file",
+    "path": "notes.yml",
+    "side": "ours"
+  }
+];
+
+export const revisionRunRequest: RevisionRunRequest = {
+  "folder": null,
+  "paths": [
+    "users/get.yml"
+  ],
+  "rev": "refs/requesttailor/review/github/7"
+};
+
+export const revisionRun: RevisionRun = {
+  "commit": {
+    "author": "Ada",
+    "oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "summary": "Users v2",
+    "time": 1795000000
+  },
+  "steps": [
+    {
+      "iteration": 0,
+      "passed": true,
+      "report": {
+        "assertions": [
+          {
+            "actual": "201",
+            "expected": "201",
+            "expression": "res.status",
+            "operator": "eq",
+            "passed": true
+          }
+        ],
+        "environment": "Local",
+        "error": null,
+        "flow": {
+          "kind": "next",
+          "request": "users/list.yml"
+        },
+        "logs": [
+          {
+            "level": "warn",
+            "origin": "collection",
+            "text": "token ***"
+          }
+        ],
+        "notes": [
+          {
+            "level": "info",
+            "source": "auth",
+            "text": "token refreshed"
+          },
+          {
+            "level": "error",
+            "source": "plugin:odata",
+            "text": "x"
+          }
+        ],
+        "request": {
+          "body_size": 2,
+          "headers": [
+            [
+              "Authorization",
+              "Bearer ***"
+            ]
+          ],
+          "method": "POST",
+          "url": "http://127.0.0.1/users"
+        },
+        "request_path": "users/create.yml",
+        "response": {
+          "body": {
+            "data": "{}",
+            "encoding": "utf8"
+          },
+          "headers": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "redirects": [
+            {
+              "location": "http://127.0.0.1/u",
+              "status": 302
+            }
+          ],
+          "size": 2,
+          "status": 201,
+          "timing": {
+            "connect": 2.0,
+            "dns": 1.5,
+            "tls": null,
+            "ttfb": 12.5
+          },
+          "total": 14.0,
+          "truncated": false,
+          "url": "http://127.0.0.1/users",
+          "version": "HTTP/2"
+        },
+        "tests": [
+          {
+            "name": "ok",
+            "origin": "request",
+            "passed": true
+          },
+          {
+            "error": "expected undefined to exist",
+            "name": "has id",
+            "origin": "folder:users",
+            "passed": false
+          }
+        ],
+        "unresolved": [
+          "missing"
+        ],
+        "var_changes": [
+          {
+            "name": "a",
+            "scope": "runtime",
+            "value": "1"
+          },
+          {
+            "name": "b",
+            "scope": "global",
+            "value": null
+          }
+        ],
+        "variables": [
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "global"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "collection"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "environment",
+              "name": "Local"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "folder",
+              "path": "users"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "request"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "runtime"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "request_name": "Get user",
+      "request_path": "users/get.yml",
+      "skipped": false
+    }
+  ],
+  "summary": {
+    "assertions_failed": 0,
+    "assertions_passed": 1,
+    "duration_ms": 20,
+    "failed": 0,
+    "passed": 1,
+    "requests": 1,
+    "skipped": 0,
+    "stopped": false,
+    "tests_failed": 0,
+    "tests_passed": 1
+  }
+};
+
+export const compareRequest: CompareRequest = {
+  "folder": "users",
+  "from": "main",
+  "paths": null,
+  "to": "users-v2"
+};
+
+export const runComparison: RunComparison = {
+  "from": {
+    "author": "Ada",
+    "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "summary": "main",
+    "time": 1795000000
+  },
+  "from_summary": {
+    "assertions_failed": 0,
+    "assertions_passed": 1,
+    "duration_ms": 20,
+    "failed": 0,
+    "passed": 1,
+    "requests": 1,
+    "skipped": 0,
+    "stopped": false,
+    "tests_failed": 0,
+    "tests_passed": 1
+  },
+  "requests": [
+    {
+      "body": [
+        {
+          "new": null,
+          "old": 1,
+          "pointer": "/items/0/id"
+        }
+      ],
+      "body_text": false,
+      "error": {
+        "new": "connection refused",
+        "old": null
+      },
+      "headers": [
+        {
+          "name": "content-type",
+          "new": null,
+          "old": "application/json"
+        }
+      ],
+      "name": "Get user",
+      "path": "users/get.yml",
+      "same": false,
+      "status": {
+        "new": 404,
+        "old": 200
+      },
+      "tests": [
+        {
+          "name": "status is 200",
+          "new": false,
+          "old": true
+        }
+      ]
+    }
+  ],
+  "to": {
+    "author": "Ada",
+    "oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "summary": "Users v2",
+    "time": 1795000000
+  },
+  "to_summary": {
+    "assertions_failed": 0,
+    "assertions_passed": 1,
+    "duration_ms": 20,
+    "failed": 0,
+    "passed": 1,
+    "requests": 1,
+    "skipped": 0,
+    "stopped": false,
+    "tests_failed": 0,
+    "tests_passed": 1
+  }
+};
+
+export const bisectRequest: BisectRequest = {
+  "bad": "HEAD",
+  "folder": null,
+  "good": "v1.0"
+};
+
+export const bisectOutcome: BisectOutcome = {
+  "candidates": 49,
+  "first_bad": {
+    "author": "Ada",
+    "oid": "cccccccccccccccccccccccccccccccccccccccc",
+    "summary": "Break it",
+    "time": 1795000000
+  },
+  "steps": [
+    {
+      "commit": {
+        "author": "Ada",
+        "oid": "cccccccccccccccccccccccccccccccccccccccc",
+        "summary": "Break it",
+        "time": 1795000000
+      },
+      "failed": [
+        "Get user: status is 200"
+      ],
+      "remaining": 12,
+      "verdict": "good"
+    },
+    {
+      "commit": {
+        "author": "Ada",
+        "oid": "cccccccccccccccccccccccccccccccccccccccc",
+        "summary": "Break it",
+        "time": 1795000000
+      },
+      "failed": [
+        "Get user: status is 200"
+      ],
+      "remaining": 12,
+      "verdict": "bad"
+    },
+    {
+      "commit": {
+        "author": "Ada",
+        "oid": "cccccccccccccccccccccccccccccccccccccccc",
+        "summary": "Break it",
+        "time": 1795000000
+      },
+      "failed": [
+        "Get user: status is 200"
+      ],
+      "remaining": 12,
+      "verdict": "skip"
+    }
+  ]
+};
+
+export const testRecord: TestRecord = {
+  "collection": "",
+  "environment": "Local",
+  "passed": false,
+  "request": "users/get.yml",
+  "source": "runner",
+  "status": 200,
+  "tests": [
+    {
+      "name": "status is 200",
+      "passed": true
+    }
+  ],
+  "time": 1795000000
+};
+
+export const requestTimeline: RequestTimeline = {
+  "entries": [
+    {
+      "commit": {
+        "change": "modified",
+        "commit": {
+          "author": "Ada",
+          "oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "summary": "v2",
+          "time": 1795000000
+        },
+        "path": "users/get.yml"
+      },
+      "fields": [
+        {
+          "line": 4,
+          "new": {
+            "kind": "text",
+            "text": "{{baseUrl}}/v2/users"
+          },
+          "old": {
+            "kind": "text",
+            "text": "{{baseUrl}}/v1/users"
+          },
+          "path": [
+            "url"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "collection": "",
+          "environment": "Local",
+          "passed": false,
+          "request": "users/get.yml",
+          "source": "runner",
+          "status": 200,
+          "tests": [
+            {
+              "name": "status is 200",
+              "passed": true
+            }
+          ],
+          "time": 1795000000
+        }
+      ]
+    }
+  ],
+  "path": "users/get.yml"
+};
+
+export const fieldBlames: FieldBlame[] = [
+  {
+    "commit": {
+      "author": "Ada",
+      "oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "summary": "v2",
+      "time": 1795000000
+    },
+    "field": [
+      "url"
+    ],
+    "value": {
+      "kind": "text",
+      "text": "{{baseUrl}}/v2/users"
+    }
+  }
+];
+
+export const reviewHosts: ReviewHost[] = [
+  {
+    "api": "https://git.example.com:8443/api/v3",
+    "host": "git.example.com:8443",
+    "kind": "github"
+  }
+];
+
+export const reviewRepo: ReviewRepo = {
+  "api": "https://gitlab.example.com/api/v4",
+  "host": "gitlab.example.com",
+  "kind": "gitlab",
+  "project": "group/sub/api"
+};
+
+export const pullRequests: PullRequest[] = [
+  {
+    "author": "grace",
+    "base": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "draft": false,
+    "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "number": 7,
+    "source": "users-v2",
+    "state": "open",
+    "target": "main",
+    "title": "Users v2",
+    "updated": 1795000000,
+    "url": "https://github.com/acme/orders/pull/7"
+  },
+  {
+    "author": "grace",
+    "base": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "draft": false,
+    "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "number": 7,
+    "source": "users-v2",
+    "state": "closed",
+    "target": "main",
+    "title": "Users v2",
+    "updated": 1795000000,
+    "url": "https://github.com/acme/orders/pull/7"
+  },
+  {
+    "author": "grace",
+    "base": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "draft": false,
+    "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "number": 7,
+    "source": "users-v2",
+    "state": "merged",
+    "target": "main",
+    "title": "Users v2",
+    "updated": 1795000000,
+    "url": "https://github.com/acme/orders/pull/7"
+  }
+];
+
+export const reviewComments: ReviewComment[] = [
+  {
+    "author": "grace",
+    "body": "Why v2?",
+    "created": 1795000000,
+    "field": [
+      "url"
+    ],
+    "id": "1",
+    "line": 4,
+    "outdated": false,
+    "path": "users/get.yml"
+  },
+  {
+    "author": "ada",
+    "body": "LGTM",
+    "created": 1795000100,
+    "id": "2",
+    "line": null,
+    "outdated": false,
+    "path": null
+  }
+];
+
+export const newReviewComment: NewReviewComment = {
+  "body": "Why v2?",
+  "line": 4,
+  "path": "users/get.yml"
+};
+
+export const reviewSubmissions: ReviewSubmission[] = [
+  {
+    "body": "",
+    "verdict": "approve"
+  },
+  {
+    "body": "",
+    "verdict": "request-changes"
+  },
+  {
+    "body": "",
+    "verdict": "comment"
+  }
+];
+
+export const ciStatus: CiStatus = {
+  "checks": [
+    {
+      "name": "rt run",
+      "state": "pending",
+      "url": null
+    },
+    {
+      "name": "rt run",
+      "state": "success",
+      "url": null
+    },
+    {
+      "name": "rt run",
+      "state": "failure",
+      "url": null
+    },
+    {
+      "name": "rt run",
+      "state": "neutral",
+      "url": null
+    },
+    {
+      "name": "rt run",
+      "state": "none",
+      "url": null
+    }
+  ],
+  "state": "failure"
+};
+
+export const reviewSession: ReviewSession = {
+  "head_ref": "refs/requesttailor/review/github/7",
+  "merge_base": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "pull": {
+    "author": "grace",
+    "base": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "draft": false,
+    "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "number": 7,
+    "source": "users-v2",
+    "state": "open",
+    "target": "main",
+    "title": "Users v2",
+    "updated": 1795000000,
+    "url": "https://github.com/acme/orders/pull/7"
+  }
+};
+
+export const reviewErrors: ReviewError[] = [
+  {
+    "kind": "no-token",
+    "message": "github.com"
+  },
+  {
+    "kind": "auth",
+    "message": "token expired"
+  },
+  {
+    "kind": "not-found",
+    "message": "pull 9"
+  },
+  {
+    "kind": "transport",
+    "message": "timeout"
+  },
+  {
+    "kind": "host",
+    "message": "422"
+  }
+];
+
+export const contractSpec: ContractSpec = {
+  "configured": false,
+  "path": "/openapi.yaml",
+  "title": "Orders API",
+  "version": "1.3.0"
+};
+
+export const contractReport: ContractReport = {
+  "covered": 4,
+  "findings": [
+    {
+      "kind": "no-operation",
+      "message": "x",
+      "operation": "GET /users/{id}",
+      "request": "users/get.yml"
+    },
+    {
+      "kind": "unknown-parameter",
+      "message": "x",
+      "operation": "GET /users/{id}",
+      "request": "users/get.yml"
+    },
+    {
+      "kind": "missing-parameter",
+      "message": "x",
+      "operation": "GET /users/{id}",
+      "request": "users/get.yml"
+    },
+    {
+      "kind": "body-mismatch",
+      "message": "x",
+      "operation": "GET /users/{id}",
+      "request": "users/get.yml"
+    }
+  ],
+  "operations": 5,
+  "uncovered": [
+    "DELETE /users/{id}"
+  ]
+};
+
+export const specChanges: SpecChanges = {
+  "changes": [
+    {
+      "breaking": true,
+      "kind": "operation-added",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "operation-removed",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "parameter-added",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "parameter-removed",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "required-added",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "field-removed",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "field-added",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "type-changed",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "response-changed",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    },
+    {
+      "breaking": true,
+      "kind": "other",
+      "location": "response 200: items[].id",
+      "message": "x",
+      "operation": null,
+      "requests": [
+        "users/get.yml"
+      ]
+    }
+  ],
+  "from_version": "1.2.0",
+  "to_version": null
+};
+
+export const historyScan: HistoryScan = {
+  "commits": 50,
+  "findings": [
+    {
+      "branches": [
+        "main"
+      ],
+      "commits": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "finding": {
+        "hint": "Use a {{variable}}",
+        "kind": "bearer token",
+        "line": 4,
+        "path": "users/get.yml",
+        "snippet": "Authorization: Bearer ***"
+      },
+      "first": {
+        "author": "Ada",
+        "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "summary": "Add",
+        "time": 1795000000
+      },
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:users/get.yml:4",
+      "in_head": true
+    }
+  ]
+};
+
+export const scanProgress: ScanProgress = {
+  "scanned": 10,
+  "total": 50
+};
+
+export const rescuePlan: RescuePlan = {
+  "environment": "Local",
+  "findings": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:users/get.yml:4"
+  ],
+  "variable": "apiToken"
+};
+
+export const rescueResult: RescueResult = {
+  "backup": "refs/requesttailor/backup/1795000000/",
+  "branches": [
+    {
+      "name": "main",
+      "new": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "old": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "pushed": true
+    }
+  ],
+  "rewritten": 12
+};
+
+export const wave12RequestSpec: RequestSpec = {
+  "actions": [
+    {
+      "enabled": false,
+      "expression": "res.body.id",
+      "method": "jsonq",
+      "phase": "after-response",
+      "scope": "environment",
+      "variable": "userId"
+    }
+  ],
+  "assertions": [
+    {
+      "description": "created",
+      "enabled": true,
+      "expression": "res.status",
+      "operator": "eq",
+      "value": "201"
+    }
+  ],
+  "auth": {
+    "token": "{{token}}",
+    "type": "bearer"
+  },
+  "body": {
+    "data": "{}",
+    "kind": "json",
+    "type": "raw"
+  },
+  "headers": [
+    {
+      "enabled": true,
+      "name": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "method": "POST",
+  "name": "Create user",
+  "params": [
+    {
+      "enabled": true,
+      "kind": "query",
+      "name": "x",
+      "value": "1"
+    },
+    {
+      "enabled": false,
+      "kind": "path",
+      "name": "id",
+      "value": "7"
+    }
+  ],
+  "scripts": [
+    {
+      "code": "rt.vars.set('a', '1');",
+      "phase": "before-request"
+    },
+    {
+      "code": "test('ok', () => expect(rt.response.status).to.equal(201));",
+      "phase": "tests"
+    }
+  ],
+  "seq": 2.0,
+  "settings": {
+    "encode_url": false,
+    "follow_redirects": true,
+    "max_redirects": null,
+    "timeout_ms": 0
+  },
+  "url": "{{baseUrl}}/users/:id?x=1",
+  "vars": [
+    {
+      "enabled": true,
+      "name": "v",
+      "secret": false,
+      "value": "1"
+    }
+  ]
 };

@@ -21,6 +21,9 @@ test("budgets.toml carries the product budgets", () => {
   assert.equal(budgets.large_response_frame.max, 20);
   // "Under three keystrokes".
   assert.equal(budgets.send_keystrokes.max, 2);
+  // Wave 12: 1000 requests, 100 changed.
+  assert.equal(budgets.semantic_diff.max, 200);
+  assert.equal(budgets.semantic_diff.unit, "ms");
 });
 
 test("measurements at or under budget pass, over budget fails", () => {
@@ -54,7 +57,7 @@ function gate(results, ...args) {
   }
 }
 
-const ALL_OK = { cold_start: 300, idle_memory: 100, large_response_frame: 16.8, send_keystrokes: 1 };
+const ALL_OK = { cold_start: 300, idle_memory: 100, large_response_frame: 16.8, send_keystrokes: 1, semantic_diff: 40 };
 
 test("gate: every budget met and measured passes with --require-all", () => {
   const r = gate(ALL_OK, "--require-all");
@@ -67,6 +70,7 @@ test("gate: an exceeded budget fails the build, with or without --require-all", 
     ["idle_memory", 150.1],
     ["large_response_frame", 33.4],
     ["send_keystrokes", 3],
+    ["semantic_diff", 200.1],
   ]) {
     for (const args of [[], ["--require-all"]]) {
       const r = gate({ ...ALL_OK, [metric]: value }, ...args);

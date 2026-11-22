@@ -29,5 +29,12 @@ export function tauriGit(call: Call): GitApi {
     setCredentials: (host, username, password) => call("git_set_credentials", { host, username, password }),
     deleteCredentials: (host) => call("git_delete_credentials", { host }),
     scan: (paths) => call("git_scan", { paths }),
+    // Wave 12 (interface): revisions, read without a checkout.
+    revParse: (rev) => call("git_rev_parse", { rev }),
+    treeAt: (rev) => call("git_tree_at", { rev }),
+    show: (rev, path) => call("git_show", { rev, path }),
+    fileLog: (path, limit) => call("git_file_log", { path, limit }),
+    mergeBase: (a, b) => call("git_merge_base", { a, b }),
+    commits: (from, to, limit) => call("git_commits", { from, to, limit }),
   };
 }

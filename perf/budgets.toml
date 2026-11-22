@@ -27,3 +27,9 @@ description = "Keystrokes from app start to a sent request (the last collection 
 unit = "keys"
 # "Under three keystrokes".
 max = 2
+
+[metrics.semantic_diff]
+description = "Semantic diff of a collection with 1000 requests, 100 of them changed (median of 9, release build)"
+unit = "ms"
+# Wave 12: comparing two revisions must feel instant, also in a PR review of a large collection.
+max = 200

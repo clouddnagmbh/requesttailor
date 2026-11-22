@@ -480,6 +480,8 @@ export type AppError =
   | { kind: "auth"; message: string }
   /** A commit was refused: files contain credentials (see `GitApi.scan`). */
   | { kind: "secrets-found"; message: string }
+  /** A Git host's review API failed or refused (wave 12, strand E). */
+  | { kind: "review"; message: string }
   | { kind: "unsupported"; message: string }
   | { kind: "shell"; message: string };
 
@@ -1070,4 +1072,395 @@ export interface McpTestResult {
   result: McpCallResult | null;
   error: string | null;
   assertions: AssertionResult[];
+}
+
+// ---- Wave 12 (Git for APIs). Rust: rt_app::git (revisions), rt_format::{diff, merge,
+// contract}, rt_app::{diffs, merges, compare, bisect, timeline, review, contract, rescue}. ----
+
+/** The collection's files at a commit, read without a checkout (`GitApi.treeAt`). */
+export interface GitTree {
+  /** The commit the rev resolved to. */
+  oid: string;
+  /** Path relative to the collection root → text (`*.yml` as `FileSet::from_dir` reads). */
+  files: Record<string, string>;
+}
+
+export type GitFileChange = "added" | "modified" | "deleted" | "renamed";
+
+export interface GitFileCommit {
+  commit: GitCommit;
+  /** The file's path at this commit. */
+  path: string;
+  change: GitFileChange;
+  /** The path before a rename. */
+  from?: string;
+}
+
+/** A model field, e.g. `["headers", "Authorization"]` (see `rt_format::diff`). */
+export type FieldPath = string[];
+
+export type ChangeTarget =
+  | { kind: "collection" }
+  | { kind: "folder"; path: string }
+  | { kind: "request"; path: string }
+  | { kind: "environment"; name: string };
+
+export type ChangeKind =
+  | { kind: "added" }
+  | { kind: "removed" }
+  | { kind: "modified" }
+  | { kind: "moved"; from: string };
+
+export type DiffValue =
+  | { kind: "text"; text: string }
+  | { kind: "json"; value: unknown }
+  /** A secret's value: never shown. */
+  | { kind: "secret" };
+
+export interface FieldChange {
+  path: FieldPath;
+  old: DiffValue | null;
+  new: DiffValue | null;
+  /** 1-based line of the field in the new file (old file if removed). */
+  line?: number;
+}
+
+export interface ModelChange {
+  target: ChangeTarget;
+  change: ChangeKind;
+  file: string;
+  name: string;
+  fields: FieldChange[];
+}
+
+export type FileStatus = "added" | "removed" | "modified";
+
+export interface ChangedFile {
+  path: string;
+  status: FileStatus;
+  /** `false`: the file also differs in ways the model does not hold; offer its line diff. */
+  covered: boolean;
+}
+
+export interface CollectionDiff {
+  changes: ModelChange[];
+  files: ChangedFile[];
+}
+
+/** What the Git view diffs. */
+export type DiffScope =
+  | { kind: "working" }
+  | { kind: "commit"; rev: string }
+  | { kind: "between"; from: string; to: string };
+
+export interface FieldConflict {
+  target: ChangeTarget;
+  file: string;
+  field: FieldPath;
+  base: DiffValue | null;
+  ours: DiffValue | null;
+  theirs: DiffValue | null;
+}
+
+export type Side = "ours" | "theirs";
+
+export type ConflictChoice =
+  | { kind: "field"; target: ChangeTarget; field: FieldPath; side: Side }
+  | { kind: "file"; path: string; side: Side };
+
+export interface MergeState {
+  merging: boolean;
+  conflicts: FieldConflict[];
+  text_conflicts: string[];
+}
+
+export interface RevisionRunRequest {
+  rev: string;
+  folder?: string | null;
+  /** Only these requests (paths at `rev`), in this order. */
+  paths?: string[] | null;
+}
+
+export interface RevisionRun {
+  commit: GitCommit;
+  steps: RunStep[];
+  summary: RunSummary;
+}
+
+export interface CompareRequest {
+  from: string;
+  to: string;
+  folder?: string | null;
+  paths?: string[] | null;
+}
+
+export interface ValueChange<T> {
+  old: T | null;
+  new: T | null;
+}
+
+export interface HeaderChange {
+  name: string;
+  old: string | null;
+  new: string | null;
+}
+
+export interface BodyChange {
+  /** JSON Pointer, e.g. `/items/0/id`. */
+  pointer: string;
+  old: unknown | null;
+  new: unknown | null;
+}
+
+export interface TestChange {
+  name: string;
+  old: boolean | null;
+  new: boolean | null;
+}
+
+export interface RequestComparison {
+  path: string;
+  name: string;
+  same: boolean;
+  status: ValueChange<number> | null;
+  headers: HeaderChange[];
+  body: BodyChange[];
+  body_text: boolean;
+  tests: TestChange[];
+  error: ValueChange<string> | null;
+}
+
+export interface RunComparison {
+  from: GitCommit;
+  to: GitCommit;
+  requests: RequestComparison[];
+  from_summary: RunSummary;
+  to_summary: RunSummary;
+}
+
+export interface BisectRequest {
+  good: string;
+  bad: string;
+  folder?: string | null;
+}
+
+export type BisectVerdict = "good" | "bad" | "skip";
+
+export interface BisectStep {
+  commit: GitCommit;
+  verdict: BisectVerdict;
+  failed: string[];
+  remaining: number;
+}
+
+export interface BisectOutcome {
+  first_bad: GitCommit | null;
+  candidates: number;
+  steps: BisectStep[];
+}
+
+export type RecordSource = "runner" | "compare" | "bisect";
+
+export interface RecordedTest {
+  name: string;
+  passed: boolean;
+}
+
+/** Results of one request in one run, recorded locally under a commit. */
+export interface TestRecord {
+  collection: string;
+  request: string;
+  environment: string | null;
+  time: number;
+  source: RecordSource;
+  passed: boolean;
+  status: number | null;
+  tests: RecordedTest[];
+}
+
+export interface TimelineEntry {
+  commit: GitFileCommit;
+  fields: FieldChange[];
+  tests: TestRecord[];
+}
+
+export interface RequestTimeline {
+  path: string;
+  entries: TimelineEntry[];
+}
+
+export interface FieldBlame {
+  field: FieldPath;
+  commit: GitCommit;
+  value: DiffValue | null;
+}
+
+export type ReviewKind = "github" | "gitlab";
+
+export interface ReviewHost {
+  host: string;
+  kind: ReviewKind;
+  api: string;
+}
+
+export interface ReviewRepo {
+  kind: ReviewKind;
+  host: string;
+  api: string;
+  project: string;
+}
+
+export type PullState = "open" | "closed" | "merged";
+
+export interface PullRequest {
+  number: number;
+  title: string;
+  author: string;
+  state: PullState;
+  draft: boolean;
+  source: string;
+  target: string;
+  head: string;
+  base: string;
+  url: string;
+  updated: number;
+}
+
+export interface ReviewComment {
+  id: string;
+  author: string;
+  body: string;
+  created: number;
+  path: string | null;
+  line: number | null;
+  field?: FieldPath;
+  outdated: boolean;
+}
+
+export interface NewReviewComment {
+  path: string;
+  line: number;
+  body: string;
+}
+
+export type ReviewVerdict = "approve" | "request-changes" | "comment";
+
+export interface ReviewSubmission {
+  verdict: ReviewVerdict;
+  body: string;
+}
+
+export type CiState = "pending" | "success" | "failure" | "neutral" | "none";
+
+export interface CiCheck {
+  name: string;
+  state: CiState;
+  url: string | null;
+}
+
+export interface CiStatus {
+  state: CiState;
+  checks: CiCheck[];
+}
+
+export interface ReviewSession {
+  pull: PullRequest;
+  head_ref: string;
+  merge_base: string;
+}
+
+export type ReviewError =
+  | { kind: "no-token"; message: string }
+  | { kind: "auth"; message: string }
+  | { kind: "not-found"; message: string }
+  | { kind: "transport"; message: string }
+  | { kind: "host"; message: string };
+
+export interface ContractSpec {
+  path: string;
+  title: string;
+  version: string;
+  configured: boolean;
+}
+
+export type FindingKind = "no-operation" | "unknown-parameter" | "missing-parameter" | "body-mismatch";
+
+export interface ContractFinding {
+  request: string;
+  kind: FindingKind;
+  operation: string | null;
+  message: string;
+}
+
+export interface ContractReport {
+  findings: ContractFinding[];
+  uncovered: string[];
+  operations: number;
+  covered: number;
+}
+
+export type SpecChangeKind =
+  | "operation-added"
+  | "operation-removed"
+  | "parameter-added"
+  | "parameter-removed"
+  | "required-added"
+  | "field-removed"
+  | "field-added"
+  | "type-changed"
+  | "response-changed"
+  | "other";
+
+export interface SpecChange {
+  kind: SpecChangeKind;
+  breaking: boolean;
+  operation: string | null;
+  location: string;
+  message: string;
+  requests: string[];
+}
+
+export interface SpecChanges {
+  from_version: string | null;
+  to_version: string | null;
+  changes: SpecChange[];
+}
+
+export interface HistoryFinding {
+  /** `<commit oid>:<path>:<line>` of the first occurrence. */
+  id: string;
+  finding: SecretFinding;
+  first: GitCommit;
+  commits: string[];
+  branches: string[];
+  in_head: boolean;
+}
+
+export interface ScanProgress {
+  scanned: number;
+  total: number;
+}
+
+export interface HistoryScan {
+  commits: number;
+  findings: HistoryFinding[];
+}
+
+export interface RescuePlan {
+  findings: string[];
+  variable: string;
+  environment: string;
+}
+
+export interface RewrittenBranch {
+  name: string;
+  old: string;
+  new: string;
+  pushed: boolean;
+}
+
+export interface RescueResult {
+  rewritten: number;
+  branches: RewrittenBranch[];
+  backup: string;
 }

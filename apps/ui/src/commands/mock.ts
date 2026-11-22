@@ -39,9 +39,18 @@ import { mockGraphQl } from "./mock-graphql";
 import { mockAgents } from "./mock-agents";
 import { mockMcp } from "./mock-mcp-client";
 import { mockAi } from "./mock-ai";
+// Wave 12: one file per strand.
+import { mockDiffs } from "./mock-diffs";
+import { mockMerges } from "./mock-merges";
+import { mockCompare } from "./mock-compare";
+import { mockTimeline } from "./mock-timeline";
+import { mockReview } from "./mock-review";
+import { mockContract } from "./mock-contract";
+import { mockRescue } from "./mock-rescue";
+import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
 import { mockScripts } from "./mock-scripts";
-import { mockGit } from "./mock-git";
+import { mockGit, type MockGit } from "./mock-git";
 import { MockHistory, mockSearch } from "./mock-history";
 import { mockImports } from "./mock-import";
 import { mockPlugins, type MockPlugins } from "./mock-plugins";
@@ -238,6 +247,22 @@ export class MockBackend implements Backend {
       undefined,
   });
   readonly ai = mockAi();
+  /** Wave 12 (one file per strand); `wave12` is what their parts read (./mock-wave12.ts). */
+  private readonly wave12: MockWave12Host = {
+    backend: this,
+    git: () => this.git as MockGit,
+    requests: () => this.requests,
+    saved: () => this.saved,
+    environments: () => this.envs,
+    send: (path, input) => this.sendNow(path, input),
+  };
+  readonly diffs = mockDiffs(this.wave12);
+  readonly merges = mockMerges(this.wave12);
+  readonly compare = mockCompare(this.wave12);
+  readonly timeline = mockTimeline(this.wave12);
+  readonly review = mockReview(this.wave12);
+  readonly contract = mockContract(this.wave12);
+  readonly rescue = mockRescue(this.wave12);
 
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;

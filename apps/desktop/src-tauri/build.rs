@@ -112,6 +112,53 @@ const COMMANDS: &[&str] = &[
     "mcp_get_test",
     "mcp_save_test",
     "mcp_run_test",
+    // Wave 12 (interface): revisions.
+    "git_rev_parse",
+    "git_tree_at",
+    "git_show",
+    "git_file_log",
+    "git_merge_base",
+    "git_commits",
+    // Wave 12, strand A.
+    "diff_working",
+    "diff_commit",
+    "diff_between",
+    // Wave 12, strand B.
+    "merge_conflicts",
+    "merge_resolve",
+    // Wave 12, strand C.
+    "compare_run",
+    "compare_revisions",
+    "compare_bisect",
+    "compare_cancel",
+    // Wave 12, strand D.
+    "timeline_history",
+    "timeline_blame",
+    "timeline_version",
+    "timeline_results",
+    // Wave 12, strand E.
+    "review_hosts",
+    "review_set_hosts",
+    "review_repo",
+    "review_has_token",
+    "review_set_token",
+    "review_delete_token",
+    "review_start_login",
+    "review_finish_login",
+    "review_list",
+    "review_open",
+    "review_comments",
+    "review_comment",
+    "review_submit",
+    "review_ci",
+    // Wave 12, strand F.
+    "contract_spec",
+    "contract_check",
+    "contract_changes",
+    "contract_changelog",
+    // Wave 12, strand G.
+    "rescue_scan",
+    "rescue_rewrite",
 ];
 
 fn main() {

@@ -24,8 +24,8 @@
 use std::path::{Path, PathBuf};
 
 use rt_app::git::{
-    GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution,
-    GitStatus,
+    GitBranch, GitCommit, GitConflict, GitDiff, GitFileCommit, GitIdentity, GitPullResult,
+    GitResolution, GitStatus, GitTree,
 };
 use rt_app::secret_scan::{self, SecretFinding};
 use rt_app::{AppError, SecretStore};
@@ -230,6 +230,41 @@ pub fn delete_credentials<S: SecretStore>(core: &Core<S>, host: &str) -> Result<
     rt_git::credentials::delete(core.secrets(), host)
 }
 
+// ---- Wave 12 (interface): revisions, read without a checkout ----
+
+pub fn rev_parse<S: SecretStore>(core: &Core<S>, rev: &str) -> Result<String> {
+    repo(core)?.rev_parse(rev)
+}
+
+pub fn tree_at<S: SecretStore>(core: &Core<S>, rev: &str) -> Result<GitTree> {
+    repo(core)?.tree_at(rev)
+}
+
+pub fn show<S: SecretStore>(core: &Core<S>, rev: &str, path: &str) -> Result<Option<String>> {
+    repo(core)?.show(rev, path)
+}
+
+pub fn file_log<S: SecretStore>(
+    core: &Core<S>,
+    path: &str,
+    limit: u32,
+) -> Result<Vec<GitFileCommit>> {
+    repo(core)?.file_log(path, limit)
+}
+
+pub fn merge_base<S: SecretStore>(core: &Core<S>, a: &str, b: &str) -> Result<Option<String>> {
+    repo(core)?.merge_base(a, b)
+}
+
+pub fn commits<S: SecretStore>(
+    core: &Core<S>,
+    from: Option<&str>,
+    to: &str,
+    limit: u32,
+) -> Result<Vec<GitCommit>> {
+    repo(core)?.commits(from, to, limit)
+}
+
 /// Runs `f` on a blocking thread (Git does file and network I/O; reqwest's blocking client
 /// must not run on the async runtime).
 async fn blocking<T: Send + 'static>(
@@ -394,4 +429,51 @@ pub async fn git_scan(
     paths: Vec<String>,
 ) -> Result<Vec<SecretFinding>, CommandError> {
     blocking(app, move |core| scan(core, &paths)).await
+}
+
+#[tauri::command]
+pub async fn git_rev_parse(app: tauri::AppHandle, rev: String) -> Result<String, CommandError> {
+    blocking(app, move |core| rev_parse(core, &rev)).await
+}
+
+#[tauri::command]
+pub async fn git_tree_at(app: tauri::AppHandle, rev: String) -> Result<GitTree, CommandError> {
+    blocking(app, move |core| tree_at(core, &rev)).await
+}
+
+#[tauri::command]
+pub async fn git_show(
+    app: tauri::AppHandle,
+    rev: String,
+    path: String,
+) -> Result<Option<String>, CommandError> {
+    blocking(app, move |core| show(core, &rev, &path)).await
+}
+
+#[tauri::command]
+pub async fn git_file_log(
+    app: tauri::AppHandle,
+    path: String,
+    limit: u32,
+) -> Result<Vec<GitFileCommit>, CommandError> {
+    blocking(app, move |core| file_log(core, &path, limit)).await
+}
+
+#[tauri::command]
+pub async fn git_merge_base(
+    app: tauri::AppHandle,
+    a: String,
+    b: String,
+) -> Result<Option<String>, CommandError> {
+    blocking(app, move |core| merge_base(core, &a, &b)).await
+}
+
+#[tauri::command]
+pub async fn git_commits(
+    app: tauri::AppHandle,
+    from: Option<String>,
+    to: String,
+    limit: u32,
+) -> Result<Vec<GitCommit>, CommandError> {
+    blocking(app, move |core| commits(core, from.as_deref(), &to, limit)).await
 }

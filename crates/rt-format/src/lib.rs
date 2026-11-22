@@ -18,6 +18,7 @@
 //! written back (format-preserving edits) in the `write` module.
 //!
 //! Owner: wave 2, strand B (reading); wave 3, strand F (writing); wave 4, strand B (`import`).
+//! Wave 12: `diff` (strand A), `merge` (strand B), `contract` (strand F).
 
 use std::collections::BTreeMap;
 
@@ -26,6 +27,10 @@ use rt_core::model::Collection;
 /// Wave 8, strand C: `extensions.requesttailor.agents`.
 mod agents;
 mod auth;
+/// Wave 12, strand F: OpenAPI contract check, breaking changes, API changelog.
+pub mod contract;
+/// Wave 12, strand A: semantic diff (per model field).
+pub mod diff;
 mod edit;
 /// Wave 8, strand F: saved examples and docs of items (read only), for `rt mock` and `rt docs`.
 pub mod examples;
@@ -34,6 +39,8 @@ mod fs;
 pub mod import;
 /// Wave 8, strand D: saved MCP tests (`*.mcp.yaml`).
 pub mod mcp_test;
+/// Wave 12, strand B: three-way merge on the model.
+pub mod merge;
 /// Wave 8: GraphQL, gRPC and WebSocket items.
 mod protocols;
 mod read;

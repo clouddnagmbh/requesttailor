@@ -6,7 +6,7 @@
 // is sent anywhere. What is measured and how: perf/README.md.
 //
 // Usage: node scripts/perf/run.mjs [options]
-//   --only <list>       comma-separated parts: desktop, frames, keystrokes (default: all)
+//   --only <list>       comma-separated parts: desktop, frames, keystrokes, diff (default: all)
 //   --binary <path>     desktop release binary (default: <target dir>/release/rt-desktop)
 //   --collection <dir>  collection the desktop app reopens (default: testdata/conformance/collection)
 //   --runs <n>          desktop starts, the first is discarded (default 10)
@@ -28,7 +28,7 @@ import { measureDesktop } from "./desktop.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WEB = join(ROOT, "apps", "web");
-const PARTS = ["desktop", "frames", "keystrokes"];
+const PARTS = ["desktop", "frames", "keystrokes", "diff"];
 
 export function parseArgs(argv) {
   const opts = { only: PARTS, runs: 10, memoryRuns: 3, check: false, out: join(ROOT, "perf", "results.json") };
@@ -133,7 +133,22 @@ async function keystrokes() {
   }
 }
 
-const STEPS = { desktop, frames, keystrokes };
+/** Wave 12: the semantic diff of 1000 requests (crates/rt-format/tests/diff_perf.rs), release build. */
+async function diff() {
+  const out = mkdtempSync(join(tmpdir(), "rt-perf-diff-"));
+  try {
+    run("cargo", ["test", "--release", "--locked", "-p", "rt-format", "--test", "diff_perf", "--", "semantic_diff_of_1000_requests_is_measured", "--exact", "--nocapture"], {
+      cwd: ROOT,
+      env: { ...process.env, RT_PERF_OUT: out },
+    });
+    const r = readJson(join(out, "diff.json"));
+    return { results: { semantic_diff: r.semantic_diff }, details: { runs: r.runs } };
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+}
+
+const STEPS = { desktop, frames, keystrokes, diff };
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));

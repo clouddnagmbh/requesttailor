@@ -16,13 +16,21 @@
 
 pub mod agent;
 pub mod approvals;
+/// Wave 12, strand C: `rt bisect`.
+pub mod bisect;
+/// Wave 12, strand F: `rt changelog`.
+pub mod changelog;
 pub mod cookies;
+/// Wave 12, strand A: `rt diff`.
+pub mod diff;
 pub mod docs;
 /// Wave 8, strand B: `rt send` on gRPC requests.
 pub mod grpc;
 pub mod import;
 pub mod mcp;
 pub mod mcp_test;
+/// Wave 12, strand B: `rt merge-driver`.
+pub mod merge_driver;
 pub mod mock;
 pub mod oauth;
 pub mod plugins;
@@ -71,7 +79,7 @@ Usage:
   rt import <file>... --out <dir> [--format <FORMAT>] [--json]
   rt scan [<path>...] [--json]
   rt mcp-test [<path>...] [-e <NAME>] [--var <NAME=VALUE>]...
-  rt --help | --version
+{git_usage}  rt --help | --version
 
 Options for send:
   -e, --env <NAME>          Use the environment named NAME
@@ -151,6 +159,7 @@ rt import converts exports of other tools into a new collection folder:
   Environments. Exit code {EXIT_OK} once the collection is written, even if the report
   lists losses; {EXIT_USAGE} if the files cannot be imported.
 
+{git_help}
 The collection root is the nearest folder above <request-file> that contains
 {COLLECTION_FILE}.
 
@@ -172,6 +181,21 @@ Exit codes:
         agent_port = agent::DEFAULT_PORT,
         agent_origins = agent::DEFAULT_ORIGINS.join(" and "),
         scan_found = scan::EXIT_FOUND,
+        // Wave 12: each command's usage and help live in its own module.
+        git_usage = [
+            diff::USAGE,
+            merge_driver::USAGE,
+            bisect::USAGE,
+            changelog::USAGE
+        ]
+        .concat(),
+        git_help = [
+            diff::HELP,
+            merge_driver::HELP,
+            bisect::HELP,
+            changelog::HELP
+        ]
+        .join("\n"),
     )
 }
 
@@ -200,6 +224,14 @@ pub enum Command {
     /// Wave 8, strand F: `rt mock`, `rt docs`.
     Mock(mock::Args),
     Docs(docs::Args),
+    /// Wave 12, strand A: `rt diff`.
+    Diff(diff::Args),
+    /// Wave 12, strand B: `rt merge-driver`.
+    MergeDriver(merge_driver::Args),
+    /// Wave 12, strand C: `rt bisect`.
+    Bisect(bisect::Args),
+    /// Wave 12, strand F: `rt changelog`.
+    Changelog(changelog::Args),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -298,6 +330,18 @@ where
         }
         Some(Value(cmd)) if cmd == "docs" => {
             Ok(docs::parse(&mut parser)?.map_or(Command::Help, Command::Docs))
+        }
+        Some(Value(cmd)) if cmd == "diff" => {
+            Ok(diff::parse(&mut parser)?.map_or(Command::Help, Command::Diff))
+        }
+        Some(Value(cmd)) if cmd == "merge-driver" => {
+            Ok(merge_driver::parse(&mut parser)?.map_or(Command::Help, Command::MergeDriver))
+        }
+        Some(Value(cmd)) if cmd == "bisect" => {
+            Ok(bisect::parse(&mut parser)?.map_or(Command::Help, Command::Bisect))
+        }
+        Some(Value(cmd)) if cmd == "changelog" => {
+            Ok(changelog::parse(&mut parser)?.map_or(Command::Help, Command::Changelog))
         }
         Some(Value(cmd)) => Err(format!("unknown command {:?}", cmd.to_string_lossy())),
         Some(other) => Err(other.unexpected().to_string()),
@@ -656,6 +700,10 @@ where
         Ok(Command::McpTest(args)) => return mcp_test::run(args, stdout, stderr),
         Ok(Command::Mock(args)) => return mock::run(args, stdout, stderr),
         Ok(Command::Docs(args)) => return docs::run(args, stdout, stderr),
+        Ok(Command::Diff(args)) => return diff::run(args, stdout, stderr),
+        Ok(Command::MergeDriver(args)) => return merge_driver::run(args, stdout, stderr),
+        Ok(Command::Bisect(args)) => return bisect::run(args, stdout, stderr),
+        Ok(Command::Changelog(args)) => return changelog::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
     let (root, request_path) = match find_root(&args.file) {

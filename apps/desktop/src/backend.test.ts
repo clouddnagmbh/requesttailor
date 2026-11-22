@@ -8,6 +8,24 @@ import { describe, expect, it } from "vitest";
 
 import { COMMANDS, TauriBackend, type Command, type Invoke } from "./backend";
 import { packImport, packPluginImport } from "./import";
+// Wave 12: commands registered by the interface that no method calls yet (one list per strand).
+import { PENDING as COMPARE_PENDING } from "./compare";
+import { PENDING as CONTRACT_PENDING } from "./contract";
+import { PENDING as DIFFS_PENDING } from "./diffs";
+import { PENDING as MERGES_PENDING } from "./merges";
+import { PENDING as RESCUE_PENDING } from "./rescue";
+import { PENDING as REVIEW_PENDING } from "./review";
+import { PENDING as TIMELINE_PENDING } from "./timeline";
+
+const PENDING = new Set<Command>([
+  ...DIFFS_PENDING,
+  ...MERGES_PENDING,
+  ...COMPARE_PENDING,
+  ...TIMELINE_PENDING,
+  ...REVIEW_PENDING,
+  ...CONTRACT_PENDING,
+  ...RESCUE_PENDING,
+]);
 
 function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown) {
   const calls: [Command, Record<string, unknown> | undefined][] = [];
@@ -67,6 +85,12 @@ describe("TauriBackend", () => {
     await g.setCredentials("example.com", "ada", "pw");
     await g.deleteCredentials("example.com");
     await g.scan(["a.yml"]);
+    await g.revParse("HEAD~1");
+    await g.treeAt("main");
+    await g.show("HEAD", "/openapi.yaml");
+    await g.fileLog("a.yml", 20);
+    await g.mergeBase("main", "feature");
+    await g.commits(null, "HEAD", 50);
     await b.imports.analyze([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman");
     await b.imports.write(1);
     await b.imports.discard(1);
@@ -181,6 +205,12 @@ describe("TauriBackend", () => {
       ["git_set_credentials", { host: "example.com", username: "ada", password: "pw" }],
       ["git_delete_credentials", { host: "example.com" }],
       ["git_scan", { paths: ["a.yml"] }],
+      ["git_rev_parse", { rev: "HEAD~1" }],
+      ["git_tree_at", { rev: "main" }],
+      ["git_show", { rev: "HEAD", path: "/openapi.yaml" }],
+      ["git_file_log", { path: "a.yml", limit: 20 }],
+      ["git_merge_base", { a: "main", b: "feature" }],
+      ["git_commits", { from: null, to: "HEAD", limit: 50 }],
       ["import_analyze", packImport([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman")],
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],
@@ -243,7 +273,8 @@ describe("TauriBackend", () => {
       ["mcp_save_test", { path: null, test }],
       ["mcp_run_test", { path: "mcp/t.mcp.yaml", input: { environment: "Local", vars: [] } }],
     ]);
-    expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
+    expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS.filter((c) => !PENDING.has(c))));
+    for (const c of PENDING) expect(COMMANDS).toContain(c);
   });
 
   it("never forwards secret values from the webview at send", async () => {

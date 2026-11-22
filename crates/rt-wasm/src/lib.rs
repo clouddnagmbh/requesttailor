@@ -670,6 +670,21 @@ mod scripts_js;
 mod services_js;
 #[cfg(target_arch = "wasm32")]
 mod streams_js;
+// Wave 12 (Git for APIs): one module per strand.
+#[cfg(target_arch = "wasm32")]
+mod compare_js;
+#[cfg(target_arch = "wasm32")]
+mod contract_js;
+#[cfg(target_arch = "wasm32")]
+mod diffs_js;
+#[cfg(target_arch = "wasm32")]
+mod merges_js;
+#[cfg(target_arch = "wasm32")]
+mod rescue_js;
+#[cfg(target_arch = "wasm32")]
+mod review_js;
+#[cfg(target_arch = "wasm32")]
+mod timeline_js;
 
 #[cfg(test)]
 mod tests {

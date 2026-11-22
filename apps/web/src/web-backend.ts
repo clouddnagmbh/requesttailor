@@ -21,15 +21,21 @@ import {
   type Backend,
   type CollectionInfo,
   type CompanionStatus,
+  type CompareApi,
+  type ContractApi,
+  type DiffApi,
   type Environment,
   type FileChange,
   type GitApi,
   type ImportApi,
   type LineSlice,
   type McpClientApi,
+  type MergeApi,
   type Preview,
   type RecentCollection,
   type RequestSpec,
+  type RescueApi,
+  type ReviewApi,
   type RunnerApi,
   type StreamsApi,
   type ScriptsApi,
@@ -37,6 +43,7 @@ import {
   type SecretsApi,
   type SendInput,
   type StoredResponse,
+  type TimelineApi,
   type TransportApi,
   type TransportMode,
   type TreeNode,
@@ -52,6 +59,15 @@ import { webGraphQl } from "./graphql";
 import { webAgents } from "./agents";
 import { webMcp } from "./mcp-client";
 import { webAi } from "./ai";
+// Wave 12: one file per strand (./wave12.ts).
+import { webCompare } from "./compare";
+import { webContract } from "./contract";
+import { webDiffs } from "./diffs";
+import { webMerges } from "./merges";
+import { webRescue } from "./rescue";
+import { webReview } from "./review";
+import { webTimeline } from "./timeline";
+import type { Wave12Host } from "./wave12";
 import { webScriptTrust, type WebScriptTrust } from "./scripts";
 import { SessionStore, webSessionVars } from "./session-vars";
 import { webGit } from "./git";
@@ -168,6 +184,14 @@ export class WebBackend implements Backend {
   readonly agents = webAgents(() => this.session());
   readonly mcp: McpClientApi;
   readonly ai: AiApi;
+  /** Wave 12 (one file per strand). */
+  readonly diffs: DiffApi;
+  readonly merges: MergeApi;
+  readonly compare: CompareApi;
+  readonly timeline: TimelineApi;
+  readonly review: ReviewApi;
+  readonly contract: ContractApi;
+  readonly rescue: RescueApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;
@@ -237,6 +261,14 @@ export class WebBackend implements Backend {
       },
     });
     this.recent = webRecent(host);
+    const wave12: Wave12Host = { host, git: this.git, sendContext };
+    this.diffs = webDiffs(wave12);
+    this.merges = webMerges(wave12);
+    this.compare = webCompare(wave12);
+    this.timeline = webTimeline(wave12);
+    this.review = webReview(wave12);
+    this.contract = webContract(wave12);
+    this.rescue = webRescue(wave12);
     this.ai = webAi({
       session: host.session,
       openSecrets: deps.openSecrets,
