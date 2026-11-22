@@ -44,22 +44,58 @@
 </nav>
 <article>
 <h1>MCP server</h1>
-<div class="note">
-<p><strong>Not in this release.</strong> The MCP server is planned for a later version. This
-page says what is decided so far.</p>
-</div>
-<p>The Model Context Protocol lets AI agents call tools. RequestTailor's MCP server will be
-part of the <code>rt</code> command line and use the same core as the apps, so an agent sends
-requests exactly as you would, from the same collection files.</p>
-<p>The project's rules for agents are fixed already:</p>
+<p>The Model Context Protocol lets AI agents call tools. <code>rt mcp</code> offers a collection
+to coding agents as tools over stdin and stdout. It is part of the <code>rt</code> command line
+and uses the same core as the apps, so an agent sends requests exactly as you would, from the
+same collection files.</p>
+<h2>Connect an agent</h2>
+<pre><code>claude mcp add requesttailor -- rt mcp /path/to/collection</code></pre>
+<p>Other clients (Cursor, VS Code, Claude Desktop) take the same command in their JSON
+configuration:</p>
+<pre><code>{
+  "mcpServers": {
+    "requesttailor": {
+      "command": "rt",
+      "args": ["mcp", "/path/to/collection", "--env-default", "DEV"]
+    }
+  }
+}</code></pre>
+<h2>Tools</h2>
+<table>
+<thead><tr><th scope="col">Tool</th><th scope="col">What it does</th></tr></thead>
+<tbody>
+<tr><td><code>list_requests</code></td><td>Path, name, method and effect (read or write) of every request.</td></tr>
+<tr><td><code>get_request</code></td><td>One request as in its file; credentials are masked.</td></tr>
+<tr><td><code>list_environments</code></td><td>The environments the agent may use, with access and production flag. Secret variables appear by name only.</td></tr>
+<tr><td><code>send_request</code></td><td>Sends one request and returns the report with secrets masked.</td></tr>
+<tr><td><code>run_folder</code></td><td>Runs a folder or the whole collection like <code>rt run</code>. Every request is checked on its own.</td></tr>
+</tbody>
+</table>
+<p>GET, HEAD, OPTIONS and TRACE read; every other method writes. A GraphQL request reads unless
+its document contains a mutation. gRPC writes, and a WebSocket request writes as soon as it
+sends messages.</p>
+<h2>Rules for agents</h2>
 <ul>
-<li>Agents never see secret values. They work with variable names; values are added by the
-core when sending and masked in what the agent gets back.</li>
-<li>Requests that write to a production environment need your approval.</li>
-<li>Every agent action is written to a local audit log on your machine.</li>
+<li><strong>Access per environment.</strong> In the app, "Agent access" sets <code>none</code>,
+<code>read</code> or <code>write</code> for each environment; the rule is stored in
+<code>opencollection.yml</code>. The default is read only.</li>
+<li><strong>Approval for production.</strong> A request that writes to an environment marked as
+production waits for you. Approve or deny it in the app banner, with <code>rt approvals</code>,
+<code>rt approve &lt;id&gt;</code> and <code>rt deny &lt;id&gt;</code>, or in your client if it
+asks. No answer within five minutes counts as a denial, and nothing is sent.</li>
+<li><strong>No secret values.</strong> Agents work with variable names. Values come from the OS
+keychain (as for <code>rt send</code> and <code>rt run</code>), from secret managers or from
+<code>--var</code>, and are masked in everything the agent gets back, also when a server echoes
+them.</li>
+<li><strong>Audit log.</strong> Every tool call is written to a local log
+(<code>agents/audit.jsonl</code> in the data folder). Nothing leaves your machine.</li>
+<li><strong>Fixed policy.</strong> <code>rt mcp</code> reads the access rules once at start, so
+an agent that edits files cannot give itself more access.</li>
 </ul>
-<p>Until then, agents can already use <code>rt send</code>, whose JSON report is made to be
-read by programs. See <a href="../cli/">Command line: rt</a>.</p>
+<p>The full reference, with all options and the security model, is
+<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/crates/rt-cli/README.md">crates/rt-cli/README.md</a>.
+Testing other MCP servers is the other direction: <code>rt mcp-test</code> runs the saved MCP
+tests of a collection.</p>
 </article>
 </div>
 </div>

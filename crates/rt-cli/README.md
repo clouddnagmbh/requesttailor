@@ -9,6 +9,7 @@ rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAM
 rt import <file>... --out DIR [--format FORMAT] [--json]
 rt scan [PATH]... [--json]
 rt mcp [<collection>] [--var NAME=VALUE]... [--env-default NAME]
+rt mcp-test [<path>...] [--env NAME] [--var NAME=VALUE]...
 rt approvals [--json] | rt approve <id> | rt deny <id>
 rt agent [--port PORT] [--allow-origin ORIGIN]... [--allow-secrets]
 rt --help
@@ -373,13 +374,18 @@ configuration:
 
 ### Tools
 
-| Tool | Annotations | What it does |
-| --- | --- | --- |
-| `list_requests` | read-only | Path, name, method and effect (`read` or `write`) of every request |
-| `get_request` | read-only | One request as the model sees it; credentials masked |
-| `list_environments` | read-only | Environments the agent may use, with access, production flag and non-secret values |
-| `send_request` | destructive | Sends one request (`path`, `environment`, `vars`) and returns the masked report |
-| `run_folder` | destructive | Runs a folder or the collection like `rt run`; every request is checked on its own |
+| Tool | Arguments | Annotations | What it does |
+| --- | --- | --- | --- |
+| `list_requests` | none | read-only | Path, name, method and effect (`read` or `write`) of every request |
+| `get_request` | `path` | read-only | One request as in its file (URL, headers, body, auth, scripts); credentials masked, secrets only as `{{variable}}` names |
+| `list_environments` | none | read-only | Environments the agent may use, with access, production flag and variables (secret ones by name only, without a value) |
+| `send_request` | `path`, `environment`?, `vars`? | destructive | Sends one request and returns the masked report: status, headers, body, tests, assertions |
+| `run_folder` | `folder`?, `environment`?, `vars`? | destructive | Runs a folder (empty: the whole collection) like `rt run`; every request is checked on its own; returns a summary and one report per request |
+
+`environment` defaults to `--env-default`. `vars` are the agent's variables for this call
+(see the security model below). Refusals, denials and timeouts come back as results with
+`isError: true` and say that nothing was sent. Response bodies are cut at `--body-limit`
+(the report says `truncated`); `size` still counts all bytes.
 
 The effect of a request: `GET`, `HEAD`, `OPTIONS` and `TRACE` read, everything else writes.
 GraphQL reads unless the document contains a mutation; gRPC writes; WebSocket writes as soon
@@ -450,12 +456,21 @@ under "Agent audit log". Nothing is sent anywhere.
   variables of the collection, the environment or `--var` (base URLs and credentials live
   there), nor any secret name.
 - **Secrets come from where the app keeps them**: the OS keychain (shared with the desktop
-  app) and the secret managers of `extensions.requesttailor.secrets`. OAuth 2.0 logins that
+  app and with `rt send` and `rt run`, see "Secret variables") and the secret managers of `extensions.requesttailor.secrets`. OAuth 2.0 logins that
   need a browser or a code are not started; use a token the app already fetched.
 - **Scripts** run only in collections the user trusted in the desktop app, and not with
   `--no-scripts`. Requests a trusted script sends itself (`rt.sendRequest`) are not checked
   against the policy; do not trust collections whose scripts you do not know.
 - Every call reads the files anew, so the agent works with the files as they are now.
+
+### Testing MCP servers: `rt mcp-test`
+
+The other direction: `rt mcp-test [<path>...] [-e NAME] [--var NAME=VALUE]...` runs the saved
+MCP tests of a collection (`*.mcp.yaml` files next to the requests, made in the app) against
+their servers (stdio or Streamable HTTP) and prints `{"tests", "passed", "failed"}` as JSON
+with secrets shown as `***`. Exit code 0 when all passed, 4 when a test failed, 1 when a
+server could not be reached or started, 2 on a usage error or when there are no tests, 3 when
+external secrets could not be read.
 
 ## Companion: `rt agent`
 
