@@ -79,6 +79,8 @@ impl Recent {
     /// Loads the list from `data_dir` (`None`: in memory only). In measurement mode
     /// (`RT_PERF_DIR` set) the list lives in that folder instead.
     pub fn new(data_dir: Option<&Path>) -> Self {
+        // The app's setup creates the core (and with it this list) before the window opens.
+        perf::mark_once("core-ready");
         let dir = perf::dir().or_else(|| data_dir.map(Path::to_path_buf));
         Self::in_dir(dir.as_deref())
     }

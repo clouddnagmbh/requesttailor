@@ -13,25 +13,18 @@ import type { CollectionInfo } from "../commands/backend";
 import type { AppState } from "../state/app.svelte";
 
 /** Resolves once the browser has rendered a frame and is back in its event loop (a task
- *  after the next animation frame). Falls back to a timer where frames do not run (hidden
- *  windows, tests without a DOM), so it always resolves. */
-export function afterFirstFrame(fallbackMs = 250): Promise<void> {
+ *  after the next animation frame). There is deliberately no timeout: a hidden window
+ *  (minimized, covered, locked screen) renders no frames, and the collection opens when it
+ *  becomes visible, so the measurement never mistakes a timer for a frame. Without
+ *  `requestAnimationFrame` (unit tests) it resolves after a task. */
+export function afterFirstFrame(): Promise<void> {
   return new Promise((resolve) => {
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      resolve();
-    };
-    const timer = setTimeout(finish, fallbackMs);
     const raf = globalThis.requestAnimationFrame;
-    if (typeof raf !== "function") return;
-    raf(() =>
-      setTimeout(() => {
-        clearTimeout(timer);
-        finish();
-      }, 0),
-    );
+    if (typeof raf !== "function") {
+      setTimeout(resolve, 0);
+      return;
+    }
+    raf(() => setTimeout(resolve, 0));
   });
 }
 

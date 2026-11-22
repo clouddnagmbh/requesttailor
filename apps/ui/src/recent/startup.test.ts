@@ -60,10 +60,26 @@ describe("reopenOnStart", () => {
 });
 
 describe("afterFirstFrame", () => {
-  it("resolves without animation frames (fallback timer)", async () => {
-    const t = Date.now();
-    await afterFirstFrame(20);
-    expect(Date.now() - t).toBeGreaterThanOrEqual(15);
+  it("waits for an animation frame, then for a task", async () => {
+    const frames: (() => void)[] = [];
+    const g = globalThis as { requestAnimationFrame?: (cb: () => void) => number };
+    g.requestAnimationFrame = (cb) => frames.push(cb);
+    try {
+      let done = false;
+      const p = afterFirstFrame().then(() => (done = true));
+      await new Promise((r) => setTimeout(r, 20));
+      expect(done).toBe(false);
+      expect(frames).toHaveLength(1);
+      frames[0]();
+      await p;
+      expect(done).toBe(true);
+    } finally {
+      delete g.requestAnimationFrame;
+    }
+  });
+
+  it("resolves without animation frames (no DOM)", async () => {
+    await afterFirstFrame();
   });
 });
 
