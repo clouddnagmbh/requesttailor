@@ -479,13 +479,16 @@
     flex-direction: column;
   }
   .views {
+    flex: none;
     display: flex;
+    align-items: stretch;
     gap: 2px;
-    padding: 4px 6px 0;
+    height: var(--rt-bar-height);
+    padding: 0 6px;
     border-bottom: 1px solid var(--rt-border);
   }
   .view {
-    padding: 3px 8px;
+    padding: 0 8px;
     border: none;
     border-bottom: 2px solid transparent;
     background: none;

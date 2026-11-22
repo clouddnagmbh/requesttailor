@@ -94,7 +94,7 @@
     align-items: center;
     gap: 6px;
     max-width: 220px;
-    height: 32px;
+    height: var(--rt-bar-height);
     padding: 0 4px 0 12px;
     border-right: 1px solid var(--rt-border);
     color: var(--rt-fg-muted);
