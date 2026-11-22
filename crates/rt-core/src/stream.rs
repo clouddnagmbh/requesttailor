@@ -25,11 +25,22 @@ use serde::{Deserialize, Serialize};
 
 /// Wave 8, strand B.
 pub mod grpc;
+/// The `text/event-stream` parser and a session over a response body (strand A).
+pub mod sse;
 
-use crate::model::RequestContext;
-use crate::send::{SendError, SendOptions};
-use crate::services::{LocalBoxFuture, Services};
-use crate::transport::{HttpRequest, HttpVersion, TransportError};
+use std::future::Future as _;
+use std::task::{Context, Poll};
+
+use crate::model::{MessageKind, MessageVariant, Protocol, RequestContext, ScriptPhase};
+use crate::prepare::{FileSource, PrepareInput, Prepared, prepare};
+use crate::script::{Flow, ScriptCall};
+use crate::send::{
+    SendError, SendOptions, add_secrets, before_wire, declared_secret_values, hook_context, mask,
+    mask_transport_error, scope_secrets, script_info, secret_values, set_runtime,
+};
+use crate::services::{LocalBoxFuture, Note, NoteLevel, Services};
+use crate::transport::{HttpRequest, HttpVersion, Transport, TransportError};
+use crate::vars::Scope;
 
 /// What to open, after `prepare`. Values are resolved and include secrets: never log it.
 /// The companion carries it as its own wire type (`transport::companion`, strand A).
@@ -167,38 +178,440 @@ pub struct Session<'a> {
     /// Values to mask in everything that goes into `log`.
     pub secrets: Vec<String>,
     pub started: web_time::Instant,
+    /// The variables of the session (as prepared), for `{{templates}}` in messages
+    /// ([`Session::frame`]).
+    pub scope: Scope,
+}
+
+/// What a shell asks of a running session ([`Session::drive`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Command {
+    Send(Frame),
+    /// gRPC half-close.
+    Finish,
+    Close,
 }
 
 impl Session<'_> {
-    /// Sends and records a message (masked in the log). Strand A.
-    pub async fn send(&mut self, _frame: Frame) -> Result<(), TransportError> {
-        Err(TransportError::Other(
-            "sessions arrive in wave 8, strand A".into(),
-        ))
+    /// Sends and records a message (masked in the log). The error is masked too.
+    pub async fn send(&mut self, frame: Frame) -> Result<(), TransportError> {
+        let recorded = StreamEvent::Message {
+            at_ms: self.elapsed_ms(),
+            direction: Direction::Sent,
+            frame: mask_frame(&frame, &self.secrets),
+            name: None,
+            id: None,
+        };
+        self.inner
+            .send(frame)
+            .await
+            .map_err(|e| mask_transport_error(e, &self.secrets))?;
+        self.log.events.push(recorded);
+        Ok(())
     }
 
-    /// The next event from the peer, recorded (masked) in the log. Strand A.
+    /// The next event from the peer, recorded (masked) in the log; the same masked event is
+    /// returned. `at_ms` is measured from [`Session::started`]. `None` once the session is
+    /// over.
     pub async fn next(&mut self) -> Option<StreamEvent> {
-        None
+        let event = self.inner.next().await?;
+        let event = mask_event(event, self.elapsed_ms(), &self.secrets);
+        self.log.events.push(event.clone());
+        Some(event)
     }
 
     pub async fn close(&mut self) {
         self.inner.close().await;
     }
+
+    /// The text of a saved message with its `{{variables}}` resolved from the session's
+    /// scope. Unknown placeholders stay as written.
+    pub fn render(&self, text: &str) -> String {
+        self.scope.interpolate(text).value
+    }
+
+    /// The frame for a saved message: text, JSON and XML as text, binary from base64 (after
+    /// resolving variables). gRPC messages are JSON and are encoded by the caller (`rt-grpc`).
+    pub fn frame(&self, message: &MessageVariant) -> Result<Frame, String> {
+        message_frame(message, &self.scope)
+    }
+
+    /// Runs the session until it ends: hands every event (masked, also the sent messages) to
+    /// `on_event` and carries out the commands `poll_command` yields (e.g. a channel's
+    /// `poll_recv`). When the command source ends, the session is closed. A failed send is
+    /// recorded as an `error` event; the session goes on until the transport ends it.
+    pub async fn drive(
+        &mut self,
+        mut poll_command: impl FnMut(&mut Context<'_>) -> Poll<Option<Command>>,
+        mut on_event: impl FnMut(&StreamEvent),
+    ) {
+        enum Step {
+            Event(Option<StreamEvent>),
+            Command(Option<Command>),
+        }
+        let mut commands_open = true;
+        loop {
+            let step = {
+                let mut next = std::pin::pin!(self.next());
+                std::future::poll_fn(|cx| {
+                    if let Poll::Ready(event) = next.as_mut().poll(cx) {
+                        return Poll::Ready(Step::Event(event));
+                    }
+                    if commands_open && let Poll::Ready(command) = poll_command(cx) {
+                        return Poll::Ready(Step::Command(command));
+                    }
+                    Poll::Pending
+                })
+                .await
+            };
+            match step {
+                Step::Event(Some(event)) => on_event(&event),
+                Step::Event(None) => return,
+                Step::Command(Some(Command::Send(frame))) => match self.send(frame).await {
+                    Ok(()) => {
+                        if let Some(event) = self.log.events.last() {
+                            on_event(event);
+                        }
+                    }
+                    Err(error) => self.record_error(error, &mut on_event),
+                },
+                Step::Command(Some(Command::Finish)) => {
+                    if let Err(e) = self.inner.finish().await {
+                        let error = mask_transport_error(e, &self.secrets);
+                        self.record_error(error, &mut on_event);
+                    }
+                }
+                Step::Command(Some(Command::Close)) => self.close().await,
+                Step::Command(None) => {
+                    commands_open = false;
+                    self.close().await;
+                }
+            }
+        }
+    }
+
+    fn record_error(&mut self, error: TransportError, on_event: &mut impl FnMut(&StreamEvent)) {
+        let event = StreamEvent::Error {
+            at_ms: self.elapsed_ms(),
+            error,
+        };
+        self.log.events.push(event.clone());
+        on_event(&event);
+    }
+
+    fn elapsed_ms(&self) -> u64 {
+        u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX)
+    }
 }
 
-/// Prepares `context` like `send_with` and opens it: WebSocket for `Protocol::WebSocket`,
-/// gRPC for `Protocol::Grpc` (method path from the spec), SSE for an HTTP request. Strand A
-/// (gRPC: the `StreamOpen` mapping is strand B's, in `stream/grpc.rs`).
-pub async fn open<'a, S: StreamTransport + ?Sized>(
-    _context: &RequestContext<'_>,
-    _options: &SendOptions,
-    _services: &Services<'_>,
-    _transport: &'a S,
+/// The frame for a saved message (see [`Session::frame`]).
+pub fn message_frame(message: &MessageVariant, scope: &Scope) -> Result<Frame, String> {
+    let data = scope.interpolate(&message.data).value;
+    match message.kind {
+        MessageKind::Text | MessageKind::Json | MessageKind::Xml => Ok(Frame::Text(data)),
+        MessageKind::Binary => {
+            use base64::Engine as _;
+            base64::engine::general_purpose::STANDARD
+                .decode(data.trim())
+                .map(Frame::Binary)
+                .map_err(|e| format!("the binary message is not valid base64: {e}"))
+        }
+    }
+}
+
+/// The message a session sends by default: the selected variant, else the first.
+pub fn selected_message(messages: &[MessageVariant]) -> Option<&MessageVariant> {
+    messages
+        .iter()
+        .find(|m| m.selected)
+        .or_else(|| messages.first())
+}
+
+/// Prepares `context` like [`send_with`](crate::send::send_with) and opens it: WebSocket for
+/// `Protocol::WebSocket`, gRPC for `Protocol::Grpc` (method path from the spec), SSE for an
+/// HTTP request.
+///
+/// The pipeline is the one of a send: `before-request` scripts (on the request as written;
+/// they cannot send requests themselves here), `prepare`, then OAuth 2.0 token, plugin
+/// `before_send`, SigV4, client certificate and cookies (`send::before_wire`). `http` is the
+/// HTTP transport for what that needs (token requests); `transport` opens the session.
+///
+/// WebSocket: a user header `Sec-WebSocket-Protocol` becomes the protocol list; the connect
+/// timeout is `settings.timeout`, else the request's inherited timeout. SSE: `Accept:
+/// text/event-stream` is added unless the request sets `Accept`. `Set-Cookie` of a session's
+/// head is not stored, and `after-response` hooks and scripts do not run for sessions.
+#[allow(clippy::too_many_arguments)]
+pub async fn open<'a, T: Transport, S: StreamTransport + ?Sized>(
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+    files: &dyn FileSource,
+    options: &SendOptions,
+    services: &Services<'_>,
+    http: &T,
+    transport: &'a S,
 ) -> Result<Session<'a>, SendError> {
-    Err(SendError::Prepare(
-        "sessions (WebSocket, SSE, gRPC) arrive in wave 8".into(),
-    ))
+    let mut notes: Vec<Note> = Vec::new();
+    let mut runtime = input.runtime.clone();
+    let mut changed = None;
+    if let Some(runner) = services.scripts {
+        let scripts = crate::script::scripts_for(context, ScriptPhase::BeforeRequest);
+        if !scripts.is_empty() {
+            let scope = crate::prepare::scope(context, input).unwrap_or_default();
+            let mut secrets = declared_secret_values(context, input);
+            add_secrets(&mut secrets, scope_secrets(&scope));
+            let outcome = runner
+                .run(ScriptCall {
+                    phase: ScriptPhase::BeforeRequest,
+                    scripts,
+                    request: crate::script::request_of(&context.request.spec),
+                    response: None,
+                    variables: crate::script::variables_of(&scope),
+                    info: script_info(context, input, options),
+                    sender: None,
+                })
+                .await;
+            if let Some(e) = &outcome.error {
+                return Err(SendError::Script(mask(e, &secrets)));
+            }
+            if outcome.flow == Flow::Skip {
+                return Err(SendError::Script(
+                    "a before-request script skipped the request".into(),
+                ));
+            }
+            for change in &outcome.var_changes {
+                set_runtime(&mut runtime, change);
+            }
+            for log in &outcome.logs {
+                notes.push(Note {
+                    source: "script:before-request".into(),
+                    level: NoteLevel::Info,
+                    text: mask(&log.text, &secrets),
+                });
+            }
+            if let Some(request) = &outcome.request {
+                let mut entry = context.request.clone();
+                crate::script::apply_request(&mut entry.spec, request);
+                changed = Some(entry);
+            }
+        }
+    }
+    let input = PrepareInput {
+        environment: input.environment,
+        globals: input.globals.clone(),
+        runtime,
+    };
+    let context = match &changed {
+        Some(entry) => RequestContext {
+            collection: context.collection,
+            folders: context.folders.clone(),
+            request: entry,
+        },
+        None => context.clone(),
+    };
+    let prepared = prepare(&context, &input, files).map_err(|e| {
+        let secrets = declared_secret_values(&context, &input);
+        SendError::Prepare(mask(&e.to_string(), &secrets))
+    })?;
+    let mut secrets = secret_values(&context, &input, &prepared);
+    let Prepared {
+        request,
+        auth,
+        scope,
+        used,
+        ..
+    } = prepared;
+    let hook_context = hook_context(&context.request.path, &input, &used, &scope);
+    let request = before_wire(
+        &context,
+        &input,
+        files,
+        request,
+        &auth,
+        &scope,
+        http,
+        services,
+        &hook_context,
+        &mut secrets,
+        &mut notes,
+    )
+    .await?;
+
+    let (kind, url, open) = match &context.request.spec.protocol {
+        Protocol::WebSocket(spec) => {
+            let mut protocols = Vec::new();
+            let mut headers = Vec::new();
+            for (name, value) in request.headers {
+                if name.eq_ignore_ascii_case("sec-websocket-protocol") {
+                    protocols.extend(
+                        value
+                            .split(',')
+                            .map(str::trim)
+                            .filter(|p| !p.is_empty())
+                            .map(str::to_owned),
+                    );
+                } else {
+                    headers.push((name, value));
+                }
+            }
+            let timeout_ms = match spec.timeout_ms {
+                Some(0) => None,
+                Some(ms) => Some(ms),
+                None => request
+                    .options
+                    .timeout
+                    .map(|t| u64::try_from(t.as_millis()).unwrap_or(u64::MAX)),
+            };
+            let keep_alive_ms = spec.keep_alive_ms.filter(|ms| *ms > 0);
+            let url = request.url;
+            let open = StreamOpen::WebSocket {
+                url: url.clone(),
+                headers,
+                protocols,
+                timeout_ms,
+                keep_alive_ms,
+            };
+            ("websocket", mask(&url, &secrets), open)
+        }
+        Protocol::Grpc(spec) => {
+            let open = grpc::open_for(spec, &request)
+                .map_err(|e| SendError::Prepare(mask(&e, &secrets)))?;
+            let url = match &open {
+                StreamOpen::Grpc { url, path, .. } => format!("{url}{path}"),
+                _ => request.url.clone(),
+            };
+            ("grpc", mask(&url, &secrets), open)
+        }
+        Protocol::Http => {
+            let mut request = request;
+            if !request
+                .headers
+                .iter()
+                .any(|(name, _)| name.eq_ignore_ascii_case("accept"))
+            {
+                request
+                    .headers
+                    .push(("Accept".into(), "text/event-stream".into()));
+            }
+            let url = mask(&request.url, &secrets);
+            ("sse", url, StreamOpen::Sse { request })
+        }
+    };
+    let log = StreamLog {
+        version: LOG_VERSION,
+        request_path: context.request.path.clone(),
+        environment: input.environment.map(str::to_owned),
+        kind: kind.into(),
+        url,
+        events: Vec::new(),
+        notes: notes
+            .iter()
+            .map(|n| mask(&format!("{}: {}", n.source, n.text), &secrets))
+            .collect(),
+    };
+    let started = web_time::Instant::now();
+    let inner = transport
+        .open(open)
+        .await
+        .map_err(|e| SendError::Transport(mask_transport_error(e, &secrets)))?;
+    Ok(Session {
+        inner,
+        log,
+        secrets,
+        started,
+        scope,
+    })
+}
+
+/// Version of the [`StreamLog`] JSON shape.
+pub const LOG_VERSION: u32 = 1;
+
+/// `frame` with every secret replaced by [`MASK`](crate::send::MASK) (binary: byte-wise).
+pub fn mask_frame(frame: &Frame, secrets: &[String]) -> Frame {
+    match frame {
+        Frame::Text(text) => Frame::Text(mask(text, secrets)),
+        Frame::Binary(bytes) => {
+            let mut out = bytes.clone();
+            for secret in secrets.iter().filter(|s| !s.is_empty()) {
+                out = replace_bytes(&out, secret.as_bytes(), crate::send::MASK.as_bytes());
+            }
+            Frame::Binary(out)
+        }
+    }
+}
+
+fn replace_bytes(haystack: &[u8], needle: &[u8], with: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(haystack.len());
+    let mut i = 0;
+    while i < haystack.len() {
+        if haystack[i..].starts_with(needle) {
+            out.extend_from_slice(with);
+            i += needle.len();
+        } else {
+            out.push(haystack[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// `event` masked, with `at_ms` set.
+fn mask_event(event: StreamEvent, at_ms: u64, secrets: &[String]) -> StreamEvent {
+    let m = |s: &str| mask(s, secrets);
+    let pairs = |pairs: Vec<(String, String)>| -> Vec<(String, String)> {
+        pairs
+            .into_iter()
+            .map(|(name, value)| {
+                let value = if name.eq_ignore_ascii_case("set-cookie") {
+                    crate::cookies::mask_set_cookie(&value)
+                } else {
+                    value
+                };
+                let value = m(&value);
+                (name, value)
+            })
+            .collect()
+    };
+    match event {
+        StreamEvent::Opened { head, .. } => StreamEvent::Opened {
+            at_ms,
+            head: StreamHead {
+                status: head.status,
+                version: head.version,
+                headers: pairs(head.headers),
+                url: m(&head.url),
+            },
+        },
+        StreamEvent::Message {
+            direction,
+            frame,
+            name,
+            id,
+            ..
+        } => StreamEvent::Message {
+            at_ms,
+            direction,
+            frame: mask_frame(&frame, secrets),
+            name: name.map(|n| m(&n)),
+            id: id.map(|i| m(&i)),
+        },
+        StreamEvent::Closed {
+            code,
+            reason,
+            trailers,
+            by_client,
+            ..
+        } => StreamEvent::Closed {
+            at_ms,
+            code,
+            reason: m(&reason),
+            trailers: pairs(trailers),
+            by_client,
+        },
+        StreamEvent::Error { error, .. } => StreamEvent::Error {
+            at_ms,
+            error: mask_transport_error(error, secrets),
+        },
+    }
 }
 
 /// The HTTP/2 URL of a gRPC request URL: `grpc://h:p` → `http://h:p`, `grpcs://h:p` →
