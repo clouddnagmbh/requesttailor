@@ -198,7 +198,14 @@ export class MockBackend implements Backend {
   readonly grpc = mockGrpc();
   readonly graphql = mockGraphQl();
   readonly agents = mockAgents();
-  readonly mcp = mockMcp();
+  readonly mcp = mockMcp({
+    lookup: (input, name) =>
+      input.vars.find(([n]) => n === name)?.[1] ??
+      this.envs
+        .find((e) => e.name === input.environment)
+        ?.variables.find((v) => v.name === name && v.enabled && !v.secret)?.value ??
+      undefined,
+  });
   readonly ai = mockAi();
 
   async openCollection(): Promise<CollectionInfo | null> {
@@ -283,7 +290,7 @@ export class MockBackend implements Backend {
     const requests = [...this.requests.keys()].filter(
       (p) => JSON.stringify(this.requests.get(p)) !== JSON.stringify(this.saved.get(p)),
     );
-    return [...requests, ...[...this.envDirty].map((n) => `environments/${n}.yml`)];
+    return [...requests, ...[...this.envDirty].map((n) => `environments/${n}.yml`), ...this.mcp.dirty()];
   }
 
   async save(): Promise<FileChange[]> {
@@ -305,6 +312,10 @@ export class MockBackend implements Backend {
       changes.push({ path, text, deleted: !env });
     }
     this.envDirty.clear();
+    for (const change of this.mcp.save()) {
+      this.files.set(change.path, change.text);
+      changes.push(change);
+    }
     return changes;
   }
 
