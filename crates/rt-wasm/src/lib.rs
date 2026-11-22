@@ -647,6 +647,8 @@ mod ai_js;
 #[cfg(target_arch = "wasm32")]
 mod auth_js;
 #[cfg(target_arch = "wasm32")]
+mod companions_js;
+#[cfg(target_arch = "wasm32")]
 mod cookies_js;
 #[cfg(target_arch = "wasm32")]
 mod git_js;

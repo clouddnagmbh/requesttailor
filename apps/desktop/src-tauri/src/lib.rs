@@ -15,6 +15,8 @@ mod agents;
 mod ai;
 mod auth;
 mod commands;
+/// Wave 13: companion files for extensions.
+mod companions;
 /// Wave 12, strand C: runs at a revision, comparison, bisect.
 mod compare;
 /// Wave 12, strand F: OpenAPI contract.
@@ -144,6 +146,9 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             import::import_discard,
             import::import_adopt,
             import::import_write_into,
+            companions::companion_list,
+            companions::companion_read,
+            companions::companion_stage,
             history::history_list,
             history::history_clear,
             search::search,

@@ -27,6 +27,8 @@ pub mod agents;
 pub mod ai;
 pub mod auth;
 pub mod bisect;
+/// Companion files for extensions (wave 13).
+pub mod companions;
 pub mod compare;
 pub mod contract;
 pub mod cookies;

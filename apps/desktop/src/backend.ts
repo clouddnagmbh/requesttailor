@@ -44,6 +44,7 @@ import { tauriGrpc } from "./grpc";
 import { tauriGraphQl } from "./graphql";
 import { tauriAgents } from "./agents";
 import { tauriMcp } from "./mcp-client";
+import { tauriCompanions } from "./companions";
 import { tauriAi } from "./ai";
 // Wave 12: one file per strand.
 import { tauriCompare, type MakeStepChannel } from "./compare";
@@ -105,6 +106,9 @@ export const COMMANDS = [
   "import_discard",
   "import_adopt",
   "import_write_into",
+  "companion_list",
+  "companion_read",
+  "companion_stage",
   "history_list",
   "history_clear",
   "search",
@@ -268,6 +272,8 @@ export class TauriBackend implements Backend {
   readonly timeline = tauriTimeline((cmd, args) => this.call(cmd, args));
   readonly review = tauriReview((cmd, args) => this.call(cmd, args));
   readonly contract = tauriContract((cmd, args) => this.call(cmd, args));
+  /** Wave 13. */
+  readonly companions = tauriCompanions((cmd, args) => this.call(cmd, args));
   readonly rescue: RescueApi;
 
   constructor(

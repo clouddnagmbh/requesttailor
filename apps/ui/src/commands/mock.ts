@@ -47,6 +47,7 @@ import { mockTimeline } from "./mock-timeline";
 import { mockReview } from "./mock-review";
 import { mockContract } from "./mock-contract";
 import { mockRescue } from "./mock-rescue";
+import { mockCompanions } from "./mock-companions";
 import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
 import { mockScripts } from "./mock-scripts";
@@ -273,6 +274,8 @@ export class MockBackend implements Backend {
   readonly review = mockReview(this.wave12);
   readonly contract = mockContract(this.wave12);
   readonly rescue = mockRescue(this.wave12);
+  /** Wave 13: companion files for extensions. */
+  readonly companions = mockCompanions(this.files, () => this.ensureOpen());
 
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;
@@ -356,7 +359,12 @@ export class MockBackend implements Backend {
     const requests = [...this.requests.keys()].filter(
       (p) => JSON.stringify(this.requests.get(p)) !== JSON.stringify(this.saved.get(p)),
     );
-    return [...requests, ...[...this.envDirty].map((n) => `environments/${n}.yml`), ...this.mcp.dirty()];
+    return [
+      ...requests,
+      ...[...this.envDirty].map((n) => `environments/${n}.yml`),
+      ...this.mcp.dirty(),
+      ...this.companions.dirty(),
+    ];
   }
 
   async save(): Promise<FileChange[]> {
@@ -382,6 +390,7 @@ export class MockBackend implements Backend {
       this.files.set(change.path, change.text);
       changes.push(change);
     }
+    changes.push(...this.companions.save());
     return changes;
   }
 

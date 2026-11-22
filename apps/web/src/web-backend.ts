@@ -35,6 +35,7 @@ import {
   type RecentCollection,
   type RequestSpec,
   type RescueApi,
+  type CompanionApi,
   type ReviewApi,
   type RunnerApi,
   type StreamsApi,
@@ -65,6 +66,7 @@ import { webContract } from "./contract";
 import { webDiffs } from "./diffs";
 import { webMerges } from "./merges";
 import { webRescue } from "./rescue";
+import { webCompanions } from "./companions";
 import { webReview } from "./review";
 import { webTimeline } from "./timeline";
 import type { Wave12Host } from "./wave12";
@@ -192,6 +194,8 @@ export class WebBackend implements Backend {
   readonly review: ReviewApi;
   readonly contract: ContractApi;
   readonly rescue: RescueApi;
+  /** Wave 13. */
+  readonly companions: CompanionApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;
@@ -269,6 +273,7 @@ export class WebBackend implements Backend {
     this.review = webReview(wave12);
     this.contract = webContract(wave12);
     this.rescue = webRescue(wave12);
+    this.companions = webCompanions(() => this.session());
     this.ai = webAi({
       session: host.session,
       openSecrets: deps.openSecrets,

@@ -588,6 +588,23 @@ export interface Backend {
   readonly review: ReviewApi;
   readonly contract: ContractApi;
   readonly rescue: RescueApi;
+  /** Wave 13: companion files for extensions. */
+  readonly companions: CompanionApi;
+}
+
+/**
+ * Companion files of the open collection (since wave 13): files the OpenCollection document
+ * does not own (snapshots, recordings, notes), for extensions. Text only. Writes are staged
+ * and saved with `save`, like a request edit (`dirty` lists them until then). Collection
+ * files (`*.yml`) and paths outside the folder are refused (kind `shell`).
+ */
+export interface CompanionApi {
+  /** Paths below `prefix` (`""`: all; a folder path, with or without `/`), unsaved ones
+   *  included, sorted; never `*.yml`. */
+  list(prefix: string): Promise<string[]>;
+  /** The text (unsaved first); `null` if there is no such file. */
+  read(path: string): Promise<string | null>;
+  stage(path: string, text: string): Promise<void>;
 }
 
 /** Errors from a backend are rejected promises carrying this shape. */

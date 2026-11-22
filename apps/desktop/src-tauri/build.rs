@@ -51,6 +51,10 @@ const COMMANDS: &[&str] = &[
     "import_discard",
     "import_adopt",
     "import_write_into",
+    // Wave 13: companion files for extensions.
+    "companion_list",
+    "companion_read",
+    "companion_stage",
     "history_list",
     "history_clear",
     "search",

@@ -82,6 +82,9 @@ describe("TauriBackend", () => {
     await b.imports.write(1);
     await b.imports.discard(1);
     await b.imports.writeInto(2, "Shop");
+    await b.companions.list("orders");
+    await b.companions.read("orders/metadata.xml");
+    await b.companions.stage("orders/metadata.xml", "<edmx/>");
     await b.imports.adopt({ collection_name: "T", files: [], report: { format: "plugin", requests: 0, folders: 0, environments: 0, losses: [] } });
     await b.history.list("q", 20);
     await b.history.clear();
@@ -241,6 +244,9 @@ describe("TauriBackend", () => {
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],
       ["import_write_into", { id: 2, name: "Shop" }],
+      ["companion_list", { prefix: "orders" }],
+      ["companion_read", { path: "orders/metadata.xml" }],
+      ["companion_stage", { path: "orders/metadata.xml", text: "<edmx/>" }],
       [
         "import_adopt",
         { import: { collection_name: "T", files: [], report: { format: "plugin", requests: 0, folders: 0, environments: 0, losses: [] } } },
