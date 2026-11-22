@@ -14,7 +14,6 @@ import type {
   Backend,
   CollectionInfo,
   CompanionStatus,
-  CookieApi,
   GitApi,
   ImportApi,
   PluginApi,
@@ -26,7 +25,7 @@ import type {
 } from "./backend";
 import { BackendError } from "./backend";
 import { mockAuth } from "./mock-auth";
-import { mockCookies } from "./mock-cookies";
+import { maskCookieHeader, maskSetCookie, mockCookies, setCookiesFor } from "./mock-cookies";
 import { mockGit } from "./mock-git";
 import { MockHistory, mockSearch } from "./mock-history";
 import { mockImports } from "./mock-import";
@@ -159,7 +158,7 @@ export class MockBackend implements Backend {
   // Wave 5 parts, one file per strand.
   readonly plugins: PluginApi = mockPlugins();
   readonly auth: AuthApi = mockAuth();
-  readonly cookies: CookieApi = mockCookies();
+  readonly cookies = mockCookies();
 
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;
@@ -338,13 +337,18 @@ export class MockBackend implements Backend {
       .filter((h) => h.enabled)
       .map((h) => [h.name, resolve(h.value)]);
     if (spec.auth.type === "bearer") headers.push(["Authorization", `Bearer ${resolve(spec.auth.token)}`]);
+    // Cookie jar of the environment (strand D): sent like the core does, masked in the report.
+    const jarCookie = this.cookies.header(input.environment ?? "", url);
+    if (jarCookie !== null) headers.push(["Cookie", jarCookie]);
+    const setCookie = setCookiesFor(url);
     const mask = (s: string) => secretValues.reduce((acc, v) => acc.split(v).join("***"), s);
+    const reported = (n: string, v: string) => (n.toLowerCase() === "cookie" ? maskCookieHeader(v) : mask(v));
 
     const report: SendReport = {
       version: 1,
       request_path: path,
       environment: input.environment,
-      request: { method: spec.method, url: mask(url), headers: headers.map(([n, v]) => [n, mask(v)]), body_size: 0 },
+      request: { method: spec.method, url: mask(url), headers: headers.map(([n, v]) => [n, reported(n, v)]), body_size: 0 },
       response: null,
       variables: used,
       unresolved: [...new Set(unresolved)],
@@ -373,7 +377,7 @@ export class MockBackend implements Backend {
       size = LARGE_SIZE;
     } else {
       const body = JSON.stringify(
-        { method: spec.method, url: mask(url), headers: headers.map(([n, v]) => [n.toLowerCase(), mask(v)]) },
+        { method: spec.method, url: mask(url), headers: headers.map(([n, v]) => [n.toLowerCase(), reported(n, v)]) },
         null,
         2,
       );
@@ -388,10 +392,11 @@ export class MockBackend implements Backend {
       size = stored.bytes!.length;
     }
     this.responses.set(id, stored);
+    this.cookies.store(input.environment ?? "", url, setCookie);
     report.response = {
       status: 200,
       version: "HTTP/1.1",
-      headers: [["content-type", "application/json"]],
+      headers: [["content-type", "application/json"], ...setCookie.map((v): [string, string] => ["set-cookie", maskSetCookie(v)])],
       url: mask(url),
       redirects: [],
       body: { encoding: "utf8", data: preview },
