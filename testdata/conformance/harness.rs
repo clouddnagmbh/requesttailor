@@ -24,6 +24,8 @@
 //! | `echo` | the test server's `/echo` JSON: `method`, `path`, `query`, `headers` (subset), `headers_absent`, `body`, `body_contains`, `body_len` |
 //! | `response` | `url`, `version`, `encoding`, `truncated`, `size`, `redirects` (count), `headers` (subset), `body_json` (equal), `body_pattern` (n bytes of `/bytes/n`) |
 //! | `variables` | `[name, layer]` pairs that must be in `variables` |
+//! | `error_contains` | the error's `message` contains this (e.g. for `script` errors) |
+//! | `script` | wave 7, compared exactly: `tests` (`[name, passed]`), `logs` (`[level, text]`), `var_changes` (`[name, value]`), `flow` (`null`: none) |
 //!
 //! Header names compare case-insensitively; a header value ending in `*` is a prefix match.
 //! `{base}` (`http://127.0.0.1:{port}`) and `{port}` are replaced in `vars` and URLs.
@@ -42,7 +44,32 @@ pub const CASES: &str = include_str!("cases.json");
 
 /// `rt_testserver::DEFAULT_PORT`. The browser cannot discover a random port, and the WASM
 /// tests cannot depend on the (native) test server crate; the native tests check they agree.
-pub const BROWSER_PORT: u16 = 47811;
+pub const DEFAULT_BROWSER_PORT: u16 = 47811;
+
+/// The port the browser tests expect the test server on: `RT_CONFORMANCE_PORT` at build time
+/// (set by `scripts/conformance-wasm.sh`, so parallel checkouts can use their own port), else
+/// [`DEFAULT_BROWSER_PORT`].
+pub const BROWSER_PORT: u16 = match option_env!("RT_CONFORMANCE_PORT") {
+    Some(p) => parse_port(p),
+    None => DEFAULT_BROWSER_PORT,
+};
+
+const fn parse_port(s: &str) -> u16 {
+    let b = s.as_bytes();
+    assert!(
+        !b.is_empty() && b.len() <= 5,
+        "RT_CONFORMANCE_PORT: not a port"
+    );
+    let mut n: u32 = 0;
+    let mut i = 0;
+    while i < b.len() {
+        assert!(b[i].is_ascii_digit(), "RT_CONFORMANCE_PORT: not a port");
+        n = n * 10 + (b[i] - b'0') as u32;
+        i += 1;
+    }
+    assert!(n > 0 && n <= 65535, "RT_CONFORMANCE_PORT: not a port");
+    n as u16
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Target {
@@ -98,6 +125,25 @@ pub struct Expect {
     pub response: Option<ResponseExpect>,
     #[serde(default)]
     pub variables: Vec<(String, String)>,
+    pub error_contains: Option<String>,
+    pub script: Option<ScriptExpect>,
+}
+
+/// Wave 7: what scripts produced. Each given field is compared exactly.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ScriptExpect {
+    pub tests: Option<Vec<(String, bool)>>,
+    pub logs: Option<Vec<(String, String)>>,
+    pub var_changes: Option<Vec<(String, Option<String>)>>,
+    /// `Some(Value::Null)`: no flow in the report.
+    #[serde(default, deserialize_with = "some_value")]
+    pub flow: Option<Value>,
+}
+
+/// Keeps an explicit `null` as `Some(Value::Null)`.
+fn some_value<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Value>, D::Error> {
+    Value::deserialize(d).map(Some)
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -277,6 +323,15 @@ pub fn check(case: &Case, target: Target, port: u16, report: &Value) -> Vec<Stri
             f.push(format!("unresolved: expected {want:?}, got {got:?}"));
         }
     }
+    if let Some(want) = &expect.error_contains {
+        let message = report["error"]["message"].to_string();
+        if !message.contains(want.as_str()) {
+            f.push(format!("error: {message} does not contain {want:?}"));
+        }
+    }
+    if let Some(script) = &expect.script {
+        check_script(script, report, &mut f);
+    }
     if expect.no_request && !report["request"].is_null() {
         f.push("request: expected null".into());
     }
@@ -338,6 +393,56 @@ pub fn check(case: &Case, target: Target, port: u16, report: &Value) -> Vec<Stri
         }
     }
     f
+}
+
+fn check_script(want: &ScriptExpect, report: &Value, f: &mut Vec<String>) {
+    let list = |key: &str| report[key].as_array().cloned().unwrap_or_default();
+    if let Some(want) = &want.tests {
+        let got: Vec<(String, bool)> = list("tests")
+            .iter()
+            .map(|t| {
+                let name = t["name"].as_str().unwrap_or_default().to_owned();
+                (name, t["passed"].as_bool().unwrap_or(false))
+            })
+            .collect();
+        if &got != want {
+            f.push(format!("script tests: expected {want:?}, got {got:?}"));
+        }
+    }
+    if let Some(want) = &want.logs {
+        let got: Vec<(String, String)> = list("logs")
+            .iter()
+            .map(|l| {
+                let level = l["level"].as_str().unwrap_or_default().to_owned();
+                (level, l["text"].as_str().unwrap_or_default().to_owned())
+            })
+            .collect();
+        if &got != want {
+            f.push(format!("script logs: expected {want:?}, got {got:?}"));
+        }
+    }
+    if let Some(want) = &want.var_changes {
+        let got: Vec<(String, Option<String>)> = list("var_changes")
+            .iter()
+            .map(|c| {
+                let name = c["name"].as_str().unwrap_or_default().to_owned();
+                (name, c["value"].as_str().map(str::to_owned))
+            })
+            .collect();
+        if &got != want {
+            f.push(format!(
+                "script var_changes: expected {want:?}, got {got:?}"
+            ));
+        }
+    }
+    if let Some(want) = &want.flow
+        && &report["flow"] != want
+    {
+        f.push(format!(
+            "script flow: expected {want}, got {}",
+            report["flow"]
+        ));
+    }
 }
 
 fn error_kind(error: &Value) -> Option<String> {

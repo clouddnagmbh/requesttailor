@@ -1,0 +1,16 @@
+info:
+  name: error
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/echo/error"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        console.log('before the error');
+        throw new Error('broken ' + 1);

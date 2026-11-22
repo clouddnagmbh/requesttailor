@@ -1,0 +1,10 @@
+opencollection: "1.0.0"
+info:
+  name: conformance-scripts
+
+request:
+  scripts:
+    - type: before-request
+      code: |-
+        rt.request.headers.set('X-Collection-Script', 'yes');
+        console.log('collection');
