@@ -62,7 +62,7 @@ credentials.</p>
 </div>
 <div class="card">
 <h3>Same core everywhere</h3>
-<p>Desktop on macOS, Windows and Linux, the web app in WebAssembly and the <code>rt</code>
+<p>The desktop app on macOS, the web app in WebAssembly and the <code>rt</code>
 command line share one core. A conformance suite runs the same cases against the native and
 the WebAssembly build.</p>
 </div>
@@ -87,7 +87,7 @@ fails the build.</p>
 <table>
 <thead><tr><th scope="col">Surface</th><th scope="col">What it is</th></tr></thead>
 <tbody>
-<tr><td>Desktop</td><td>A native app for macOS, Windows and Linux (Tauri). Opens collection folders directly, keeps secrets in the OS keychain, has Git built in.</td></tr>
+<tr><td>Desktop</td><td>A native app for macOS (Tauri). On Windows and Linux, use the web app or the command line. Opens collection folders directly, keeps secrets in the OS keychain, has Git built in.</td></tr>
 <tr><td>Web</td><td>The same interface in the browser, with the core compiled to WebAssembly. Folders are opened with the browser's file access. Requests the browser blocks (CORS, client certificates) can go through <code>rt agent</code>, a companion on your own machine.</td></tr>
 <tr><td>Command line</td><td><code>rt send</code> sends a request from a collection and prints a JSON report, <code>rt import</code> converts other tools' exports, <code>rt scan</code> finds credentials before they reach Git.</td></tr>
 <tr><td>MCP server</td><td>Planned for a later release, so AI agents use the same core. <a href="docs/mcp/">What is planned</a></td></tr>
