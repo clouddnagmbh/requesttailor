@@ -478,7 +478,6 @@ fn api_key_auth_in_the_request_is_written() {
 }
 
 #[test]
-#[ignore = "needs strand A (metadata::parse)"]
 fn edmx_from_the_sandbox_uses_the_metadata_requests() {
     let reply = import(vec![fixture("hub/API_RT_PRODUCT_SRV.edmx")]).unwrap();
     let c = read(&reply);

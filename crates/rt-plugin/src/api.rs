@@ -303,11 +303,13 @@ pub struct ViewReply {
     #[serde(default)]
     pub update_request: Option<RequestSpec>,
     /// New requests for the collection (unsaved, like "New request"), e.g. from an entity
-    /// browser. The host refuses names that exist. Added in wave 6.
+    /// browser. Names that exist get a suffix (API.md). Added in wave 6.
     #[serde(default)]
     pub create_requests: Vec<NewRequest>,
-    /// New environments (unsaved), e.g. a DEV/QAS/PRD template. Only non-secret values; the
-    /// host refuses names that exist and variables marked secret. Added in wave 6.
+    /// New environments (unsaved), e.g. a DEV/QAS/PRD template. Secret variables are
+    /// created without a value (the user sets it); a secret with a value is refused. An
+    /// existing environment keeps its variables and gets only the missing ones (API.md).
+    /// Added in wave 6.
     #[serde(default)]
     pub add_environments: Vec<PluginEnvironment>,
 }
