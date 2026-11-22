@@ -4691,9 +4691,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rt-plugin-example"
+version = "0.0.0"
+dependencies = [
+ "rt-format",
+ "rt-plugin-sdk",
+ "serde_json",
+]
+
+[[package]]
 name = "rt-plugin-sdk"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
+ "rt-core",
+ "rt-format",
  "rt-plugin",
  "serde",
  "serde_json",
