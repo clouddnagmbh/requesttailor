@@ -5,6 +5,9 @@ change needs an entry in `CHANGELOG.md`. Additive changes keep the version. Thes
 optional fields, new hooks, new host calls and new view blocks. Anything else bumps it, and
 the host keeps running plugins built for the older versions.
 
+How to write, build and test a plugin with the Rust SDK (`crates/rt-plugin-sdk`):
+[plugins/README.md](../../plugins/README.md).
+
 ## What a plugin is
 
 A plugin is a single WebAssembly module (`.wasm`), with no native code and no archive. It

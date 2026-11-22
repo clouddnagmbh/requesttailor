@@ -10,3 +10,5 @@ Additive changes keep `API_VERSION`; breaking changes bump it.
   `import`, host calls `log`, `now`, `http`, `storage-get`, `storage-set`,
   `storage-delete`, views with the blocks `heading`, `text`, `notice`, `key-value`,
   `table`, `code`, `tree`, `form`, `actions`.
+- `API.md` links the developer guide `plugins/README.md` (Rust SDK `crates/rt-plugin-sdk`,
+  TypeScript types `sdk/typescript`). Documentation only; the interface is unchanged.
