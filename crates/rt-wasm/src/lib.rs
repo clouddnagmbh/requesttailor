@@ -326,6 +326,11 @@ mod workspace_js {
         pub(crate) fn workspace(&self) -> std::cell::Ref<'_, Workspace> {
             std::cell::Ref::map(self.inner.borrow(), |i| &i.workspace)
         }
+
+        /// The kept responses, for the per-strand modules (wave 8: `ai_js`).
+        pub(crate) fn responses(&self) -> std::cell::Ref<'_, ResponseStore> {
+            std::cell::Ref::map(self.inner.borrow(), |i| &i.responses)
+        }
     }
 
     #[wasm_bindgen(js_class = Workspace)]
