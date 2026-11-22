@@ -4,6 +4,9 @@ useDefault = true
 
 [allowlist]
 description = "Bruno's public e2e fixtures carry fake test credentials (see testdata/collections/bruno/README.md); four import-corpus fixtures with dummy credentials (and one snapshot derived from a dummy), listed in testdata/import/SOURCES.md; public AWS SigV4 test suite vectors with AWS's documented example credentials (testdata/sigv4/SOURCES.md)"
+# Commit c200c28 (MCP client tests) added a sample JWT (subject "1234567890") as a literal to
+# show that saved MCP tests refuse credentials; the test now builds it from parts.
+commits = ["c200c28ffde1f0b6399650cd9b25d9b163829675"]
 paths = [
   '''^testdata/collections/bruno/''',
   '''^testdata/import/curl/curlconverter-get-digest-auth\.sh$''',

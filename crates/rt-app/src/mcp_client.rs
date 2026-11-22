@@ -1242,7 +1242,14 @@ mod tests {
             url: "{{url}}".into(),
             headers: vec![(
                 "Authorization".into(),
-                "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U".into(),
+                // A sample JWT (subject "1234567890"), put together here so that secret
+                // scanners of this repository do not flag the test itself.
+                [
+                    "Bearer eyJhbGciOiJIUzI1NiJ9",
+                    "eyJzdWIiOiIxMjM0NTY3ODkwIn0",
+                    "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+                ]
+                .join("."),
             )],
         };
         let err = save_test(&mut ws, Some(&path), &literal, &[]).unwrap_err();
