@@ -91,6 +91,11 @@ describe("TauriBackend", () => {
     await g.fileLog("a.yml", 20);
     await g.mergeBase("main", "feature");
     await g.commits(null, "HEAD", 50);
+    // Wave 12, strand F: the contract.
+    await b.contract.spec();
+    await b.contract.check("HEAD~1");
+    await b.contract.changes("v1", "v2");
+    await b.contract.changelog("v1", "v2");
     await b.imports.analyze([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman");
     await b.imports.write(1);
     await b.imports.discard(1);
@@ -215,6 +220,10 @@ describe("TauriBackend", () => {
       ["git_file_log", { path: "a.yml", limit: 20 }],
       ["git_merge_base", { a: "main", b: "feature" }],
       ["git_commits", { from: null, to: "HEAD", limit: 50 }],
+      ["contract_spec", undefined],
+      ["contract_check", { rev: "HEAD~1" }],
+      ["contract_changes", { from: "v1", to: "v2" }],
+      ["contract_changelog", { from: "v1", to: "v2" }],
       ["import_analyze", packImport([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman")],
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],

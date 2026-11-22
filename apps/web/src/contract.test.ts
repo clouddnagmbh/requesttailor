@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The RequestTailor Authors
+
+// The web app's contract API (wave 12, strand F) over the real core (rt-wasm, built with
+// `node scripts/build-wasm.mjs`) and a real Git repository on Node's fs: the same fixture and
+// the same answers as crates/rt-format/tests/contract.rs and `rt changelog`. Skipped when the
+// core is not built.
+
+import * as nodeFs from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
+
+import type { GitApi } from "@requesttailor/ui";
+
+import { webContract } from "./contract";
+import type { FsClient } from "./git/fs";
+import * as repoOps from "./git/repo";
+import type { Repo } from "./git/repo";
+import * as rev from "./git/revisions";
+import type { Wave12Host } from "./wave12";
+
+const WASM = join(__dirname, "../public/wasm");
+const built = nodeFs.existsSync(join(WASM, "rt_wasm_bg.wasm"));
+const FIXTURES = join(__dirname, "../../../testdata/contract");
+const me = { name: "Test User", email: "test@example.com" };
+
+const dirs: string[] = [];
+afterEach(() => {
+  for (const d of dirs.splice(0)) nodeFs.rmSync(d, { recursive: true, force: true });
+});
+
+async function core() {
+  const mod = (await import(/* @vite-ignore */ join(WASM, "rt_wasm.js"))) as {
+    initSync(options: { module: Uint8Array }): unknown;
+  };
+  mod.initSync({ module: nodeFs.readFileSync(join(WASM, "rt_wasm_bg.wasm")) });
+  return mod;
+}
+
+function collectionFiles(): Record<string, string> {
+  const out: Record<string, string> = {};
+  const walk = (dir: string, prefix: string) => {
+    for (const e of nodeFs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(join(dir, e.name), `${prefix}${e.name}/`);
+      else out[`${prefix}${e.name}`] = nodeFs.readFileSync(join(dir, e.name), "utf8");
+    }
+  };
+  walk(join(FIXTURES, "collection"), "");
+  // No configured spec: the candidates apply.
+  out["opencollection.yml"] = "opencollection: 1.0.0\ninfo:\n  name: Orders\n";
+  return out;
+}
+
+async function repoWith(specs: string[]): Promise<Repo> {
+  const dir = nodeFs.mkdtempSync(join(tmpdir(), "rt-contract-"));
+  dirs.push(dir);
+  const r: Repo = { fs: nodeFs as unknown as FsClient, dir, cache: {} };
+  await repoOps.init(r);
+  const files = collectionFiles();
+  for (const [p, t] of Object.entries(files)) {
+    nodeFs.mkdirSync(join(dir, p, ".."), { recursive: true });
+    nodeFs.writeFileSync(join(dir, p), t);
+  }
+  for (const [i, spec] of specs.entries()) {
+    nodeFs.writeFileSync(join(dir, "openapi.yaml"), nodeFs.readFileSync(join(FIXTURES, "specs", spec)));
+    const paths = i === 0 ? [...Object.keys(files), "openapi.yaml"] : ["openapi.yaml"];
+    await repoOps.commit(r, `spec ${i + 1}`, paths, me);
+  }
+  return r;
+}
+
+function api(r: Repo, loaded: Awaited<ReturnType<typeof core>>) {
+  const git = {
+    treeAt: (rv: string) => rev.treeAt(r, rv),
+    show: (rv: string, p: string) => rev.show(r, rv, p),
+  } as unknown as GitApi;
+  const host = { deps: { loadCore: async () => loaded } } as unknown as Wave12Host["host"];
+  return webContract({ host, git, sendContext: async () => Promise.reject(new Error("unused")) });
+}
+
+describe.skipIf(!built)("web contract API over the real core", () => {
+  it("checks the collection at a revision", async () => {
+    const c = api(await repoWith(["v1.yaml", "v3.yaml"]), await core());
+    const report = await c.check("HEAD~1");
+    expect(report.findings).toEqual([]);
+    expect([report.operations, report.covered]).toEqual([5, 5]);
+    // Against v3 the delete request lost its operation.
+    const now = await c.check("HEAD");
+    expect(now.findings.map((f) => [f.request, f.kind])).toContainEqual(["orders/delete-order.yml", "no-operation"]);
+  });
+
+  it("lists breaking changes between revisions with their requests", async () => {
+    const c = api(await repoWith(["v1.yaml", "v3.yaml"]), await core());
+    const changes = await c.changes("HEAD~1", "HEAD");
+    expect([changes.from_version, changes.to_version]).toEqual(["1.0.0", "2.0.0"]);
+    const removed = changes.changes.find((x) => x.kind === "operation-removed");
+    expect(removed).toMatchObject({ breaking: true, operation: "DELETE /orders/{id}", requests: ["orders/delete-order.yml"] });
+    expect(changes.changes.filter((x) => x.breaking).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("writes the same changelog as rt changelog", async () => {
+    const c = api(await repoWith(["v1.yaml", "v3.yaml"]), await core());
+    const text = await c.changelog("HEAD~1", "HEAD");
+    expect(text.startsWith("# Orders API 1.0.0 → 2.0.0\n")).toBe(true);
+    expect(text).toContain("## Breaking changes");
+    expect(text).toContain("`DELETE /orders/{id}`");
+    expect(text).toContain("`orders/delete-order.yml`");
+  });
+
+  it("refuses to check without a spec", async () => {
+    const r = await repoWith(["v1.yaml"]);
+    nodeFs.rmSync(join(r.dir, "openapi.yaml"));
+    await repoOps.commit(r, "drop", ["openapi.yaml"], me);
+    const c = api(r, await core());
+    await expect(c.check("HEAD")).rejects.toMatchObject({ kind: "format" });
+    expect((await c.changes("HEAD~1", "HEAD")).changes.every((x) => x.kind === "operation-removed")).toBe(true);
+  });
+});
