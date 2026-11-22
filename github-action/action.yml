@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+#
+# Runs a RequestTailor (OpenCollection) collection with `rt run` in a GitHub Actions job:
+# downloads `rt` from the project's GitHub release (checked against the release's
+# SHA256SUMS), runs the collection, writes JUnit and JSON reports, sets outputs and a job
+# summary. Linux (x86_64, aarch64) and macOS runners. See README.md.
+name: RequestTailor run
+description: Run an API collection (OpenCollection YAML, Bruno, imported Postman) with rt run, with JUnit and JSON reports.
+author: The RequestTailor Authors
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  collection:
+    description: Collection root or a folder inside it, relative to the workspace.
+    required: false
+    default: "."
+  environment:
+    description: Name of the environment to use.
+    required: false
+    default: ""
+  vars:
+    description: >-
+      Runtime variables, one NAME=VALUE per line (lines starting with # are skipped). Not for
+      secrets: pass those as environment variables RT_VAR_<NAME> of the step (see README).
+    required: false
+    default: ""
+  data:
+    description: CSV or JSON data file; one iteration per row.
+    required: false
+    default: ""
+  iterations:
+    description: Number of iterations (with data, that many rows, cycling).
+    required: false
+    default: ""
+  junit:
+    description: Path of the JUnit XML report to write (empty for none).
+    required: false
+    default: rt-junit.xml
+  json:
+    description: Path of the JSON report to write (default a file in the runner's temp folder).
+    required: false
+    default: ""
+  no-scripts:
+    description: "true: do not run the collection's scripts (declarative assertions still run)."
+    required: false
+    default: "false"
+  bail:
+    description: "true: stop at the first failed request, test or assertion."
+    required: false
+    default: "false"
+  args:
+    description: More arguments for rt run, one per line (e.g. --delay, --plugin, --body-limit).
+    required: false
+    default: ""
+  summary:
+    description: "true: write a job summary with a table of the requests."
+    required: false
+    default: "true"
+  version:
+    description: The rt release to use (0.1.0 or v0.1.0), or latest.
+    required: false
+    default: latest
+  rt-path:
+    description: Use this rt binary instead of downloading one (e.g. one built in the same job).
+    required: false
+    default: ""
+
+outputs:
+  passed:
+    description: Requests that passed.
+    value: ${{ steps.run.outputs.passed }}
+  failed:
+    description: Requests that failed (error, failed test or assertion).
+    value: ${{ steps.run.outputs.failed }}
+  skipped:
+    description: Requests skipped by a script.
+    value: ${{ steps.run.outputs.skipped }}
+  tests-passed:
+    description: Tests (test(...) in scripts) that passed.
+    value: ${{ steps.run.outputs.tests-passed }}
+  tests-failed:
+    description: Tests that failed.
+    value: ${{ steps.run.outputs.tests-failed }}
+  assertions-passed:
+    description: Declarative assertions that passed.
+    value: ${{ steps.run.outputs.assertions-passed }}
+  assertions-failed:
+    description: Declarative assertions that failed.
+    value: ${{ steps.run.outputs.assertions-failed }}
+  report:
+    description: Path of the JSON report.
+    value: ${{ steps.run.outputs.report }}
+  junit:
+    description: Path of the JUnit report (empty when none was written).
+    value: ${{ steps.run.outputs.junit }}
+  exit-code:
+    description: "Exit code of rt run: 0 passed, 4 a request, test or assertion failed, 2 usage error."
+    value: ${{ steps.run.outputs.exit-code }}
+  rt-path:
+    description: The rt binary that ran.
+    value: ${{ steps.run.outputs.rt-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install rt
+      id: install
+      if: inputs.rt-path == ''
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: '"$GITHUB_ACTION_PATH/install.sh"'
+    - name: Run the collection
+      id: run
+      shell: bash
+      env:
+        RT_BIN: ${{ inputs.rt-path || steps.install.outputs.path }}
+        INPUT_COLLECTION: ${{ inputs.collection }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        INPUT_VARS: ${{ inputs.vars }}
+        INPUT_DATA: ${{ inputs.data }}
+        INPUT_ITERATIONS: ${{ inputs.iterations }}
+        INPUT_JUNIT: ${{ inputs.junit }}
+        INPUT_JSON: ${{ inputs.json }}
+        INPUT_NO_SCRIPTS: ${{ inputs.no-scripts }}
+        INPUT_BAIL: ${{ inputs.bail }}
+        INPUT_ARGS: ${{ inputs.args }}
+        INPUT_SUMMARY: ${{ inputs.summary }}
+      run: '"$GITHUB_ACTION_PATH/run.sh"'

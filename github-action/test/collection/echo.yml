@@ -1,0 +1,12 @@
+info:
+  name: Echo
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/echo/action"
+  body:
+    type: json
+    data: |-
+      {"from": "rt run"}

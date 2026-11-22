@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# Build context of docker/Dockerfile: only what building `rt` needs (the Cargo workspace and
+# the license files). Everything else stays out, so the image never sees local data.
+*
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!LICENSE
+!NOTICE
+!crates/
+!apps/desktop/src-tauri/
+!plugins/
+**/target/
+**/node_modules/
+**/dist/

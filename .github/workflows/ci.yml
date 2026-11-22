@@ -411,10 +411,96 @@ jobs:
           path: target/plugins/*.wasm
           if-no-files-found: error
 
+  # rt run in pipelines (wave 7): the GitHub Action from github-action/ with a locally built rt
+  # (`rt-path`, no download) against rt-testserver, on the smoke collection and on the imported
+  # Postman collection of the wave 7 gate ("runs unchanged in CI after import"). The action's
+  # shell logic has unit tests in scripts/github-action.test.mjs (npm run test:scripts).
+  github-action:
+    name: github action (rt run)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: Build rt and rt-testserver
+        run: cargo build -p rt-cli -p rt-testserver --locked
+      - name: Start rt-testserver
+        run: |
+          target/debug/rt-testserver --port 47811 > "$RUNNER_TEMP/testserver.log" 2>&1 &
+          for _ in $(seq 100); do grep -q listening "$RUNNER_TEMP/testserver.log" && exit 0; sleep 0.1; done
+          cat "$RUNNER_TEMP/testserver.log"; exit 1
+      - name: Smoke collection through the action
+        id: smoke
+        uses: ./github-action
+        with:
+          rt-path: ${{ github.workspace }}/target/debug/rt
+          collection: github-action/test/collection
+          environment: ci
+          junit: reports/smoke-junit.xml
+      - name: Outputs of the smoke run
+        env:
+          PASSED: ${{ steps.smoke.outputs.passed }}
+          FAILED: ${{ steps.smoke.outputs.failed }}
+          CODE: ${{ steps.smoke.outputs.exit-code }}
+          JUNIT: ${{ steps.smoke.outputs.junit }}
+        run: |
+          echo "passed=$PASSED failed=$FAILED exit-code=$CODE junit=$JUNIT"
+          [ "$PASSED" = 2 ] && [ "$FAILED" = 0 ] && [ "$CODE" = 0 ] && [ -s "$JUNIT" ]
+      - name: Import the Postman collection of the wave 7 gate
+        run: target/debug/rt import testdata/import/postman/scripts-gate.postman_collection.json --out "$RUNNER_TEMP/gate"
+      - name: Run the imported collection through the action (wave 7 gate)
+        id: gate
+        uses: ./github-action
+        with:
+          rt-path: ${{ github.workspace }}/target/debug/rt
+          collection: ${{ runner.temp }}/gate
+          vars: baseUrl=http://127.0.0.1:47811
+          junit: reports/gate-junit.xml
+      - name: Every test of the scripts ran and passed
+        env:
+          PASSED: ${{ steps.gate.outputs.tests-passed }}
+          FAILED: ${{ steps.gate.outputs.tests-failed }}
+        run: |
+          echo "tests passed=$PASSED failed=$FAILED"
+          [ "$PASSED" -gt 0 ] && [ "$FAILED" = 0 ]
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rt-run-reports
+          path: reports/
+          if-no-files-found: warn
+
+  # The Docker image (docker/Dockerfile) builds and runs; it is never pushed here (only the
+  # release workflow pushes, by hand).
+  docker:
+    name: docker image (build, no push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the image
+        run: docker build -f docker/Dockerfile --build-arg "REVISION=$GITHUB_SHA" -t rt:ci .
+      - name: rt in the image, as a non-root user
+        run: |
+          docker run --rm rt:ci --version
+          [ "$(docker image inspect rt:ci --format '{{.Config.User}}')" = nonroot ]
+      - name: Install pinned toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: rt run in the container against rt-testserver on the host
+        run: |
+          cargo build -p rt-testserver --locked
+          target/debug/rt-testserver --port 47811 > "$RUNNER_TEMP/testserver.log" 2>&1 &
+          for _ in $(seq 100); do grep -q listening "$RUNNER_TEMP/testserver.log" && break; sleep 0.1; done
+          docker run --rm --network host -v "$PWD/github-action/test/collection:/work:ro" rt:ci \
+            run . -e ci --reporter json > "$RUNNER_TEMP/run.json"
+          jq -e '.summary.passed == 2 and .summary.failed == 0' "$RUNNER_TEMP/run.json"
+
   # Single required status for branch protection.
   ci-ok:
     if: always()
-    needs: [native, desktop, wasm, ios, conformance, oauth-idp, lint, licenses, dco, secrets, perf-measure, perf, frontend, plugins]
+    needs: [native, desktop, wasm, ios, conformance, oauth-idp, lint, licenses, dco, secrets, perf-measure, perf, frontend, plugins, github-action, docker]
     runs-on: ubuntu-latest
     steps:
       - name: All jobs green
