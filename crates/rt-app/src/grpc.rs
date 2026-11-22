@@ -106,7 +106,7 @@ impl GrpcSnapshot {
             ProtoSource::Files {
                 files,
                 import_paths,
-            } => Ok(self.from_files(files, import_paths)?),
+            } => Ok(self.compile_files(files, import_paths)?),
             ProtoSource::Reflection => {
                 Ok(Descriptors::from_reflection(transport, &self.url, &self.metadata).await?)
             }
@@ -119,12 +119,12 @@ impl GrpcSnapshot {
             ProtoSource::Files {
                 files,
                 import_paths,
-            } => Some(self.from_files(files, import_paths).map_err(Into::into)),
+            } => Some(self.compile_files(files, import_paths).map_err(Into::into)),
             ProtoSource::Reflection => None,
         }
     }
 
-    fn from_files(
+    fn compile_files(
         &self,
         files: &[String],
         import_paths: &[String],

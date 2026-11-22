@@ -57,7 +57,10 @@ fn proto_files_compile_and_messages_round_trip() {
         .unwrap();
     let back = d.decode_input(echo, &bytes).unwrap();
     assert!(back.contains("\"message\": \"hi\""), "{back}");
-    assert!(back.contains("\"sentAt\": \"2026-01-02T03:04:05Z\""), "{back}");
+    assert!(
+        back.contains("\"sentAt\": \"2026-01-02T03:04:05Z\""),
+        "{back}"
+    );
     assert!(back.contains("\"number\": \"7\""), "{back}");
     assert!(d.encode(echo, r#"{"nope": 1}"#).is_err());
     let template = d.template("/rt.echo.v1.EchoService/Countdown").unwrap();
