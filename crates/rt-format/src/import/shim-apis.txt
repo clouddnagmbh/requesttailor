@@ -186,7 +186,7 @@ bru.getTestResults unsupported
 bru.getAssertionResults unsupported
 bru.visualize partial ignored with a warning
 bru.cookies unsupported
-bru.grpc unsupported gRPC requests and their scripts do not run in RequestTailor
+bru.grpc unsupported Bruno's gRPC script API is not available; see SHIM-COVERAGE.md, "gRPC and WebSocket"
 __dirname unsupported scripts have no file system access
 __filename unsupported scripts have no file system access
 req.getUrl supported before-request: as written, templates unresolved

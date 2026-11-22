@@ -89,8 +89,8 @@ fails the build.</p>
 <tbody>
 <tr><td>Desktop</td><td>A native app for macOS (Tauri). On Windows and Linux, use the web app or the command line. Opens collection folders directly, keeps secrets in the OS keychain, has Git built in.</td></tr>
 <tr><td>Web</td><td>The same interface in the browser, with the core compiled to WebAssembly. Folders are opened with the browser's file access. Requests the browser blocks (CORS, client certificates) can go through <code>rt agent</code>, a companion on your own machine.</td></tr>
-<tr><td>Command line</td><td><code>rt send</code> sends a request from a collection and prints a JSON report, <code>rt import</code> converts other tools' exports, <code>rt scan</code> finds credentials before they reach Git.</td></tr>
-<tr><td>MCP server</td><td>Planned for a later release, so AI agents use the same core. <a href="docs/mcp/">What is planned</a></td></tr>
+<tr><td>Command line</td><td><code>rt send</code> sends a request from a collection and prints a JSON report, <code>rt run</code> runs a folder with its tests, <code>rt import</code> converts other tools' exports, <code>rt scan</code> finds credentials before they reach Git.</td></tr>
+<tr><td>MCP server</td><td><code>rt mcp</code> offers a collection to AI agents as tools. Agents see no secret values, and writes to production wait for your approval. <a href="docs/mcp/">How it works</a></td></tr>
 </tbody>
 </table>
 

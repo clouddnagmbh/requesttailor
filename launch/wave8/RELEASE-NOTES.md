@@ -42,6 +42,9 @@ telemetry.
 - **AI assistant, off until you configure it**: bring your own Anthropic key or point it at
   an OpenAI-compatible endpoint such as a local model. Secret values are removed from
   everything before it is sent; answers are suggestions you review, never saved on their own.
+- **Secrets from the keychain in the terminal**: `rt send`, `rt run`, `rt mcp` and session
+  requests read secret variables from the OS keychain where the desktop app keeps them, so
+  nothing has to be passed with `--var` on a developer machine.
 
 ### Command line
 

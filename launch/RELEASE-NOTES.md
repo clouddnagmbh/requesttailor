@@ -13,10 +13,19 @@ plain files in your Git repository. No account, no cloud, no telemetry.
   interface in the browser through WebAssembly (on Windows and Linux too); `rt send` and
   `rt run` with JSON and JUnit reports for pipelines, a GitHub Action and a Docker image. A
   conformance suite runs the same cases against the native and the WebAssembly core.
+- **Scripts and tests.** JavaScript before and after a request, tests with `expect`, and
+  declarative assertions and "set variable" actions that need no script. One sandbox
+  (QuickJS inside WebAssembly) on every surface; Bruno, Postman and Insomnia scripts run
+  through shims, and the import report lists the few APIs that are not supported
+  (`crates/rt-script/SHIM-COVERAGE.md`). Scripts only run in collections you trust, asked
+  once per collection and device. `rt run` runs a folder with data files and `--bail`,
+  reports as text, JSON and JUnit, and exits 4 when a test fails.
 - **Secrets stay local.** OS keychain on the desktop, encrypted browser storage on the web,
   external secret managers (1Password, HashiCorp Vault, AWS Secrets Manager, Azure Key Vault,
   Google Secret Manager) through their own command lines, and a secret scanner that refuses
-  commits with credentials (`rt scan` for hooks and pipelines).
+  commits with credentials (`rt scan` for hooks and pipelines). `rt send` and `rt run`
+  read secret variables from the same keychain, so a request sends from the command
+  line as it does in the app.
 - **Authentication:** Basic, Bearer, API key, OAuth 2.0 (client credentials, password,
   authorization code with PKCE, device code, SAML 2.0 bearer), AWS Signature Version 4,
   client certificates.
@@ -48,7 +57,9 @@ the fingerprint with the one on the website's download page).
 
 ## Not in this release
 
-- The MCP server (planned).
+- Protocols beyond HTTP (gRPC, WebSocket, Server-Sent Events, GraphQL), the MCP server and
+  MCP client, the optional AI assistant, `rt mock` and `rt docs`: they come with the next
+  release, whose draft notes are in `launch/wave8/RELEASE-NOTES.md`.
 - A hosted web app; the web app runs from the repository.
 - Building plugins from TypeScript; plugins are written in Rust for now.
 - Automatic updates: the app does not check for updates. Watch the repository's releases.

@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MockBackend } from "./mock";
-import { lineDiff, MockGit, MOCK_REMOTE_HOST } from "./mock-git";
+import { lineDiff, MockGit, MOCK_REMOTE_HOST, renderSpec } from "./mock-git";
 
 const kinds = (d: ReturnType<typeof lineDiff>) => d.hunks.flatMap((h) => h.lines.map((l) => `${l.kind[0]} ${l.text}`));
 
@@ -67,8 +67,8 @@ describe("MockGit", () => {
     expect((await git.status()).files.map((f) => f.path)).toEqual(["health.yml", "users/list-users.yml"]);
     const diff = await git.diff("health.yml");
     expect(diff.hunks[0].lines.filter((l) => l.kind !== "context").map((l) => l.text.trim())).toEqual([
-      '"url": "{{baseUrl}}/health",',
-      '"url": "{{baseUrl}}/up",',
+      'url: "{{baseUrl}}/health"',
+      'url: "{{baseUrl}}/up"',
     ]);
     await git.commit("Health moved", ["health.yml"]);
     expect(await git.status()).toMatchObject({ ahead: 1, files: [{ path: "users/list-users.yml" }] });
@@ -132,5 +132,28 @@ describe("MockGit", () => {
     git.scenario("none");
     expect(await git.clone("https://git.example.com/acme/demo-api.git")).toMatchObject({ name: "Demo API" });
     expect((await git.status()).repo).toBe(true);
+  });
+});
+
+describe("MockGit file text and clock", () => {
+  it("renders request files as YAML, not JSON", async () => {
+    const b = new MockBackend();
+    await b.openCollection();
+    const text = renderSpec(await b.getRequest("users/list-users.yml"));
+    expect(text.startsWith("{")).toBe(false);
+    expect(text).toMatch(/^info:\n {2}name: /);
+    expect(text).toContain("\nhttp:\n  method: ");
+  });
+
+  it("stamps commits relative to the injected clock", async () => {
+    const b = new MockBackend();
+    await b.openCollection();
+    const git = b.git as MockGit;
+    const now = Date.now() / 1000;
+    const log = await git.log(10);
+    expect(log.length).toBeGreaterThan(0);
+    for (const c of log) expect(Math.abs(c.time - now)).toBeLessThan(2 * 3_600);
+    const fixed = new MockGit(undefined, () => 2_000_000_000_000);
+    expect(Object.getOwnPropertyDescriptor(fixed, "startTime")?.value).toBe(2_000_000_000 - 3_600);
   });
 });

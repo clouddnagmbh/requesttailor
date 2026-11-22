@@ -511,6 +511,8 @@
     inset: 0;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
+    /* Without this the column grows with the widest line (a long URL) and pushes Send out. */
+    grid-template-columns: minmax(0, 1fr);
     background: var(--rt-bg);
     color: var(--rt-fg);
   }
@@ -560,6 +562,7 @@
   .body {
     display: flex;
     min-height: 0;
+    min-width: 0;
   }
   .side {
     flex: none;

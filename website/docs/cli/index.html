@@ -48,8 +48,10 @@
 green in the pipeline.</p>
 
 <pre><code>rt send &lt;request-file&gt; [--env NAME] [--var NAME=VALUE]... [--plugin FILE]... [--pretty]
+rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAME[=FILE]]...
 rt import &lt;file&gt;... --out DIR [--format FORMAT] [--json]
 rt scan [PATH]... [--json]
+rt mcp [COLLECTION] [--var NAME=VALUE]... [--env-default NAME]
 rt agent [--port PORT] [--allow-origin ORIGIN]... [--allow-secrets]
 rt --help</code></pre>
 
@@ -76,11 +78,39 @@ their origin, unresolved placeholders and any error. The web app produces the sa
 <tr><td>1</td><td>No response: connection, DNS, TLS, timeout, too many redirects</td></tr>
 <tr><td>2</td><td>Usage error, no collection, invalid files, or the request is not in the collection</td></tr>
 <tr><td>3</td><td>The request could not be prepared: unknown environment, invalid URL, unsupported auth, unreadable body file</td></tr>
+<tr><td>4</td><td>A response arrived, but a test or assertion failed</td></tr>
 </tbody>
 </table>
 <p>A status check in a pipeline, with <code>jq</code>:</p>
 <pre><code>rt send health/status.yml --env CI --var token="$API_TOKEN" \
   | jq -e '.response.status == 200' </code></pre>
+
+<p id="secrets"><code>rt send</code>, <code>rt run</code> and <code>rt mcp</code> read the value of a
+secret variable from the OS keychain, where the desktop app keeps it for this collection and
+environment, so a request sends from the command line exactly as it does in the app.
+<code>--var</code> wins over the keychain. Without a keychain (a CI runner), pass the value with
+<code>--var</code> or read it from a secret manager.</p>
+
+<h2 id="run">rt run</h2>
+<p>Sends every request of a collection, or of one folder, in order and reports tests and
+assertions: the command for pipelines. It uses the same core, scripts, plugins and auth as the
+apps. Variables that scripts set carry over to the following requests of the run, never into
+files.</p>
+<pre><code>rt run api/users -e Staging --var token="$API_TOKEN"
+rt run . --data users.csv --reporter junit=reports/junit.xml</code></pre>
+<table>
+<thead><tr><th scope="col">Option</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>--data FILE</code></td><td>CSV or JSON; each row's values are variables of one iteration</td></tr>
+<tr><td><code>--iterations N</code>, <code>--delay MS</code></td><td>Repeat the run, wait between requests</td></tr>
+<tr><td><code>--bail</code></td><td>Stop at the first failed request, test or assertion</td></tr>
+<tr><td><code>--reporter NAME[=FILE]</code></td><td><code>text</code>, <code>json</code> or <code>junit</code>, repeatable</td></tr>
+<tr><td><code>--no-scripts</code></td><td>Do not run scripts; declarative assertions still run</td></tr>
+</tbody>
+</table>
+<p>Exit code 0 when every request got a response and every test and assertion passed, 4 when
+a request, test or assertion failed, 2 on a usage error, 3 when secrets or plugins could not be
+set up.</p>
 
 <h2 id="import">rt import</h2>
 <pre><code>rt import shop.postman_collection.json prod.postman_environment.json --out ./shop
@@ -96,6 +126,10 @@ pre-commit hook:</p>
 files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.yml' '*.yaml' '*.json')
 [ -z "$files" ] &amp;&amp; exit 0
 exec rt scan $files</code></pre>
+
+<h2 id="mcp">rt mcp</h2>
+<p>Offers a collection to AI agents over the Model Context Protocol. See
+<a href="../mcp/">MCP server</a>.</p>
 
 <h2 id="agent">rt agent</h2>
 <p>The web app runs in the browser, so the browser's rules apply: no request to a server
