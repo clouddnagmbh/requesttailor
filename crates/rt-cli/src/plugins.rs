@@ -2,31 +2,113 @@
 // Copyright 2026 The RequestTailor Authors
 
 //! Plugins for `rt send` (wave 5, strand A): the installed plugins (the directory the desktop
-//! app installs into) plus `--plugin` files, run by `rt_plugin::host::PluginHost`.
+//! app installs into, `rt_plugin::host::dir`; `RT_DATA_DIR` overrides the data folder) plus
+//! `--plugin` files, run by `rt_plugin::host::PluginHost` exactly as in the apps.
 //!
-//! Interface commit: no plugins. Strand A owns this file.
+//! - Installed plugins run in installation order, then the `--plugin` files in argument order.
+//!   A `--plugin` file with the id of an installed plugin replaces it for this run.
+//! - `--plugin` files get the permissions their manifest requests: naming the file is the
+//!   user's consent. Installed plugins get what was granted at install time.
+//! - `--no-plugins` skips the installed plugins (the `--plugin` files still run).
+//! - An installed plugin that does not load is reported on stderr and skipped; a `--plugin`
+//!   file that does not load fails the send.
+//! - Plugin log lines (`log` host call, stdout and stderr of the module) go to stderr.
 
 use std::path::Path;
 
-use rt_core::services::RequestHooks;
+use rt_core::services::{LocalBoxFuture, NoteLevel, RequestHooks};
+use rt_core::transport::native::NativeTransport;
+use rt_plugin::host::dir::{FileStorage, PluginDir};
+use rt_plugin::host::services::{MemoryStorage, PluginStorage, TransportServices};
+use rt_plugin::host::{Plugin, PluginHost};
+use serde_json::Value;
 
 use crate::SendArgs;
 
 pub struct CliPlugins {
-    _private: (),
+    host: PluginHost,
+}
+
+/// Storage of the shared plugin folder, or memory when there is no data folder.
+enum CliStorage {
+    File(FileStorage),
+    Memory(MemoryStorage),
+}
+
+impl PluginStorage for CliStorage {
+    fn get<'a>(&'a self, plugin: &'a str, key: &'a str) -> LocalBoxFuture<'a, Option<Value>> {
+        match self {
+            Self::File(s) => s.get(plugin, key),
+            Self::Memory(s) => s.get(plugin, key),
+        }
+    }
+
+    fn set<'a>(
+        &'a self,
+        plugin: &'a str,
+        key: &'a str,
+        value: Option<Value>,
+    ) -> LocalBoxFuture<'a, ()> {
+        match self {
+            Self::File(s) => s.set(plugin, key, value),
+            Self::Memory(s) => s.set(plugin, key, value),
+        }
+    }
+}
+
+fn level(level: NoteLevel) -> &'static str {
+    match level {
+        NoteLevel::Info => "info",
+        NoteLevel::Warning => "warning",
+        NoteLevel::Error => "error",
+    }
 }
 
 impl CliPlugins {
     /// `None` when there is nothing to run.
     pub fn new(args: &SendArgs, root: &Path) -> Result<Option<Self>, String> {
+        // Plugins come from the data folder and the arguments, not from the collection.
         let _ = root;
-        if args.plugins.is_empty() {
+        let dir = PluginDir::shared();
+        let mut plugins: Vec<Plugin> = Vec::new();
+        if !args.no_plugins
+            && let Some(dir) = &dir
+        {
+            let (loaded, failed) = dir.load();
+            for (id, e) in failed {
+                eprintln!("rt: installed plugin {id} not loaded: {e}");
+            }
+            plugins.extend(loaded);
+        }
+        for path in &args.plugins {
+            let wasm = std::fs::read(path)
+                .map_err(|e| format!("cannot read plugin {}: {e}", path.display()))?;
+            let manifest =
+                PluginHost::inspect(&wasm).map_err(|e| format!("{}: {e}", path.display()))?;
+            let plugin = Plugin::compile(&wasm, &manifest.permissions, true)
+                .map_err(|e| format!("{}: {e}", path.display()))?;
+            plugins.retain(|p| p.id() != plugin.id());
+            plugins.push(plugin);
+        }
+        if plugins.is_empty() {
             return Ok(None);
         }
-        Err("plugins are not available yet".to_owned())
+        let storage = match &dir {
+            Some(dir) => CliStorage::File(dir.storage()),
+            None => CliStorage::Memory(MemoryStorage::default()),
+        };
+        let services =
+            TransportServices::new(NativeTransport::new().ok(), storage).with_logger(Box::new(
+                |plugin, l, message| eprintln!("rt: plugin {plugin} ({}): {message}", level(l)),
+            ));
+        let host = PluginHost::with_plugins(Box::new(services), plugins);
+        if !host.has_hooks() {
+            return Ok(None);
+        }
+        Ok(Some(Self { host }))
     }
 
     pub fn hooks(&self) -> &dyn RequestHooks {
-        unreachable!("interface commit: never constructed")
+        &self.host
     }
 }

@@ -67,6 +67,15 @@ impl Importer {
         to_js(&plan)
     }
 
+    /// `ImportPlan` for what a plugin importer returned (`Plugins.importFiles`, wave 5
+    /// strand A): checked like a built-in import, then written with `take` like any other.
+    #[wasm_bindgen(js_name = addPluginImport)]
+    pub fn add_plugin_import(&mut self, reply: JsValue) -> Result<JsValue, JsValue> {
+        let reply: rt_app::plugins::ImportReply = from_js(&reply, "reply")?;
+        let import = rt_app::plugins::plugin_import(reply).map_err(app_error)?;
+        to_js(&self.imports.add(import))
+    }
+
     /// The files of plan `id` as `FileChange[]` (paths relative to the new collection's
     /// folder); the plan is gone afterwards.
     pub fn take(&mut self, id: f64) -> Result<JsValue, JsValue> {

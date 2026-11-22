@@ -17,6 +17,7 @@ path = "src/main.rs"
 lexopt = "0.3"
 rt-core = { path = "../rt-core" }
 rt-format = { path = "../rt-format" }
+rt-plugin = { path = "../rt-plugin" }
 serde_json = "1"
 # Current-thread runtime only; the native transport needs the I/O and timer drivers.
 tokio = { version = "1", features = ["rt", "net", "time"] }
