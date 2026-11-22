@@ -150,6 +150,10 @@ pub fn run() {
             agents::agents_pending,
             agents::agents_decide,
             agents::agents_audit,
+            // Wave 8, strand B.
+            grpc::grpc_services,
+            grpc::grpc_template,
+            grpc::graphql_schema,
             // Wave 8, strand A.
             streams::stream_open,
             streams::stream_send,

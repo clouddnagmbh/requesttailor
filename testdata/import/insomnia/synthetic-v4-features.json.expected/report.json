@@ -54,12 +54,6 @@
         "location": "GraphQL"
       },
       {
-        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
-        "effect": "approximated",
-        "kind": "body",
-        "location": "GraphQL"
-      },
-      {
         "detail": "Hawk auth (`hawk`) not imported: OpenCollection cannot hold it; the request is sent without auth",
         "effect": "dropped",
         "kind": "auth",
@@ -156,8 +150,8 @@
         "location": "environment Private"
       },
       {
-        "detail": "gRPC request not imported",
-        "effect": "dropped",
+        "detail": "gRPC request imported without its proto file and as unary; pick the method again (proto files or server reflection) to set its type",
+        "effect": "approximated",
         "kind": "protocol",
         "location": "gRPC call"
       },
@@ -168,6 +162,6 @@
         "location": "https://api.example.com/header?x={{page_size}}"
       }
     ],
-    "requests": 14
+    "requests": 15
   }
 }

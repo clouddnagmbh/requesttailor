@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The RequestTailor Authors
+//
+// Echo service of the gRPC test server (`rt_testserver::grpc`). Synthetic, see SOURCES.md.
+// Compile with the import path `include` (for `rt/common.proto`).
+
+syntax = "proto3";
+
+package rt.echo.v1;
+
+import "google/protobuf/timestamp.proto";
+import "rt/common.proto";
+
+service EchoService {
+  // Unary: the message back, with the request metadata whose names start with `x-`.
+  rpc Echo(EchoRequest) returns (EchoReply);
+  // Server streaming: `count` replies (default 3), `delay_ms` apart.
+  rpc Countdown(CountdownRequest) returns (stream EchoReply);
+  // Client streaming: one reply with all messages joined by spaces, `index` = their count.
+  rpc Collect(stream EchoRequest) returns (EchoReply);
+  // Bidi streaming: one reply per message, as it arrives.
+  rpc Chat(stream EchoRequest) returns (stream EchoReply);
+  // Fails with `code` and `message` (trailers-only response).
+  rpc Fail(FailRequest) returns (EchoReply);
+}
+
+message EchoRequest {
+  string message = 1;
+  rt.common.Priority priority = 2;
+  repeated string tags = 3;
+  map<string, string> labels = 4;
+  google.protobuf.Timestamp sent_at = 5;
+  oneof extra {
+    int64 number = 6;
+    string note = 7;
+  }
+}
+
+message EchoReply {
+  string message = 1;
+  int32 index = 2;
+  rt.common.Metadata metadata = 3;
+}
+
+message CountdownRequest {
+  string message = 1;
+  int32 count = 2;
+  int32 delay_ms = 3;
+}
+
+message FailRequest {
+  int32 code = 1;
+  string message = 2;
+}

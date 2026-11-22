@@ -1,14 +1,14 @@
 info:
   name: GraphQL
-  type: http
+  type: graphql
   seq: 6
 
-http:
+graphql:
   method: POST
   url: https://api.example.com/graphql
   body:
-    type: json
-    data: '{"query":"{ me { id } }","variables":{}}'
+    query: "{ me { id } }"
+    variables: "{}"
   auth:
     type: digest
     username: u

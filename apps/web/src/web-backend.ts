@@ -44,7 +44,7 @@ import {
 import { webAuth, type WebAuthApi } from "./auth";
 import { createCompanionClient, type CompanionClient } from "./companion/client";
 import { webCookies, type WebCookieApi } from "./cookies";
-import { webRunner } from "./runner";
+import { webRunner, type RunContext } from "./runner";
 import { webStreams } from "./streams";
 import { webGrpc } from "./grpc";
 import { webGraphQl } from "./graphql";
@@ -159,8 +159,8 @@ export class WebBackend implements Backend {
   readonly runner: RunnerApi;
   /** Wave 8 (one file per strand). */
   readonly streams: StreamsApi;
-  readonly grpc = webGrpc();
-  readonly graphql = webGraphQl();
+  readonly grpc = webGrpc({ session: () => this.session(), sendContext: (i) => this.sendContext(i) });
+  readonly graphql = webGraphQl({ session: () => this.session(), sendContext: (i) => this.sendContext(i) });
   readonly agents = webAgents(() => this.session());
   readonly mcp = webMcp();
   readonly ai: AiApi;
@@ -412,6 +412,16 @@ export class WebBackend implements Backend {
       values.push(...(read ? await this.external.resolve(external, skip) : this.external.cached(external, skip)));
     }
     return values;
+  }
+
+  /** Wave 8, strand B (`grpc.ts`, `graphql.ts`): what a send needs, as for the runner. */
+  private async sendContext(input: SendInput): Promise<RunContext> {
+    const s = this.session();
+    return {
+      companion: this.companionOn ? await this.companionCredentials() : null,
+      services: await sendServices(this, s.id, input.environment),
+      input: await this.coreInput(s, input, true),
+    };
   }
 
   private async coreInput(s: Session, input: SendInput, read = false): Promise<CoreSendInput> {

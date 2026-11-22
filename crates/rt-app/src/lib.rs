@@ -25,6 +25,9 @@ pub mod ai;
 pub mod auth;
 pub mod cookies;
 pub mod git;
+// Wave 8, strand B: gRPC services and templates, GraphQL schemas.
+pub mod graphql;
+pub mod grpc;
 pub mod history;
 pub mod import;
 pub mod mcp_client;

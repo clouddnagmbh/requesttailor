@@ -112,6 +112,11 @@ describe("TauriBackend", () => {
     await b.agents.pending();
     await b.agents.decide("abc", "denied");
     await b.agents.audit(10);
+    // Wave 8, strand B: secret values never go to the Rust side from the webview.
+    const local = { environment: "Local", vars: [] as [string, string][], secrets: [["t", "x"]] } as never;
+    await b.grpc.services("g.yml", local);
+    await b.grpc.template("g.yml", "/a.B/C", local);
+    await b.graphql.schema("q.yml", local, true);
     // Wave 8, strand A.
     const message = { title: "", selected: true, kind: "text" as const, data: "hi" };
     const leaky = { environment: "Local", vars: [], secrets: [["t", "leak"]] };
@@ -208,6 +213,9 @@ describe("TauriBackend", () => {
       ["agents_decide", { id: "abc", decision: "denied" }],
       ["agents_pending", undefined],
       ["agents_audit", { limit: 10 }],
+      ["grpc_services", { path: "g.yml", input: { environment: "Local", vars: [] } }],
+      ["grpc_template", { path: "g.yml", method: "/a.B/C", input: { environment: "Local", vars: [] } }],
+      ["graphql_schema", { path: "q.yml", input: { environment: "Local", vars: [] }, refresh: true }],
       ["stream_open", { path: "ws.yml", input: { environment: "Local", vars: [] }, onEvent: "stream-channel" }],
       ["stream_send", { session: 1, message }],
       ["stream_finish", { session: 1 }],

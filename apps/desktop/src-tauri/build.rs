@@ -93,6 +93,10 @@ const COMMANDS: &[&str] = &[
     "agents_pending",
     "agents_decide",
     "agents_audit",
+    // Wave 8, strand B.
+    "grpc_services",
+    "grpc_template",
+    "graphql_schema",
     // Wave 8, strand A.
     "stream_open",
     "stream_send",

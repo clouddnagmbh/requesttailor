@@ -136,7 +136,9 @@ pub(crate) struct Counts {
     pub environments: u32,
 }
 
-const ROOT_ORDER: [&str; 6] = ["info", "http", "runtime", "settings", "docs", "examples"];
+const ROOT_ORDER: [&str; 8] = [
+    "info", "http", "graphql", "grpc", "runtime", "settings", "docs", "examples",
+];
 
 fn number(n: f64) -> String {
     if n.fract() == 0.0 && n.abs() < 1e15 {
@@ -267,14 +269,13 @@ fn body_val(body: &Body) -> Option<Val> {
             e.push(("selected", Val::bool(true)));
             ("file", Val::Seq(vec![Val::Map(e)]))
         }
-        // Importers produce no GraphQL bodies before wave 8, strand B.
-        Body::GraphQl { query, variables } => (
-            "graphql",
-            Val::Map(vec![
+        // GraphQL items carry `{query, variables}` as their body (wave 8, strand B).
+        Body::GraphQl { query, variables } => {
+            return Some(Val::Map(vec![
                 ("query", Val::str(query)),
                 ("variables", Val::str(variables)),
-            ]),
-        ),
+            ]));
+        }
     };
     Some(Val::Map(vec![("type", Val::str(kind)), ("data", data)]))
 }
@@ -432,9 +433,18 @@ fn example_val(x: &ExampleOut) -> Val {
 }
 
 fn request_text(r: &RequestOut, spec: &RequestSpec) -> String {
-    let mut info = vec![("name", Val::str(&spec.name)), ("type", Val::str("http"))];
+    // Wave 8, strand B: GraphQL bodies make `graphql` items, gRPC requests `grpc` items.
+    let kind = match (&spec.protocol, &spec.body) {
+        (rt_core::model::Protocol::Grpc(_), _) => "grpc",
+        (_, Body::GraphQl { .. }) => "graphql",
+        _ => "http",
+    };
+    let mut info = vec![("name", Val::str(&spec.name)), ("type", Val::str(kind))];
     if let Some(seq) = spec.seq {
         info.push(("seq", Val::Plain(number(seq))));
+    }
+    if let rt_core::model::Protocol::Grpc(g) = &spec.protocol {
+        return grpc_text(r, spec, g, info);
     }
     let mut http = vec![
         ("method", Val::str(&spec.method)),
@@ -461,7 +471,7 @@ fn request_text(r: &RequestOut, spec: &RequestSpec) -> String {
     if let Some(a) = auth_val(&r.auth, &Auth::None) {
         http.push(("auth", a));
     }
-    let mut root = vec![("info", Val::Map(info)), ("http", Val::Map(http))];
+    let mut root = vec![("info", Val::Map(info)), (kind, Val::Map(http))];
     let mut rt = Vec::new();
     if !spec.vars.is_empty() {
         rt.push(("variables", var_list(&spec.vars, &[])));
@@ -484,13 +494,76 @@ fn request_text(r: &RequestOut, spec: &RequestSpec) -> String {
     if let Some(d) = r.docs.as_ref().filter(|d| !d.trim().is_empty()) {
         root.push(("docs", Val::str(d)));
     }
-    if !r.examples.is_empty() {
+    // OpenCollection has examples for HTTP items only.
+    if !r.examples.is_empty() && kind == "http" {
         root.push((
             "examples",
             Val::Seq(r.examples.iter().map(example_val).collect()),
         ));
     }
     debug_assert!(root.iter().all(|(k, _)| ROOT_ORDER.contains(k)));
+    document_text(&root, true)
+}
+
+/// A `grpc` item: url, method, methodType, metadata, message(s), auth; runtime variables,
+/// scripts and assertions (OpenCollection has no settings or actions for gRPC).
+fn grpc_text(
+    r: &RequestOut,
+    spec: &RequestSpec,
+    g: &rt_core::model::GrpcSpec,
+    info: Vec<(&'static str, Val)>,
+) -> String {
+    let mut grpc = vec![
+        ("url", Val::str(&spec.url)),
+        ("method", Val::str(&g.method)),
+        (
+            "methodType",
+            Val::str(crate::protocols::grpc::method_type_str(g.method_type)),
+        ),
+    ];
+    if let Some(p) = &g.proto_file {
+        grpc.push(("protoFilePath", Val::str(p)));
+    }
+    if !spec.headers.is_empty() {
+        grpc.push(("metadata", kv_list(&spec.headers, &r.header_docs)));
+    }
+    match g.messages.as_slice() {
+        [] => {}
+        [one] if one.title.is_empty() => grpc.push(("message", Val::str(&one.data))),
+        many => grpc.push((
+            "message",
+            Val::Seq(
+                many.iter()
+                    .map(|m| {
+                        Val::Map(vec![
+                            ("title", Val::str(&m.title)),
+                            ("message", Val::str(&m.data)),
+                        ])
+                    })
+                    .collect(),
+            ),
+        )),
+    }
+    if let Some(a) = auth_val(&r.auth, &Auth::None) {
+        grpc.push(("auth", a));
+    }
+    let mut root = vec![("info", Val::Map(info)), ("grpc", Val::Map(grpc))];
+    let mut rt = Vec::new();
+    if !spec.vars.is_empty() {
+        rt.push(("variables", var_list(&spec.vars, &[])));
+    }
+    if let Some(s) = runtime::scripts_val(&spec.scripts) {
+        rt.push(("scripts", s));
+    }
+    if let Some(a) = runtime::assertions_val(&spec.assertions) {
+        rt.push(("assertions", a));
+    }
+    if !rt.is_empty() {
+        root.push(("runtime", Val::Map(rt)));
+    }
+    if let Some(d) = r.docs.as_ref().filter(|d| !d.trim().is_empty()) {
+        root.push(("docs", Val::str(d)));
+    }
     document_text(&root, true)
 }
 

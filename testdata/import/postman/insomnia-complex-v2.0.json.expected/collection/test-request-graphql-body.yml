@@ -1,20 +1,25 @@
 info:
   name: Test Request GraphQL Body
-  type: http
+  type: graphql
   seq: 5
 
-http:
+graphql:
   method: POST
   url: "{{base_url}}/graphql/"
   body:
-    type: json
-    data: |-
+    query: |
+      mutation loginUser($username: String!, $password: String!) {
+        login(username: $username, password: $password) {
+          token
+          status {
+            success
+          }
+        }
+      }
+    variables: |-
       {
-        "query": "mutation loginUser($username: String!, $password: String!) {\n  login(username: $username, password: $password) {\n    token\n    status {\n      success\n    }\n  }\n}\n",
-        "variables": {
           "password": "{{password}}",
           "username": "{{username}}"
-        }
       }
   auth: inherit
 

@@ -338,6 +338,29 @@ impl<S: SecretStore> Core<S> {
         })
     }
 
+    /// Wave 8, strand B (`grpc.rs`): `f` on the open workspace with `input` as a send gets it
+    /// (session variables; secret values from the keychain and external secrets, read first
+    /// on a blocking thread), and the collection id.
+    pub async fn with_send_input<T>(
+        &self,
+        input: SendInput,
+        f: impl FnOnce(&Workspace, SendInput, &str) -> Result<T, AppError>,
+    ) -> Result<T, AppError> {
+        let pending = self.with_session(|s| self.external_pending(s, &input))?;
+        if let Some((external, skip)) = pending {
+            let resolver = std::sync::Arc::clone(&self.external_secrets);
+            tokio::task::spawn_blocking(move || resolver.resolve(&external, &skip))
+                .await
+                .map_err(|e| AppError::Shell(format!("reading secrets failed: {e}")))?
+                .map_err(AppError::Shell)?;
+        }
+        self.with_session(|s| {
+            let input = self.services.session.input_for(&s.id, input);
+            let input = self.with_secrets(s, input)?;
+            f(&s.workspace, input, &s.id)
+        })
+    }
+
     /// Request paths below `folder` in run order (wave 7, strand D, `runner.rs`).
     pub fn run_plan(&self, folder: Option<&str>) -> Result<Vec<String>, AppError> {
         self.with_session(|s| Ok(rt_core::runner::plan(s.workspace.collection(), folder)))

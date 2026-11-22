@@ -66,12 +66,6 @@
         "location": "Bodies / Binary"
       },
       {
-        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
-        "effect": "approximated",
-        "kind": "body",
-        "location": "Bodies / GraphQL"
-      },
-      {
         "detail": "file `/Users/someone/photo.png` for `upload` refers to the original computer; copy it into the collection folder and update the path",
         "effect": "approximated",
         "kind": "body",

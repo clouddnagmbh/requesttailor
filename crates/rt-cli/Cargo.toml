@@ -21,6 +21,8 @@ rt-core = { path = "../rt-core" }
 # OAuth 2.0 tokens in the keychain entries the desktop app uses, the loopback listener and
 # the system browser (wave 5, strand C, `oauth.rs`).
 rt-format = { path = "../rt-format" }
+# gRPC descriptors and JSON <-> protobuf for `rt send` on gRPC requests (wave 8, strand B).
+rt-grpc = { path = "../rt-grpc" }
 rt-plugin = { path = "../rt-plugin" }
 # The script sandbox (wave 7, `scripts.rs`).
 rt-script = { path = "../rt-script" }

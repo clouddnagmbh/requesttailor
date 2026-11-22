@@ -208,8 +208,8 @@ fn every_corpus_request_can_get_scripts_assertions_and_actions_and_lose_them_aga
             let ctx = format!("{}: {path}", root.display());
             let mut doc = base.clone();
             let before = spec(&doc, &path);
-            // Wave 8: WebSocket and gRPC items have no assertions or actions; their scripts
-            // are covered by their own tests (`tests/websocket.rs`).
+            // Wave 8: OpenCollection has no runtime actions for gRPC (and WebSocket) items;
+            // their runtime edits are tested in `tests/protocols_*.rs`.
             if !before.protocol.is_http() {
                 continue;
             }

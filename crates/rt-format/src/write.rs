@@ -27,8 +27,18 @@ use crate::read::{self, Builder};
 use crate::runtime;
 use crate::yaml::{Document, ItemOp, Map, Node, Val, document_text, parse, reparse};
 
-const ROOT_ORDER: &[&str] = &[
-    "meta", "info", "http", "runtime", "settings", "docs", "examples",
+// Wave 8: the protocol keys of other item types sit where `http` does.
+pub(crate) const ROOT_ORDER: &[&str] = &[
+    "meta",
+    "info",
+    "http",
+    "graphql",
+    "grpc",
+    "websocket",
+    "runtime",
+    "settings",
+    "docs",
+    "examples",
 ];
 const INFO_ORDER: &[&str] = &["name", "type", "seq", "tags"];
 const HTTP_ORDER: &[&str] = &["method", "url", "params", "headers", "body", "auth"];
@@ -90,7 +100,7 @@ fn kind_str(kind: ParamKind) -> &'static str {
     }
 }
 
-fn param_val(p: &Param) -> Val {
+pub(crate) fn param_val(p: &Param) -> Val {
     let mut e = vec![
         ("name", Val::str(&p.name)),
         ("value", Val::str(&p.value)),
@@ -426,7 +436,7 @@ pub(crate) fn sync_list<T: PartialEq>(map: &mut Map, spec: &ListSpec<'_, T>, new
     }
 }
 
-fn edit_kv(m: &mut Map, old: &KeyValue, new: &KeyValue, nl: &str) {
+pub(crate) fn edit_kv(m: &mut Map, old: &KeyValue, new: &KeyValue, nl: &str) {
     if old.name != new.name {
         m.put("name", &Val::str(&new.name), KV_ORDER, false, nl);
     }
@@ -438,7 +448,7 @@ fn edit_kv(m: &mut Map, old: &KeyValue, new: &KeyValue, nl: &str) {
     }
 }
 
-fn edit_param(m: &mut Map, old: &Param, new: &Param, nl: &str) {
+pub(crate) fn edit_param(m: &mut Map, old: &Param, new: &Param, nl: &str) {
     if old.name != new.name {
         m.put("name", &Val::str(&new.name), PARAM_ORDER, false, nl);
     }
@@ -631,6 +641,9 @@ fn read_request(doc: &Document, path: &str) -> Option<RequestSpec> {
 /// re-parsed document; `doc` itself is not changed.
 pub(crate) fn apply_request(doc: &Document, path: &str, spec: &RequestSpec) -> Result<Document> {
     let want = normalized(spec);
+    // Wave 8: a body switched to or from GraphQL changes the item type first.
+    let converted = crate::protocols::convert(doc, &want).transpose()?;
+    let doc = converted.as_ref().unwrap_or(doc);
     if let Some(edited) = crate::protocols::apply(doc, path, &want) {
         return edited;
     }
@@ -659,7 +672,7 @@ pub(crate) fn apply_request(doc: &Document, path: &str, spec: &RequestSpec) -> R
     }
 }
 
-fn write_info(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str) {
+pub(crate) fn write_info(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str) {
     if old.name == new.name && old.seq == new.seq {
         return;
     }
@@ -920,7 +933,12 @@ pub(crate) fn write_auth(http: &mut Map, old: &Auth, new: &Auth, nl: &str) -> Re
 
 /// `runtime`: variables, scripts, assertions and actions (the last three in
 /// [`runtime`](crate::runtime)).
-fn write_runtime(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str) -> Result<()> {
+pub(crate) fn write_runtime(
+    root: &mut Map,
+    old: &RequestSpec,
+    new: &RequestSpec,
+    nl: &str,
+) -> Result<()> {
     let vars = old.vars != new.vars;
     let scripts = old.scripts != new.scripts;
     let assertions = old.assertions != new.assertions;
@@ -974,7 +992,7 @@ fn write_runtime(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str)
     Ok(())
 }
 
-fn write_settings(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str) {
+pub(crate) fn write_settings(root: &mut Map, old: &RequestSpec, new: &RequestSpec, nl: &str) {
     let (old, new) = (&old.settings, &new.settings);
     if old == new {
         return;

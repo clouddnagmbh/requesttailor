@@ -136,6 +136,10 @@ export const COMMANDS = [
   "agents_pending",
   "agents_decide",
   "agents_audit",
+  // Wave 8, strand B.
+  "grpc_services",
+  "grpc_template",
+  "graphql_schema",
   // Wave 8, strand A.
   "stream_open",
   "stream_send",
@@ -185,8 +189,8 @@ export class TauriBackend implements Backend {
   readonly runner: RunnerApi;
   /** Wave 8 (one file per strand). */
   readonly streams: StreamsApi;
-  readonly grpc = tauriGrpc();
-  readonly graphql = tauriGraphQl();
+  readonly grpc = tauriGrpc((cmd, args) => this.call(cmd, args));
+  readonly graphql = tauriGraphQl((cmd, args) => this.call(cmd, args));
   readonly agents = tauriAgents((cmd, args) => this.call(cmd, args));
   readonly mcp = tauriMcp();
   readonly ai = tauriAi((cmd, args) => this.call(cmd, args));

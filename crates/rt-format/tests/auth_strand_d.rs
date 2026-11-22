@@ -285,14 +285,17 @@ fn collection_config_certificates() {
     );
     assert_eq!(doc.model().config, changed);
 
-    // Removing the certificates keeps the rest of `config` (protobuf).
-    doc.set_collection_config(&CollectionConfig::default())
-        .unwrap();
+    // Removing the certificates keeps the rest of `config` (protobuf, read since wave 8).
+    let without = CollectionConfig {
+        protobuf: config.protobuf.clone(),
+        ..CollectionConfig::default()
+    };
+    doc.set_collection_config(&without).unwrap();
     let written = text(&doc.write(), COLLECTION_FILE);
     assert!(!written.contains("clientCertificates"), "{written}");
     assert!(written.contains("config:\n  protobuf:"), "{written}");
     let back = read_collection(&doc.write()).unwrap();
-    assert_eq!(back.model().config, CollectionConfig::default());
+    assert_eq!(back.model().config, without);
 }
 
 #[test]

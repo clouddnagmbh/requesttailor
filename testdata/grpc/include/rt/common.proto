@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The RequestTailor Authors
+//
+// Shared types of the echo service, imported as `rt/common.proto`. Synthetic, see SOURCES.md.
+
+syntax = "proto3";
+
+package rt.common;
+
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_LOW = 1;
+  PRIORITY_HIGH = 2;
+}
+
+message Metadata {
+  map<string, string> entries = 1;
+}

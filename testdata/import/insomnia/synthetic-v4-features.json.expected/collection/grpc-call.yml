@@ -1,0 +1,10 @@
+info:
+  name: gRPC call
+  type: grpc
+  seq: 14
+
+grpc:
+  url: grpc.example.com:443
+  method: /pkg.Service/Call
+  methodType: unary
+  auth: inherit

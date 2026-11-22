@@ -1,15 +1,27 @@
 info:
   name: GraphQL request with variables
-  type: http
+  type: graphql
   seq: 1
 
-http:
+graphql:
   method: POST
   url: localhost:4010/graphqlTest
   headers:
     - name: Content-Type
       value: application/json
   body:
-    type: json
-    data: '{"query":"query($vars: VarsInput) {\n\techoVars(vars: $vars) {\n\t\tstringVar \n\t\tintVar\n\t}\n}", "variables":{"vars":{"stringVar":"3","intVar": 3}} }'
+    query: |-
+      query($vars: VarsInput) {
+      	echoVars(vars: $vars) {
+      		stringVar 
+      		intVar
+      	}
+      }
+    variables: |-
+      {
+        "vars": {
+          "stringVar": "3",
+          "intVar": 3
+        }
+      }
   auth: inherit

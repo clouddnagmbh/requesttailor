@@ -139,6 +139,8 @@ fn tree_lists_folders_and_requests_in_display_order() {
             name: "Ordered".into(),
             path: String::new(),
             children: vec![
+                // Wave 8: GraphQL items are requests (POST unless they say otherwise).
+                req("G", "gql.yml", "POST"),
                 req("Z", "z.yml", "GET"),
                 // Same seq: folders before requests.
                 TreeNode::Folder {

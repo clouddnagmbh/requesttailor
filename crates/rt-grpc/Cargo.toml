@@ -7,13 +7,22 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
-# Wave 8, strand B adds a pure-Rust proto compiler and dynamic messages (they must build for
-# wasm32 and iOS: the browser encodes messages in the WASM core, the companion only moves bytes).
+# Pure-Rust proto compiler and dynamic messages (wave 8, strand B); they build for wasm32 and
+# iOS: the browser encodes messages in the WASM core, the companion only moves bytes. All
+# MIT OR Apache-2.0 (protox, prost-reflect, prost) or Apache-2.0 (miette, for error lines).
 [dependencies]
+miette = { version = "7", default-features = false }
+prost-reflect = { version = "0.16", features = ["serde"] }
+protox = { version = "0.10", default-features = false }
 rt-core = { path = "../rt-core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+
+# End-to-end tests against the gRPC test server (native only).
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+rt-testserver = { path = "../rt-testserver" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 
 [lints]
 workspace = true

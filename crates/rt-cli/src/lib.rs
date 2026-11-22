@@ -18,6 +18,8 @@ pub mod agent;
 pub mod approvals;
 pub mod cookies;
 pub mod docs;
+/// Wave 8, strand B: `rt send` on gRPC requests.
+pub mod grpc;
 pub mod import;
 pub mod mcp;
 pub mod mcp_test;

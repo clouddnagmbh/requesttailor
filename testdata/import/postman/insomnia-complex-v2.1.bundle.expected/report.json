@@ -24,12 +24,6 @@
         "location": "First Folder / {{base_url}}/api/users"
       },
       {
-        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
-        "effect": "approximated",
-        "kind": "body",
-        "location": "Test Request GraphQL Body"
-      },
-      {
         "detail": "body of type `unknown` not imported",
         "effect": "dropped",
         "kind": "body",
