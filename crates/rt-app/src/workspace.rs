@@ -450,6 +450,58 @@ impl Workspace {
         if self.doc.model().request(request_path).is_none() {
             return Err(AppError::RequestNotFound(request_path.to_owned()));
         }
+        Ok(self.with_secret_values(input))
+    }
+
+    /// Everything a collection run needs (wave 7, strand D, [`crate::runner`]): the
+    /// collection with the secret values of `input`, and the files the requests' bodies and
+    /// the client certificates read.
+    pub fn run_snapshot(&self, input: SendInput) -> crate::runner::RunSnapshot {
+        fn bodies<'a>(items: &'a [Item], out: &mut Vec<&'a str>) {
+            for item in items {
+                match item {
+                    Item::Folder(f) => bodies(&f.items, out),
+                    Item::Request(r) => out.extend(body_files(&r.spec.body)),
+                }
+            }
+        }
+        let collection = self.with_secret_values(&input);
+        let mut paths = Vec::new();
+        bodies(&collection.items, &mut paths);
+        let certificates = collection.config.client_certificates.iter().chain(
+            collection
+                .environments
+                .iter()
+                .flat_map(|e| &e.client_certificates),
+        );
+        for c in certificates {
+            match &c.source {
+                rt_core::model::CertificateSource::Pem {
+                    certificate_path,
+                    private_key_path,
+                } => paths.extend([certificate_path.as_str(), private_key_path.as_str()]),
+                rt_core::model::CertificateSource::Pkcs12 { path } => paths.push(path.as_str()),
+            }
+        }
+        let mut files = FileSet::default();
+        for path in paths {
+            if let Some(key) = file_key(path)
+                && let Some(bytes) = self.files.files.get(&key)
+            {
+                files.files.insert(key, bytes.clone());
+            }
+        }
+        crate::runner::RunSnapshot {
+            environment: input.environment,
+            vars: input.vars,
+            files,
+            collection,
+        }
+    }
+
+    /// A copy of the collection with the secret values of `input` in the selected
+    /// environment.
+    fn with_secret_values(&self, input: &SendInput) -> Collection {
         let mut collection = self.doc.model().clone();
         if let Some(name) = &input.environment
             && let Some(env) = collection.environments.iter_mut().find(|e| e.name == *name)
@@ -469,7 +521,7 @@ impl Workspace {
                 }
             }
         }
-        Ok(collection)
+        collection
     }
 
     /// Puts the saved bytes of `path` back into the document.
@@ -588,7 +640,7 @@ fn file_key(path: &str) -> Option<String> {
 }
 
 /// Body files from an in-memory file set (same rules as the CLI and `rt-wasm`).
-struct MemFiles<'a>(&'a FileSet);
+pub(crate) struct MemFiles<'a>(pub(crate) &'a FileSet);
 
 impl FileSource for MemFiles<'_> {
     fn read(&self, path: &str) -> Result<Vec<u8>, String> {

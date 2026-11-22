@@ -17,6 +17,7 @@
 //! Wave 4: `git` (strands A1/A2), `import` (strand B), `history` and `search` (strand E).
 //! Wave 5: `plugins` (strand A), `auth` (strand C), `cookies` (strand D), `secret_scan` and
 //! `secret_sources` (strand E).
+//! Wave 7: `scripts` (strands A and C), `runner` (strand D).
 //! Changes to the public types here are interface changes (working rule 1).
 
 pub mod auth;
@@ -26,6 +27,7 @@ pub mod history;
 pub mod import;
 pub mod plugins;
 pub mod response;
+pub mod runner;
 pub mod scripts;
 pub mod search;
 pub mod secret_scan;
