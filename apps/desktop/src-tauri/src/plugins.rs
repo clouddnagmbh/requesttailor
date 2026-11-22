@@ -7,17 +7,27 @@
 //! `RequestHooks`. Commands: `plugin_list`, `plugin_inspect`, `plugin_install` (raw body: the
 //! `.wasm` bytes), `plugin_remove`, `plugin_set_enabled`, `plugin_render_tab`,
 //! `plugin_action`, `import_analyze_plugin` (raw body as `import_analyze`, header with
-//! `plugin` and `importer`).
+//! `plugin` and `importer`), `plugin_welcome`, `plugin_choose_welcome` (wave 6).
 //!
 //! The compiled plugins are kept in [`PluginParts`] (`Send + Sync`); a `PluginHost` is not
 //! `Send`, so every send, tab call and import builds one on its blocking thread from them.
+//!
+//! Bundled plugins (wave 6, strand F): the app ships the plugins in [`BUNDLED`] as Tauri
+//! resources (`bundled-plugins/<id>.wasm`, filled by `npm run bundle-plugins`; debug builds
+//! also read `target/plugins`). The first `plugin_welcome` of a process installs them into
+//! the plugin folder, disabled, or updates an older installed version (after the first frame,
+//! so the cold start does not pay for it). `welcome.json` in the data folder records the
+//! answer to the first-start question and which bundled plugins were installed
+//! (`rt_app::plugins::WelcomeRecord`), so a bundled plugin the user removed stays removed.
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use rt_app::import::SourceFile;
 use rt_app::plugins::{
-    Manifest, Plugin, PluginError, PluginHost, PluginInfo, Recording, ResponseHeads, TabTarget,
-    ViewReply, plugin_files, plugin_import,
+    BundledStep, Manifest, Plugin, PluginError, PluginHost, PluginInfo, Recording, ResponseHeads,
+    TabTarget, ViewReply, WelcomeOffer, WelcomeRecord, WelcomeState, bundled_step, plugin_files,
+    plugin_import,
 };
 use rt_app::{AppError, ImportPlan, SecretStore};
 use rt_core::services::{HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
@@ -86,9 +96,7 @@ pub async fn plugin_render_tab(
     state: Option<serde_json::Value>,
     environment: Option<String>,
 ) -> Result<ViewReply, CommandError> {
-    // `environment` (wave 6, strand F): not passed to the plugin's context yet.
-    let _ = environment;
-    Ok(render_tab(&core, plugin, tab, None, target, state).await?)
+    Ok(render_tab(&core, plugin, tab, None, target, state, environment).await?)
 }
 
 #[tauri::command]
@@ -103,22 +111,16 @@ pub async fn plugin_action(
     input: Vec<(String, String)>,
     environment: Option<String>,
 ) -> Result<ViewReply, CommandError> {
-    // `environment` (wave 6, strand F): not passed to the plugin's context yet.
-    let _ = environment;
-    Ok(render_tab(&core, plugin, tab, Some((action, input)), target, state).await?)
+    let action = Some((action, input));
+    Ok(render_tab(&core, plugin, tab, action, target, state, environment).await?)
 }
 
-/// The first-start question (wave 6, strand F): bundled plugins with a `welcome` choice.
-/// Interface commit: answered already, so the UI shows no dialog.
+/// The first-start question (wave 6): bundled plugins with a `welcome` choice. Installs the
+/// bundled plugins first (once per process, on a blocking thread).
 #[tauri::command]
-pub async fn plugin_welcome(
-    core: State<'_, AppCore>,
-) -> Result<rt_app::plugins::WelcomeState, CommandError> {
-    let _ = core;
-    Ok(rt_app::plugins::WelcomeState {
-        done: true,
-        choices: Vec::new(),
-    })
+pub async fn plugin_welcome(core: State<'_, AppCore>) -> Result<WelcomeState, CommandError> {
+    let parts = Arc::clone(&core.services);
+    Ok(blocking(move || parts.plugins.welcome()).await?)
 }
 
 /// Enables the chosen bundled plugins and records that the question was answered.
@@ -127,8 +129,16 @@ pub async fn plugin_choose_welcome(
     core: State<'_, AppCore>,
     plugins: Vec<String>,
 ) -> Result<(), CommandError> {
-    let _ = (core, plugins);
-    Ok(())
+    let parts = Arc::clone(&core.services);
+    Ok(blocking(move || parts.plugins.choose_welcome(&plugins)).await?)
+}
+
+async fn blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, AppError> + Send + 'static,
+) -> Result<T, AppError> {
+    tokio::task::spawn_blocking(f)
+        .await
+        .map_err(|e| AppError::Shell(format!("plugin call failed: {e}")))?
 }
 
 #[tauri::command]
@@ -156,7 +166,9 @@ where
 }
 
 /// Renders a plugin tab (`action: None`) or runs one of its actions, for the request as it is
-/// in the editor (unsaved changes included) and the response in the response store.
+/// in the editor (unsaved changes included) and the response in the response store. A
+/// collection tab (`request_path` `""`) gets the default request. `environment` is the
+/// selected one, for the plugin's `context` (wave 6).
 pub async fn render_tab<S: SecretStore>(
     core: &Core<S>,
     plugin: String,
@@ -164,8 +176,14 @@ pub async fn render_tab<S: SecretStore>(
     action: Option<(String, Vec<(String, String)>)>,
     target: TabTarget,
     state: Option<Value>,
+    environment: Option<String>,
 ) -> Result<ViewReply, AppError> {
-    let spec = core.get_request(&target.request_path)?;
+    let spec = if target.request_path.is_empty() {
+        rt_core::model::RequestSpec::default()
+    } else {
+        core.get_request(&target.request_path)?
+    };
+    let scope = core.plugin_scope(&target.request_path, environment.as_deref())?;
     let collection = core.collection_id().unwrap_or_default();
     let response = match target.response_id {
         Some(id) => {
@@ -186,7 +204,7 @@ pub async fn render_tab<S: SecretStore>(
                 .as_ref()
                 .map(|(name, input)| (name.as_str(), input.clone()));
             Ok(host
-                .tab(&plugin, &tab, action, target, spec, response, state)
+                .tab_with(&plugin, &tab, action, target, spec, response, state, scope)
                 .await?)
         })
     })
@@ -294,6 +312,13 @@ impl PluginStorage for DesktopStorage {
     }
 }
 
+/// The plugins the app ships (Tauri resources `bundled-plugins/<id>.wasm`).
+pub const BUNDLED: &[&str] = &["odata"];
+/// The resource folder of the bundled plugins (`bundle.resources` in `tauri.conf.json`).
+pub const BUNDLED_RESOURCES: &str = "bundled-plugins";
+/// The first-start answer and the installed bundled plugins, in the data folder.
+pub const WELCOME_FILE: &str = "welcome.json";
+
 /// Installed plugins and their host, kept by `Core` (`services::ServiceParts`).
 pub struct PluginParts {
     /// `None`: nothing is persisted (tests); installs live until the app quits.
@@ -303,6 +328,19 @@ pub struct PluginParts {
     transport: Option<NativeTransport>,
     /// Response heads for response tabs.
     pub heads: ResponseHeads,
+    /// Folders searched for bundled plugins, in order, and the ids of the bundled plugins
+    /// (see [`PluginParts::bundle_from`]).
+    bundled: Mutex<(Vec<PathBuf>, Vec<String>)>,
+    /// `welcome.json`; `None` keeps the record in memory (tests).
+    welcome_file: Option<PathBuf>,
+    /// The record, read on first use; `bundled` once the bundled plugins were installed.
+    welcome: Mutex<Welcome>,
+}
+
+#[derive(Default)]
+struct Welcome {
+    record: Option<WelcomeRecord>,
+    bundled: bool,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -327,7 +365,177 @@ impl PluginParts {
             plugins: Mutex::new(plugins),
             transport: NativeTransport::new().ok(),
             heads: ResponseHeads::new(),
+            bundled: Mutex::new((Vec::new(), Vec::new())),
+            welcome_file: data_dir.map(|d| d.join(WELCOME_FILE)),
+            welcome: Mutex::new(Welcome::default()),
         }
+    }
+
+    /// Where the bundled plugins `ids` ([`BUNDLED`]) are: `<dir>/<id>.wasm` in the first of
+    /// `dirs` that has it ([`PluginParts::bundled_dirs`]). Set at start-up; nothing is read
+    /// until the first [`PluginParts::welcome`].
+    pub fn bundle_from(&self, dirs: Vec<PathBuf>, ids: &[&str]) {
+        *lock(&self.bundled) = (dirs, ids.iter().map(|id| (*id).to_owned()).collect());
+    }
+
+    /// The folders for [`PluginParts::bundle_from`] given the app's resource folder.
+    pub fn bundled_dirs(resource_dir: Option<&Path>) -> Vec<PathBuf> {
+        let mut dirs: Vec<PathBuf> = resource_dir
+            .map(|d| d.join(BUNDLED_RESOURCES))
+            .into_iter()
+            .collect();
+        if cfg!(debug_assertions) {
+            dirs.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../target/plugins"));
+        }
+        dirs
+    }
+
+    fn record<'a>(&self, welcome: &'a mut Welcome) -> &'a mut WelcomeRecord {
+        welcome.record.get_or_insert_with(|| {
+            self.welcome_file
+                .as_deref()
+                .and_then(|f| std::fs::read(f).ok())
+                .and_then(|b| serde_json::from_slice(&b).ok())
+                .unwrap_or_default()
+        })
+    }
+
+    fn save_record(&self, record: &WelcomeRecord) -> Result<(), AppError> {
+        let Some(path) = &self.welcome_file else {
+            return Ok(());
+        };
+        let json = serde_json::to_vec_pretty(record).map_err(|e| AppError::Shell(e.to_string()))?;
+        let write = || -> std::io::Result<()> {
+            if let Some(dir) = path.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+            let tmp = path.with_extension("json.tmp");
+            std::fs::write(&tmp, &json)?;
+            std::fs::rename(&tmp, path)
+        };
+        write().map_err(|e| AppError::Shell(format!("cannot save {WELCOME_FILE}: {e}")))
+    }
+
+    /// Installs the bundled plugins that are new (disabled) or newer than the installed
+    /// version (keeping its enabled state). Once per process.
+    fn ensure_bundled(&self, welcome: &mut Welcome) -> Result<(), AppError> {
+        if welcome.bundled {
+            return Ok(());
+        }
+        welcome.bundled = true;
+        let (dirs, ids) = lock(&self.bundled).clone();
+        let mut record = self.record(welcome).clone();
+        for id in &ids {
+            let Some(wasm) = dirs
+                .iter()
+                .find_map(|d| std::fs::read(d.join(format!("{id}.wasm"))).ok())
+            else {
+                continue;
+            };
+            let shipped = match rt_plugin::host::manifest::read(&wasm) {
+                Ok(m) if m.id == **id => m,
+                Ok(m) => {
+                    eprintln!("RequestTailor: bundled {id}.wasm is plugin {}", m.id);
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!("RequestTailor: bundled plugin {id}: {e}");
+                    continue;
+                }
+            };
+            let installed = lock(&self.plugins)
+                .iter()
+                .find(|p| p.id() == id.as_str())
+                .map(|p| p.info.manifest.version.clone());
+            let step = bundled_step(&record, installed.as_deref(), &shipped);
+            let done = match step {
+                BundledStep::Install => self.install_disabled(&wasm).map(|_| ()),
+                BundledStep::Update => self.install(&wasm).map(|_| ()),
+                BundledStep::Keep => Ok(()),
+            };
+            if let Err(e) = done {
+                eprintln!("RequestTailor: bundled plugin {id} not installed: {e}");
+                continue;
+            }
+            match (step, installed) {
+                (BundledStep::Keep, None) => {}
+                (BundledStep::Keep, Some(v)) => {
+                    record.bundled.insert(id.clone(), v);
+                }
+                _ => {
+                    record.bundled.insert(id.clone(), shipped.version.clone());
+                }
+            }
+        }
+        if *self.record(welcome) != record {
+            self.save_record(&record)?;
+            welcome.record = Some(record);
+        }
+        Ok(())
+    }
+
+    /// The first-start question: answered or not, and the bundled plugins that offer a choice.
+    pub fn welcome(&self) -> Result<WelcomeState, AppError> {
+        let mut welcome = lock(&self.welcome);
+        self.ensure_bundled(&mut welcome)?;
+        let record = self.record(&mut welcome).clone();
+        let plugins = lock(&self.plugins);
+        let choices = plugins
+            .iter()
+            .filter(|p| record.bundled.contains_key(p.id()))
+            .filter_map(|p| {
+                Some(WelcomeOffer {
+                    plugin: p.id().to_owned(),
+                    choice: p.info.manifest.contributes.welcome.clone()?,
+                })
+            })
+            .collect();
+        Ok(WelcomeState {
+            done: record.done,
+            choices,
+        })
+    }
+
+    /// Enables the chosen bundled plugins (`[]`: none) and records the answer.
+    pub fn choose_welcome(&self, chosen: &[String]) -> Result<(), AppError> {
+        let offered = self.welcome()?.choices;
+        if let Some(id) = chosen
+            .iter()
+            .find(|id| !offered.iter().any(|o| o.plugin == **id))
+        {
+            return Err(AppError::Plugin(format!("{id} is not a bundled plugin")));
+        }
+        for id in chosen {
+            self.set_enabled(id, true)?;
+        }
+        let mut welcome = lock(&self.welcome);
+        let record = self.record(&mut welcome);
+        record.done = true;
+        let record = record.clone();
+        self.save_record(&record)
+    }
+
+    /// A new plugin, installed disabled (a bundled plugin before it is chosen).
+    fn install_disabled(&self, wasm: &[u8]) -> Result<PluginInfo, AppError> {
+        let mut plugin = match &self.dir {
+            Some(dir) => {
+                let plugin = dir.install(wasm)?;
+                dir.set_enabled(plugin.id(), false)?;
+                plugin
+            }
+            None => {
+                let manifest = PluginHost::inspect(wasm)?;
+                Plugin::compile(wasm, &manifest.permissions, false)?
+            }
+        };
+        plugin.info.enabled = false;
+        let info = PluginInfo::from(&plugin.info);
+        let mut plugins = lock(&self.plugins);
+        match plugins.iter_mut().find(|p| p.id() == plugin.id()) {
+            Some(p) => *p = plugin,
+            None => plugins.push(plugin),
+        }
+        Ok(info)
     }
 
     pub fn list(&self) -> Vec<PluginInfo> {
@@ -410,23 +618,30 @@ impl PluginParts {
         PluginHost::with_plugins(Box::new(services), lock(&self.plugins).clone())
     }
 
-    pub fn for_send(&self, collection: &str, environment: Option<&str>) -> PluginSend<'_> {
-        let _ = environment;
+    /// The plugins of one send. `cookies` is the send's cookie jar, shared with plugin
+    /// `http` calls in the session (wave 6).
+    pub fn for_send<'a>(
+        &'a self,
+        collection: &str,
+        cookies: crate::cookies::CookieSend<'a>,
+    ) -> PluginSend<'a> {
         let host = self.host();
         PluginSend {
             host: host.has_hooks().then_some(host),
             parts: self,
             collection: collection.to_owned(),
+            cookies,
         }
     }
 }
 
-/// The plugins of one send: the enabled plugins' hooks, and the response head recorded for
-/// response tabs.
+/// The plugins of one send: the enabled plugins' hooks (in the send's cookie session), and
+/// the response head recorded for response tabs.
 pub struct PluginSend<'a> {
     host: Option<PluginHost>,
     parts: &'a PluginParts,
     collection: String,
+    cookies: crate::cookies::CookieSend<'a>,
 }
 
 impl PluginSend<'_> {
@@ -434,12 +649,16 @@ impl PluginSend<'_> {
         Some(self)
     }
 
-    fn recording(&self) -> Recording<'_> {
+    fn recording<'s>(&'s self, session: Option<&'s dyn RequestHooks>) -> Recording<'s> {
         Recording {
-            hooks: self.host.as_ref().map(|h| h as &dyn RequestHooks),
+            hooks: session,
             heads: &self.parts.heads,
             collection: &self.collection,
         }
+    }
+
+    fn session(&self) -> Option<rt_plugin::host::SessionHooks<'_>> {
+        self.host.as_ref().map(|h| h.in_session(self.cookies.jar()))
     }
 }
 
@@ -451,7 +670,9 @@ impl RequestHooks for PluginSend<'_> {
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Result<(HttpRequest, Vec<Note>), String>> {
         Box::pin(async move {
-            self.recording()
+            let session = self.session();
+            let hooks = session.as_ref().map(|s| s as &dyn RequestHooks);
+            self.recording(hooks)
                 .before_send(request, secrets, context)
                 .await
         })
@@ -463,7 +684,13 @@ impl RequestHooks for PluginSend<'_> {
         body: &'a [u8],
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Vec<Note>> {
-        Box::pin(async move { self.recording().after_response(head, body, context).await })
+        Box::pin(async move {
+            let session = self.session();
+            let hooks = session.as_ref().map(|s| s as &dyn RequestHooks);
+            self.recording(hooks)
+                .after_response(head, body, context)
+                .await
+        })
     }
 }
 
@@ -513,6 +740,97 @@ mod tests {
     #[test]
     fn parts_are_shared_between_threads() {
         assert_send_sync::<PluginParts>();
+    }
+
+    /// Wave 6 gate ("whoever does not pick SAP at the first start sees no SAP"): a bundled
+    /// plugin is installed disabled, offered once, enabled only when chosen; the answer and
+    /// the installation survive a restart, a removed bundled plugin stays removed, a newer
+    /// bundled version updates the installed one.
+    #[test]
+    fn bundled_plugins_are_installed_disabled_until_chosen() {
+        let data = temp("welcome-data");
+        let bundled = temp("welcome-bundled");
+        std::fs::write(bundled.join("demo.wasm"), fixture("demo-bundled.wasm")).unwrap();
+        let start = || {
+            let parts = PluginParts::new(Some(&data));
+            parts.bundle_from(vec![temp_missing(), bundled.clone()], &["demo"]);
+            parts
+        };
+
+        let parts = start();
+        assert!(
+            parts.list().is_empty(),
+            "nothing is read before the question"
+        );
+        let w = parts.welcome().unwrap();
+        assert!(!w.done);
+        assert_eq!(w.choices.len(), 1);
+        assert_eq!(w.choices[0].plugin, "demo");
+        assert_eq!(w.choices[0].choice.label, "Demo extras");
+        let list = parts.list();
+        assert_eq!(list.len(), 1);
+        assert!(!list[0].enabled && list[0].granted);
+        assert!(!parts.host().has_hooks(), "disabled: no hooks, no tabs");
+
+        // Not answered (the app was closed): asked again, still disabled, installed once.
+        let parts = start();
+        assert!(!parts.welcome().unwrap().done);
+        assert_eq!(parts.list().len(), 1);
+        assert!(!parts.list()[0].enabled);
+
+        // "No extras": answered, nothing enabled; never asked again.
+        parts.choose_welcome(&[]).unwrap();
+        assert!(parts.welcome().unwrap().done);
+        let parts = start();
+        let w = parts.welcome().unwrap();
+        assert!(w.done && w.choices.len() == 1);
+        assert!(!parts.list()[0].enabled);
+        assert!(data.join(WELCOME_FILE).is_file());
+
+        // Only bundled plugins can be chosen; choosing one enables it.
+        assert!(matches!(
+            parts.choose_welcome(&["other".into()]),
+            Err(AppError::Plugin(m)) if m.contains("not a bundled plugin")
+        ));
+        parts.choose_welcome(&["demo".into()]).unwrap();
+        assert!(parts.list()[0].enabled);
+        assert!(start().list()[0].enabled, "persisted in the plugin folder");
+
+        // A newer bundled version updates it and keeps it enabled.
+        std::fs::write(bundled.join("demo.wasm"), fixture("demo-v2.wasm")).unwrap();
+        let parts = start();
+        parts.welcome().unwrap();
+        let list = parts.list();
+        assert_eq!(list[0].manifest.version, "2.0.0");
+        assert!(list[0].enabled);
+
+        // Removed by the user: stays removed at the next start.
+        parts.remove("demo").unwrap();
+        let parts = start();
+        parts.welcome().unwrap();
+        assert!(parts.list().is_empty());
+        let _ = std::fs::remove_dir_all(&data);
+        let _ = std::fs::remove_dir_all(&bundled);
+    }
+
+    /// A first start that picks the bundled plugin enables it at once.
+    #[test]
+    fn choosing_a_bundled_plugin_enables_it() {
+        let bundled = temp("choose-bundled");
+        std::fs::write(bundled.join("demo.wasm"), fixture("demo-bundled.wasm")).unwrap();
+        // Without a data folder (nothing persisted) the same rules apply in memory.
+        let parts = PluginParts::new(None);
+        parts.bundle_from(vec![bundled.clone()], &["demo"]);
+        assert!(!parts.welcome().unwrap().done);
+        parts.choose_welcome(&["demo".into()]).unwrap();
+        assert!(parts.welcome().unwrap().done);
+        assert!(parts.list()[0].enabled);
+        assert!(parts.host().has_hooks());
+        let _ = std::fs::remove_dir_all(&bundled);
+    }
+
+    fn temp_missing() -> PathBuf {
+        std::env::temp_dir().join(format!("rt-desktop-no-such-dir-{}", std::process::id()))
     }
 
     #[test]
@@ -615,6 +933,7 @@ mod tests {
             None,
             target,
             None,
+            None,
         )
         .await
         .unwrap();
@@ -674,6 +993,7 @@ mod tests {
             None,
             target.clone(),
             None,
+            None,
         )
         .await
         .unwrap();
@@ -693,6 +1013,7 @@ mod tests {
             Some(("hello".into(), Vec::new())),
             target,
             Some(serde_json::json!({"rendered": true})),
+            None,
         )
         .await
         .unwrap();

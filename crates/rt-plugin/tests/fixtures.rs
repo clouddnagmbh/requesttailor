@@ -31,7 +31,16 @@ fn wat_string(s: &str) -> String {
 }
 
 fn demo_wat(version: &str, permissions: serde_json::Value) -> String {
-    let manifest = json!({
+    demo_wat_with(version, permissions, None)
+}
+
+/// `welcome`: a first-start choice (wave 6), for the shells' tests of bundled plugins.
+fn demo_wat_with(
+    version: &str,
+    permissions: serde_json::Value,
+    welcome: Option<serde_json::Value>,
+) -> String {
+    let mut manifest = json!({
         "id": "demo",
         "name": "Demo plugin",
         "version": version,
@@ -49,6 +58,9 @@ fn demo_wat(version: &str, permissions: serde_json::Value) -> String {
             "importers": [{"id": "demo", "label": "Demo files (plugin)", "extensions": ["demo"]}]
         }
     });
+    if let Some(welcome) = welcome {
+        manifest["contributes"]["welcome"] = welcome;
+    }
     let replies = [
         (
             "prepare",
@@ -152,6 +164,15 @@ fn fixtures() -> Vec<(&'static str, String)> {
         (
             "demo-v2.wasm",
             demo_wat("2.0.0", json!({"storage": true, "network": ["{request}"]})),
+        ),
+        // A bundled plugin with a first-start choice (wave 6).
+        (
+            "demo-bundled.wasm",
+            demo_wat_with(
+                "1.0.0",
+                json!({"storage": true}),
+                Some(json!({"label": "Demo extras", "description": "The demo tabs and importer."})),
+            ),
         ),
     ]
 }

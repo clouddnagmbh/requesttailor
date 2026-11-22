@@ -11,7 +11,10 @@ Additive; `API_VERSION` stays 1, plugins built for wave 5 run unchanged:
 - `render-tab` and `action` get `context` (environment, non-secret variables).
 - `ViewReply`: `create_requests` and `add_environments` (unsaved additions to the
   collection; secret variables without values).
-- `http` host call: `session: true` uses the cookie jar of the send.
+- `http` host call: `session: true` uses the cookie jar of the send (implies
+  `credentials: true`; cookie values the jar keeps are masked for the plugin).
+- `{request}` in tabs: the tab's request URL (request tabs) or the selected environment's
+  URL variables (collection tabs), resolved; `credentials`/`session` stay refused in tabs.
 - Rust SDK: `Tab::context`, `Action::context`, `host::http_in_session`.
 
 ## API version 1, clarifications (wave 5)

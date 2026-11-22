@@ -186,6 +186,27 @@ impl<S: SecretStore> Core<S> {
         self.with_session(|s| s.workspace.create_request(folder, name))
     }
 
+    /// Makes sure a folder exists (wave 6); returns its path. Unsaved.
+    pub fn create_folder(&self, path: &str) -> Result<String, AppError> {
+        self.with_session(|s| s.workspace.create_folder(path))
+    }
+
+    /// What a plugin tab runs with (wave 6): its context (environment, non-secret variables)
+    /// and the URLs `{request}` covers (`rt_app::plugins::tab_scope`).
+    pub fn plugin_scope(
+        &self,
+        request_path: &str,
+        environment: Option<&str>,
+    ) -> Result<rt_plugin::host::TabScope, AppError> {
+        self.with_session(|s| {
+            Ok(rt_app::plugins::tab_scope(
+                s.workspace.collection(),
+                request_path,
+                environment,
+            ))
+        })
+    }
+
     pub fn update_request(&self, path: &str, spec: RequestSpec) -> Result<(), AppError> {
         self.with_session(|s| s.workspace.update_request(path, spec))
     }
@@ -251,7 +272,7 @@ impl<S: SecretStore> Core<S> {
         // the browser), so it runs on a blocking thread driven by the app's tokio runtime.
         let runtime = tokio::runtime::Handle::current();
         let report = tokio::task::spawn_blocking(move || {
-            let services = parts.for_send(&send_collection, snapshot.environment.as_deref());
+            let services = parts.for_send(&send_collection);
             runtime.block_on(snapshot.send_with(
                 &transport,
                 &SendOptions {

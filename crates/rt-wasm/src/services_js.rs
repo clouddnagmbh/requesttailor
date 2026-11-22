@@ -21,10 +21,11 @@ pub struct SendServices {
 impl SendServices {
     /// `null` or `undefined`: no services.
     pub fn from_js(services: &JsValue) -> Result<Self, JsValue> {
+        let cookies = CookieSend::from_js(services)?;
         Ok(Self {
-            plugins: PluginSend::from_js(services)?,
+            plugins: PluginSend::from_js(services, cookies.shared())?,
             auth: AuthSend::from_js(services)?,
-            cookies: CookieSend::from_js(services)?,
+            cookies,
         })
     }
 

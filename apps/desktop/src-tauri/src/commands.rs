@@ -87,6 +87,11 @@ pub async fn create_request(
 }
 
 #[tauri::command]
+pub async fn create_folder(core: State<'_, AppCore>, path: String) -> Result<String> {
+    Ok(core.create_folder(&path)?)
+}
+
+#[tauri::command]
 pub async fn update_request(
     core: State<'_, AppCore>,
     path: String,

@@ -40,6 +40,13 @@ pub fn run() {
             )?;
             // OAuth 2.0 prompts reach the UI as the `auth-prompt` event (wave 5, strand C).
             core.services.auth.attach(app.handle().clone());
+            // Bundled plugins (wave 6): only located here; installed on the first
+            // `plugin_welcome`, after the first frame.
+            let resources = app.path().resource_dir().ok();
+            core.services.plugins.bundle_from(
+                plugins::PluginParts::bundled_dirs(resources.as_deref()),
+                plugins::BUNDLED,
+            );
             app.manage(core);
             Ok(())
         })
@@ -48,6 +55,7 @@ pub fn run() {
             commands::tree,
             commands::get_request,
             commands::create_request,
+            commands::create_folder,
             commands::update_request,
             commands::dirty,
             commands::save,

@@ -155,6 +155,8 @@ pub struct Fake {
     pub logs: Rc<RefCell<Vec<(String, NoteLevel, String)>>>,
     /// Body of the `http` answers.
     pub answer: Rc<RefCell<Vec<u8>>>,
+    /// More headers of the `http` answers (e.g. `Set-Cookie`).
+    pub answer_headers: Rc<RefCell<Vec<(String, String)>>>,
 }
 
 impl Fake {
@@ -175,12 +177,14 @@ impl HostServices for Fake {
         let url = request.url.clone();
         self.http.borrow_mut().push(request);
         let body = self.answer.borrow().clone();
+        let mut headers = vec![("content-type".to_owned(), "text/plain".to_owned())];
+        headers.extend(self.answer_headers.borrow().iter().cloned());
         Box::pin(async move {
             Ok((
                 ResponseHead {
                     status: 200,
                     version: HttpVersion::Http11,
-                    headers: vec![("content-type".into(), "text/plain".into())],
+                    headers,
                     url,
                     redirects: Vec::new(),
                     timing: Timing::default(),

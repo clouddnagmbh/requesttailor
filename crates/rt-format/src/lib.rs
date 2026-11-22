@@ -157,6 +157,14 @@ impl CollectionDoc {
         self.new_request(folder, spec)
     }
 
+    /// Adds an empty folder `name` in `parent` (`""` for the root): a `folder.yml` with name,
+    /// type and `seq` after the last item. The directory is the name with characters not
+    /// allowed in file names replaced by `-`, with `-2`, `-3`, ... if taken (ignoring case).
+    /// Returns the new folder's path. Added in wave 6 (plugin views add requests in folders).
+    pub fn add_folder(&mut self, parent: &str, name: &str) -> Result<String, FormatError> {
+        self.new_folder(parent, name)
+    }
+
     /// Creates or replaces the environment `env.name` (file `environments/<name>.yml`).
     /// Secret variables are written as `secret: true` without a value, whatever `value`
     /// holds. Returns the file path.

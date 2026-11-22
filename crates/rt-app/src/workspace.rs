@@ -180,6 +180,45 @@ impl Workspace {
         Ok(path)
     }
 
+    /// Makes sure the folder `path` exists (wave 6: plugin views add requests in folders) and
+    /// returns its actual path. Each `/`-separated part names a folder of its parent, by
+    /// directory or by display name; a missing one is created (`folder.yml`). `""` is the
+    /// root. Not on disk until `save`.
+    pub fn create_folder(&mut self, path: &str) -> Result<String, AppError> {
+        let mut at = String::new();
+        if path.is_empty() {
+            return Ok(at);
+        }
+        for part in path.split('/') {
+            let bad = part.trim().is_empty()
+                || part == "."
+                || part == ".."
+                || part.contains('\\')
+                || part.chars().any(char::is_control);
+            if bad {
+                return Err(AppError::FolderNotFound(path.to_owned()));
+            }
+            let model = self.doc.model();
+            let siblings = if at.is_empty() {
+                &model.items
+            } else {
+                &find_folder(&model.items, &at).expect("found before").items
+            };
+            let existing = siblings.iter().find_map(|i| match i {
+                Item::Folder(f) if f.path.rsplit('/').next() == Some(part) || f.name == part => {
+                    Some(f.path.clone())
+                }
+                _ => None,
+            });
+            at = match existing {
+                Some(p) => p,
+                None => self.doc.add_folder(&at, part)?,
+            };
+        }
+        self.refresh_dirty();
+        Ok(at)
+    }
+
     /// Replaces a request in memory. Not on disk until `save`.
     pub fn update_request(&mut self, path: &str, spec: RequestSpec) -> Result<(), AppError> {
         if self.doc.model().request(path).is_none() {

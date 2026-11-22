@@ -60,6 +60,203 @@ pub struct WelcomeOffer {
     pub choice: WelcomeChoice,
 }
 
+/// What a shell remembers about the first-start question and the bundled plugins (desktop:
+/// `welcome.json` in the data folder; the web shell keeps the same shape in browser storage).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct WelcomeRecord {
+    /// The question was answered (or skipped).
+    #[serde(default)]
+    pub done: bool,
+    /// Bundled plugins installed so far, with the version installed. A bundled plugin the
+    /// user removed stays removed: it is installed again only if it is not listed here.
+    #[serde(default)]
+    pub bundled: std::collections::BTreeMap<String, String>,
+}
+
+/// What to do with a bundled plugin at start.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BundledStep {
+    /// Install it, disabled (it is enabled only when chosen at the first start).
+    Install,
+    /// Replace the installed module; the installation keeps its enabled state.
+    Update,
+    Keep,
+}
+
+/// `installed`: version of the plugin with that id in the plugin folder, if any.
+pub fn bundled_step(
+    record: &WelcomeRecord,
+    installed: Option<&str>,
+    shipped: &Manifest,
+) -> BundledStep {
+    match installed {
+        None if record.bundled.contains_key(&shipped.id) => BundledStep::Keep,
+        None => BundledStep::Install,
+        Some(v) if newer(&shipped.version, v) => BundledStep::Update,
+        Some(_) => BundledStep::Keep,
+    }
+}
+
+/// Whether version `a` is newer than `b` (dotted numbers; a pre-release suffix such as
+/// `-rc.1` counts as older than the release).
+pub fn newer(a: &str, b: &str) -> bool {
+    fn parts(v: &str) -> (Vec<u64>, bool) {
+        let (core, pre) = match v.split_once(['-', '+']) {
+            Some((core, rest)) => (core, v.as_bytes()[core.len()] == b'-' && !rest.is_empty()),
+            None => (v, false),
+        };
+        (
+            core.split('.')
+                .map(|p| p.trim().parse().unwrap_or(0))
+                .collect(),
+            pre,
+        )
+    }
+    let ((mut x, xp), (mut y, yp)) = (parts(a), parts(b));
+    let n = x.len().max(y.len());
+    x.resize(n, 0);
+    y.resize(n, 0);
+    x > y || (x == y && yp && !xp)
+}
+
+/// The `context` of a plugin tab (wave 6): the environment and the non-secret variables in
+/// scope for `request_path` (`""` for collection tabs: collection and environment only), with
+/// the values as the files have them, as for the `prepare` hook. Secret variables are left
+/// out; the host drops the rest for plugins without the `variables` permission. An unknown
+/// environment adds no layer.
+pub fn tab_context(
+    collection: &rt_core::model::Collection,
+    request_path: &str,
+    environment: Option<&str>,
+) -> rt_plugin::api::PluginContext {
+    let empty = rt_core::model::RequestEntry {
+        path: String::new(),
+        spec: rt_core::model::RequestSpec::default(),
+    };
+    let context = collection
+        .request(request_path)
+        .unwrap_or(rt_core::model::RequestContext {
+            collection,
+            folders: Vec::new(),
+            request: &empty,
+        });
+    let input = |environment| rt_core::prepare::PrepareInput {
+        environment,
+        ..Default::default()
+    };
+    let scope = rt_core::prepare::scope(&context, &input(environment))
+        .or_else(|_| rt_core::prepare::scope(&context, &input(None)))
+        .unwrap_or_default();
+    let names: std::collections::BTreeSet<&str> = scope
+        .layers
+        .iter()
+        .flat_map(|l| l.vars.iter().map(|(n, _, _)| n.as_str()))
+        .collect();
+    rt_plugin::api::PluginContext {
+        request_path: request_path.to_owned(),
+        environment: environment.map(str::to_owned),
+        variables: names
+            .into_iter()
+            .filter_map(|name| {
+                let (value, _, secret) = scope.get(name)?;
+                (!secret).then(|| (name.to_owned(), value.to_owned()))
+            })
+            .collect(),
+    }
+}
+
+/// Everything a tab call runs with besides the request (wave 6): [`tab_context`], and the
+/// URLs the `{request}` network entry covers. For a request tab that is its URL resolved
+/// with the selected environment as for sending (without secret values: a URL that needs one,
+/// or has unresolved placeholders, covers no host). For a collection tab (`""`) it is every
+/// non-secret variable of the selected environment whose resolved value is an absolute
+/// http(s) URL (e.g. `baseUrl`).
+pub fn tab_scope(
+    collection: &rt_core::model::Collection,
+    request_path: &str,
+    environment: Option<&str>,
+) -> rt_plugin::host::TabScope {
+    rt_plugin::host::TabScope {
+        context: Some(tab_context(collection, request_path, environment)),
+        request_urls: tab_request_urls(collection, request_path, environment),
+    }
+}
+
+fn tab_request_urls(
+    collection: &rt_core::model::Collection,
+    request_path: &str,
+    environment: Option<&str>,
+) -> Vec<String> {
+    use rt_core::prepare::{FileSource, PrepareInput, prepare, scope};
+    /// The URL does not depend on body files.
+    struct NoFiles;
+    impl FileSource for NoFiles {
+        fn read(&self, _: &str) -> Result<Vec<u8>, String> {
+            Ok(Vec::new())
+        }
+    }
+    let absolute = |u: &str| {
+        url::Url::parse(u).is_ok_and(|u| matches!(u.scheme(), "http" | "https") && u.has_host())
+    };
+    let input = PrepareInput {
+        environment,
+        ..Default::default()
+    };
+    if !request_path.is_empty() {
+        let Some(context) = collection.request(request_path) else {
+            return Vec::new();
+        };
+        let url = match prepare(&context, &input, &NoFiles) {
+            Ok(p) if p.unresolved.is_empty() => p.request.url,
+            // Auth or body errors do not change the URL.
+            _ => {
+                let Ok(scope) = scope(&context, &input) else {
+                    return Vec::new();
+                };
+                let i = scope.interpolate(&context.request.spec.url);
+                if !i.unresolved.is_empty() {
+                    return Vec::new();
+                }
+                i.value
+            }
+        };
+        return if absolute(&url) {
+            vec![url]
+        } else {
+            Vec::new()
+        };
+    }
+    let Some(env) = environment.and_then(|name| collection.environment(name)) else {
+        return Vec::new();
+    };
+    let empty = rt_core::model::RequestEntry {
+        path: String::new(),
+        spec: rt_core::model::RequestSpec::default(),
+    };
+    let context = rt_core::model::RequestContext {
+        collection,
+        folders: Vec::new(),
+        request: &empty,
+    };
+    let Ok(scope) = scope(&context, &input) else {
+        return Vec::new();
+    };
+    let mut urls: Vec<String> = Vec::new();
+    for v in env.variables.iter().filter(|v| v.enabled && !v.secret) {
+        let Some(value) = &v.value else { continue };
+        let i = scope.interpolate(value);
+        let value = i.value.trim();
+        if i.unresolved.is_empty()
+            && i.used.iter().all(|u| !u.secret)
+            && absolute(value)
+            && !urls.iter().any(|u| u == value)
+        {
+            urls.push(value.to_owned());
+        }
+    }
+    urls
+}
+
 impl From<&LoadedPlugin> for PluginInfo {
     fn from(p: &LoadedPlugin) -> Self {
         Self {
@@ -288,6 +485,102 @@ mod tests {
         assert_eq!((r.status, r.body.text.as_deref()), (201, Some("{}")));
         assert_eq!(heads.tab_response("c", "b.yml", b"").status, 0);
         assert_eq!(heads.tab_response("other", "a.yml", b"").status, 0);
+    }
+
+    #[test]
+    fn versions_and_bundled_steps() {
+        assert!(newer("0.2.0", "0.1.9"));
+        assert!(newer("1.10", "1.9.3"));
+        assert!(newer("1.0.0", "1.0.0-rc.1"));
+        assert!(!newer("1.0.0-rc.1", "1.0.0"));
+        assert!(!newer("1.0.0", "1.0"));
+        let shipped: Manifest = serde_json::from_value(serde_json::json!({
+            "id": "odata", "name": "OData", "version": "0.2.0", "api": 1
+        }))
+        .unwrap();
+        let mut record = WelcomeRecord::default();
+        assert_eq!(bundled_step(&record, None, &shipped), BundledStep::Install);
+        record.bundled.insert("odata".into(), "0.1.0".into());
+        assert_eq!(
+            bundled_step(&record, None, &shipped),
+            BundledStep::Keep,
+            "removed by the user"
+        );
+        assert_eq!(
+            bundled_step(&record, Some("0.1.0"), &shipped),
+            BundledStep::Update
+        );
+        assert_eq!(
+            bundled_step(&record, Some("0.2.0"), &shipped),
+            BundledStep::Keep
+        );
+    }
+
+    #[test]
+    fn tab_context_has_the_non_secret_variables_in_scope() {
+        let files = FileSet {
+            files: [
+                (
+                    "opencollection.yml",
+                    "opencollection: 1.0.0\n\ninfo:\n  name: C\nrequest:\n  variables:\n    - name: base\n      value: http://collection\n    - name: lang\n      value: EN\n",
+                ),
+                (
+                    "environments/DEV.yml",
+                    "name: DEV\nvariables:\n  - name: base\n    value: https://dev\n  - name: sapClient\n    value: \"100\"\n  - secret: true\n    name: password\n",
+                ),
+                (
+                    "orders/get.yml",
+                    "info:\n  name: Get\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: \"{{base}}/x\"\n\nruntime:\n  variables:\n    - name: lang\n      value: DE\n",
+                ),
+            ]
+            .into_iter()
+            .map(|(p, t)| (p.to_owned(), t.as_bytes().to_vec()))
+            .collect(),
+        };
+        let doc = rt_format::read_collection(&files).unwrap();
+        let c = doc.model();
+        let vars = |path: &str, env: Option<&str>| tab_context(c, path, env).variables;
+        let pairs = |list: &[(&str, &str)]| -> Vec<(String, String)> {
+            list.iter()
+                .map(|(n, v)| (n.to_string(), v.to_string()))
+                .collect()
+        };
+        assert_eq!(
+            vars("", Some("DEV")),
+            pairs(&[
+                ("base", "https://dev"),
+                ("lang", "EN"),
+                ("sapClient", "100")
+            ])
+        );
+        assert_eq!(
+            vars("orders/get.yml", Some("DEV")),
+            pairs(&[
+                ("base", "https://dev"),
+                ("lang", "DE"),
+                ("sapClient", "100")
+            ])
+        );
+        assert_eq!(
+            vars("", None),
+            pairs(&[("base", "http://collection"), ("lang", "EN")])
+        );
+        assert_eq!(
+            vars("", Some("Nope")),
+            pairs(&[("base", "http://collection"), ("lang", "EN")])
+        );
+        // What `{request}` covers in tabs.
+        let urls = |path: &str, env: Option<&str>| tab_scope(c, path, env).request_urls;
+        assert_eq!(urls("orders/get.yml", Some("DEV")), ["https://dev/x"]);
+        assert_eq!(urls("orders/get.yml", None), ["http://collection/x"]);
+        assert_eq!(urls("", Some("DEV")), ["https://dev"]);
+        assert!(urls("", None).is_empty());
+        assert!(urls("nope.yml", Some("DEV")).is_empty());
+        let ctx = tab_context(c, "", Some("DEV"));
+        assert_eq!(
+            (ctx.request_path.as_str(), ctx.environment.as_deref()),
+            ("", Some("DEV"))
+        );
     }
 
     #[test]

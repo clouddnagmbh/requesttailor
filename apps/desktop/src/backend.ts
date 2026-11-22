@@ -44,6 +44,7 @@ export const COMMANDS = [
   "tree",
   "get_request",
   "create_request",
+  "create_folder",
   "update_request",
   "dirty",
   "save",
@@ -197,6 +198,9 @@ export class TauriBackend implements Backend {
   }
   createRequest(folder: string, name: string): Promise<string> {
     return this.call("create_request", { folder, name });
+  }
+  createFolder(path: string): Promise<string> {
+    return this.call("create_folder", { path });
   }
   updateRequest(path: string, spec: RequestSpec): Promise<void> {
     return this.call("update_request", { path, spec });
