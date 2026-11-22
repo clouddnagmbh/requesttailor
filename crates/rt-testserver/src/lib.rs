@@ -18,6 +18,7 @@
 //! | `GET /bearer/{token}` | 200 if `Authorization: Bearer {token}`, else 401 |
 //! | `GET /cookies/set?name=value&...` | 200, one `Set-Cookie: name=value; Path=/` per parameter, JSON of the parameters |
 //! | `GET /cookies` | 200, JSON `{"cookie": <Cookie header or null>}` |
+//! | `POST/DELETE /mcp` | an MCP server over Streamable HTTP (wave 8, module [`mcp`]) |
 //! | `OPTIONS *` | CORS preflight, 204 |
 //!
 //! [`spawn_mtls`] serves the same routes over HTTPS and requires a client certificate signed
@@ -39,6 +40,10 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
 use tokio::net::TcpListener;
+
+/// Wave 8, strand D: an MCP server (Streamable HTTP and stdio) for the MCP client's tests.
+pub mod mcp;
+pub use mcp::spawn_mcp;
 
 type Body = BoxBody<Bytes, Infallible>;
 
@@ -302,6 +307,7 @@ async fn route(req: Request<Incoming>) -> Response<Body> {
 
     match segments.as_slice() {
         ["echo", ..] => echo(req, path, query).await,
+        ["mcp"] => mcp::route(req).await,
         ["status", code] => match code
             .parse::<u16>()
             .ok()

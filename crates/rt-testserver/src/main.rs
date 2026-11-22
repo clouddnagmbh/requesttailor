@@ -2,6 +2,7 @@
 // Copyright 2026 The RequestTailor Authors
 
 //! `rt-testserver [--port N]`: runs the test server until killed. Default port 47811.
+//! `rt-testserver --mcp-stdio`: an MCP server on stdin/stdout instead (wave 8, `mcp`).
 
 use std::net::SocketAddr;
 
@@ -11,6 +12,10 @@ async fn main() {
     let mut port = rt_testserver::DEFAULT_PORT;
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--mcp-stdio" => {
+                rt_testserver::mcp::serve_stdio();
+                return;
+            }
             "--port" => {
                 port = args
                     .next()
@@ -32,6 +37,6 @@ async fn main() {
 }
 
 fn usage() -> ! {
-    eprintln!("usage: rt-testserver [--port N]");
+    eprintln!("usage: rt-testserver [--port N] | rt-testserver --mcp-stdio");
     std::process::exit(2);
 }
