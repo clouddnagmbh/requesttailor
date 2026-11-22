@@ -10,7 +10,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { SERVER, fakePicker, fillFolder, sampleCollection } from "./env";
 
-const SECRET = "s3cr3tWebHist42";
+const SECRET = "s3cr3tWebHist42"; // gitleaks:allow (dummy value for the secret test)
 
 async function setup(page: Page): Promise<void> {
   await fakePicker(page);

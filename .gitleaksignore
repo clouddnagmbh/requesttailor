@@ -1,0 +1,4 @@
+# Findings reviewed and accepted (gitleaks fingerprints: commit:file:rule:line).
+# Test-only dummy secret of the history shell test (wave 4 strand E); it exists to prove
+# that secret values never reach the history.
+126fd062e3237bea1f37a64906f61ed02277b956:apps/web/e2e/shells/history.e2e.ts:generic-api-key:13
