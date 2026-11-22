@@ -166,7 +166,11 @@ async fn an_action_chains_a_value_into_the_next_send_for_the_session() {
     // The login's assertions pass and its action takes the token.
     let login = core.send("login.yml", env("Local")).await.unwrap();
     assert_eq!(login.report.assertions.len(), 2);
-    assert!(login.report.assertions.iter().all(|a| a.passed), "{:?}", login.report.assertions);
+    assert!(
+        login.report.assertions.iter().all(|a| a.passed),
+        "{:?}",
+        login.report.assertions
+    );
     assert_eq!(
         login.report.var_changes,
         vec![VarChange {
@@ -178,9 +182,16 @@ async fn an_action_chains_a_value_into_the_next_send_for_the_session() {
     assert_eq!(core.session_vars("Local"), login.report.var_changes);
 
     // Chained into the next send, and shown as a runtime variable in the preview.
-    assert_eq!(echoed_token(&core, env("Local")).await.as_deref(), Some("tok-abc"));
+    assert_eq!(
+        echoed_token(&core, env("Local")).await.as_deref(),
+        Some("tok-abc")
+    );
     let preview = core.preview("whoami.yml", env("Local")).unwrap();
-    let token = preview.variables.iter().find(|v| v.name == "token").unwrap();
+    let token = preview
+        .variables
+        .iter()
+        .find(|v| v.name == "token")
+        .unwrap();
     assert_eq!(token.source, VarSource::Runtime);
     assert_eq!(token.value.as_deref(), Some("tok-abc"));
 
@@ -207,7 +218,10 @@ async fn an_action_chains_a_value_into_the_next_send_for_the_session() {
         echoed_token(&core, env("Prod")).await.as_deref(),
         Some("set-by-hand")
     );
-    assert_eq!(echoed_token(&core, env("Local")).await.as_deref(), Some("tok-abc"));
+    assert_eq!(
+        echoed_token(&core, env("Local")).await.as_deref(),
+        Some("tok-abc")
+    );
 
     // Unset one, clear all.
     core.set_session_var(
