@@ -63,7 +63,7 @@ export interface CoreWorkspace {
 
 /** `Importer` (crates/rt-wasm/src/import_js.rs). */
 export interface CoreImporter {
-  analyze(fileName: string, data: Uint8Array, format: ImportFormat | null): ImportPlan;
+  analyze(files: { name: string; data: Uint8Array }[], format: ImportFormat | null): ImportPlan;
   /** The new collection's files; the plan is gone afterwards. */
   take(id: number): FileChange[];
   discard(id: number): void;

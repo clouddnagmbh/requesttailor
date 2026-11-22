@@ -3,10 +3,15 @@
 
 //! Import for the web shell (`rt_app::Imports`): convert, report, then hand the files to the
 //! shell, which writes them with the File System Access API. Owner: wave 4, strand B.
+//!
+//! `analyze(files, format)`: `files` is `{ name: string, data: Uint8Array }[]`, imported
+//! together as one collection (a collection with its environment files, several `.http` or
+//! cURL files); `format` is an `ImportFormat` string, or `null` to detect it.
 
-use js_sys::Uint8Array;
+use js_sys::{Array, Reflect, Uint8Array};
 use rt_app::{FileChange, Imports};
-use rt_format::import::ImportFormat;
+use rt_format::import::{ImportFormat, SourceFile};
+use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
 use crate::workspace_js::{app_error, from_js, int, to_js};
@@ -22,6 +27,25 @@ impl Default for Importer {
     }
 }
 
+fn type_error(message: &str) -> JsValue {
+    js_sys::TypeError::new(message).into()
+}
+
+/// `(name, bytes)` of each `{ name, data }` in `files`.
+fn read_files(files: &Array) -> Result<Vec<(String, Vec<u8>)>, JsValue> {
+    let mut out = Vec::with_capacity(files.length() as usize);
+    for entry in files.iter() {
+        let name = Reflect::get(&entry, &"name".into())?
+            .as_string()
+            .ok_or_else(|| type_error("files[].name must be a string"))?;
+        let data = Reflect::get(&entry, &"data".into())?
+            .dyn_into::<Uint8Array>()
+            .map_err(|_| type_error("files[].data must be a Uint8Array"))?;
+        out.push((name, data.to_vec()));
+    }
+    Ok(out)
+}
+
 #[wasm_bindgen]
 impl Importer {
     #[wasm_bindgen(constructor)]
@@ -31,18 +55,15 @@ impl Importer {
         }
     }
 
-    /// `ImportPlan`. `format`: an `ImportFormat` string, or `null` to detect it.
-    pub fn analyze(
-        &mut self,
-        #[wasm_bindgen(js_name = fileName)] file_name: &str,
-        data: Uint8Array,
-        format: JsValue,
-    ) -> Result<JsValue, JsValue> {
+    /// `ImportPlan` for `files` (see the module documentation).
+    pub fn analyze(&mut self, files: Array, format: JsValue) -> Result<JsValue, JsValue> {
         let format: Option<ImportFormat> = from_js(&format, "format")?;
-        let plan = self
-            .imports
-            .analyze(file_name, &data.to_vec(), format)
-            .map_err(app_error)?;
+        let owned = read_files(&files)?;
+        let sources: Vec<SourceFile<'_>> = owned
+            .iter()
+            .map(|(name, data)| SourceFile { name, data })
+            .collect();
+        let plan = self.imports.analyze(&sources, format).map_err(app_error)?;
         to_js(&plan)
     }
 

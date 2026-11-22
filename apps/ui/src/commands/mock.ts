@@ -143,7 +143,7 @@ export class MockBackend implements Backend {
     dirty: () => this.dirty(),
     openCollection: () => this.openCollection(),
   });
-  readonly imports: ImportApi = mockImports();
+  readonly imports: ImportApi = mockImports(() => this.openCollection());
   readonly history = new MockHistory();
   readonly recent = new MockRecent();
 

@@ -6,15 +6,72 @@
 
 import { BackendError, type ImportApi } from "@requesttailor/ui";
 
+import { writeChanges } from "./fs/directory";
+import { toBackendError, type CoreImporter } from "./wasm";
 import type { WebHost } from "./web-backend";
 
+const NO_FOLDERS =
+  "This browser cannot create folders. Use a current Chrome or Edge, or the RequestTailor desktop app.";
+
+function isAbort(e: unknown): boolean {
+  return e instanceof DOMException && e.name === "AbortError";
+}
+
+async function isEmpty(dir: FileSystemDirectoryHandle): Promise<boolean> {
+  // `keys()` is async-iterable in every browser with File System Access.
+  for await (const _ of (dir as unknown as { keys(): AsyncIterable<string> }).keys()) return false;
+  return true;
+}
+
 export function webImports(host: WebHost): ImportApi {
-  void host;
+  let importer: Promise<CoreImporter> | null = null;
+  // Folder names of the plans, for `write` (the core keeps the files).
+  const folders = new Map<number, string>();
+  const core = () => (importer ??= host.deps.loadCore().then((m) => new m.Importer()));
+
   return {
-    analyze: async () => {
-      throw new BackendError("unsupported", "Import is not available in the web app yet.");
+    analyze: async (files, format) => {
+      try {
+        const plan = (await core()).analyze(files, format);
+        folders.set(plan.id, plan.folder_name);
+        return plan;
+      } catch (e) {
+        throw toBackendError(e);
+      }
     },
-    write: async () => null,
-    discard: async () => {},
+
+    write: async (id) => {
+      const name = folders.get(id);
+      if (name === undefined) throw new BackendError("import", `import ${id} not found`);
+      if (typeof window.showDirectoryPicker !== "function") {
+        throw new BackendError("unsupported", NO_FOLDERS);
+      }
+      let parent: FileSystemDirectoryHandle;
+      try {
+        parent = await window.showDirectoryPicker({ id: "requesttailor-import", mode: "readwrite" });
+      } catch (e) {
+        if (isAbort(e)) return null;
+        throw toBackendError(e);
+      }
+      try {
+        let exists = true;
+        await parent.getDirectoryHandle(name).catch(() => (exists = false));
+        const dir = await parent.getDirectoryHandle(name, { create: true });
+        if (exists && !(await isEmpty(dir))) {
+          throw new BackendError("import", `${parent.name}/${name} already exists and is not empty; choose another folder`);
+        }
+        const imports = await core();
+        await writeChanges(dir, imports.take(id));
+        folders.delete(id);
+        return await host.openHandle(dir);
+      } catch (e) {
+        throw toBackendError(e);
+      }
+    },
+
+    discard: async (id) => {
+      folders.delete(id);
+      if (importer) (await importer).discard(id);
+    },
   };
 }
