@@ -17,6 +17,14 @@ names, IDs and values are invented. The files follow publicly documented protoco
 | `cap-bookshop/admin-v4.edmx` | OData V4 bookshop AdminService in CAP layout, draft-enabled `Books` |
 | `cap-bookshop/admin-v2.edmx` | The same service as OData V2 (V2 adapter layout, no drafts) |
 | `cap-bookshop/data.json` | Books, authors, genres |
+| `hub/API_RT_PRODUCT_SRV.json` | Synthetic. OpenAPI 3.0 JSON in the shape of an SAP Business Accelerator Hub download of an OData V2 API: `x-sap-api-type`, `x-sap-shortText` and other `x-sap-*` keys, servers for the sandbox (`https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_RT_PRODUCT_SRV`) and `https://{host}:{port}/…`, security schemes `APIKey` (header) and Basic, tags, `$ref` parameters, bodies with and without example, `$batch` |
+| `hub/api_rt_salesorder_v4.json` | Synthetic. The same shape for an OData V4 API (`x-sap-api-type: ODATAV4`, `/sap/opu/odata4/…` sandbox server), no tags, `examples`, an OAuth 2.0 scheme |
+| `hub/API_RT_PRODUCT_SRV.edmx` | Synthetic. OData V2 `$metadata` in SAP Gateway style whose `atom:link rel="self"` points to the Hub sandbox, as the `sap-hub` importer recognises an EDMX from the Hub |
+
+The `hub/` files are written by us from the publicly documented shape of Hub
+specifications; no file was downloaded from the Hub, and the API names (`API_RT_…`) are
+invented. How closely they match real downloads is not verified, so the `sap-hub`
+detection is a heuristic (see `src/landscape/hub.rs`).
 
 Service roots served by the OData test server (`plugins/odata/testserver`):
 
