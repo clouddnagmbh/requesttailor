@@ -6,7 +6,7 @@
      debounced and flushed before anything else can use the backend's state). Variable
      highlighting comes from `backend.preview`; the editor never resolves a variable itself. -->
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { onMount, untrack, type Snippet } from "svelte";
 
   import type { Auth, Body, Param, Preview, RequestSpec, Variable } from "../commands/types";
   import { tabsFor } from "../plugins/permissions";
@@ -24,7 +24,8 @@
   import { paramsFromUrl, urlFromParams } from "./url";
   import { lookupFromPreview } from "./vars";
 
-  let { path }: { path: string } = $props();
+  /** `actions`: rendered at the end of the URL row (the shell puts the Send button there). */
+  let { path, actions }: { path: string; actions?: Snippet } = $props();
   const app = getApp();
 
   /** Typing is sent to the backend after this pause. */
@@ -262,6 +263,18 @@
           onchange={setUrl}
           onenter={sendNow}
         />
+        {#if actions}
+          <!-- Actions (Send) act on the request: pending typing reaches the backend first,
+               like a click outside the editor. -->
+          <div
+            class="actions"
+            role="presentation"
+            onpointerdowncapture={() => pending && flush()}
+            onkeydowncapture={() => pending && flush()}
+          >
+            {@render actions()}
+          </div>
+        {/if}
       </div>
       {#if shown?.error}
         <p class="resolved error" data-testid="url-preview-error">{shown.error}</p>
@@ -396,6 +409,9 @@
     display: flex;
     gap: 6px;
     align-items: stretch;
+  }
+  .actions {
+    display: contents;
   }
   select,
   input,

@@ -358,17 +358,18 @@
       {:else if app.active}
         <div class="panel" id="rt-request-panel" role="tabpanel" aria-labelledby={activeTabId} bind:clientHeight={panelHeight}>
           <div class="pane editor" style:height="{editorHeight}px">
-            <div class="toolbar">
-              <button
-                class="button primary"
-                data-testid="send"
-                title="Send ({keys('send')})"
-                disabled={sending}
-                onclick={() => app.send()}>{sending ? "Sending…" : "Send"}</button
-              >
-              <kbd>{keys("send")}</kbd>
-            </div>
-            <RequestEditor path={app.active} />
+            <RequestEditor path={app.active}>
+              {#snippet actions()}
+                <button
+                  class="button primary send"
+                  data-testid="send"
+                  title="Send ({keys('send')})"
+                  disabled={sending}
+                  onclick={() => app.send()}
+                  >{sending ? "Sending…" : "Send"}<kbd>{keys("send")}</kbd></button
+                >
+              {/snippet}
+            </RequestEditor>
           </div>
           <Resizer
             label="Resize request and response"
@@ -517,21 +518,29 @@
     min-height: 0;
     overflow: auto;
   }
+  /* The work area keeps distance from the sidebar: editor and response share one inset. */
   .editor {
     flex: none;
+    padding: var(--rt-gap) var(--rt-inset);
   }
   .response {
     flex: 1;
+    padding: 0 var(--rt-inset);
   }
-  .toolbar {
-    display: flex;
+  .panel {
+    --rt-inset: 16px;
+  }
+  /* Send closes the URL row, like the Enter key in the URL field. */
+  .send {
+    flex: none;
+    display: inline-flex;
     align-items: center;
-    gap: var(--rt-gap);
-    padding: var(--rt-gap) 12px 0;
+    gap: 8px;
+    padding-inline: 16px;
   }
-  .toolbar kbd {
-    color: var(--rt-fg-muted);
+  .send kbd {
     font-size: var(--rt-size-small);
+    opacity: 0.75;
   }
   .start {
     margin: auto;
