@@ -11,6 +11,8 @@
 
 mod pairing;
 mod server;
+/// `GET /v1/stream` (wave 8, strand A).
+mod stream;
 
 use std::io::Write;
 use std::net::{Ipv4Addr, SocketAddr};
