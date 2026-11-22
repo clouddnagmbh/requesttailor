@@ -8,7 +8,9 @@
      Wave 5 mount points: PluginsDialog (A), AuthPromptDialog (C), CookiesDialog (D).
      Wave 6 mount points (strand F): WelcomeDialog; the collection tabs of plugins (header
      button "Collection", palette entries, CollectionPanel in the main area), shown only
-     while an enabled plugin has one. -->
+     while an enabled plugin has one.
+     Wave 7 mount point (strand D): RunnerPanel in the main area, opened from a folder's run
+     button in the sidebar, the header button "Run" and the palette ("Run collection"). -->
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
 
@@ -28,6 +30,8 @@
   import WelcomeDialog from "../plugins/WelcomeDialog.svelte";
   import RecentCollections from "../recent/RecentCollections.svelte";
   import { reopenOnStart } from "../recent/startup";
+  import RunnerPanel from "../runner/RunnerPanel.svelte";
+  import { RunnerState } from "../runner/runner.svelte";
   import SearchPanel from "../search/SearchPanel.svelte";
   import ResponseView from "../response/ResponseView.svelte";
   import { AppState, provideApp } from "../state/app.svelte";
@@ -196,8 +200,25 @@
   async function openCollectionTab(key: string) {
     // Set after the effect above has seen the current request.
     await tick();
+    runner.close();
     collectionTab = key;
   }
+
+  // ---- collection runner (wave 7) ----
+  const runner = new RunnerState(app);
+  async function openRunner(folder: string | null, name?: string) {
+    if (!app.collection) return;
+    // Set after the effect below has seen the current request.
+    await tick();
+    collectionTab = null;
+    runner.open({ folder, name: name ?? app.collection.name });
+  }
+  // Opening a request or another collection shows the editor again; a run goes on.
+  $effect(() => {
+    void app.active;
+    void app.collection?.id;
+    untrack(() => runner.close());
+  });
 
   const commands = $derived([
     ...buildCommands(app, actions, mac),
@@ -206,6 +227,7 @@
       label: `Collection: ${t.tab.title} (${t.pluginName})`,
       run: () => openCollectionTab(t.key),
     })),
+    ...(app.collection ? [{ id: "run-collection", label: "Run collection…", run: () => openRunner(null) }] : []),
   ]);
 
   // Capture phase: runs before inputs and code editors handle the key, so Mod+Enter and Mod+S
@@ -250,6 +272,13 @@
       >
     {/if}
     {#if app.collection}
+      <button
+        class="button"
+        data-testid="run-collection"
+        aria-pressed={runner.target?.folder === null}
+        title="Run the collection's requests"
+        onclick={() => (runner.target?.folder === null ? runner.close() : openRunner(null))}>Run</button
+      >
       <EnvironmentSwitcher />
       <button class="button" onclick={() => (managing = true)}>Environments</button>
     {/if}
@@ -296,7 +325,7 @@
       {/if}
       <div class="view-body">
         {#if sideView === "requests" || !app.collection}
-          <Sidebar bind:this={sidebar} bind:newIn hint={keys("new-request")} />
+          <Sidebar bind:this={sidebar} bind:newIn hint={keys("new-request")} onrun={(folder, name) => openRunner(folder, name)} />
         {:else if sideView === "search"}
           <SearchPanel bind:this={searchPanel} />
         {:else if sideView === "history"}
@@ -318,7 +347,9 @@
 
     <main>
       <TabBar panelId="rt-request-panel" />
-      {#if showingCollection && collectionTab}
+      {#if runner.target}
+        <RunnerPanel {runner} />
+      {:else if showingCollection && collectionTab}
         <CollectionPanel tabs={collectionTabs} active={collectionTab} onselect={(k) => (collectionTab = k)} onclose={() => (collectionTab = null)} />
       {:else if app.active}
         <div class="panel" id="rt-request-panel" role="tabpanel" aria-labelledby={activeTabId} bind:clientHeight={panelHeight}>
