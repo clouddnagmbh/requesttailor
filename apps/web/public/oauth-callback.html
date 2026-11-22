@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<!-- The OAuth 2.0 callback URL of the web app (`apps/web/src/auth.ts`): hands the redirect
+     URL to the app on this origin and closes. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>RequestTailor sign-in</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 3rem 1rem;
+        color: #1f2328;
+        background: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: #e6edf3;
+          background: #0d1117;
+        }
+      }
+    </style>
+    <script src="oauth-callback.js" defer></script>
+  </head>
+  <body>
+    <h1>Signed in</h1>
+    <p id="status">You can close this window and return to RequestTailor.</p>
+  </body>
+</html>

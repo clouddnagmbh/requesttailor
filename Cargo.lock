@@ -4573,6 +4573,8 @@ name = "rt-app"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "bytes",
+ "futures-core",
  "keyring",
  "memchr",
  "rt-core",
@@ -4585,6 +4587,7 @@ dependencies = [
  "similar",
  "thiserror 2.0.21",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -4598,6 +4601,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "lexopt",
+ "rt-app",
  "rt-core",
  "rt-format",
  "rt-testserver",

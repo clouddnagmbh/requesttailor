@@ -5,7 +5,8 @@
 //! `Backend` calls the commands in `commands`, which forward to `rt_app` through [`Core`].
 //!
 //! Security: the webview gets no file system, shell or dialog access of its own. Its only
-//! capability (`capabilities/default.json`) allows exactly the app's commands; the folder
+//! capability (`capabilities/default.json`) allows exactly the app's commands and listening
+//! to its events (the OAuth 2.0 `auth-prompt`; the system browser opens on the Rust side); the folder
 //! picker runs on the Rust side. The content security policy is in `tauri.conf.json`.
 
 mod auth;
@@ -37,6 +38,8 @@ pub fn run() {
                 rt_app::secrets::keychain::KeychainStore::default(),
                 data_dir,
             )?;
+            // OAuth 2.0 prompts reach the UI as the `auth-prompt` event (wave 5, strand C).
+            core.services.auth.attach(app.handle().clone());
             app.manage(core);
             Ok(())
         })
