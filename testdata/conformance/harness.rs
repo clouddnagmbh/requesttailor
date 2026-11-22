@@ -98,6 +98,10 @@ pub struct Expect {
     pub response: Option<ResponseExpect>,
     #[serde(default)]
     pub variables: Vec<(String, String)>,
+    /// Wave 7, strand C: `report.assertions` and `report.var_changes`, entry by entry; each
+    /// expected entry lists the fields it checks (`{base}`/`{port}` substituted in strings).
+    pub assertions: Option<Vec<Value>>,
+    pub var_changes: Option<Vec<Value>>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -298,6 +302,12 @@ pub fn check(case: &Case, target: Target, port: u16, report: &Value) -> Vec<Stri
     if let Some(sent) = &expect.sent {
         check_sent(sent, port, &report["request"], &mut f);
     }
+    if let Some(want) = &expect.assertions {
+        check_entries("assertions", want, port, &report["assertions"], &mut f);
+    }
+    if let Some(want) = &expect.var_changes {
+        check_entries("var_changes", want, port, &report["var_changes"], &mut f);
+    }
 
     let response = &report["response"];
     let needs_response =
@@ -338,6 +348,36 @@ pub fn check(case: &Case, target: Target, port: u16, report: &Value) -> Vec<Stri
         }
     }
     f
+}
+
+/// Wave 7: a list in the report (omitted when empty) against the expected entries, each a
+/// subset of its fields.
+fn check_entries(what: &str, want: &[Value], port: u16, got: &Value, f: &mut Vec<String>) {
+    let empty = Vec::new();
+    let got = got.as_array().unwrap_or(&empty);
+    if got.len() != want.len() {
+        f.push(format!(
+            "{what}: expected {} entries, got {}: {got:?}",
+            want.len(),
+            got.len()
+        ));
+        return;
+    }
+    for (i, (w, g)) in want.iter().zip(got).enumerate() {
+        let Some(fields) = w.as_object() else {
+            f.push(format!("{what}[{i}]: the expected entry must be an object"));
+            continue;
+        };
+        for (key, value) in fields {
+            let value = match value {
+                Value::String(s) => Value::String(subst(s, port)),
+                other => other.clone(),
+            };
+            if g[key] != value {
+                f.push(format!("{what}[{i}].{key}: expected {value}, got {} in {g}", g[key]));
+            }
+        }
+    }
 }
 
 fn error_kind(error: &Value) -> Option<String> {

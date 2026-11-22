@@ -353,6 +353,51 @@
           "body": "fu_str=form_string&fu_num=42&fu_bool=true&fu_obj=%7B%22key%22%3A%22value%22%7D"
         }
       }
+    },
+    {
+      "name": "assertions and set-variable actions (wave 7): the same results natively and in the browser",
+      "collection": "conformance",
+      "request": "assert/checks.yml",
+      "expect": {
+        "status": 200,
+        "assertions": [
+          { "expression": "res.status", "operator": "eq", "expected": "200", "actual": "200", "passed": true },
+          { "expression": "res.statusText", "expected": "OK", "actual": "OK", "passed": true },
+          { "expression": "res.body.method", "actual": "GET", "passed": true },
+          { "expression": "res.body.path", "actual": "/echo/assert", "passed": true },
+          { "expression": "res.body.query", "operator": "contains", "expected": "user=alice", "actual": "x=1&user=alice", "passed": true },
+          { "expression": "res.headers.content-type", "operator": "startsWith", "passed": true },
+          { "expression": "res.body.body_len", "actual": "0", "passed": true },
+          { "expression": "res.body.headers", "operator": "isArray", "expected": "", "passed": true },
+          { "expression": "res.responseTime", "operator": "gte", "passed": true },
+          { "expression": "res.body.missing", "operator": "isUndefined", "actual": null, "passed": true },
+          { "expression": "res.status", "operator": "in", "passed": true },
+          { "expression": "res.body[\"path\"]", "operator": "matches", "passed": true },
+          { "expression": "level", "expected": "environment", "actual": "environment", "passed": true },
+          { "expression": "res.status", "expected": "201", "actual": "200", "passed": false },
+          { "expression": "res.body.missing.deeper", "actual": null, "passed": false, "error": "`res.body.missing.deeper` did not resolve (no such value)" },
+          { "expression": "res.body.path", "operator": "approximately", "passed": false, "error": "unknown operator `approximately`" }
+        ],
+        "var_changes": [
+          { "name": "echoedPath", "value": "/echo/assert", "scope": "runtime" },
+          { "name": "contentType", "scope": "environment" },
+          { "name": "lastStatus", "value": "200", "scope": "runtime" }
+        ]
+      }
+    },
+    {
+      "name": "assertions and actions (wave 7): secret values are masked in expected, actual and variable values",
+      "collection": "conformance",
+      "request": "assert/secret.yml",
+      "vars": [["apiToken", "s3cr3t-token"]],
+      "expect": {
+        "status": 200,
+        "echo": { "query": "t=s3cr3t-token" },
+        "assertions": [
+          { "expression": "res.body.query", "expected": "t=***", "actual": "t=***", "passed": true }
+        ],
+        "var_changes": [{ "name": "echoedQuery", "value": "t=***", "scope": "runtime" }]
+      }
     }
   ]
 }
