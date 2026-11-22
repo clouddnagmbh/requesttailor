@@ -126,9 +126,7 @@ impl CookieParts {
     /// Applies `f` to the jars of `collection` and saves them if anything changed.
     fn change(&self, collection: &str, f: impl FnOnce(&mut CookieJars)) -> Result<(), AppError> {
         let mut all = self.lock();
-        let jars = all
-            .entry(collection.to_owned())
-            .or_insert_with(CookieJars::new);
+        let jars = all.entry(collection.to_owned()).or_default();
         let before = jars.clone();
         f(jars);
         let changed = *jars != before;

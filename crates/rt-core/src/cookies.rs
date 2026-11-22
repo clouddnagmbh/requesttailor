@@ -384,7 +384,7 @@ impl CookieStore {
 
 /// The cookie stores of one collection, per environment (`""`: no environment). The JSON
 /// is what the shells persist: `{"version": 1, "scopes": {"Local": [cookie, ...]}}`.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CookieJars {
     pub version: u32,
     pub scopes: BTreeMap<String, CookieStore>,
@@ -392,6 +392,14 @@ pub struct CookieJars {
 
 /// Version of the [`CookieJars`] JSON.
 pub const JARS_VERSION: u32 = 1;
+
+/// Empty jars of the current version (a derived default would say version 0, which
+/// [`CookieJars::from_json`] reads back as empty).
+impl Default for CookieJars {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CookieJars {
     pub fn new() -> Self {
@@ -565,6 +573,13 @@ mod tests {
 
     fn parse(header: &str, url: &str) -> Option<Cookie> {
         parse_set_cookie(header, url, NOW)
+    }
+
+    #[test]
+    fn default_jars_round_trip() {
+        let mut jars = CookieJars::default();
+        jars.store("", "https://a.example/", &["x=1".to_owned()], 0);
+        assert_eq!(CookieJars::from_json(&jars.to_json()), jars);
     }
 
     #[test]
