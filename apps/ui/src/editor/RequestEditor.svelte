@@ -245,7 +245,7 @@
     if (!spec || !canFormat(spec.body)) return;
     // Show the body first, so the change goes through its editor (and its undo history).
     if (tab !== "body") {
-      tab = "body";
+      chosen = "body";
       await tick();
     }
     const result = spec && formatBody(spec.body);

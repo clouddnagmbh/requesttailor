@@ -452,6 +452,8 @@ async fn prepare(
         // Nobody sees a terminal prompt; OAuth flows that need the user fail.
         prompt: false,
         no_scripts: !trusted,
+        // Sessions (WebSocket, SSE, gRPC) are not offered to agents yet.
+        session: Default::default(),
     };
     Ok(Prepared {
         collection,
