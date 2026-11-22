@@ -18,6 +18,7 @@
   import RequestEditor from "../editor/RequestEditor.svelte";
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
+  import SessionVarsButton from "../scripts/SessionVarsButton.svelte";
   import GitPanel from "../git/GitPanel.svelte";
   import HistoryPanel from "../history/HistoryPanel.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
@@ -252,6 +253,7 @@
     {#if app.collection}
       <EnvironmentSwitcher />
       <button class="button" onclick={() => (managing = true)}>Environments</button>
+      <SessionVarsButton />
     {/if}
     <button
       class="button primary"

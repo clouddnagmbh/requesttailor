@@ -205,6 +205,8 @@ const tokenHighlight = HighlightStyle.define([
   { tag: [t.comment, t.meta, t.processingInstruction], color: "var(--rt-fg-muted)" },
   { tag: [t.punctuation, t.bracket, t.angleBracket], color: "var(--rt-fg-muted)" },
   { tag: t.invalid, color: "var(--rt-danger)" },
+  // Scripts (wave 7): JavaScript keywords.
+  { tag: [t.keyword, t.controlKeyword, t.definitionKeyword, t.moduleKeyword, t.operatorKeyword], fontWeight: "600" },
 ]);
 
 const theme = EditorView.theme({

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- Request editor for one request: method and URL, params, headers, body, auth, variables.
-     Owner: wave 3, strand B.
+<!-- Request editor for one request: method and URL, params, headers, body, auth, variables,
+     scripts and assertions (wave 7, strand C). Owner: wave 3, strand B.
      Reads the spec from `app.drafts[path]`; every change goes through `app.edit` (typing is
      debounced and flushed before anything else can use the backend's state). Variable
      highlighting comes from `backend.preview`; the editor never resolves a variable itself. -->
@@ -12,6 +12,10 @@
   import { tabsFor } from "../plugins/permissions";
   import PluginTab from "../plugins/PluginTab.svelte";
   import { pluginsState } from "../plugins/store.svelte";
+  import AssertionsTab from "../scripts/AssertionsTab.svelte";
+  import { countScripts } from "../scripts/edit";
+  import ScriptsTab from "../scripts/ScriptsTab.svelte";
+  import { sessionVars } from "../scripts/session.svelte";
   import { getApp } from "../state/app.svelte";
   import AuthEditor from "./AuthEditor.svelte";
   import BodyEditor from "./BodyEditor.svelte";
@@ -103,11 +107,15 @@
 
   let preview = $state.raw<{ path: string; value: Preview } | null>(null);
   let previewSeq = 0;
+  // Session variables (wave 7) are part of the preview: re-read when they change.
+  const session = sessionVars(app);
   $effect(() => {
     const p = path;
     const input = { environment: app.environment, vars: [] };
     void revision;
     void app.environments;
+    void app.sendCount;
+    void session.revision;
     if (!untrack(() => app.drafts[p])) return;
     const t = setTimeout(async () => {
       const seq = ++previewSeq;
@@ -186,7 +194,7 @@
   // ---- tabs ----
 
   /** Built-in tabs, or `plugin:<plugin>/<tab>` (wave 5). */
-  type Tab = "params" | "headers" | "body" | "auth" | "vars" | `plugin:${string}`;
+  type Tab = "params" | "headers" | "body" | "auth" | "vars" | "scripts" | "assertions" | `plugin:${string}`;
   let tab = $state<Tab>("params");
   const plugins = pluginsState(app.backend);
   const pluginTabs = $derived(tabsFor(plugins.list, "request"));
@@ -199,6 +207,8 @@
           ["body", "Body", spec.body.type === "none" ? "" : spec.body.type === "raw" ? spec.body.kind : spec.body.type],
           ["auth", "Auth", spec.auth.type === "inherit" ? "" : spec.auth.type === "unsupported" ? spec.auth.kind : spec.auth.type],
           ["vars", "Vars", count(spec.vars.length)],
+          ["scripts", "Scripts", count(countScripts(spec.scripts))],
+          ["assertions", "Assertions", count(spec.assertions.filter((a) => a.enabled).length + spec.actions.filter((a) => a.enabled).length)],
         ]
       : [],
   );
@@ -360,6 +370,15 @@
             onremove={(i) => update((s) => s.vars.splice(i, 1))}
           />
           <p class="hint">Request variables override collection, environment and folder variables for this request.</p>
+        {:else if tab === "scripts"}
+          <ScriptsTab scripts={spec.scripts} onchange={(scripts) => update((s) => (s.scripts = scripts), true)} />
+        {:else if tab === "assertions"}
+          <AssertionsTab
+            assertions={spec.assertions}
+            actions={spec.actions}
+            onassertions={(next, typing) => update((s) => (s.assertions = next), typing)}
+            onactions={(next, typing) => update((s) => (s.actions = next), typing)}
+          />
         {/if}
       </div>
     {/key}

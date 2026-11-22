@@ -316,7 +316,7 @@ export class MockBackend implements Backend {
     const env = this.envs.find((e) => e.name === input.environment);
     const session = await this.scripts.sessionVars(input.environment ?? "");
     const runtime = (name: string) =>
-      input.vars.find(([n]) => n === name)?.[1] ?? session.findLast((c) => c.name === name)?.value ?? undefined;
+      input.vars.find(([n]) => n === name)?.[1] ?? [...session].reverse().find((c) => c.name === name)?.value ?? undefined;
     return {
       url: r.request?.url ?? null,
       headers: r.request?.headers ?? [],

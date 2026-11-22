@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
 <!-- One received response: summary bar, body (pretty / raw / tree / hex, JSONPath filter),
-     headers and timing. Created per response (keyed by its id), so all state here belongs to
+     headers, tests and console of scripts (wave 7), and timing. Created per response (keyed by its id), so all state here belongs to
      that response. The full body stays in the backend; the UI only fetches what it shows. -->
 <script lang="ts">
   import type { Backend } from "../commands/backend";
@@ -20,8 +20,11 @@
   import SendNotes from "../plugins/SendNotes.svelte";
   import { pluginsState } from "../plugins/store.svelte";
   import HeadersTable from "./HeadersTable.svelte";
+  import ConsolePanel from "./ConsolePanel.svelte";
   import JsonNode from "./JsonNode.svelte";
   import { arraySource, hexSource, type LineSource } from "./lines";
+  import TestsPanel from "./TestsPanel.svelte";
+  import { testSummary, testsLabel } from "./tests";
   import TimingWaterfall from "./TimingWaterfall.svelte";
   import VirtualLines from "./VirtualLines.svelte";
 
@@ -29,13 +32,20 @@
     result,
     response,
     backend,
-  }: { result: StoredResponse; response: ReceivedResponse; backend: Backend } = $props();
+    onpick,
+  }: {
+    result: StoredResponse;
+    response: ReceivedResponse;
+    backend: Backend;
+    /** "Set as variable" from the JSON tree (wave 7); absent: no such button. */
+    onpick?: (path: string, value: unknown) => void;
+  } = $props();
 
   /** Bytes of the preview that is the complete body (small bodies need no round trip). */
   const PREVIEW_BYTES = 64 * 1024;
 
   /** Built-in tabs, or `plugin:<plugin>/<tab>` (wave 5). */
-  type Tab = "body" | "headers" | "timing" | `plugin:${string}`;
+  type Tab = "body" | "headers" | "tests" | "console" | "timing" | `plugin:${string}`;
   type Mode = "pretty" | "raw" | "tree" | "hex";
 
   // The props are fixed for the lifetime of this component (it is keyed by response id).
@@ -47,6 +57,17 @@
   const jsonViewable = jsonCandidate && result.size <= JSON_VIEW_LIMIT;
 
   let tab = $state<Tab>("body");
+
+  // ---- tests and console (wave 7) ----
+  const tests = $derived(testSummary(result.report));
+  const logs = $derived(result.report.logs ?? []);
+  const builtInTabs = $derived<[Tab, string][]>([
+    ["body", "Body"],
+    ["headers", `Headers (${response.headers.length})`],
+    ["tests", testsLabel(tests)],
+    ["console", logs.length > 0 ? `Console (${logs.length})` : "Console"],
+    ["timing", "Timing"],
+  ]);
 
   // ---- plugin tabs (wave 5, strand A) ----
   // svelte-ignore state_referenced_locally
@@ -203,13 +224,15 @@
 
   <div class="bar">
     <div class="tabs" role="tablist" aria-label="Response parts">
-      {#each [["body", "Body"], ["headers", `Headers (${response.headers.length})`], ["timing", "Timing"]] as [t, label] (t)}
+      {#each builtInTabs as [t, label] (t)}
         <button
           type="button"
           role="tab"
           aria-selected={tab === t}
           data-testid="response-tab-{t}"
-          onclick={() => (tab = t as Tab)}>{label}</button
+          class:failed={t === "tests" && tests.passed < tests.total}
+          class:passed={t === "tests" && tests.total > 0 && tests.passed === tests.total}
+          onclick={() => (tab = t)}>{label}</button
         >
       {/each}
       {#each pluginTabs as t (t.key)}
@@ -270,6 +293,10 @@
       <HeadersTable response={response.headers} request={result.report.request?.headers ?? null} />
     {:else if tab === "timing"}
       <TimingWaterfall data={timing} />
+    {:else if tab === "tests"}
+      <TestsPanel report={result.report} />
+    {:else if tab === "console"}
+      <ConsolePanel {logs} />
     {:else if filtered}
       <div class="fill" data-testid="response-filter-result">
         {#key filtered}
@@ -282,7 +309,7 @@
           <VirtualLines source={json.pretty} label="Response body (pretty)" />
         {:else}
           <div class="tree" data-testid="response-tree">
-            <ul><JsonNode name={null} value={json.value} path="$" expanded /></ul>
+            <ul><JsonNode name={null} value={json.value} path="$" expanded {onpick} /></ul>
           </div>
         {/if}
       {:else}
@@ -384,6 +411,12 @@
   button[aria-pressed="true"] {
     background: var(--rt-bg-selected);
     border-color: var(--rt-border);
+  }
+  button.failed {
+    color: var(--rt-danger);
+  }
+  button.passed {
+    color: var(--rt-ok);
   }
   button:disabled {
     color: var(--rt-fg-muted);
