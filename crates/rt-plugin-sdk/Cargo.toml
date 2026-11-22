@@ -8,6 +8,12 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# Bodies and importer files are base64 in the plugin JSON.
+base64 = "0.22"
+# The API types only (no host). `rt-core` and `rt-format` for the types the API uses
+# (request spec, note level, loss report); they build on wasm32.
+rt-core = { path = "../rt-core" }
+rt-format = { path = "../rt-format" }
 rt-plugin = { path = "../rt-plugin", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

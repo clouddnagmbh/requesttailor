@@ -1,0 +1,22 @@
+[package]
+name = "rt-plugin-example"
+description = "RequestTailor: example plugin that uses every extension point of the plugin API."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# A plain library: native tests use it as is, and `scripts/build-plugins.mjs` builds it as a
+# staticlib and links the `.wasm` with exactly the plugin exports (see there for why not cdylib).
+
+[dependencies]
+rt-plugin-sdk = { path = "../../crates/rt-plugin-sdk" }
+serde_json = "1"
+
+[dev-dependencies]
+# The importer's output must read as a collection, as the host checks it.
+rt-format = { path = "../../crates/rt-format" }
+
+[lints]
+workspace = true

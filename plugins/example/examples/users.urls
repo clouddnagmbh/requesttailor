@@ -1,0 +1,5 @@
+# A URL list for the example plugin's importer: one request per line, `[METHOD] URL`.
+GET http://127.0.0.1:47811/echo/users
+http://127.0.0.1:47811/status/204
+post http://127.0.0.1:47811/echo/users
+DELETE http://127.0.0.1:47811/echo/users/7

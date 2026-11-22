@@ -346,10 +346,43 @@ jobs:
           RT_TESTSERVER_BIN: ${{ github.workspace }}/target/debug/rt-testserver
         run: npm run e2e -w apps/web
 
+  # Plugin SDKs and the example plugin: the SDK's wasm32-only ABI module under clippy, the
+  # plugins built to single .wasm modules (checked against API.md by the build script), the
+  # TypeScript types against the Rust JSON, and the built example plugin on Node's WebAssembly.
+  plugins:
+    name: plugins (sdk, example)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned toolchain and wasm32 target
+        run: |
+          rustup toolchain install
+          rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Clippy on wasm32 (the SDK's ABI module only builds there)
+        run: cargo clippy -p rt-plugin-sdk -p rt-plugin-example --target wasm32-unknown-unknown --locked -- -D warnings
+      - name: Build the plugins (target/plugins)
+        run: node scripts/build-plugins.mjs
+      - name: TypeScript SDK (types against the Rust JSON, example plugin on Node's WebAssembly)
+        run: |
+          npm run check -w sdk/typescript
+          npm test -w sdk/typescript
+      - name: Keep the built plugins
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugins
+          path: target/plugins/*.wasm
+          if-no-files-found: error
+
   # Single required status for branch protection.
   ci-ok:
     if: always()
-    needs: [native, desktop, wasm, ios, conformance, lint, licenses, dco, secrets, perf-measure, perf, frontend]
+    needs: [native, desktop, wasm, ios, conformance, lint, licenses, dco, secrets, perf-measure, perf, frontend, plugins]
     runs-on: ubuntu-latest
     steps:
       - name: All jobs green

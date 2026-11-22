@@ -1,0 +1,15 @@
+{
+  "id": "example",
+  "name": "Example plugin",
+  "version": "0.1.0",
+  "api": 1,
+  "description": "Shows every extension point: adds an X-Request-ID header before sending, notes size and type of every response, adds a response summary tab, and imports plain URL lists.",
+  "license": "Apache-2.0",
+  "permissions": { "network": [], "storage": false, "variables": false },
+  "contributes": {
+    "prepare": true,
+    "response": true,
+    "tabs": [{ "id": "summary", "title": "Summary", "place": "response", "content_types": [] }],
+    "importers": [{ "id": "url-list", "label": "URL list (one request per line)", "extensions": ["urls", "txt"] }]
+  }
+}
