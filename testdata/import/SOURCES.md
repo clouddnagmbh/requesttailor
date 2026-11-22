@@ -193,13 +193,15 @@ Real-world files for importer tests, copied byte for byte from public repositori
 ## Synthetic files
 
 Files named `synthetic-*` are written for this project (Apache-2.0) to cover every mapped
-construct and every loss kind that the real files do not reach. All credentials in them are
+construct and every loss kind that the real files do not reach; so is the wave 7 gate
+collection `postman/scripts-gate.postman_collection.json`. All credentials in them are
 made up (`typed-password`, `not-a-real-token`, ...).
 
 | File | Covers |
 | --- | --- |
 | `postman/synthetic-v21-features.bundle/` | Folders, scripts and tests, examples, every auth type, every body mode, protocol profile behaviour, collection and request variables, an environment with a secret value, globals |
 | `postman/synthetic-lossless-v2.1.json` | A collection that imports without any loss |
+| `postman/scripts-gate.postman_collection.json` | Wave 7 gate, run against rt-testserver (`baseUrl`): collection, folder and request scripts; pre-request variables in URL, headers and body; `pm.test`/`pm.expect`; a value chained from one response into the next request; `pm.sendRequest`; `require('crypto-js')` HMAC and SHA-256; `pm.iterationData`; legacy `tests[...]` |
 | `insomnia/synthetic-v4-features.json` | v4: folders with headers, auth, environment and scripts; every auth type incl. disabled and unsupported ones; every body kind; template tags and filters; request settings; private, key-value and nested environments; cookie jar, API spec, gRPC, WebSocket, unit tests |
 | `insomnia/synthetic-v5-features.yaml` | v5: the same constructs in the tree form; duplicate environment names; unknown items |
 | `insomnia/synthetic-v5-lossless.yaml` | A v5 collection that imports without any loss |

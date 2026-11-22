@@ -1,0 +1,39 @@
+info:
+  name: Get order
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/echo/{{apiVersion}}/orders/{{createdOrderId}}"
+  headers:
+    - name: X-Lookup-Status
+      value: "{{lookupStatus}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // A side request before the main one.
+        pm.sendRequest(pm.variables.get("baseUrl") + "/status/201", function (err, res) {
+            if (err) { throw err; }
+            pm.variables.set("lookupStatus", String(res.code));
+        });
+    - type: tests
+      code: |-
+        const echo = pm.response.json();
+        const headers = Object.fromEntries(echo.headers);
+
+        pm.test("the order id comes from the previous response", function () {
+            pm.expect(echo.path).to.equal("/echo/v1/orders/" + pm.collectionVariables.get("createdOrderId"));
+            pm.expect(echo.path).to.match(/ord-\d+$/);
+        });
+
+        pm.test("pm.sendRequest ran before the request", function () {
+            pm.expect(headers["x-lookup-status"]).to.equal("201");
+        });
+
+        pm.test("the response is fast enough", function () {
+            pm.expect(pm.response.responseTime).to.be.below(5000);
+        });

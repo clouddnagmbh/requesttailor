@@ -1,0 +1,218 @@
+{
+  "info": {
+    "_postman_id": "8c0f7d1e-6f0b-4c43-9a51-2b7f4e0c9a10",
+    "name": "Scripts gate",
+    "description": "Wave 7 gate: pre-request and test scripts at collection, folder and request level, run unchanged against rt-testserver after import. Set baseUrl to the test server (e.g. --var baseUrl=http://127.0.0.1:47811).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Every request: count the requests of the run and send the count along.",
+          "const count = Number(pm.collectionVariables.get(\"requestCount\") || 0) + 1;",
+          "pm.collectionVariables.set(\"requestCount\", count);",
+          "pm.request.headers.upsert({ key: \"X-Request-Count\", value: String(count) });"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"status is 2xx\", function () {",
+          "    pm.response.to.be.success;",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Orders",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.variables.set(\"apiVersion\", \"v1\");"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Create order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require(\"crypto-js\");",
+                  "",
+                  "// Data-driven when run with a data file; defaults otherwise.",
+                  "const item = pm.iterationData.get(\"item\") || \"book\";",
+                  "const qty = Number(pm.iterationData.get(\"qty\") || 3);",
+                  "",
+                  "pm.variables.set(\"orderId\", \"ord-\" + (41 + pm.info.iteration + 1));",
+                  "pm.variables.set(\"item\", item);",
+                  "pm.variables.set(\"qty\", qty);",
+                  "pm.variables.set(\"traceId\", \"trace-\" + pm.collectionVariables.get(\"requestCount\"));",
+                  "",
+                  "const payload = pm.variables.get(\"orderId\") + \":\" + item + \":\" + qty;",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get(\"signingKey\")).toString(CryptoJS.enc.Hex);",
+                  "pm.variables.set(\"signature\", signature);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CryptoJS = require(\"crypto-js\");",
+                  "const echo = pm.response.json();",
+                  "const headers = Object.fromEntries(echo.headers);",
+                  "const sent = JSON.parse(echo.body);",
+                  "",
+                  "pm.test(\"status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"the URL uses the version the folder set\", function () {",
+                  "    pm.expect(echo.method).to.equal(\"POST\");",
+                  "    pm.expect(echo.path).to.equal(\"/echo/v1/orders\");",
+                  "});",
+                  "",
+                  "pm.test(\"the body carries the pre-request variables\", function () {",
+                  "    pm.expect(sent).to.deep.equal({ orderId: pm.variables.get(\"orderId\"), item: pm.variables.get(\"item\"), qty: Number(pm.variables.get(\"qty\")) });",
+                  "});",
+                  "",
+                  "pm.test(\"the headers carry the pre-request variables\", function () {",
+                  "    pm.expect(headers).to.have.property(\"x-trace\", \"trace-\" + pm.collectionVariables.get(\"requestCount\"));",
+                  "    pm.expect(headers[\"x-request-count\"]).to.equal(String(pm.collectionVariables.get(\"requestCount\")));",
+                  "    const payload = sent.orderId + \":\" + sent.item + \":\" + sent.qty;",
+                  "    const expected = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get(\"signingKey\")).toString();",
+                  "    pm.expect(headers[\"x-signature\"]).to.equal(expected);",
+                  "    pm.expect(headers[\"x-signature\"]).to.match(/^[0-9a-f]{64}$/);",
+                  "});",
+                  "",
+                  "// Chained into the next request.",
+                  "pm.collectionVariables.set(\"createdOrderId\", sent.orderId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Trace", "value": "{{traceId}}" },
+              { "key": "X-Signature", "value": "{{signature}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderId\": \"{{orderId}}\", \"item\": \"{{item}}\", \"qty\": {{qty}}}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/echo/{{apiVersion}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["echo", "{{apiVersion}}", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Get order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A side request before the main one.",
+                  "pm.sendRequest(pm.variables.get(\"baseUrl\") + \"/status/201\", function (err, res) {",
+                  "    if (err) { throw err; }",
+                  "    pm.variables.set(\"lookupStatus\", String(res.code));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const echo = pm.response.json();",
+                  "const headers = Object.fromEntries(echo.headers);",
+                  "",
+                  "pm.test(\"the order id comes from the previous response\", function () {",
+                  "    pm.expect(echo.path).to.equal(\"/echo/v1/orders/\" + pm.collectionVariables.get(\"createdOrderId\"));",
+                  "    pm.expect(echo.path).to.match(/ord-\\d+$/);",
+                  "});",
+                  "",
+                  "pm.test(\"pm.sendRequest ran before the request\", function () {",
+                  "    pm.expect(headers[\"x-lookup-status\"]).to.equal(\"201\");",
+                  "});",
+                  "",
+                  "pm.test(\"the response is fast enough\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Lookup-Status", "value": "{{lookupStatus}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/echo/{{apiVersion}}/orders/{{createdOrderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["echo", "{{apiVersion}}", "orders", "{{createdOrderId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Legacy tests",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "tests[\"status code is 200\"] = responseCode.code === 200;",
+              "tests[\"body is JSON\"] = JSON.parse(responseBody).query === \"page=2\";",
+              "tests[\"three requests ran\"] = Number(pm.collectionVariables.get(\"requestCount\")) === 3;",
+              "pm.test(\"a SHA-256 of the body\", function () {",
+              "    pm.expect(CryptoJS.SHA256(responseBody).toString()).to.have.lengthOf(64);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/echo/legacy?page=2",
+          "host": ["{{baseUrl}}"],
+          "path": ["echo", "legacy"],
+          "query": [{ "key": "page", "value": "2" }]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:47811" },
+    { "key": "signingKey", "value": "gate-signing-key" }
+  ]
+}

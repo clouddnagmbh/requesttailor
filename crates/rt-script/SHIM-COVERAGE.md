@@ -41,34 +41,34 @@ Regenerate the table with `node scripts/shim-frequency.mjs --update-doc`; a test
 it is out of date.
 
 <!-- frequency:start (node scripts/shim-frequency.mjs --update-doc) -->
-Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 52, JetBrains HTTP 27.
+Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 63, Insomnia 52, JetBrains HTTP 27.
 
 | Dialect | API | Uses | Files | Status | Note |
 | --- | --- | ---: | ---: | --- | --- |
 | bruno | `expect().equal` | 214 | 28 | supported |  |
-| postman | `pm.test` | 89 | 5 | supported | `done` callbacks and async functions are awaited |
+| postman | `pm.test` | 98 | 6 | supported | `done` callbacks and async functions are awaited |
+| postman | `pm.expect` | 80 | 5 | supported | see expect() |
 | bruno | `test()` | 71 | 32 | supported | async functions are awaited |
 | insomnia | `insomnia.environment.set` | 70 | 3 | supported | environment scope, in memory (files are never written) |
-| postman | `pm.expect` | 68 | 4 | supported | see expect() |
+| postman | `pm.collectionVariables.get` | 52 | 2 | supported | collection scope |
 | bruno | `bru.getEnvVar` | 45 | 3 | supported | environment scope; see "Variable types" |
-| postman | `pm.collectionVariables.get` | 44 | 1 | supported | collection scope |
-| postman | `pm.response.json` | 42 | 4 | supported |  |
+| postman | `pm.response.json` | 44 | 5 | supported |  |
 | jetbrains | `client` | 35 | 9 | unsupported | JetBrains handler scripts are not imported |
 | jetbrains | `response` | 32 | 9 | unsupported | JetBrains handler scripts are not imported |
 | bruno | `bru.setVar` | 30 | 18 | supported | runtime scope |
-| postman | `pm.response.to.status` | 26 | 3 | supported | `pm.response.to.have.status(code or reason)` |
+| postman | `pm.response.to.status` | 27 | 4 | supported | `pm.response.to.have.status(code or reason)` |
+| postman | `expect().equal` | 26 | 4 | supported |  |
+| postman | `expect().property` | 26 | 3 | supported |  |
 | bruno | `bru.getGlobalEnvVar` | 25 | 2 | supported | global scope |
 | bruno | `bru.setEnvVar` | 25 | 9 | supported | environment scope, in memory; `persist` is ignored (files are never written) |
-| postman | `expect().property` | 25 | 2 | supported |  |
 | bruno | `expect().deep` | 24 | 1 | supported |  |
-| postman | `expect().equal` | 19 | 3 | supported |  |
 | bruno | `setTimeout()` | 17 | 8 | supported | runs on rt.sleep; the wait counts against the time limit |
+| postman | `pm.collectionVariables.set` | 16 | 2 | supported | collection scope, in memory |
 | insomnia | `insomnia.parentFolders` | 15 | 1 | unsupported |  |
 | postman | `pm.request.body` | 15 | 1 | supported | raw text bodies; update() takes raw, urlencoded and graphql |
 | bruno | `bru.getVar` | 14 | 8 | supported | runtime variables; see "Variable types" |
 | insomnia | `insomnia.expect` | 14 | 2 | supported | see expect() |
 | postman | `expect().jsonSchema` | 14 | 1 | partial | JSON Schema draft 4 to 2020-12 without `format` and remote `$ref` |
-| postman | `pm.collectionVariables.set` | 14 | 1 | supported | collection scope, in memory |
 | bruno | `bru.getRequestVar` | 13 | 1 | partial | the resolved value (a runtime variable can shadow the request's) |
 | postman | `pm.response.to.jsonSchema` | 13 | 1 | partial | no `format`, no remote `$ref` |
 | bruno | `bru.setGlobalEnvVar` | 12 | 3 | supported | global scope, in memory |
@@ -78,6 +78,8 @@ Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 
 | postman | `expect().eql` | 9 | 1 | supported |  |
 | bruno | `bru.getCollectionVar` | 8 | 2 | supported | collection scope |
 | bruno | `res.getStatus` | 8 | 8 | supported |  |
+| postman | `pm.variables.set` | 8 | 2 | supported | runtime scope (Postman's local variables) |
+| postman | `pm.variables.get` | 7 | 2 | supported | the resolved value (all layers) |
 | bruno | `bru.getFolderVar` | 6 | 1 | partial | the resolved value (a closer layer can shadow the folder's) |
 | bruno | `req.deleteHeader` | 6 | 6 | supported |  |
 | bruno | `res.status` | 6 | 6 | supported |  |
@@ -96,6 +98,7 @@ Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 
 | insomnia | `insomnia.vault` | 4 | 1 | unsupported |  |
 | insomnia | `setTimeout()` | 4 | 1 | supported | runs on rt.sleep; the wait counts against the time limit |
 | postman | `_` | 4 | 1 | partial | the lodash subset (see require('lodash')) |
+| postman | `CryptoJS` | 4 | 1 | partial | see require('crypto-js') |
 | bruno | `bru.sendRequest` | 3 | 3 | supported | axios-style options and response; every status resolves; callback or promise |
 | bruno | `expect().above` | 3 | 1 | supported |  |
 | insomnia | `insomnia.variables.set` | 3 | 1 | supported | runtime scope (Postman's local variables) |
@@ -103,6 +106,7 @@ Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 
 | postman | `pm.globals.set` | 3 | 1 | supported | global scope, in memory |
 | postman | `pm.response.headers` | 3 | 2 | supported | HeaderList, read-only |
 | postman | `pm.response.to.header` | 3 | 2 | supported |  |
+| postman | `tests[]` | 3 | 1 | supported | `tests["name"] = condition` records a test |
 | bruno | `bru.isSafeMode` | 2 | 1 | supported | always true (RequestTailor has one sandbox, like Bruno's safe mode) |
 | bruno | `bru.runner.skipRequest` | 2 | 2 | supported |  |
 | bruno | `bru.setCollectionVar` | 2 | 1 | supported | collection scope, in memory |
@@ -129,11 +133,14 @@ Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 
 | insomnia | `require('url')` | 2 | 1 | unsupported | not a built-in module |
 | insomnia | `require('xml2js')` | 2 | 1 | unsupported | not a built-in module |
 | postman | `expect().include` | 2 | 1 | supported |  |
+| postman | `expect().match` | 2 | 1 | supported |  |
 | postman | `expect().true` | 2 | 2 | supported |  |
 | postman | `pm.environment.get` | 2 | 1 | supported | environment scope; see "Variable types" |
 | postman | `pm.environment.set` | 2 | 1 | supported | environment scope, in memory (files are never written) |
 | postman | `pm.globals.get` | 2 | 1 | supported | global scope |
-| postman | `pm.variables.get` | 2 | 1 | supported | the resolved value (all layers) |
+| postman | `pm.iterationData.get` | 2 | 1 | supported | the data row of the runner's iteration |
+| postman | `require('crypto-js')` | 2 | 1 | partial | hashes (MD5, SHA-1, SHA-2), HMAC, PBKDF2, encoders; no ciphers (AES, DES, …), SHA-3 or RIPEMD-160 |
+| postman | `responseBody` | 2 | 1 | supported |  |
 | bruno | `bru.deleteEnvVar` | 1 | 1 | supported |  |
 | bruno | `bru.runRequest` | 1 | 1 | unsupported | use the collection runner |
 | bruno | `bru.sleep` | 1 | 1 | supported | counts against the time limit |
@@ -172,10 +179,18 @@ Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 
 | insomnia | `require('util')` | 1 | 1 | unsupported | not a built-in module |
 | insomnia | `URL()` | 1 | 1 | unsupported | no URL class in the sandbox |
 | jetbrains | `request.variables` | 1 | 1 | unsupported | JetBrains handler scripts are not imported |
+| postman | `expect().below` | 1 | 1 | supported |  |
+| postman | `expect().deep` | 1 | 1 | supported |  |
 | postman | `expect().gt` | 1 | 1 | supported |  |
+| postman | `expect().lengthOf` | 1 | 1 | supported |  |
 | postman | `expect().not` | 1 | 1 | supported |  |
+| postman | `pm.info.iteration` | 1 | 1 | supported |  |
+| postman | `pm.request.headers` | 1 | 1 | supported | HeaderList: get, has, add, upsert, remove, each, toObject, … |
+| postman | `pm.response.responseTime` | 1 | 1 | supported |  |
 | postman | `pm.response.to.ok` | 1 | 1 | supported |  |
-| postman | `pm.variables.set` | 1 | 1 | supported | runtime scope (Postman's local variables) |
+| postman | `pm.response.to.success` | 1 | 1 | supported |  |
+| postman | `pm.sendRequest` | 1 | 1 | partial | URL string or request object (raw, urlencoded, graphql bodies; no formdata or file); callback or promise |
+| postman | `responseCode` | 1 | 1 | supported |  |
 <!-- frequency:end -->
 
 APIs the corpus does not use are listed with their status in

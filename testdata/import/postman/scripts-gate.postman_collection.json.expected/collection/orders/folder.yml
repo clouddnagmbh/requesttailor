@@ -1,0 +1,9 @@
+info:
+  name: Orders
+  type: folder
+  seq: 1
+
+request:
+  scripts:
+    - type: before-request
+      code: pm.variables.set("apiVersion", "v1");
