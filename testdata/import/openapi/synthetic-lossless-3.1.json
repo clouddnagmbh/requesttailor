@@ -1,0 +1,28 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Lossless", "version": "1.0.0" },
+  "servers": [{ "url": "https://notes.example.com/api" }],
+  "paths": {
+    "/notes": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "List notes",
+        "parameters": [{ "name": "q", "in": "query", "example": "milk" }]
+      },
+      "post": {
+        "tags": ["Notes"],
+        "summary": "Add note",
+        "requestBody": {
+          "content": { "application/json": { "example": { "text": "Buy milk" } } }
+        }
+      }
+    },
+    "/notes/{id}": {
+      "delete": {
+        "tags": ["Notes"],
+        "summary": "Delete note",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "example": "1" }]
+      }
+    }
+  }
+}

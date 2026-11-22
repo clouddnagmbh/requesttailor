@@ -1,0 +1,213 @@
+openapi: 3.1.0
+info:
+  title: Synthetic Features
+  version: 1.0.0
+  description: Covers every construct the OpenAPI importer maps or reports.
+servers:
+  - url: https://{region}.api.example.com/{version}
+    description: Production
+    variables:
+      region:
+        default: eu
+        enum: [eu, us]
+      version:
+        default: v1
+  - url: http://localhost:8080
+    description: Local
+security:
+  - bearerAuth: []
+tags:
+  - name: Pets
+    description: Pet operations
+paths:
+  /pets:
+    parameters:
+      - name: X-Trace
+        in: header
+        schema: { type: string }
+        example: abc
+    get:
+      tags: [Pets]
+      summary: List pets
+      description: Lists all pets.
+      parameters:
+        - name: limit
+          in: query
+          description: page size
+          schema: { type: integer, default: 20 }
+        - name: session
+          in: cookie
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example: [{ "id": 1, "name": "Rex" }]
+    post:
+      tags: [Pets]
+      summary: Create pet
+      security:
+        - basicAuth: []
+        - apiKeyHeader: []
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Pet" }
+          application/xml:
+            schema: { $ref: "#/components/schemas/Pet" }
+      responses:
+        "201": { description: Created }
+      callbacks:
+        onCreated:
+          "{$request.body#/callbackUrl}":
+            post:
+              responses:
+                "200": { description: OK }
+  /pets/{petId}:
+    get:
+      tags: [Pets]
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 7
+      security:
+        - apiKeyQuery: []
+      responses:
+        "200": { description: OK }
+    put:
+      tags: [Pets]
+      operationId: replacePet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: { type: integer }
+      security:
+        - apiKeyCookie: []
+      requestBody:
+        content:
+          application/json:
+            examples:
+              rex:
+                value: { "name": "Rex" }
+      responses:
+        "200": { description: OK }
+    delete:
+      tags: [Pets]
+      security:
+        - oauth: [pets:write]
+      responses:
+        "204": { description: Deleted }
+  /forms:
+    post:
+      summary: Urlencoded form
+      security:
+        - basicAuth: []
+          apiKeyHeader: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                age: { type: integer }
+      responses:
+        "200": { description: OK }
+  /upload:
+    post:
+      summary: Upload
+      security:
+        - openId: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title: { type: string, example: Report }
+                file: { type: string, format: binary }
+      responses:
+        "200": { description: OK }
+  /raw:
+    put:
+      summary: Raw bytes
+      security:
+        - mtls: []
+      requestBody:
+        content:
+          application/octet-stream: {}
+      responses:
+        "200": { description: OK }
+  /missing-scheme:
+    get:
+      summary: Undefined scheme
+      security:
+        - nowhere: []
+      responses:
+        "200": { description: OK }
+  /no-auth:
+    get:
+      summary: Public
+      security: []
+      requestBody:
+        content:
+          text/plain: {}
+      responses:
+        "200": { description: OK }
+  /external:
+    $ref: "./other.yaml#/paths/~1external"
+  /external-body:
+    post:
+      summary: External body
+      requestBody:
+        $ref: "./bodies.yaml#/Pet"
+      responses:
+        "200": { description: OK }
+  /query:
+    query:
+      summary: Query method
+      responses:
+        "200": { description: OK }
+webhooks:
+  newPet:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Pet" }
+      responses:
+        "200": { description: OK }
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [name]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, example: Rex }
+        tags: { type: array, items: { type: string } }
+        callbackUrl: { type: string, format: uri }
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+    basicAuth: { type: http, scheme: basic }
+    digestAuth: { type: http, scheme: digest }
+    apiKeyHeader: { type: apiKey, in: header, name: X-API-Key }
+    apiKeyQuery: { type: apiKey, in: query, name: api_key }
+    apiKeyCookie: { type: apiKey, in: cookie, name: token }
+    oauth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://id.example.com/authorize
+          tokenUrl: https://id.example.com/token
+          scopes: { "pets:read": read, "pets:write": write }
+        clientCredentials:
+          tokenUrl: https://id.example.com/token
+          scopes: { "pets:read": read }
+    openId: { type: openIdConnect, openIdConnectUrl: https://id.example.com/.well-known/openid-configuration }
+    mtls: { type: mutualTLS }

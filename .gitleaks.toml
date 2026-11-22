@@ -3,5 +3,13 @@
 useDefault = true
 
 [allowlist]
-description = "Bruno's public e2e fixtures carry fake test credentials (see testdata/collections/bruno/README.md)"
-paths = ['''^testdata/collections/bruno/''']
+description = "Bruno's public e2e fixtures carry fake test credentials (see testdata/collections/bruno/README.md); four import-corpus fixtures with dummy credentials (and one snapshot derived from a dummy), listed in testdata/import/SOURCES.md"
+paths = [
+  '''^testdata/collections/bruno/''',
+  '''^testdata/import/curl/curlconverter-get-digest-auth\.sh$''',
+  '''^testdata/import/curl/curlconverter-post-basic-auth-url-encoded-data\.sh$''',
+  '''^testdata/import/curl/curlconverter-get-with-data\.sh$''',
+  '''^testdata/import/curl/curlconverter-multipart-with-headers\.sh$''',
+  # Snapshot of a DCSA test request whose body is base64 for "another secret - not the same as before".
+  '''^testdata/import/postman/dcsa-tnt-v2\.1\.postman_collection\.json\.expected/collection/test-unofficial-api-create-eswithsecretto-update-secret/update-eventsubscriptionwith-secret-body\.yml$''',
+]
