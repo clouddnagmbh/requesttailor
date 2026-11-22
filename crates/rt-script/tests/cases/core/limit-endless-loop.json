@@ -1,0 +1,28 @@
+{
+  "name": "an endless loop stops at the time limit",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "while (true) {}"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "limits": {
+    "time_ms": 300
+  },
+  "expect": {
+    "error": "Script stopped: time limit of 300 ms exceeded",
+    "max_ms": 2500
+  }
+}

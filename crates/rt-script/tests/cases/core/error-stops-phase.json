@@ -1,0 +1,35 @@
+{
+  "name": "an error stops the phase: later scripts do not run",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "collection",
+      "code": "rt.vars.set('a', '1'); throw new Error('stop here');"
+    },
+    {
+      "origin": "request",
+      "code": "rt.vars.set('b', '2');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "error": "Error: stop here (collection, line 1)",
+    "var_changes": [
+      {
+        "name": "a",
+        "value": "1",
+        "scope": "runtime"
+      }
+    ]
+  }
+}

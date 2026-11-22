@@ -1,0 +1,26 @@
+{
+  "name": "rt.runner.skip() skips the send",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.runner.skip();"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "flow": {
+      "kind": "skip"
+    }
+  }
+}

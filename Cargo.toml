@@ -22,3 +22,17 @@ unsafe_code = "deny"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+
+# wasmi interprets the script engine (QuickJS) and plugins. Unoptimized it is far too slow for
+# debug builds and tests (a trivial script would take seconds), so it is optimized there too.
+[profile.dev.package.wasmi]
+opt-level = 3
+
+[profile.dev.package.wasmi_core]
+opt-level = 3
+
+[profile.dev.package.wasmi_ir]
+opt-level = 3
+
+[profile.dev.package.wasmi_collections]
+opt-level = 3

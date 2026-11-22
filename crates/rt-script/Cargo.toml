@@ -7,8 +7,30 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
-[lints]
-workspace = true
+[features]
+# The case files under tests/cases and their runner (`rt_script::cases`), for the native
+# test (`tests/cases.rs`) and the browser tests in rt-wasm. Never in a shipped build.
+test-cases = []
 
 [dependencies]
 rt-core = { path = "../rt-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The same interpreter as the plugin host (rt-plugin): QuickJS-ng runs in it as WebAssembly,
+# natively, on iOS and inside the browser's WebAssembly.
+wasmi = { version = "2", default-features = false, features = ["std", "validate", "auto-dispatch"] }
+# std::time panics on wasm32-unknown-unknown.
+web-time = "1"
+
+# Timers (`rt.sleep`, yielding to the event loop) use `setTimeout` in the browser.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# Enables the case runner for this crate's own tests (`cargo test -p rt-script`).
+rt-script = { path = ".", features = ["test-cases"] }

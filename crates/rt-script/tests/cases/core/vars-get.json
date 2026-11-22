@@ -1,0 +1,89 @@
+{
+  "name": "rt.vars.get: highest layer wins; has; unknown is undefined",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(rt.vars.get('base'), rt.vars.get('only'), rt.vars.get('id'), rt.vars.has('path'), rt.vars.get('nope'), rt.vars.has('nope'));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "variables": [
+    {
+      "name": "base",
+      "value": "http://global",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "only",
+      "value": "g",
+      "source": {
+        "layer": "global"
+      },
+      "secret": false
+    },
+    {
+      "name": "base",
+      "value": "http://coll",
+      "source": {
+        "layer": "collection"
+      },
+      "secret": false
+    },
+    {
+      "name": "base",
+      "value": "http://env",
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "secret": false
+    },
+    {
+      "name": "path",
+      "value": "{{base}}/v1",
+      "source": {
+        "layer": "folder",
+        "path": "api"
+      },
+      "secret": false
+    },
+    {
+      "name": "user",
+      "value": "u-{{id}}",
+      "source": {
+        "layer": "request"
+      },
+      "secret": false
+    },
+    {
+      "name": "id",
+      "value": "42",
+      "source": {
+        "layer": "runtime"
+      },
+      "secret": false
+    }
+  ],
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "http://env g 42 true undefined false"
+      }
+    ]
+  }
+}

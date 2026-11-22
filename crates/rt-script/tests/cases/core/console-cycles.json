@@ -1,0 +1,37 @@
+{
+  "name": "console shows cycles as [Circular] and Map/Set as JSON",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const a = {name: 'a'}; a.self = a; console.log(a); console.log(new Map([['k', 1]]), new Set([1, 2])); console.log([undefined, () => 1], function named() {}, 10n, Symbol('s'));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "{\"name\":\"a\",\"self\":\"[Circular]\"}"
+      },
+      {
+        "level": "log",
+        "text": "{\"k\":1} [1,2]"
+      },
+      {
+        "level": "log",
+        "text": "[null,null] [Function: named] 10n Symbol(s)"
+      }
+    ]
+  }
+}

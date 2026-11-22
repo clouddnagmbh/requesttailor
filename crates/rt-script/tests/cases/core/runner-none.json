@@ -1,0 +1,50 @@
+{
+  "name": "without runner calls the flow is continue",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "1 + 1;"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "flow": {
+      "kind": "continue"
+    },
+    "tests": [],
+    "logs": [],
+    "var_changes": [],
+    "error": null
+  }
+}

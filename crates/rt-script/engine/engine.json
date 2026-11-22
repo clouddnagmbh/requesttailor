@@ -1,0 +1,25 @@
+{
+  "$comment": "Pins and output of the script engine (QuickJS-ng as WebAssembly). Rebuild: node scripts/build-script-engine.mjs; check that the committed .wasm is what the sources give: node scripts/build-script-engine.mjs --check. Changing a pin is a deliberate commit.",
+  "quickjs": {
+    "name": "QuickJS-ng",
+    "version": "v0.18.0",
+    "license": "MIT",
+    "url": "https://github.com/quickjs-ng/quickjs/releases/download/v0.18.0/quickjs-amalgam.zip",
+    "sha256": "6c05066a6b62b483e2ba0f83d7a16688c6958182b214bfd693529434cef84a9e"
+  },
+  "wasi_sdk": {
+    "version": "34.0",
+    "license": "Apache-2.0 WITH LLVM-exception",
+    "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-{host}.tar.gz",
+    "sha256": {
+      "arm64-macos": "9c59398106b417f8f14913380fdf0097a8cc0ff4af9eb3ce0065a859e88d49e9",
+      "x86_64-linux": "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4",
+      "arm64-linux": "f7e243dff54d60bcc576e94d6166b69f410f2500ae4a9ceef34315be10e77971"
+    }
+  },
+  "output": {
+    "file": "rt-script-engine.wasm",
+    "size": 1029046,
+    "sha256": "39aede985d2109f9eb7585824c28159a794c8795afccda4f3ace730cc9850bcf"
+  }
+}

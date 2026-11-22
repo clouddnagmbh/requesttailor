@@ -1,0 +1,40 @@
+{
+  "name": "a binary body: text() is lossy UTF-8, size counts bytes, json() throws",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(rt.response.size, rt.response.text().length, rt.response.statusText);\ntry { rt.response.json(); } catch (e) { console.log(e.name); }"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 418,
+    "headers": [],
+    "body_base64": "//79AA==",
+    "time_ms": 1,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "4 4 I'm a Teapot"
+      },
+      {
+        "level": "log",
+        "text": "SyntaxError"
+      }
+    ]
+  }
+}

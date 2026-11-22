@@ -1,0 +1,24 @@
+{
+  "name": "a syntax error is reported with its script",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "let x = ;"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "error": "SyntaxError"
+  }
+}

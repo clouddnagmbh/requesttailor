@@ -1,0 +1,34 @@
+{
+  "name": "rt.sleep counts against the time limit; waiting past it stops at once",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log('start'); await rt.sleep(10000); console.log('never');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "limits": {
+    "time_ms": 300
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "start"
+      }
+    ],
+    "error": "Script stopped: time limit of 300 ms exceeded",
+    "max_ms": 250
+  }
+}

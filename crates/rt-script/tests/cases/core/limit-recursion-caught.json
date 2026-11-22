@@ -1,0 +1,34 @@
+{
+  "name": "a script may catch the recursion error and go on",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "function f(n) { return f(n + 1) + 1; }\ntry { f(0); } catch (e) { console.log(e.name); }\nconsole.log('alive');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "RangeError"
+      },
+      {
+        "level": "log",
+        "text": "alive"
+      }
+    ],
+    "error": null
+  }
+}

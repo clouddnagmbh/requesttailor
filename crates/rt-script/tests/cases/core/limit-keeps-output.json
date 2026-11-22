@@ -1,0 +1,67 @@
+{
+  "name": "output before the time limit is kept",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log('before'); test('quick', () => {}); rt.vars.set('a', '1'); for (;;) {}"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "limits": {
+    "time_ms": 300
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "before"
+      }
+    ],
+    "tests": [
+      {
+        "name": "quick",
+        "passed": true
+      }
+    ],
+    "var_changes": [
+      {
+        "name": "a",
+        "value": "1",
+        "scope": "runtime"
+      }
+    ],
+    "error": "Script stopped: time limit of 300 ms exceeded",
+    "max_ms": 2500
+  }
+}

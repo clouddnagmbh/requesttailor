@@ -1,0 +1,55 @@
+{
+  "name": "an endless async test stops at the time limit",
+  "phase": "tests",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "test('spins', async () => { for (;;) { await rt.sleep(0); } });"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "limits": {
+    "time_ms": 300
+  },
+  "expect": {
+    "tests": [
+      {
+        "name": "spins",
+        "passed": false,
+        "error": "did not finish"
+      }
+    ],
+    "error": "Script stopped: time limit of 300 ms exceeded",
+    "max_ms": 2500
+  }
+}

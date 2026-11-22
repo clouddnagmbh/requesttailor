@@ -1,0 +1,22 @@
+{
+  "name": "console.log formats like browsers: strings as is, objects as JSON",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log('hello', 42, {a: [1, 'x']}, null, undefined, true);\nconsole.info('info');\nconsole.warn('warn');\nconsole.error(new TypeError('bad'));\nconsole.debug('%s is %d years', 'Ann', 42.5, 'extra');"
+    }
+  ],
+  "request": { "method": "GET", "url": "http://h/x", "headers": [], "body": null },
+  "expect": {
+    "request": null,
+    "logs": [
+      { "level": "log", "text": "hello 42 {\"a\":[1,\"x\"]} null undefined true" },
+      { "level": "info", "text": "info" },
+      { "level": "warn", "text": "warn" },
+      { "level": "error", "text": "TypeError: bad" },
+      { "level": "debug", "text": "Ann is 42.5 years extra" }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "rt.request.json() parses the body; a non-JSON body throws",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log(rt.request.json().a);\nrt.request.body = 'not json';\ntry { rt.request.json(); } catch (e) { console.log(e.name); }"
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "http://h/x",
+    "headers": [],
+    "body": "{\"a\":1}"
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "1"
+      },
+      {
+        "level": "log",
+        "text": "SyntaxError"
+      }
+    ],
+    "request": {
+      "method": "POST",
+      "url": "http://h/x",
+      "headers": [],
+      "body": "not json"
+    }
+  }
+}

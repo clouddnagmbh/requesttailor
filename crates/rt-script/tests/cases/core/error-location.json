@@ -1,0 +1,44 @@
+{
+  "name": "an uncaught error names the script and line",
+  "phase": "after-response",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const a = 1;\nconst b = a.missing.deeper;"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "expect": {
+    "error": "TypeError: cannot read property 'deeper' of undefined (request, line 2)"
+  }
+}

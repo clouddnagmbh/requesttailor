@@ -1,0 +1,39 @@
+{
+  "name": "before-request may change method, url, headers and body (templates stay)",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "rt.request.method = 'POST'; rt.request.url = '{{base}}/items?x=1'; rt.request.headers.set('X-Trace', '{{trace}}'); rt.request.body = {name: 'n'};"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "expect": {
+    "request": {
+      "method": "POST",
+      "url": "{{base}}/items?x=1",
+      "headers": [
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "X-Trace",
+          "{{trace}}"
+        ]
+      ],
+      "body": "{\"name\":\"n\"}"
+    },
+    "error": null
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "name": "rt.sendRequest: top-level await, response like rt.response",
+  "phase": "after-response",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const r = await rt.sendRequest({ url: 'http://h/token', method: 'post', headers: { 'X-A': '1' }, body: 'raw' });\nconsole.log(r.status, r.statusText, r.headers.get('content-type'), r.json().token, r.size, r.url);\nrt.vars.set('token', r.json().token);"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-Id",
+        "1"
+      ],
+      [
+        "x-id",
+        "2"
+      ]
+    ],
+    "body": "{\"id\":7,\"items\":[1,2]}",
+    "time_ms": 12,
+    "url": "http://h/x"
+  },
+  "send": [
+    {
+      "url": "http://h/token",
+      "response": {
+        "status": 201,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"token\":\"abc\"}",
+        "time_ms": 3,
+        "url": "http://h/token"
+      }
+    }
+  ],
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "201 Created application/json abc 15 http://h/token"
+      }
+    ],
+    "var_changes": [
+      {
+        "name": "token",
+        "value": "abc",
+        "scope": "runtime"
+      }
+    ],
+    "sent": [
+      {
+        "method": "POST",
+        "url": "http://h/token",
+        "headers": [
+          [
+            "X-A",
+            "1"
+          ]
+        ],
+        "body": "raw"
+      }
+    ],
+    "error": null
+  }
+}

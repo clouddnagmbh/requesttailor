@@ -1,0 +1,49 @@
+{
+  "name": "rt.info in a data-driven run: iteration, count and the data row",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "const i = rt.info;\nconsole.log(i.environment, i.iteration, i.iterationCount, JSON.stringify(i.iterationData));"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "info": {
+    "request_path": "a.yml",
+    "request_name": "A",
+    "collection_name": "C",
+    "environment": null,
+    "iteration": {
+      "index": 2,
+      "count": 5,
+      "data": [
+        [
+          "id",
+          "7"
+        ],
+        [
+          "n",
+          3
+        ]
+      ]
+    }
+  },
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "undefined 2 5 {\"id\":\"7\",\"n\":3}"
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "rt.sendRequest counts against the time limit",
+  "phase": "before-request",
+  "scripts": [
+    {
+      "origin": "request",
+      "code": "console.log('start'); await rt.sendRequest({ url: 'http://h/slow' }); console.log('never');"
+    }
+  ],
+  "request": {
+    "method": "GET",
+    "url": "http://h/x",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "body": null
+  },
+  "limits": {
+    "time_ms": 300
+  },
+  "send": [
+    {
+      "url": "http://h/slow",
+      "delay_ms": 5000,
+      "response": {
+        "status": 200,
+        "headers": [],
+        "body": "",
+        "time_ms": 1,
+        "url": "http://h/slow"
+      }
+    }
+  ],
+  "expect": {
+    "logs": [
+      {
+        "level": "log",
+        "text": "start"
+      }
+    ],
+    "error": "Script stopped: time limit of 300 ms exceeded",
+    "max_ms": 1500
+  }
+}
