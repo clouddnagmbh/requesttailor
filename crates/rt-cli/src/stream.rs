@@ -158,11 +158,17 @@ pub async fn run_session(
         },
         None => rt_core::stream::selected_message(messages_of(spec)).cloned(),
     };
-    let collection =
-        match crate::secrets::resolve(doc.model(), args.environment.as_deref(), &args.vars).await {
-            Ok(c) => c,
-            Err(e) => return SessionOutput::failed(request_path, args, kind, SendError::Auth(e)),
-        };
+    let collection = match crate::secrets::resolve_all(
+        doc.model(),
+        args.environment.as_deref(),
+        &args.vars,
+        &crate::oauth::collection_id(files.root()),
+    )
+    .await
+    {
+        Ok(c) => c,
+        Err(e) => return SessionOutput::failed(request_path, args, kind, SendError::Auth(e)),
+    };
     let cli = match crate::services::CliServices::new(args, files.root()) {
         Ok(s) => s,
         Err(e) => return SessionOutput::failed(request_path, args, kind, SendError::Plugin(e)),

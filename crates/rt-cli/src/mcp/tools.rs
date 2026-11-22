@@ -386,38 +386,15 @@ async fn prepare(
     environment: Option<String>,
     agent_vars: Vec<(String, String)>,
 ) -> Result<Prepared, String> {
-    let mut collection = doc.model().clone();
     let given = &server.opts.vars;
-    let mut skip: Vec<(String, String)> = given.clone();
-    // Keychain values the desktop app stored for this collection (keychain wins over a
-    // secret manager, as in the app).
-    if let Some(env) = environment
-        .as_deref()
-        .and_then(|n| collection.environments.iter_mut().find(|e| e.name == n))
-    {
-        let store = rt_app::secrets::keychain::KeychainStore::default();
-        for var in env
-            .variables
-            .iter_mut()
-            .filter(|v| v.secret && v.value.is_none())
-        {
-            if given.iter().any(|(n, _)| *n == var.name) {
-                continue;
-            }
-            let key = rt_app::secrets::SecretKey {
-                collection: server.collection_id.clone(),
-                environment: env.name.clone(),
-                variable: var.name.clone(),
-            };
-            use rt_app::secrets::SecretStore as _;
-            if let Ok(Some(value)) = store.get(&key) {
-                skip.push((var.name.clone(), String::new()));
-                var.value = Some(value);
-            }
-        }
-    }
-    let mut collection =
-        crate::secrets::resolve(&collection, environment.as_deref(), &skip).await?;
+    // Keychain values the desktop app stored for this collection, then secret managers.
+    let mut collection = crate::secrets::resolve_all(
+        doc.model(),
+        environment.as_deref(),
+        given,
+        &server.collection_id,
+    )
+    .await?;
     {
         let mut masker = server.masker.borrow_mut();
         for env in &collection.environments {

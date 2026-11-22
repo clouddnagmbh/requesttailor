@@ -435,11 +435,17 @@ pub async fn send_request<T: Transport>(
         iteration: None,
         body_limit: args.body_limit,
     };
-    let collection =
-        match secrets::resolve(doc.model(), args.environment.as_deref(), &args.vars).await {
-            Ok(c) => c,
-            Err(e) => return services::failed(request_path, args, SendError::Auth(e)),
-        };
+    let collection = match secrets::resolve_all(
+        doc.model(),
+        args.environment.as_deref(),
+        &args.vars,
+        &oauth::collection_id(files.root()),
+    )
+    .await
+    {
+        Ok(c) => c,
+        Err(e) => return services::failed(request_path, args, SendError::Auth(e)),
+    };
     let cli = match services::CliServices::new(args, files.root()) {
         Ok(s) => s,
         Err(e) => return services::failed(request_path, args, SendError::Plugin(e)),

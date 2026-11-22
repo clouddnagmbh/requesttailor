@@ -403,10 +403,11 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
         }
     };
     let send_args = args.send_args();
-    let collection = match runtime.block_on(secrets::resolve(
+    let collection = match runtime.block_on(secrets::resolve_all(
         model,
         args.environment.as_deref(),
         &args.vars,
+        &crate::oauth::collection_id(files.root()),
     )) {
         Ok(c) => c,
         Err(e) => return fail(stderr, EXIT_PREPARE, &e),

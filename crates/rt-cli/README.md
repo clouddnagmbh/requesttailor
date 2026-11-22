@@ -81,6 +81,14 @@ output mode is not part of wave 2; pipe through `jq` meanwhile.
 | 3 | The request could not be prepared: unknown environment, invalid URL after variable substitution, unsupported auth, unreadable body file; authentication failed; a plugin or a pre-request script stopped it |
 | 4 | A response was received but a test or assertion failed |
 
+## Secret variables
+
+`rt send`, `rt run` and `rt mcp` read the value of a secret variable from the OS keychain,
+where the desktop app keeps it for this collection and environment, so a request sends from
+the command line exactly as it does in the app. `--var` wins over the keychain, the keychain
+over a secret manager. Without a keychain (a CI runner) the value stays unset; pass it with
+`--var` or read it from a secret manager.
+
 ## External secrets
 
 An environment can read some variables from a secret manager instead of the keychain
