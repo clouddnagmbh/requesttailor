@@ -3,9 +3,9 @@
 
 // Performance gate: compares measurements against perf/budgets.toml.
 // Usage: node scripts/check-perf-budgets.mjs [results.json] [--require-all]
-// results.json maps metric names to numbers, e.g. { "cold_start": 412 }.
-// Without a results file every metric is "not measured" (wave 1 to 3). From wave 4 CI passes
-// --require-all so a missing measurement fails as well.
+// results.json maps metric names to numbers, e.g. { "cold_start": 412 }; scripts/perf/run.mjs
+// writes it (perf/README.md). A metric without a number is "not measured". Exceeding a budget
+// always fails; with --require-all (CI, since wave 4) a missing measurement fails as well.
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -39,6 +39,9 @@ export function parseBudgets(text) {
 
 /** Returns one row per budget: { name, value, max, unit, status: "ok" | "over" | "not measured" }. */
 export function evaluate(budgets, results) {
+  if (typeof results !== "object" || results === null || Array.isArray(results)) {
+    throw new Error("results must be an object mapping metric names to numbers");
+  }
   const unknown = Object.keys(results).filter((k) => !(k in budgets));
   if (unknown.length > 0) throw new Error(`results for unknown metrics: ${unknown.join(", ")}`);
   return Object.entries(budgets).map(([name, b]) => {
