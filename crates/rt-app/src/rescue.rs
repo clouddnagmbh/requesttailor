@@ -429,7 +429,7 @@ fn occurrences<'a>(text: &'a str, value: &'a str) -> impl Iterator<Item = usize>
     text.match_indices(value).filter_map(move |(i, _)| {
         let before = text[..i].chars().next_back().is_some_and(word);
         let after = text[i + value.len()..].chars().next().is_some_and(word);
-        (!(first && before) && !(last && after)).then_some(i)
+        (!((first && before) || (last && after))).then_some(i)
     })
 }
 
