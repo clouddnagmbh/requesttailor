@@ -139,6 +139,12 @@ pub fn run() {
             runner::runner_parse_data,
             runner::runner_run,
             runner::runner_cancel,
+            ai::ai_config,
+            ai::ai_set_config,
+            ai::ai_has_key,
+            ai::ai_set_key,
+            ai::ai_delete_key,
+            ai::ai_ask,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the RequestTailor desktop app");

@@ -110,7 +110,14 @@ impl ResponseStore {
         let line_count = index.len() as u64;
         self.last_id += 1;
         let id = self.last_id;
-        self.entries.insert(id, Entry { body, index });
+        self.entries.insert(
+            id,
+            Entry {
+                body,
+                index,
+                report: report.clone(),
+            },
+        );
         StoredResponse {
             report,
             response_id: Some(id),
@@ -171,6 +178,12 @@ impl ResponseStore {
         serde_json::to_string_pretty(&matches).map_err(|e| AppError::Shell(e.to_string()))
     }
 
+    /// The report of a kept response, with the body preview (wave 8: the AI assistant reads
+    /// what a response looked like from here, `crate::ai`).
+    pub fn report(&self, id: u64) -> Result<&SendReport, AppError> {
+        Ok(&self.entry(id)?.report)
+    }
+
     pub fn release(&mut self, id: u64) {
         self.entries.remove(&id);
     }
@@ -184,6 +197,8 @@ impl ResponseStore {
 struct Entry {
     body: Vec<u8>,
     index: LineIndex,
+    /// The report as returned by `insert` (body cut to the preview).
+    report: SendReport,
 }
 
 impl std::fmt::Debug for Entry {

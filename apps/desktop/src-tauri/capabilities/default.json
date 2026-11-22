@@ -78,6 +78,12 @@
     "allow-runner-parse-data",
     "allow-runner-run",
     "allow-runner-cancel",
+    "allow-ai-config",
+    "allow-ai-set-config",
+    "allow-ai-has-key",
+    "allow-ai-set-key",
+    "allow-ai-delete-key",
+    "allow-ai-ask",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

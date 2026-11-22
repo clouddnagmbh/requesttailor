@@ -124,6 +124,12 @@ export const COMMANDS = [
   "runner_parse_data",
   "runner_run",
   "runner_cancel",
+  "ai_config",
+  "ai_set_config",
+  "ai_has_key",
+  "ai_set_key",
+  "ai_delete_key",
+  "ai_ask",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -170,7 +176,7 @@ export class TauriBackend implements Backend {
   readonly graphql = tauriGraphQl();
   readonly agents = tauriAgents();
   readonly mcp = tauriMcp();
-  readonly ai = tauriAi();
+  readonly ai = tauriAi((cmd, args) => this.call(cmd, args));
 
   constructor(
     private readonly invokeRaw: Invoke,

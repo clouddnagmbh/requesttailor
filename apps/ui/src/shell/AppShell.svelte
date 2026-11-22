@@ -10,10 +10,14 @@
      button "Collection", palette entries, CollectionPanel in the main area), shown only
      while an enabled plugin has one.
      Wave 7 mount point (strand D): RunnerPanel in the main area, opened from a folder's run
-     button in the sidebar, the header button "Run" and the palette ("Run collection"). -->
+     button in the sidebar, the header button "Run" and the palette ("Run collection").
+     Wave 8 mount point (strand E): AiDialogs and the AI palette entries. -->
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
 
+  import AiDialogs from "../ai/AiDialogs.svelte";
+  import { aiFor } from "../ai/ai.svelte";
+  import { aiCommands } from "../ai/commands";
   import AuthPromptDialog from "../auth/AuthPromptDialog.svelte";
   import type { Backend, CollectionInfo } from "../commands/backend";
   import CookiesDialog from "../cookies/CookiesDialog.svelte";
@@ -208,6 +212,9 @@
     collectionTab = key;
   }
 
+  // ---- AI assistant (wave 8) ----
+  const ai = aiFor(app.backend);
+
   // ---- collection runner (wave 7) ----
   const runner = new RunnerState(app);
   async function openRunner(folder: string | null, name?: string) {
@@ -232,6 +239,7 @@
       run: () => openCollectionTab(t.key),
     })),
     ...(app.collection ? [{ id: "run-collection", label: "Run collection…", run: () => openRunner(null) }] : []),
+    ...aiCommands(app, ai),
   ]);
 
   // Capture phase: runs before inputs and code editors handle the key, so Mod+Enter and Mod+S
@@ -416,6 +424,7 @@
 <CookiesDialog open={showingCookies} onclose={() => (showingCookies = false)} />
 <AuthPromptDialog />
 <WelcomeDialog />
+<AiDialogs />
 
 <svelte:window bind:innerWidth />
 
