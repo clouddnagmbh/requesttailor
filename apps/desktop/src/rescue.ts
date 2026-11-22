@@ -1,21 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// `RescueApi` of the desktop app (wave 12, strand G; src-tauri/src/rescue.rs). Interface
-// placeholder: the Tauri commands are registered and refuse; the strand calls them here.
+// `RescueApi` of the desktop app (wave 12, strand G; src-tauri/src/rescue.rs): the history
+// scan with its progress over a Tauri channel, and the rewrite. The value of a finding stays
+// on the Rust side (it goes from the old blob into the keychain); the webview only sends the
+// plan (finding ids, variable, environment) and gets masked findings and the result back.
 
-import { stubRescue, type RescueApi } from "@requesttailor/ui";
+import { Channel } from "@tauri-apps/api/core";
+import type { RescueApi, ScanProgress } from "@requesttailor/ui";
 
 import type { Call, Command } from "./backend";
 
-export function tauriRescue(call: Call): RescueApi {
-  void call;
-  return stubRescue();
+/** Creates the channel the progress arrives on; injectable for tests (Tauri's needs a window). */
+export type MakeProgressChannel = (onProgress: (progress: ScanProgress) => void) => unknown;
+
+const tauriChannel: MakeProgressChannel = (onProgress) => {
+  const channel = new Channel<ScanProgress>();
+  channel.onmessage = onProgress;
+  return channel;
+};
+
+export function tauriRescue(call: Call, makeChannel: MakeProgressChannel = tauriChannel): RescueApi {
+  return {
+    scanHistory: (onProgress) => call("rescue_scan", { onProgress: makeChannel(onProgress ?? (() => {})) }),
+    rewrite: (plan) =>
+      call("rescue_rewrite", {
+        plan: { findings: plan.findings, variable: plan.variable, environment: plan.environment },
+      }),
+  };
 }
 
-/** Commands of this strand no method calls yet; backend.test.ts leaves them out of its
- *  "every command is mapped" check. The strand empties the list as it maps them. */
-export const PENDING: readonly Command[] = [
-  "rescue_scan",
-  "rescue_rewrite",
-];
+/** Commands the shared mapping test in backend.test.ts leaves out: its call list is one
+ *  sequence every strand would edit. `rescue.test.ts` checks both instead. */
+export const PENDING: readonly Command[] = ["rescue_scan", "rescue_rewrite"];

@@ -37,7 +37,7 @@ mod merges;
 mod plugins;
 pub mod recent;
 /// Wave 12, strand G: secret rescue.
-mod rescue;
+pub mod rescue;
 /// Wave 12, strand E: pull-request review.
 mod review;
 // Wave 7: scripts (strand A), session variables (C), runner (D).

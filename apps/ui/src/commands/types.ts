@@ -1427,7 +1427,8 @@ export interface SpecChanges {
 }
 
 export interface HistoryFinding {
-  /** `<commit oid>:<path>:<line>` of the first occurrence. */
+  /** `<commit oid>:<path>:<line>` of the first occurrence (`.2`, `.3`, … after the line for a
+   *  second, third value on the same line). */
   id: string;
   finding: SecretFinding;
   first: GitCommit;
@@ -1456,11 +1457,17 @@ export interface RewrittenBranch {
   name: string;
   old: string;
   new: string;
+  /** Has an upstream: needs a force push to remove the value there. */
   pushed: boolean;
+  /** The upstream's remote (`origin`), for the force-push command. */
+  remote: string | null;
 }
 
 export interface RescueResult {
   rewritten: number;
   branches: RewrittenBranch[];
+  /** Ref prefix of this rescue's backups, `refs/requesttailor/backup/<unix>/`. */
   backup: string;
+  /** Tags that point at a rewritten commit (tags are not rewritten: they keep the value). */
+  tags: string[];
 }
