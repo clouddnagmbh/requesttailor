@@ -85,6 +85,13 @@ const COMMANDS: &[&str] = &[
     "grpc_services",
     "grpc_template",
     "graphql_schema",
+    // Wave 8, strand A.
+    "stream_open",
+    "stream_send",
+    "stream_finish",
+    "stream_close",
+    "stream_log",
+    "stream_release",
 ];
 
 fn main() {

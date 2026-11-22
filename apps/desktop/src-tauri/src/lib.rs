@@ -143,6 +143,13 @@ pub fn run() {
             grpc::grpc_services,
             grpc::grpc_template,
             grpc::graphql_schema,
+            // Wave 8, strand A.
+            streams::stream_open,
+            streams::stream_send,
+            streams::stream_finish,
+            streams::stream_close,
+            streams::stream_log,
+            streams::stream_release,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the RequestTailor desktop app");

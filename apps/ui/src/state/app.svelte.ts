@@ -142,6 +142,12 @@ export class AppState {
     await run;
   }
 
+  /** Resolves when every `edit` so far has reached the backend (wave 8: sessions open the
+   *  request as edited, like `send`). */
+  async settled(): Promise<void> {
+    await this.lastEdit;
+  }
+
   async create(folder: string, name: string): Promise<void> {
     await this.guard(async () => {
       const path = await this.backend.createRequest(folder, name);

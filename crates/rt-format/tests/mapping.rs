@@ -451,14 +451,7 @@ fn non_http_items_are_not_requests() {
     // gRPC items are requests since wave 8 (strand B, `tests/protocols_grpc.rs`).
     let c = corpus("grpc-subpath").model().clone();
     assert_eq!(c.items.len(), 5);
-    let c = corpus("websockets-multi-message-yml").model().clone();
-    fn has_requests(items: &[Item]) -> bool {
-        items.iter().any(|i| match i {
-            Item::Request(_) => true,
-            Item::Folder(f) => has_requests(&f.items),
-        })
-    }
-    assert!(!has_requests(&c.items));
+    // Wave 8: WebSocket items are requests (`tests/websocket.rs`).
 }
 
 #[test]

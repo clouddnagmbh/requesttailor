@@ -15,7 +15,7 @@ function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown)
     calls.push([cmd, args]);
     return answer(cmd, args);
   };
-  return { backend: new TauriBackend(invoke, () => "channel"), calls };
+  return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel"), calls };
 }
 
 describe("TauriBackend", () => {
@@ -106,6 +106,15 @@ describe("TauriBackend", () => {
     await b.grpc.services("g.yml", local);
     await b.grpc.template("g.yml", "/a.B/C", local);
     await b.graphql.schema("q.yml", local, true);
+    // Wave 8, strand A.
+    const message = { title: "", selected: true, kind: "text" as const, data: "hi" };
+    const leaky = { environment: "Local", vars: [], secrets: [["t", "leak"]] };
+    await b.streams.open("ws.yml", leaky as never, () => {});
+    await b.streams.send(1, message);
+    await b.streams.finish(1);
+    await b.streams.close(1);
+    await b.streams.log(1);
+    await b.streams.release(1);
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -184,6 +193,12 @@ describe("TauriBackend", () => {
       ["grpc_services", { path: "g.yml", input: { environment: "Local", vars: [] } }],
       ["grpc_template", { path: "g.yml", method: "/a.B/C", input: { environment: "Local", vars: [] } }],
       ["graphql_schema", { path: "q.yml", input: { environment: "Local", vars: [] }, refresh: true }],
+      ["stream_open", { path: "ws.yml", input: { environment: "Local", vars: [] }, onEvent: "stream-channel" }],
+      ["stream_send", { session: 1, message }],
+      ["stream_finish", { session: 1 }],
+      ["stream_close", { session: 1 }],
+      ["stream_log", { session: 1 }],
+      ["stream_release", { session: 1 }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

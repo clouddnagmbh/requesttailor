@@ -81,6 +81,12 @@
     "allow-grpc-services",
     "allow-grpc-template",
     "allow-graphql-schema",
+    "allow-stream-open",
+    "allow-stream-send",
+    "allow-stream-finish",
+    "allow-stream-close",
+    "allow-stream-log",
+    "allow-stream-release",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

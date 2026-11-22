@@ -305,6 +305,29 @@ impl<S: SecretStore> Core<S> {
         Ok(lock(&self.responses).insert(report))
     }
 
+    /// The request at `path` ready to open as a session (wave 8, strand A, `streams.rs`), and
+    /// the collection id: like [`Core::send`] up to the wire (session variables, keychain and
+    /// external secrets).
+    pub async fn stream_snapshot(
+        &self,
+        path: &str,
+        input: SendInput,
+    ) -> Result<(rt_app::SendSnapshot, String), AppError> {
+        let pending = self.with_session(|s| self.external_pending(s, &input))?;
+        if let Some((external, skip)) = pending {
+            let resolver = std::sync::Arc::clone(&self.external_secrets);
+            tokio::task::spawn_blocking(move || resolver.resolve(&external, &skip))
+                .await
+                .map_err(|e| AppError::Shell(format!("reading secrets failed: {e}")))?
+                .map_err(AppError::Shell)?;
+        }
+        self.with_session(|s| {
+            let input = self.services.session.input_for(&s.id, input);
+            let input = self.with_secrets(s, input)?;
+            Ok((s.workspace.snapshot(path, input)?, s.id.clone()))
+        })
+    }
+
     /// Wave 8, strand B (`grpc.rs`): `f` on the open workspace with `input` as a send gets it
     /// (session variables; secret values from the keychain and external secrets, read first
     /// on a blocking thread), and the collection id.

@@ -32,6 +32,8 @@ pub mod scan;
 pub mod scripts;
 pub mod secrets;
 pub mod services;
+/// `rt send` on WebSocket, gRPC and SSE requests (wave 8, strand A).
+pub mod stream;
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -78,6 +80,14 @@ Options for send:
       --no-prompt           Fail instead of asking for an OAuth 2.0 login
       --no-scripts          Do not run the collection's scripts
   -h, --help                Show this help
+
+Sessions (WebSocket and gRPC requests, HTTP requests with --sse): rt send opens
+the session, sends the selected message and prints the message history as JSON
+(StreamLog). By default it closes after the first received message or 10 s.
+      --sse                 Read an HTTP request's response as Server-Sent Events
+      --message <TITLE>     Send this message variant instead of the selected one
+      --duration <SECONDS>  Keep the session open this long
+      --until-close         Keep the session open until the server closes it
 
 rt run sends the requests of a collection, or of one folder of it, in order
 (by seq, then name), for pipelines. <folder> defaults to the current folder.
@@ -200,6 +210,8 @@ pub struct SendArgs {
     /// `--no-scripts`: do not run the collection's scripts (wave 7). Declarative assertions
     /// still run.
     pub no_scripts: bool,
+    /// Session options (wave 8): `--sse`, `--message`, `--duration`, `--until-close`.
+    pub session: stream::SessionArgs,
 }
 
 impl Default for SendArgs {
@@ -215,6 +227,7 @@ impl Default for SendArgs {
             cookie_jar: None,
             prompt: true,
             no_scripts: false,
+            session: stream::SessionArgs::default(),
         }
     }
 }
@@ -301,6 +314,10 @@ fn parse_send(parser: &mut lexopt::Parser) -> Result<Command, String> {
             Long("cookie-jar") => args.cookie_jar = Some(parser.value().map_err(err)?.into()),
             Long("no-prompt") => args.prompt = false,
             Long("no-scripts") => args.no_scripts = true,
+            Long(name @ ("sse" | "message" | "duration" | "until-close")) => {
+                let name = name.to_owned();
+                stream::parse_option(&name, parser, &mut args.session)?;
+            }
             Value(v) if file.is_none() => file = Some(PathBuf::from(v)),
             other => return Err(other.unexpected().to_string()),
         }
@@ -519,28 +536,22 @@ where
             );
         }
     };
-    // Wave 8, strand B: gRPC requests print the decoded `StreamLog`.
-    if let Some(spec) = grpc::spec(&doc, &request_path) {
-        let sent = runtime.block_on(grpc::send(
+    // Wave 8: WebSocket and gRPC requests, and HTTP requests with `--sse`, are sessions.
+    let session = doc
+        .model()
+        .request(&request_path)
+        .is_some_and(|c| stream::is_session(&c.request.spec, &args.session));
+    if session {
+        let output = runtime.block_on(stream::run_session(
             &doc,
             &request_path,
-            &spec,
             &args,
             &files,
             &transport,
         ));
-        return match sent {
-            Ok((log, code)) => {
-                let json = if args.pretty {
-                    serde_json::to_string_pretty(&log)
-                } else {
-                    serde_json::to_string(&log)
-                };
-                let _ = writeln!(stdout, "{}", json.expect("log serializes"));
-                code
-            }
-            Err((e, code)) => fail(stderr, code, &e),
-        };
+        let _ = stdout.write_all(output.render(args.pretty).as_bytes());
+        let _ = stdout.flush();
+        return output.exit_code();
     }
     let report = runtime.block_on(send_request(&doc, &request_path, &args, &files, &transport));
     let _ = stdout.write_all(render(&report, args.pretty).as_bytes());

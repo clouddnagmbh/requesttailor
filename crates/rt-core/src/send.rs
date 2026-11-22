@@ -406,7 +406,7 @@ fn script_response(c: &CompletedResponse) -> ScriptResponse {
     }
 }
 
-fn script_info(
+pub(crate) fn script_info(
     context: &RequestContext<'_>,
     input: &PrepareInput<'_>,
     options: &SendOptions,
@@ -421,7 +421,7 @@ fn script_info(
 }
 
 /// Every secret value in `scope`.
-fn scope_secrets(scope: &Scope) -> Vec<String> {
+pub(crate) fn scope_secrets(scope: &Scope) -> Vec<String> {
     scope
         .layers
         .iter()
@@ -432,7 +432,7 @@ fn scope_secrets(scope: &Scope) -> Vec<String> {
 }
 
 /// Applies a variable change to the runtime layer of this send.
-fn set_runtime(runtime: &mut Vec<(String, String)>, change: &VarChange) {
+pub(crate) fn set_runtime(runtime: &mut Vec<(String, String)>, change: &VarChange) {
     runtime.retain(|(name, _)| name != &change.name);
     if let Some(value) = &change.value {
         runtime.push((change.name.clone(), value.clone()));
@@ -485,7 +485,7 @@ async fn finish<T: Transport>(
     };
     let mut secrets = secret_values(context, input, &prepared);
     let Prepared {
-        mut request,
+        request,
         auth,
         scope,
         used,
@@ -493,67 +493,29 @@ async fn finish<T: Transport>(
     } = prepared;
     report.unresolved = unresolved;
     let scope_name = input.environment.unwrap_or("");
-    let hook_context = HookContext {
-        request_path: report.request_path.clone(),
-        environment: input.environment.map(str::to_owned),
-        variables: used
-            .iter()
-            .filter(|u| !u.secret)
-            .filter_map(|u| {
-                let (value, _, secret) = scope.get(&u.name)?;
-                (!secret).then(|| (u.name.clone(), value.to_owned()))
-            })
-            .collect(),
-    };
+    let hook_context = hook_context(&report.request_path, input, &used, &scope);
     report.variables = used;
-    let fail = |mut report: SendReport, error: SendError, secrets: &[String]| {
-        report.error = Some(match error {
-            SendError::Auth(m) => SendError::Auth(mask(&m, secrets)),
-            SendError::Plugin(m) => SendError::Plugin(mask(&m, secrets)),
-            e => e,
-        });
-        report
-    };
-
-    // 1. OAuth 2.0.
-    if let Auth::OAuth2(oauth) = &auth {
-        match crate::auth::oauth2::authorize(oauth, &scope, request, transport, services).await {
-            Ok(authorized) => {
-                request = authorized.request;
-                add_secrets(&mut secrets, authorized.secrets);
-                report.notes.extend(authorized.notes);
-            }
-            Err(e) => return fail(report, SendError::Auth(e), &secrets),
-        }
-    }
-    // 2. Plugins see the request with secrets masked; `rt-plugin` does the masking.
-    if let Some(hooks) = services.hooks {
-        match hooks.before_send(request, &secrets, &hook_context).await {
-            Ok((changed, notes)) => {
-                request = changed;
-                report.notes.extend(notes);
-            }
-            Err(e) => return fail(report, SendError::Plugin(e), &secrets),
-        }
-    }
-    // 3. SigV4 signs what goes on the wire, so it comes after every change.
-    if let Auth::AwsSigV4(aws) = &auth {
-        match crate::auth::sigv4::sign(&mut request, aws, &scope, web_time::SystemTime::now()) {
-            Ok(values) => add_secrets(&mut secrets, values),
-            Err(e) => return fail(report, SendError::Auth(e), &secrets),
-        }
-    }
-    // 4. Client certificate.
-    match crate::tls::client_identity(context, input.environment, &request.url, &scope, files) {
-        Ok(identity) => request.options.client_identity = identity,
-        Err(e) => return fail(report, SendError::Auth(e), &secrets),
-    }
-    // 5. Cookies.
-    if let Some(jar) = services.cookies
-        && let Some(cookie) = jar.cookie_header(scope_name, &request.url).await
+    let request = match before_wire(
+        context,
+        input,
+        files,
+        request,
+        &auth,
+        &scope,
+        transport,
+        services,
+        &hook_context,
+        &mut secrets,
+        &mut report.notes,
+    )
+    .await
     {
-        crate::cookies::add_cookie_header(&mut request.headers, &cookie);
-    }
+        Ok(request) => request,
+        Err(error) => {
+            report.error = Some(error);
+            return report;
+        }
+    };
 
     report.request = Some(sent_request(&request, &secrets));
     let script_request = ScriptRequest {
@@ -612,15 +574,99 @@ async fn finish<T: Transport>(
     report
 }
 
+/// What plugin hooks learn about a send: the request path, the environment and the values of
+/// the non-secret variables it used.
+pub(crate) fn hook_context(
+    request_path: &str,
+    input: &PrepareInput<'_>,
+    used: &[VarUse],
+    scope: &Scope,
+) -> HookContext {
+    HookContext {
+        request_path: request_path.to_owned(),
+        environment: input.environment.map(str::to_owned),
+        variables: used
+            .iter()
+            .filter(|u| !u.secret)
+            .filter_map(|u| {
+                let (value, _, secret) = scope.get(&u.name)?;
+                (!secret).then(|| (u.name.clone(), value.to_owned()))
+            })
+            .collect(),
+    }
+}
+
+/// Steps 1 to 5 of [`send_with`] on a prepared request: OAuth 2.0 token, plugin
+/// `before_send`, SigV4, client certificate, cookies. Shared with sessions
+/// ([`crate::stream::open`], wave 8), so a WebSocket handshake or an SSE request carries
+/// exactly what an HTTP send would. Values added on the way are added to `secrets`; errors
+/// are masked.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn before_wire<T: Transport>(
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+    files: &dyn FileSource,
+    mut request: HttpRequest,
+    auth: &Auth,
+    scope: &Scope,
+    transport: &T,
+    services: &Services<'_>,
+    hook_context: &HookContext,
+    secrets: &mut Vec<String>,
+    notes: &mut Vec<Note>,
+) -> Result<HttpRequest, SendError> {
+    let scope_name = input.environment.unwrap_or("");
+    // 1. OAuth 2.0.
+    if let Auth::OAuth2(oauth) = auth {
+        match crate::auth::oauth2::authorize(oauth, scope, request, transport, services).await {
+            Ok(authorized) => {
+                request = authorized.request;
+                add_secrets(secrets, authorized.secrets);
+                notes.extend(authorized.notes);
+            }
+            Err(e) => return Err(SendError::Auth(mask(&e, secrets))),
+        }
+    }
+    // 2. Plugins see the request with secrets masked; `rt-plugin` does the masking.
+    if let Some(hooks) = services.hooks {
+        match hooks.before_send(request, secrets, hook_context).await {
+            Ok((changed, hook_notes)) => {
+                request = changed;
+                notes.extend(hook_notes);
+            }
+            Err(e) => return Err(SendError::Plugin(mask(&e, secrets))),
+        }
+    }
+    // 3. SigV4 signs what goes on the wire, so it comes after every change.
+    if let Auth::AwsSigV4(aws) = auth {
+        match crate::auth::sigv4::sign(&mut request, aws, scope, web_time::SystemTime::now()) {
+            Ok(values) => add_secrets(secrets, values),
+            Err(e) => return Err(SendError::Auth(mask(&e, secrets))),
+        }
+    }
+    // 4. Client certificate.
+    match crate::tls::client_identity(context, input.environment, &request.url, scope, files) {
+        Ok(identity) => request.options.client_identity = identity,
+        Err(e) => return Err(SendError::Auth(mask(&e, secrets))),
+    }
+    // 5. Cookies.
+    if let Some(jar) = services.cookies
+        && let Some(cookie) = jar.cookie_header(scope_name, &request.url).await
+    {
+        crate::cookies::add_cookie_header(&mut request.headers, &cookie);
+    }
+    Ok(request)
+}
+
 /// Adds values to mask, keeping the order `mask` relies on (longest first).
-fn add_secrets(secrets: &mut Vec<String>, values: Vec<String>) {
+pub(crate) fn add_secrets(secrets: &mut Vec<String>, values: Vec<String>) {
     secrets.extend(values.into_iter().filter(|v| !v.is_empty()));
     secrets.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
     secrets.dedup();
 }
 
 /// `e` with every secret in its message replaced by [`MASK`].
-fn mask_transport_error(e: TransportError, secrets: &[String]) -> TransportError {
+pub(crate) fn mask_transport_error(e: TransportError, secrets: &[String]) -> TransportError {
     use TransportError::*;
     let m = |s: String| mask(&s, secrets);
     match e {
@@ -636,7 +682,10 @@ fn mask_transport_error(e: TransportError, secrets: &[String]) -> TransportError
 
 /// Values of the secret variables that apply to this request, without a preparation (for
 /// masking preparation errors): declared values and runtime/global values of secret names.
-fn declared_secret_values(context: &RequestContext<'_>, input: &PrepareInput<'_>) -> Vec<String> {
+pub(crate) fn declared_secret_values(
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+) -> Vec<String> {
     let secret: Vec<&Variable> = declared_vars(context, input).filter(|v| v.secret).collect();
     let mut values: Vec<String> = secret.iter().filter_map(|v| v.value.clone()).collect();
     for (name, value) in input.globals.iter().chain(&input.runtime) {
@@ -728,7 +777,7 @@ fn report_body(bytes: &[u8], truncated: bool) -> ReportBody {
 /// Values that must not appear in the report: every value of a variable that is secret in any
 /// layer, declared secret anywhere in the collection, or reported secret by `prepare`.
 /// Longest first, so a secret that contains another one is masked as a whole.
-fn secret_values(
+pub(crate) fn secret_values(
     context: &RequestContext<'_>,
     input: &PrepareInput<'_>,
     prepared: &Prepared,
@@ -784,7 +833,7 @@ fn declared_vars<'a>(
 
 /// Replaces every secret, raw, percent-encoded or Debug-escaped (as in `{:?}` messages), with
 /// [`MASK`].
-fn mask(text: &str, secrets: &[String]) -> String {
+pub(crate) fn mask(text: &str, secrets: &[String]) -> String {
     let mut out = text.to_owned();
     for secret in secrets {
         for form in [
@@ -803,7 +852,7 @@ fn mask(text: &str, secrets: &[String]) -> String {
 
 /// Like [`mask`]; additionally hides HTTP Basic credentials that contain a secret, since
 /// base64 hides the secret from plain substring matching.
-fn mask_header(value: &str, secrets: &[String]) -> String {
+pub(crate) fn mask_header(value: &str, secrets: &[String]) -> String {
     if let Some((scheme, credentials)) = value.split_once(' ')
         && scheme.eq_ignore_ascii_case("basic")
         && let Some(decoded) = base64_decode(credentials.trim())

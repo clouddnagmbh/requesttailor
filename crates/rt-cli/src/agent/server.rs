@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! The companion's HTTP/1.1 server: checks, CORS, the endpoints (status, pair, send, and
-//! secrets with `--allow-secrets`).
+//! The companion's HTTP/1.1 server: checks, CORS, the endpoints (status, pair, send,
+//! secrets with `--allow-secrets`, and the session relay `/v1/stream`, wave 8, in
+//! `stream.rs`).
 //!
 //! Runs on a current-thread runtime inside a `LocalSet`: the native transport's body stream
 //! is not `Send`, and one thread is plenty for a single user's requests.
@@ -50,6 +51,8 @@ const STATUS: &str = "/v1/status";
 const PAIR: &str = "/v1/pair";
 const SEND: &str = "/v1/send";
 const SECRETS: &str = "/v1/secrets";
+/// Wave 8, strand A (`stream.rs`).
+const STREAM: &str = "/v1/stream";
 
 pub struct Agent {
     port: u16,
@@ -109,6 +112,19 @@ impl Agent {
         }
     }
 
+    /// Whether `token` is the valid pairing token of `origin` (wave 8, `stream.rs`).
+    pub(super) fn token_valid(&self, origin: &str, token: &str) -> bool {
+        self.pairing.borrow().token_valid(origin, token)
+    }
+
+    pub(super) fn transport(&self) -> &NativeTransport {
+        &self.transport
+    }
+
+    pub(super) fn port(&self) -> u16 {
+        self.port
+    }
+
     fn host_allowed(&self, req: &Request<()>) -> bool {
         // Only origin-form targets (`/v1/...`); an absolute URI would carry its own host.
         if req.uri().authority().is_some() || req.uri().scheme().is_some() {
@@ -163,16 +179,19 @@ pub async fn serve(listener: TcpListener, agent: Rc<Agent>) -> std::io::Result<(
                 .timer(TokioTimer::new())
                 .header_read_timeout(HEADER_READ_TIMEOUT)
                 .serve_connection(TokioIo::new(stream), service)
+                .with_upgrades()
                 .await;
         });
     }
 }
 
-async fn handle(agent: &Agent, req: Request<Incoming>) -> Response<AgentBody> {
+async fn handle(agent: &Agent, mut req: Request<Incoming>) -> Response<AgentBody> {
+    // Wave 8: only `/v1/stream` may take over the connection.
+    let upgrade = (req.uri().path() == STREAM).then(|| hyper::upgrade::on(&mut req));
     let (parts, body) = req.into_parts();
     let req = Request::from_parts(parts, ());
     let mut body = Some(body);
-    let response = route(agent, &req, &mut body).await;
+    let response = route(agent, &req, &mut body, upgrade).await;
     if let Some(body) = body {
         let drain = Limited::new(body, DRAIN_LIMIT).collect();
         let _ = tokio::time::timeout(DRAIN_TIMEOUT, drain).await;
@@ -185,6 +204,7 @@ async fn route(
     agent: &Agent,
     req: &Request<()>,
     body: &mut Option<Incoming>,
+    upgrade: Option<hyper::upgrade::OnUpgrade>,
 ) -> Response<AgentBody> {
     let path = req.uri().path().to_owned();
     let method = req.method().clone();
@@ -228,7 +248,11 @@ async fn route(
         (Method::POST, PAIR) => pair(agent, body, &origin).await,
         (Method::POST, SEND) => send(agent, req, body, &origin).await,
         (Method::POST, SECRETS) => secrets(agent, req, body, &origin).await,
-        (_, STATUS | PAIR | SEND | SECRETS) => {
+        (Method::GET, STREAM) => match super::stream::upgrade(agent, req, upgrade, &origin) {
+            Ok(response) => response.map(|()| AgentBody::Full(None)),
+            Err((status, message)) => text(status, message, cors),
+        },
+        (_, STATUS | PAIR | SEND | SECRETS | STREAM) => {
             text(StatusCode::METHOD_NOT_ALLOWED, "method not allowed", cors)
         }
         _ => text(StatusCode::NOT_FOUND, "not found", cors),
@@ -286,8 +310,8 @@ fn status(agent: &Agent, origin: Option<&str>, headers: &HeaderMap) -> Response<
         protocol: PROTOCOL_VERSION,
         version: env!("CARGO_PKG_VERSION").to_owned(),
         paired,
-        // Wave 8, strand A adds "stream" with `/v1/stream`.
-        features: Vec::new(),
+        // Wave 8, strand A: `/v1/stream`.
+        features: vec!["stream".to_owned()],
     };
     json(StatusCode::OK, &status, origin)
 }
@@ -463,7 +487,7 @@ async fn secrets(
 }
 
 /// `host[:port]` of a URL: what the log shows of a request (no path, no query).
-fn log_target(url: &str) -> String {
+pub(super) fn log_target(url: &str) -> String {
     match url::Url::parse(url) {
         Ok(u) => match (u.host_str(), u.port()) {
             (Some(host), Some(port)) => format!("{host}:{port}"),
@@ -474,7 +498,7 @@ fn log_target(url: &str) -> String {
     }
 }
 
-fn log(message: std::fmt::Arguments<'_>) {
+pub(super) fn log(message: std::fmt::Arguments<'_>) {
     eprintln!("rt agent: {message}");
 }
 

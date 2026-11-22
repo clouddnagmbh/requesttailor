@@ -139,7 +139,7 @@ fn part_val(p: &MultipartPart) -> Val {
 }
 
 /// A variable as Bruno writes it; a secret one is `secret: true` and a name, never a value.
-fn var_val(v: &Variable) -> Val {
+pub(crate) fn var_val(v: &Variable) -> Val {
     let mut e = Vec::new();
     if v.secret {
         e.push(("secret", Val::bool(true)));
@@ -546,7 +546,7 @@ pub(crate) fn header_list() -> ListSpec<'static, KeyValue> {
     }
 }
 
-fn var_list(
+pub(crate) fn var_list(
     key: &'static str,
     order: &'static [&'static str],
     empty: Empty,
@@ -564,7 +564,7 @@ fn var_list(
 
 /// Removes a non-empty `value` from every variable marked secret in the list under `key`
 /// (edited secret variables lose any `value`, see `edit_var`).
-fn strip_secret_values(map: &mut Map, key: &str) {
+pub(crate) fn strip_secret_values(map: &mut Map, key: &str) {
     let Some(seq) = map.get_mut(key).and_then(Node::block_seq_mut) else {
         return;
     };

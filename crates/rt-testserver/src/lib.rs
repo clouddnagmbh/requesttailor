@@ -19,6 +19,10 @@
 //! | `GET /cookies/set?name=value&...` | 200, one `Set-Cookie: name=value; Path=/` per parameter, JSON of the parameters |
 //! | `GET /cookies` | 200, JSON `{"cookie": <Cookie header or null>}` |
 //! | `POST /graphql` | GraphQL endpoint of a tiny library schema (introspection, queries, mutations; see [`graphql`]) |
+//! | `GET /ws/echo` | WebSocket (wave 8): echoes text and binary messages; `?close=<code>` closes with that code after `?after=<n>` echoed messages (default 1, `0`: right away) |
+//! | `GET /ws/headers` | WebSocket (wave 8): sends the handshake headers as JSON `[[name, value], ...]` (lowercased names, in order), then closes (1000) |
+//! | `GET /sse/count/{n}` | `text/event-stream` (wave 8): `n` events (`id: i`, `data: i`, i = 1..n), then the stream ends; `?interval=<ms>` between events (default 10) |
+//! | `GET /sse/named` | `text/event-stream` (wave 8): a comment, then named events with ids (`greeting`, `update` with multi-line data) and one of the default type, then the end |
 //! | `OPTIONS *` | CORS preflight, 204 |
 //!
 //! [`spawn_mtls`] serves the same routes over HTTPS and requires a client certificate signed
@@ -46,6 +50,10 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
 use tokio::net::TcpListener;
 
+/// WebSocket and SSE routes (wave 8, strand A).
+mod sse;
+mod ws;
+
 type Body = BoxBody<Bytes, Infallible>;
 
 /// Default port for browser tests, which cannot discover a random port at run time.
@@ -65,7 +73,7 @@ pub async fn spawn(addr: SocketAddr) -> std::io::Result<SocketAddr> {
                 let service = hyper::service::service_fn(handle);
                 // HTTP/1.1 and cleartext HTTP/2 (prior knowledge) on the same port.
                 let _ = auto::Builder::new(TokioExecutor::new())
-                    .serve_connection(TokioIo::new(stream), service)
+                    .serve_connection_with_upgrades(TokioIo::new(stream), service)
                     .await;
             });
         }
@@ -153,7 +161,7 @@ pub async fn spawn_mtls(addr: SocketAddr, tls: MtlsConfig) -> std::io::Result<So
                     handle(req)
                 });
                 let _ = auto::Builder::new(TokioExecutor::new())
-                    .serve_connection(TokioIo::new(stream), service)
+                    .serve_connection_with_upgrades(TokioIo::new(stream), service)
                     .await;
             });
         }
@@ -309,6 +317,11 @@ async fn route(req: Request<Incoming>) -> Response<Body> {
     match segments.as_slice() {
         ["echo", ..] => echo(req, path, query).await,
         ["graphql"] if req.method() == Method::POST => graphql_route(req).await,
+        // Wave 8, strand A: WebSocket and SSE.
+        ["ws", "echo"] => ws::echo(req, &query),
+        ["ws", "headers"] => ws::headers(req),
+        ["sse", "count", n] => sse::count(n, &query),
+        ["sse", "named"] => sse::named(&query),
         ["status", code] => match code
             .parse::<u16>()
             .ok()

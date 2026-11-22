@@ -127,6 +127,7 @@ impl RunArgs {
             cookie_jar: self.cookie_jar.clone(),
             prompt: self.prompt,
             no_scripts: self.no_scripts,
+            session: Default::default(),
         }
     }
 }

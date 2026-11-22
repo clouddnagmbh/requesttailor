@@ -2,12 +2,15 @@
 <!-- Copyright 2026 The RequestTailor Authors -->
 <!-- Sidebar: the collection's folder tree (ARIA tree, roving focus, type-ahead) and the inline
      "new request" name prompt. `newIn` is the folder the prompt is open for (`""` = root).
-     `onrun` (wave 7): a folder row's run button opens the collection runner for it. -->
+     `onrun` (wave 7): a folder row's run button opens the collection runner for it.
+     Wave 8 (strand A): the prompt offers the kind of the new request (HTTP, GraphQL, gRPC,
+     WebSocket). -->
 <script lang="ts">
   import { tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
   import { getApp } from "../state/app.svelte";
+  import { asKind, NEW_REQUEST_KINDS, type NewRequestKind } from "../stream/kind";
   import MethodBadge from "./MethodBadge.svelte";
   import { rowKey, typeahead, visibleRows, type Row } from "./tree";
 
@@ -22,6 +25,7 @@
   const rows = $derived(visibleRows(app.tree, collapsed));
   let focusKey = $state<string | null>(null);
   let newName = $state("");
+  let newKind = $state<NewRequestKind>("http");
   let treeEl = $state<HTMLElement>();
 
   const focusIndex = $derived(Math.max(0, rows.findIndex((r) => r.key === focusKey)));
@@ -100,6 +104,7 @@
     if (newIn === null) return;
     collapsed.delete(newIn);
     newName = "";
+    newKind = "http";
   });
 
   async function commitNew() {
@@ -107,7 +112,12 @@
     const name = newName.trim();
     if (folder === null || !name) return;
     newIn = null;
+    const kind = newKind;
     await app.create(folder, name);
+    // The new request is the active one; give it its kind (unsaved, like the request itself).
+    const path = app.active;
+    const draft = path ? app.drafts[path] : undefined;
+    if (kind !== "http" && path && draft) await app.edit(path, asKind($state.snapshot(draft), kind));
     await focus();
   }
 
@@ -128,8 +138,11 @@
     }
   }
 
-  // Leaving the field without Enter cancels, unless the field is going away anyway.
-  function onNewBlur() {
+  // Leaving the prompt without Enter cancels, unless the prompt is going away anyway (moving
+  // between the name and the kind stays).
+  function onNewBlur(e: FocusEvent) {
+    const row = (e.currentTarget as HTMLElement).closest(".new");
+    if (row && e.relatedTarget instanceof Node && row.contains(e.relatedTarget)) return;
     if (newIn !== null) newIn = null;
   }
 
@@ -149,6 +162,15 @@
       onblur={onNewBlur}
       {@attach autofocus}
     />
+    <select
+      data-testid="new-request-kind"
+      aria-label="New request kind"
+      bind:value={newKind}
+      onkeydown={onNewKeydown}
+      onblur={onNewBlur}
+    >
+      {#each NEW_REQUEST_KINDS as [k, label] (k)}<option value={k}>{label}</option>{/each}
+    </select>
   </div>
 {/snippet}
 
@@ -302,6 +324,15 @@
   .row:focus-within .add,
   .row:focus .add {
     opacity: 1;
+  }
+  .new select {
+    flex: none;
+    font: inherit;
+    font-size: var(--rt-size-small);
+    color: var(--rt-fg);
+    background: var(--rt-bg);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius);
   }
   .new input {
     flex: 1;
