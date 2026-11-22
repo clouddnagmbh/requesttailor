@@ -76,6 +76,7 @@ crates/rt-cli      CLI `rt`, Begleitdienst, MCP-Server
 crates/rt-wasm     Kern als WebAssembly
 crates/rt-app      Befehlsschicht der App (Rust-Seite): Workspace, Antwortspeicher, Secrets, Git-Typen, Import, Historie, Suche
 crates/rt-git      Git nativ (gitoxide), nur Desktop/CLI/iOS, nicht wasm32
+crates/rt-grpc     gRPC: Proto-Dateien, Server-Reflection, JSON ↔ Protobuf (alle Ziele)
 crates/rt-testserver  lokaler HTTP-Testserver (nur Testinfrastruktur, nativ)
 testdata/collections/bruno  Korpus: 86 Bruno-Collections (MIT), unverändert, für Round-Trip-Tests
 testdata/import    Import-Korpus pro Quelle, frei lizenziert, Herkunft und Lizenz je Datei in SOURCES.md
@@ -99,7 +100,7 @@ perf/budgets.toml  Performance-Budgets, einzige Quelle für die Schwellwerte
 
 ## Kern-Schnittstellen
 
-Stand Welle 2, ergänzt in den Wellen 3 bis 5 (unten). Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
+Stand Welle 2, ergänzt in den Wellen 3 bis 8 (unten). Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
 
 - `rt_core::model`: internes Request-Modell (Collection, Folder, RequestSpec, Environment). Formatneutral.
 - `rt_core::transport::Transport`: Grenze zum Netz. Nativ eigener HTTP-Stack, im Browser `fetch`. Antwort-Body als Stream.
@@ -153,6 +154,15 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 5 (unten). Änderungen daran sind Sc
 - Vertrauen: Skripte laufen nur in Collections, denen der Nutzer vertraut (`rt_app::scripts`, einmal pro Collection und Gerät gefragt); sonst ohne Skripte mit Warn-Note. `rt send`/`rt run` führen Skripte aus, `--no-scripts` schaltet sie ab.
 - Runner `rt_core::runner` (`plan`, `run`, `RunPlan`, `RunEvent`, `RunSummary`), eine Umsetzung für App, Web und `rt run`. Exit-Code `EXIT_TESTS` (4), wenn ein Test oder eine Assertion scheitert (`rt send` und `rt run`).
 - `Backend` hat `scripts` (`ScriptsApi`: Vertrauen, Sitzungsvariablen) und `runner` (`RunnerApi`, Fortschritt per Callback; Desktop über einen Tauri-`Channel`). Dateien je Strang: Desktop `src-tauri/src/{scripts,session_vars,runner}.rs` und `src/{scripts,runner}.ts`, Web `src/{scripts,session-vars,runner}.ts`, Mock `commands/mock-{scripts,runner}.ts`, CLI `crates/rt-cli/src/run.rs`.
+
+### Protokolle und Agenten (ab Welle 8)
+
+- Modell: `RequestSpec.protocol` (`rt_core::model::Protocol`: `Http` Standard und in JSON weggelassen, `Grpc(GrpcSpec)`, `WebSocket(WebSocketSpec)`); gRPC-Metadaten und WebSocket-Handshake-Header sind `RequestSpec.headers`, `method` ist `GRPC`/`WS`. GraphQL ist HTTP mit `Body::GraphQl { query, variables }` (gesendet als JSON). SSE ist HTTP mit `text/event-stream`. `CollectionConfig.{protobuf, agents, http3}`: `config.protobuf` aus OpenCollection, `agents` und `http3` in `extensions.requesttailor` von `opencollection.yml`.
+- Sitzungen `rt_core::stream`: `open` bereitet wie `send_with` vor und öffnet über `StreamTransport`/`StreamSession` (Futures nicht `Send`); `StreamEvent` (`opened`, `message`, `closed`, `error`), maskierte Historie `StreamLog`. gRPC-Nachrichten kodiert `rt-grpc` (JSON ↔ Protobuf), die Leitung bewegt nur Bytes ohne 5-Byte-Rahmen. Im Web laufen alle Sitzungen über den Begleitdienst: `GET /v1/stream?token=…` (WebSocket auf Loopback, `StreamClientMessage`/`StreamServerMessage` in `rt_core::transport::companion`, `Status.features` enthält `"stream"`).
+- Agenten: `rt mcp` (stdio) stellt Collections als Werkzeuge bereit (`list_requests`, `get_request`, `list_environments`, `send_request`, `run_folder`). Regeln `AgentPolicy` pro Umgebung (`none`/`read`/`write`, `production`); Standard nur lesen; schreibende Requests (`rt_app::agents::effect`) in Produktion warten auf Freigabe. Freigaben und Audit-Log im Datenordner (`agents/approvals/`, `agents/audit.jsonl`), beantwortet per App-Banner oder `rt approve`/`rt deny`, Liste `rt approvals`. Agenten sehen nie Secret-Werte (maskierte Reports, Secrets nur als Namen). Vertrag der Werkzeuge: `crates/rt-cli/tests/gate_w8.rs`.
+- MCP-Client `rt_app::mcp_client`: Server (stdio nur nativ, Streamable HTTP überall) testen; gespeicherte Tests sind Begleitdateien `*.mcp.yaml` (der Reader liest nur `.yml`), `rt mcp-test`.
+- KI-Assistent `rt_app::ai`: `AiProvider` (`anthropic` mit eigenem Schlüssel, `openai-compatible` für lokale Modelle), kein Anbieter fest verdrahtet, aus bis konfiguriert, Aufrufe über den eigenen `Transport`. Vor jedem Aufruf `redact` mit allen Secret-Werten; Antworten sind Vorschläge (ungespeichert).
+- `Backend` hat `streams`, `grpc`, `graphql`, `agents`, `ai`, `mcp`. Dateien je Strang: Mock `commands/mock-{streams,grpc,graphql,agents,mcp-client,ai}.ts`, Web und Desktop `src/{streams,grpc,graphql,agents,mcp-client,ai}.ts` (bis zur Umsetzung Platzhalter aus `commands/wave8-stubs.ts`); CLI `crates/rt-cli/src/{mcp,approvals,mcp_test,mock,docs}.rs`.
 
 ## Befehle
 

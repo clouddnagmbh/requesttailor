@@ -13,6 +13,8 @@ base64 = "0.22"
 memchr = "2"
 rt-core = { path = "../rt-core" }
 rt-format = { path = "../rt-format" }
+# gRPC descriptors and JSON <-> protobuf (wave 8, strand B).
+rt-grpc = { path = "../rt-grpc" }
 rt-plugin = { path = "../rt-plugin" }
 serde = { version = "1", features = ["derive"] }
 # float_roundtrip: history entries (duration_ms) read back exactly as written.

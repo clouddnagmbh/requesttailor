@@ -211,6 +211,17 @@ pub enum CertificateSource {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CollectionConfig {
     pub client_certificates: Vec<ClientCertificate>,
+    /// `config.protobuf` (wave 8, gRPC).
+    #[serde(default)]
+    pub protobuf: super::ProtobufConfig,
+    /// `extensions.requesttailor.agents` (wave 8, MCP server).
+    #[serde(default)]
+    pub agents: super::AgentPolicy,
+    /// `extensions.requesttailor.http3` (wave 8): try HTTP/3 natively (QUIC). Off by default;
+    /// with it on, the native transport uses HTTP/3 for `https` URLs and falls back to
+    /// HTTP/2 or 1.1 when QUIC fails. The browser decides on its own.
+    #[serde(default)]
+    pub http3: bool,
 }
 
 /// Secrets of an environment held by an external manager (OpenCollection `externalSecrets`).

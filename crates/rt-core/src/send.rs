@@ -895,6 +895,7 @@ fn unresolved_fallback(context: &RequestContext<'_>, input: &PrepareInput<'_>) -
             }
         }
         Body::File { path, .. } => templates.push(path),
+        Body::GraphQl { query, variables } => templates.extend([&**query, variables]),
         Body::None => {}
     }
 

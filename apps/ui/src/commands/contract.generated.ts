@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AppError, Auth, AuthPrompt, Body, CookieInfo, Environment, FileChange, Flow, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, PluginInfo, Preview, ReportBody, RequestSpec, RunEvent, RunPlan, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendError, SendReport, StoredResponse, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, Body, CookieInfo, Effect, Environment, FileChange, Flow, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, GrpcError, GrpcService, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, PendingApproval, PluginInfo, Preview, Protocol, ReportBody, RequestSpec, RunEvent, RunPlan, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendError, SendReport, StoredResponse, StreamEvent, StreamLog, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -124,6 +124,11 @@ export const bodies: Body[] = [
     "content_type": null,
     "path": "files/a.bin",
     "type": "file"
+  },
+  {
+    "query": "query ($id: ID!) { user(id: $id) { name } }",
+    "type": "graphql",
+    "variables": "{\"id\": \"{{userId}}\"}"
   }
 ];
 
@@ -2083,4 +2088,637 @@ export const secretKey: SecretKey = {
   "collection": "c",
   "environment": "Local",
   "variable": "token"
+};
+
+export const protocols: Protocol[] = [
+  {
+    "type": "http"
+  },
+  {
+    "messages": [
+      {
+        "data": "{\"greeting\": \"world\"}",
+        "kind": "json",
+        "selected": true,
+        "title": "message 1"
+      }
+    ],
+    "method": "/hello.HelloService/SayHello",
+    "method_type": "bidi-streaming",
+    "proto_file": "protos/hello.proto",
+    "type": "grpc"
+  },
+  {
+    "keep_alive_ms": null,
+    "messages": [
+      {
+        "data": "ping",
+        "kind": "text",
+        "selected": true,
+        "title": ""
+      },
+      {
+        "data": "AAEC",
+        "kind": "binary",
+        "selected": true,
+        "title": "bin"
+      }
+    ],
+    "timeout_ms": 0,
+    "type": "websocket"
+  }
+];
+
+export const requestSpecGrpc: RequestSpec = {
+  "actions": [],
+  "assertions": [],
+  "auth": {
+    "type": "inherit"
+  },
+  "body": {
+    "type": "none"
+  },
+  "headers": [],
+  "method": "GRPC",
+  "name": "",
+  "params": [],
+  "protocol": {
+    "messages": [
+      {
+        "data": "{\"greeting\": \"world\"}",
+        "kind": "json",
+        "selected": true,
+        "title": "message 1"
+      }
+    ],
+    "method": "/hello.HelloService/SayHello",
+    "method_type": "bidi-streaming",
+    "proto_file": "protos/hello.proto",
+    "type": "grpc"
+  },
+  "scripts": [],
+  "seq": null,
+  "settings": {
+    "encode_url": null,
+    "follow_redirects": null,
+    "max_redirects": null,
+    "timeout_ms": null
+  },
+  "url": "grpcs://api.example:443",
+  "vars": []
+};
+
+export const frames: Frame[] = [
+  {
+    "data": "a",
+    "type": "text"
+  },
+  {
+    "data": "/w==",
+    "type": "binary"
+  }
+];
+
+export const streamEvents: StreamEvent[] = [
+  {
+    "at_ms": 0,
+    "event": "opened",
+    "head": {
+      "headers": [
+        [
+          "upgrade",
+          "websocket"
+        ]
+      ],
+      "status": 101,
+      "url": "wss://echo.example/ws?token=***",
+      "version": "HTTP/1.1"
+    }
+  },
+  {
+    "at_ms": 3,
+    "direction": "sent",
+    "event": "message",
+    "frame": {
+      "data": "hello ***",
+      "type": "text"
+    }
+  },
+  {
+    "at_ms": 9,
+    "direction": "received",
+    "event": "message",
+    "frame": {
+      "data": "AAEC",
+      "type": "binary"
+    },
+    "id": "42",
+    "name": "update"
+  },
+  {
+    "at_ms": 12,
+    "by_client": true,
+    "code": 1000,
+    "event": "closed",
+    "reason": "bye",
+    "trailers": [
+      [
+        "grpc-status",
+        "0"
+      ]
+    ]
+  },
+  {
+    "at_ms": 13,
+    "error": {
+      "kind": "connect",
+      "message": "refused"
+    },
+    "event": "error"
+  }
+];
+
+export const streamLog: StreamLog = {
+  "environment": "Local",
+  "events": [
+    {
+      "at_ms": 0,
+      "event": "opened",
+      "head": {
+        "headers": [
+          [
+            "upgrade",
+            "websocket"
+          ]
+        ],
+        "status": 101,
+        "url": "wss://echo.example/ws?token=***",
+        "version": "HTTP/1.1"
+      }
+    },
+    {
+      "at_ms": 3,
+      "direction": "sent",
+      "event": "message",
+      "frame": {
+        "data": "hello ***",
+        "type": "text"
+      }
+    },
+    {
+      "at_ms": 9,
+      "direction": "received",
+      "event": "message",
+      "frame": {
+        "data": "AAEC",
+        "type": "binary"
+      },
+      "id": "42",
+      "name": "update"
+    },
+    {
+      "at_ms": 12,
+      "by_client": true,
+      "code": 1000,
+      "event": "closed",
+      "reason": "bye",
+      "trailers": [
+        [
+          "grpc-status",
+          "0"
+        ]
+      ]
+    },
+    {
+      "at_ms": 13,
+      "error": {
+        "kind": "connect",
+        "message": "refused"
+      },
+      "event": "error"
+    }
+  ],
+  "kind": "websocket",
+  "notes": [
+    "OAuth 2.0: token from cache"
+  ],
+  "request_path": "ws/echo.yml",
+  "url": "wss://echo.example/ws",
+  "version": 1
+};
+
+export const grpcServices: GrpcService[] = [
+  {
+    "methods": [
+      {
+        "input_type": "hello.HelloRequest",
+        "method_type": "unary",
+        "name": "SayHello",
+        "output_type": "hello.HelloResponse",
+        "path": "/hello.HelloService/SayHello"
+      }
+    ],
+    "name": "hello.HelloService"
+  }
+];
+
+export const grpcErrors: GrpcError[] = [
+  {
+    "kind": "proto",
+    "message": "a.proto:3: syntax error"
+  },
+  {
+    "kind": "reflection",
+    "message": "unimplemented"
+  },
+  {
+    "kind": "unknown-method",
+    "message": "/a.B/C"
+  },
+  {
+    "kind": "message",
+    "message": "unknown field"
+  }
+];
+
+export const agentPolicy: AgentPolicy = {
+  "access": "read",
+  "environments": [
+    {
+      "access": "write",
+      "environment": "Local",
+      "production": false
+    },
+    {
+      "access": "none",
+      "environment": "PRD",
+      "production": true
+    }
+  ]
+};
+
+export const effects: Effect[] = [
+  "read",
+  "write"
+];
+
+export const verdicts: Verdict[] = [
+  {
+    "decision": "allowed"
+  },
+  {
+    "decision": "needs-approval"
+  },
+  {
+    "decision": "refused",
+    "reason": "environment PRD allows only reading"
+  }
+];
+
+export const pendingApproval: PendingApproval = {
+  "agent": "claude-code",
+  "at": 1790000000000,
+  "collection": "/work/api",
+  "collection_name": "Orders",
+  "environment": "PRD",
+  "id": "a1b2",
+  "method": "POST",
+  "reason": "writing request in production environment PRD",
+  "request_path": "orders/create.yml",
+  "url": "https://api.example/orders"
+};
+
+export const approvalDecisions: ApprovalDecision[] = [
+  "approved",
+  "denied"
+];
+
+export const auditEntries: AuditEntry[] = [
+  {
+    "agent": "claude-code",
+    "approved_by": "app",
+    "at": 1790000000000,
+    "collection": "/work/api",
+    "environment": "PRD",
+    "method": "POST",
+    "outcome": "sent",
+    "request_path": "orders/create.yml",
+    "status": 201,
+    "tool": "send_request",
+    "url": "https://api.example/orders"
+  },
+  {
+    "agent": "claude-code",
+    "at": 1790000000001,
+    "collection": "/work/api",
+    "outcome": "read",
+    "tool": "list_requests"
+  }
+];
+
+export const auditOutcomes: AuditOutcome[] = [
+  "read",
+  "sent",
+  "refused",
+  "denied",
+  "timed-out",
+  "failed"
+];
+
+export const aiConfigs: AiConfig[] = [
+  {
+    "base_url": null,
+    "model": "claude-opus-5-5",
+    "provider": "anthropic"
+  },
+  {
+    "base_url": "http://localhost:11434/v1",
+    "model": "llama3.1",
+    "provider": "openai-compatible"
+  }
+];
+
+export const aiTasks: AiTask[] = [
+  {
+    "description": "create a user",
+    "folder": "users",
+    "task": "create-request"
+  },
+  {
+    "path": "a.yml",
+    "response": 3,
+    "task": "explain-error"
+  },
+  {
+    "path": "a.yml",
+    "response": 3,
+    "task": "suggest-tests"
+  }
+];
+
+export const aiAnswer: AiAnswer = {
+  "request": {
+    "actions": [
+      {
+        "enabled": false,
+        "expression": "res.body.id",
+        "method": "jsonq",
+        "phase": "after-response",
+        "scope": "environment",
+        "variable": "userId"
+      }
+    ],
+    "assertions": [
+      {
+        "description": "created",
+        "enabled": true,
+        "expression": "res.status",
+        "operator": "eq",
+        "value": "201"
+      }
+    ],
+    "auth": {
+      "token": "{{token}}",
+      "type": "bearer"
+    },
+    "body": {
+      "data": "{}",
+      "kind": "json",
+      "type": "raw"
+    },
+    "headers": [
+      {
+        "enabled": true,
+        "name": "Accept",
+        "value": "application/json"
+      }
+    ],
+    "method": "POST",
+    "name": "Create user",
+    "params": [
+      {
+        "enabled": true,
+        "kind": "query",
+        "name": "x",
+        "value": "1"
+      },
+      {
+        "enabled": false,
+        "kind": "path",
+        "name": "id",
+        "value": "7"
+      }
+    ],
+    "scripts": [
+      {
+        "code": "rt.vars.set('a', '1');",
+        "phase": "before-request"
+      },
+      {
+        "code": "test('ok', () => expect(rt.response.status).to.equal(201));",
+        "phase": "tests"
+      }
+    ],
+    "seq": 2.0,
+    "settings": {
+      "encode_url": false,
+      "follow_redirects": true,
+      "max_redirects": null,
+      "timeout_ms": 0
+    },
+    "url": "{{baseUrl}}/users/:id?x=1",
+    "vars": [
+      {
+        "enabled": true,
+        "name": "v",
+        "secret": false,
+        "value": "1"
+      }
+    ]
+  },
+  "scripts": [
+    {
+      "code": "test('201', () => expect(rt.response.status).to.equal(201));",
+      "phase": "tests"
+    }
+  ],
+  "text": "The server wants `email`."
+};
+
+export const aiErrors: AiError[] = [
+  {
+    "kind": "not-configured"
+  },
+  {
+    "kind": "no-key"
+  },
+  {
+    "kind": "transport",
+    "message": "connection refused"
+  },
+  {
+    "kind": "provider",
+    "message": "401 invalid x-api-key"
+  },
+  {
+    "kind": "answer",
+    "message": "no request in the answer"
+  }
+];
+
+export const mcpServerConfigs: McpServerConfig[] = [
+  {
+    "args": [
+      "server.js"
+    ],
+    "command": "node",
+    "cwd": null,
+    "env": [
+      [
+        "API_TOKEN",
+        "{{token}}"
+      ]
+    ],
+    "transport": "stdio"
+  },
+  {
+    "headers": [
+      [
+        "Authorization",
+        "Bearer {{token}}"
+      ]
+    ],
+    "transport": "http",
+    "url": "http://127.0.0.1:3000/mcp"
+  }
+];
+
+export const mcpServerInfo: McpServerInfo = {
+  "capabilities": [
+    "tools"
+  ],
+  "instructions": null,
+  "name": "orders",
+  "protocol_version": "2025-06-18",
+  "version": "1.0.0"
+};
+
+export const mcpTool: McpTool = {
+  "annotations": {
+    "readOnlyHint": true
+  },
+  "description": null,
+  "input_schema": {
+    "type": "object"
+  },
+  "name": "list_orders",
+  "output_schema": null,
+  "title": "List orders"
+};
+
+export const mcpCallResult: McpCallResult = {
+  "content": [
+    {
+      "text": "{\"ok\":true}",
+      "type": "text"
+    },
+    {
+      "data": "iVBORw0K",
+      "mime_type": "image/png",
+      "type": "image"
+    },
+    {
+      "data": "UklGRg==",
+      "mime_type": "audio/wav",
+      "type": "audio"
+    },
+    {
+      "text": null,
+      "type": "resource",
+      "uri": "file:///a.txt"
+    },
+    {
+      "type": "other",
+      "value": {
+        "type": "resource_link"
+      }
+    }
+  ],
+  "is_error": false,
+  "structured": {
+    "ok": true
+  },
+  "time_ms": 12
+};
+
+export const mcpTest: McpTest = {
+  "arguments": {
+    "limit": 5
+  },
+  "assertions": [
+    {
+      "description": null,
+      "enabled": true,
+      "expression": "res.body.ok",
+      "operator": "eq",
+      "value": "true"
+    }
+  ],
+  "name": "lists orders",
+  "server": {
+    "args": [
+      "server.js"
+    ],
+    "command": "node",
+    "cwd": null,
+    "env": [
+      [
+        "API_TOKEN",
+        "{{token}}"
+      ]
+    ],
+    "transport": "stdio"
+  },
+  "tool": "list_orders"
+};
+
+export const mcpTestResult: McpTestResult = {
+  "assertions": [],
+  "error": null,
+  "passed": false,
+  "path": "mcp/lists-orders.mcp.yaml",
+  "result": {
+    "content": [
+      {
+        "text": "{\"ok\":true}",
+        "type": "text"
+      },
+      {
+        "data": "iVBORw0K",
+        "mime_type": "image/png",
+        "type": "image"
+      },
+      {
+        "data": "UklGRg==",
+        "mime_type": "audio/wav",
+        "type": "audio"
+      },
+      {
+        "text": null,
+        "type": "resource",
+        "uri": "file:///a.txt"
+      },
+      {
+        "type": "other",
+        "value": {
+          "type": "resource_link"
+        }
+      }
+    ],
+    "is_error": false,
+    "structured": {
+      "ok": true
+    },
+    "time_ms": 12
+  }
 };

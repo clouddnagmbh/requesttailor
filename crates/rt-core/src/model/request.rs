@@ -90,6 +90,14 @@ pub enum Body {
         path: String,
         content_type: Option<String>,
     },
+    /// GraphQL (wave 8): sent as JSON `{"query", "variables"}` with
+    /// `Content-Type: application/json`. `variables` is JSON text as in the file (may be
+    /// empty); `{{templates}}` in both are resolved first.
+    #[serde(rename = "graphql")]
+    GraphQl {
+        query: String,
+        variables: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -170,4 +178,8 @@ pub struct RequestSpec {
     /// Variable actions such as "set variable from the response" (wave 7).
     #[serde(default)]
     pub actions: Vec<super::VarAction>,
+    /// What the request speaks (wave 8): HTTP, gRPC or WebSocket. For gRPC and WebSocket,
+    /// `method` is `GRPC` or `WS` (display only), `body` is `None`.
+    #[serde(default, skip_serializing_if = "super::Protocol::is_http")]
+    pub protocol: super::Protocol,
 }

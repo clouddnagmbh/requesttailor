@@ -181,6 +181,8 @@ fn edited(s: &RequestSpec) -> RequestSpec {
             path: format!("{path}.new"),
             content_type: Some("text/plain".into()),
         },
+        // HTTP items never read as GraphQL.
+        Body::GraphQl { .. } => unreachable!("an http item with a GraphQL body"),
         Body::None => Body::Raw {
             kind: RawKind::Json,
             data: "{\n  \"a\": 1\n}".into(),

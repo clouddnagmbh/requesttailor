@@ -303,6 +303,9 @@ fn collection_config_is_added_and_removed() {
     )]);
     let mut doc = read_collection(&input).unwrap();
     let config = CollectionConfig {
+        agents: Default::default(),
+        http3: false,
+        protobuf: Default::default(),
         client_certificates: vec![pem("localhost", "c.pem", "k.pem")],
     };
     doc.set_collection_config(&config).unwrap();

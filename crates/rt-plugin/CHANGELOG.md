@@ -3,6 +3,14 @@
 Every change to the plugin API (`API.md`, `src/api.rs`) is listed here, newest first.
 Additive changes keep `API_VERSION`; breaking changes bump it.
 
+## API version 1, additions (wave 8)
+
+Additive; `API_VERSION` stays 1:
+- The request model has `protocol` (`{"type": "grpc", …}` or `{"type": "websocket", …}`;
+  absent for HTTP) and a GraphQL body (`{"type": "graphql", "query", "variables"}`).
+  Plugins may leave `protocol` out (HTTP). Hooks (`before_send`, `after_response`) run for
+  HTTP sends only, GraphQL included; sessions (WebSocket, SSE, gRPC) do not call them yet.
+
 ## API version 1, additions (wave 7)
 
 Additive; `API_VERSION` stays 1:

@@ -43,6 +43,12 @@ import { webAuth, type WebAuthApi } from "./auth";
 import { createCompanionClient, type CompanionClient } from "./companion/client";
 import { webCookies, type WebCookieApi } from "./cookies";
 import { webRunner } from "./runner";
+import { webStreams } from "./streams";
+import { webGrpc } from "./grpc";
+import { webGraphQl } from "./graphql";
+import { webAgents } from "./agents";
+import { webMcp } from "./mcp-client";
+import { webAi } from "./ai";
 import { webScriptTrust, type WebScriptTrust } from "./scripts";
 import { SessionStore, webSessionVars } from "./session-vars";
 import { webGit } from "./git";
@@ -149,6 +155,13 @@ export class WebBackend implements Backend {
   /** Wave 7: the trust part of `scripts`, read by every send (`send-services.ts`). */
   readonly scriptTrust: WebScriptTrust;
   readonly runner: RunnerApi;
+  /** Wave 8 (one file per strand). */
+  readonly streams = webStreams();
+  readonly grpc = webGrpc();
+  readonly graphql = webGraphQl();
+  readonly agents = webAgents();
+  readonly mcp = webMcp();
+  readonly ai = webAi();
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;

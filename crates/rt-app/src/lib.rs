@@ -20,11 +20,14 @@
 //! Wave 7: `scripts` (strands A and C), `runner` (strand D).
 //! Changes to the public types here are interface changes (working rule 1).
 
+pub mod agents;
+pub mod ai;
 pub mod auth;
 pub mod cookies;
 pub mod git;
 pub mod history;
 pub mod import;
+pub mod mcp_client;
 pub mod plugins;
 pub mod response;
 pub mod runner;

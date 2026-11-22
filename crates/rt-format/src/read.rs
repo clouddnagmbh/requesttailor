@@ -105,6 +105,9 @@ impl<'a> Builder<'a> {
             items: Vec::new(),
             environments,
             config: CollectionConfig {
+                agents: Default::default(),
+                http3: false,
+                protobuf: Default::default(),
                 client_certificates: crate::auth::certs::read(
                     root.get("config").and_then(|c| c.get("clientCertificates")),
                 ),
@@ -216,7 +219,9 @@ impl<'a> Builder<'a> {
         match kind {
             Some("http") => {}
             None if root.get("http").is_some() => {}
-            Some(k) if OTHER_ITEM_TYPES.contains(&k) => return None,
+            Some(k) if OTHER_ITEM_TYPES.contains(&k) => {
+                return crate::protocols::read(self, path, k);
+            }
             Some(k) => {
                 self.issue(path, format!("unknown item type `{k}`"));
                 return None;
@@ -235,6 +240,7 @@ impl<'a> Builder<'a> {
             .to_owned();
         let runtime = root.get("runtime");
         let spec = RequestSpec {
+            protocol: Default::default(),
             scripts: crate::runtime::scripts(runtime.and_then(|r| r.get("scripts"))),
             assertions: crate::runtime::assertions(runtime.and_then(|r| r.get("assertions"))),
             actions: crate::runtime::actions(runtime.and_then(|r| r.get("actions"))),

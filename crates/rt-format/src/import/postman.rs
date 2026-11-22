@@ -466,6 +466,7 @@ impl Cx {
             method = "GET".into();
         }
         let spec = RequestSpec {
+            protocol: Default::default(),
             actions: Vec::new(),
             assertions: Vec::new(),
             scripts,

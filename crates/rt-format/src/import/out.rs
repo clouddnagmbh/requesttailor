@@ -267,6 +267,14 @@ fn body_val(body: &Body) -> Option<Val> {
             e.push(("selected", Val::bool(true)));
             ("file", Val::Seq(vec![Val::Map(e)]))
         }
+        // Importers produce no GraphQL bodies before wave 8, strand B.
+        Body::GraphQl { query, variables } => (
+            "graphql",
+            Val::Map(vec![
+                ("query", Val::str(query)),
+                ("variables", Val::str(variables)),
+            ]),
+        ),
     };
     Some(Val::Map(vec![("type", Val::str(kind)), ("data", data)]))
 }

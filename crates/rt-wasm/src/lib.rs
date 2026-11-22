@@ -629,6 +629,9 @@ mod workspace_js {
 }
 
 // Wave 4, one module per strand: git (A2), import (B), history (E).
+// Wave 8: one module per strand.
+#[cfg(target_arch = "wasm32")]
+mod ai_js;
 #[cfg(target_arch = "wasm32")]
 mod auth_js;
 #[cfg(target_arch = "wasm32")]
@@ -636,9 +639,13 @@ mod cookies_js;
 #[cfg(target_arch = "wasm32")]
 mod git_js;
 #[cfg(target_arch = "wasm32")]
+mod grpc_js;
+#[cfg(target_arch = "wasm32")]
 mod history_js;
 #[cfg(target_arch = "wasm32")]
 mod import_js;
+#[cfg(target_arch = "wasm32")]
+mod mcp_js;
 #[cfg(target_arch = "wasm32")]
 mod plugins_js;
 #[cfg(target_arch = "wasm32")]
@@ -647,6 +654,8 @@ mod runner_js;
 mod scripts_js;
 #[cfg(target_arch = "wasm32")]
 mod services_js;
+#[cfg(target_arch = "wasm32")]
+mod streams_js;
 
 #[cfg(test)]
 mod tests {

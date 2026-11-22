@@ -260,6 +260,9 @@ mod tests {
                 external_secrets: None,
             }],
             config: CollectionConfig {
+                agents: Default::default(),
+                http3: false,
+                protobuf: Default::default(),
                 client_certificates: vec![cert("api.example.com", "col.p12")],
             },
         }

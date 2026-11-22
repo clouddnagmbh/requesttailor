@@ -127,6 +127,10 @@ fn request_fields(spec: &RequestSpec, add: &mut impl FnMut(SearchField, &str)) {
     }
     match &spec.body {
         Body::Raw { data, .. } => add(SearchField::Body, data),
+        Body::GraphQl { query, variables } => {
+            add(SearchField::Body, query);
+            add(SearchField::Body, variables);
+        }
         Body::FormUrlEncoded { fields } => {
             for f in fields {
                 add(SearchField::Body, &format!("{}={}", f.name, f.value));

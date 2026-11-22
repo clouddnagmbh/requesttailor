@@ -20,6 +20,7 @@ pub mod script;
 pub mod send;
 pub mod serde_ms;
 pub mod services;
+pub mod stream;
 pub mod tls;
 pub mod transport;
 pub mod vars;

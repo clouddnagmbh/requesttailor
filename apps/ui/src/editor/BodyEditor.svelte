@@ -8,7 +8,8 @@
   import KeyValueTable, { type Row } from "./KeyValueTable.svelte";
   import type { VarLookup } from "./vars";
 
-  type BodyChoice = "none" | RawKind | "form-url-encoded" | "multipart" | "file";
+  // "graphql": wave 8, strand B adds its editor (query, variables, schema completion).
+  type BodyChoice = "none" | RawKind | "form-url-encoded" | "multipart" | "file" | "graphql";
 
   let {
     body,

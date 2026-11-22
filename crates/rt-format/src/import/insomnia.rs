@@ -753,6 +753,7 @@ impl Cx {
         }
         let name = display_name(v);
         let spec = RequestSpec {
+            protocol: Default::default(),
             actions: Vec::new(),
             assertions: Vec::new(),
             scripts,

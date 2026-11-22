@@ -44,6 +44,14 @@ pub(super) fn encode(
             };
             (default_type(ct.into()), interp.text(data).into_bytes())
         }
+        Body::GraphQl { query, variables } => {
+            let query = interp.text(query);
+            let variables = interp.text(variables);
+            (
+                default_type("application/json".into()),
+                graphql_payload(&query, &variables).into_bytes(),
+            )
+        }
         Body::FormUrlEncoded { fields } => {
             let encoded: Vec<String> = fields
                 .iter()
@@ -229,4 +237,32 @@ fn boundary_param(value: &str) -> Option<&str> {
             .unwrap_or(v);
         (!v.is_empty()).then_some(v)
     })
+}
+
+/// `{"query": …, "variables": …}`: empty variables are omitted, valid JSON is embedded,
+/// anything else goes as a string (the server reports the error).
+fn graphql_payload(query: &str, variables: &str) -> String {
+    let mut payload = serde_json::Map::new();
+    payload.insert("query".into(), serde_json::Value::String(query.into()));
+    let trimmed = variables.trim();
+    if !trimmed.is_empty() {
+        let value = serde_json::from_str(trimmed)
+            .unwrap_or_else(|_| serde_json::Value::String(variables.into()));
+        payload.insert("variables".into(), value);
+    }
+    serde_json::Value::Object(payload).to_string()
+}
+
+#[cfg(test)]
+mod graphql_tests {
+    use super::graphql_payload;
+
+    #[test]
+    fn variables_are_embedded_as_json_or_omitted() {
+        assert_eq!(
+            graphql_payload("{ a }", " {\"id\": 1} "),
+            r#"{"query":"{ a }","variables":{"id":1}}"#
+        );
+        assert_eq!(graphql_payload("{ a }", "  "), r#"{"query":"{ a }"}"#);
+    }
 }

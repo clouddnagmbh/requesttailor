@@ -277,6 +277,9 @@ impl CollectionDoc {
         }
         let doc = crate::yaml::reparse(&doc).map_err(invalid)?;
         let got = CollectionConfig {
+            agents: Default::default(),
+            http3: false,
+            protobuf: Default::default(),
             client_certificates: read(
                 doc.root
                     .get("config")

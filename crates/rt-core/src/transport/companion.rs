@@ -25,6 +25,14 @@
 //!   - the companion was started without `--allow-secrets`: `403` JSON [`SecretsError`];
 //!   - bad or missing token: `401`.
 //!
+//! - `GET /v1/stream?token=<token>` (wave 8): a WebSocket upgrade on loopback (browsers
+//!   cannot set headers on a WebSocket, so the token is in the query; the origin check still
+//!   applies). The browser's session runs over it as JSON text messages: first a
+//!   [`StreamClientMessage::Open`], then `Send`/`Finish`/`Close`; the companion answers
+//!   with [`StreamServerMessage`]s (each a [`StreamEvent`](crate::stream::StreamEvent) of the
+//!   native session, or `Failed`). One session per WebSocket. `Status.features` lists
+//!   `"stream"` when the companion supports it.
+//!
 //! The pairing flow and the origin/host checks are owned by the companion (wave 3, strand G)
 //! and documented in `crates/rt-cli/README.md`.
 //!
@@ -49,6 +57,9 @@ pub struct Status {
     pub version: String,
     /// Whether the request's `Origin` is already paired (its token is still valid).
     pub paired: bool,
+    /// Optional endpoints this companion has (wave 8: `"stream"`). Older companions send none.
+    #[serde(default)]
+    pub features: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -380,3 +391,46 @@ impl super::Transport for CompanionTransport {
 
 #[cfg(test)]
 mod tests;
+
+/// [`StreamOpen`](crate::stream::StreamOpen) on the wire (wave 8, `GET /v1/stream`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum WireStreamOpen {
+    #[serde(rename = "websocket")]
+    WebSocket {
+        url: String,
+        headers: Vec<(String, String)>,
+        protocols: Vec<String>,
+        timeout_ms: Option<u64>,
+        keep_alive_ms: Option<u64>,
+    },
+    Sse {
+        request: WireRequest,
+    },
+    Grpc {
+        url: String,
+        path: String,
+        metadata: Vec<(String, String)>,
+        timeout_ms: Option<u64>,
+    },
+}
+
+/// Browser → companion on `/v1/stream`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "kebab-case")]
+pub enum StreamClientMessage {
+    Open { open: WireStreamOpen },
+    Send { frame: crate::stream::Frame },
+    Finish,
+    Close,
+}
+
+/// Companion → browser on `/v1/stream`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "kebab-case")]
+pub enum StreamServerMessage {
+    /// An event of the native session.
+    Event { event: crate::stream::StreamEvent },
+    /// Opening or sending failed; the session is over.
+    Failed { error: super::TransportError },
+}

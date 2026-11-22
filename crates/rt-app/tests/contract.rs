@@ -11,11 +11,18 @@
 
 use std::time::Duration;
 
+use rt_app::agents::{
+    ApprovalDecision, AuditEntry, AuditOutcome, Effect, PendingApproval, Verdict,
+};
+use rt_app::ai::{AiAnswer, AiConfig, AiError, AiProviderKind, AiTask};
 use rt_app::auth::{AuthPrompt, DeviceCodePrompt, TokenInfo};
 use rt_app::cookies::CookieInfo;
 use rt_app::git::{
     DiffHunk, DiffLine, DiffLineKind, GitBranch, GitCommit, GitConflict, GitDiff, GitFile,
     GitFileState, GitIdentity, GitPullResult, GitResolution, GitStatus,
+};
+use rt_app::mcp_client::{
+    McpCallResult, McpContent, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool,
 };
 use rt_app::plugins::{
     ActionButton, Block, Contributions, FieldKind, FormField, ImporterContribution, Manifest,
@@ -26,6 +33,10 @@ use rt_app::secret_scan::SecretFinding;
 use rt_app::{
     AppError, FileChange, HistoryEntry, ImportPlan, LineSlice, Preview, PreviewVar, SearchField,
     SearchHit, SecretKey, StoredResponse, TreeNode,
+};
+use rt_core::model::{
+    AgentAccess, AgentPolicy, EnvironmentPolicy, GrpcMethodType, GrpcSpec, MessageKind,
+    MessageVariant, Protocol, WebSocketSpec,
 };
 use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
@@ -43,9 +54,11 @@ use rt_core::send::{
     REPORT_VERSION, ReceivedResponse, ReportBody, SendError, SendReport, SentRequest,
 };
 use rt_core::services::{Note, NoteLevel};
+use rt_core::stream::{Direction, Frame, StreamEvent, StreamHead, StreamLog};
 use rt_core::transport::{HttpVersion, Redirect, Timing, TransportError};
 use rt_core::vars::{VarSource, VarUse};
 use rt_format::import::{ImportFormat, Loss, LossEffect, LossKind, LossReport};
+use rt_grpc::{GrpcError, GrpcMethod, GrpcService};
 use serde::Serialize;
 
 fn kv(name: &str, value: &str) -> KeyValue {
@@ -54,6 +67,7 @@ fn kv(name: &str, value: &str) -> KeyValue {
 
 fn request_spec() -> RequestSpec {
     RequestSpec {
+        protocol: Default::default(),
         scripts: vec![
             Script {
                 phase: ScriptPhase::BeforeRequest,
@@ -138,7 +152,132 @@ fn bodies() -> Vec<Body> {
             path: "files/a.bin".into(),
             content_type: None,
         },
+        Body::GraphQl {
+            query: "query ($id: ID!) { user(id: $id) { name } }".into(),
+            variables: "{\"id\": \"{{userId}}\"}".into(),
+        },
     ]
+}
+
+fn message(title: &str, kind: MessageKind, data: &str) -> MessageVariant {
+    MessageVariant {
+        title: title.into(),
+        selected: true,
+        kind,
+        data: data.into(),
+    }
+}
+
+fn protocols() -> Vec<Protocol> {
+    vec![
+        Protocol::Http,
+        Protocol::Grpc(Box::new(GrpcSpec {
+            method: "/hello.HelloService/SayHello".into(),
+            method_type: GrpcMethodType::BidiStreaming,
+            proto_file: Some("protos/hello.proto".into()),
+            messages: vec![message(
+                "message 1",
+                MessageKind::Json,
+                "{\"greeting\": \"world\"}",
+            )],
+        })),
+        Protocol::WebSocket(Box::new(WebSocketSpec {
+            messages: vec![
+                message("", MessageKind::Text, "ping"),
+                message("bin", MessageKind::Binary, "AAEC"),
+            ],
+            timeout_ms: Some(0),
+            keep_alive_ms: None,
+        })),
+    ]
+}
+
+fn stream_events() -> Vec<StreamEvent> {
+    vec![
+        StreamEvent::Opened {
+            at_ms: 0,
+            head: StreamHead {
+                status: 101,
+                version: HttpVersion::Http11,
+                headers: vec![("upgrade".into(), "websocket".into())],
+                url: "wss://echo.example/ws?token=***".into(),
+            },
+        },
+        StreamEvent::Message {
+            at_ms: 3,
+            direction: Direction::Sent,
+            frame: Frame::Text("hello ***".into()),
+            name: None,
+            id: None,
+        },
+        StreamEvent::Message {
+            at_ms: 9,
+            direction: Direction::Received,
+            frame: Frame::Binary(vec![0, 1, 2]),
+            name: Some("update".into()),
+            id: Some("42".into()),
+        },
+        StreamEvent::Closed {
+            at_ms: 12,
+            code: Some(1000),
+            reason: "bye".into(),
+            trailers: vec![("grpc-status".into(), "0".into())],
+            by_client: true,
+        },
+        StreamEvent::Error {
+            at_ms: 13,
+            error: TransportError::Connect("refused".into()),
+        },
+    ]
+}
+
+fn mcp_result() -> McpCallResult {
+    McpCallResult {
+        content: vec![
+            McpContent::Text {
+                text: "{\"ok\":true}".into(),
+            },
+            McpContent::Image {
+                mime_type: "image/png".into(),
+                data: "iVBORw0K".into(),
+            },
+            McpContent::Audio {
+                mime_type: "audio/wav".into(),
+                data: "UklGRg==".into(),
+            },
+            McpContent::Resource {
+                uri: "file:///a.txt".into(),
+                text: None,
+            },
+            McpContent::Other {
+                value: serde_json::json!({"type": "resource_link"}),
+            },
+        ],
+        structured: Some(serde_json::json!({"ok": true})),
+        is_error: false,
+        time_ms: 12,
+    }
+}
+
+fn mcp_test() -> McpTest {
+    McpTest {
+        name: "lists orders".into(),
+        server: McpServerConfig::Stdio {
+            command: "node".into(),
+            args: vec!["server.js".into()],
+            env: vec![("API_TOKEN".into(), "{{token}}".into())],
+            cwd: None,
+        },
+        tool: "list_orders".into(),
+        arguments: serde_json::json!({"limit": 5}),
+        assertions: vec![Assertion {
+            expression: "res.body.ok".into(),
+            operator: "eq".into(),
+            value: "true".into(),
+            description: None,
+            enabled: true,
+        }],
+    }
 }
 
 fn auths() -> Vec<Auth> {
@@ -1107,6 +1246,264 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                 collection: "c".into(),
                 environment: "Local".into(),
                 variable: "token".into(),
+            }),
+        ),
+        // Wave 8.
+        ("protocols", "Protocol[]", j(protocols())),
+        (
+            "requestSpecGrpc",
+            "RequestSpec",
+            j(RequestSpec {
+                method: "GRPC".into(),
+                url: "grpcs://api.example:443".into(),
+                protocol: protocols()[1].clone(),
+                ..RequestSpec::default()
+            }),
+        ),
+        (
+            "frames",
+            "Frame[]",
+            j(vec![Frame::Text("a".into()), Frame::Binary(vec![255])]),
+        ),
+        ("streamEvents", "StreamEvent[]", j(stream_events())),
+        (
+            "streamLog",
+            "StreamLog",
+            j(StreamLog {
+                version: 1,
+                request_path: "ws/echo.yml".into(),
+                environment: Some("Local".into()),
+                kind: "websocket".into(),
+                url: "wss://echo.example/ws".into(),
+                events: stream_events(),
+                notes: vec!["OAuth 2.0: token from cache".into()],
+            }),
+        ),
+        (
+            "grpcServices",
+            "GrpcService[]",
+            j(vec![GrpcService {
+                name: "hello.HelloService".into(),
+                methods: vec![GrpcMethod {
+                    name: "SayHello".into(),
+                    path: "/hello.HelloService/SayHello".into(),
+                    method_type: GrpcMethodType::Unary,
+                    input_type: "hello.HelloRequest".into(),
+                    output_type: "hello.HelloResponse".into(),
+                }],
+            }]),
+        ),
+        (
+            "grpcErrors",
+            "GrpcError[]",
+            j(vec![
+                GrpcError::Proto("a.proto:3: syntax error".into()),
+                GrpcError::Reflection("unimplemented".into()),
+                GrpcError::UnknownMethod("/a.B/C".into()),
+                GrpcError::Message("unknown field".into()),
+            ]),
+        ),
+        (
+            "agentPolicy",
+            "AgentPolicy",
+            j(AgentPolicy {
+                access: AgentAccess::Read,
+                environments: vec![
+                    EnvironmentPolicy {
+                        environment: "Local".into(),
+                        access: AgentAccess::Write,
+                        production: false,
+                    },
+                    EnvironmentPolicy {
+                        environment: "PRD".into(),
+                        access: AgentAccess::None,
+                        production: true,
+                    },
+                ],
+            }),
+        ),
+        ("effects", "Effect[]", j(vec![Effect::Read, Effect::Write])),
+        (
+            "verdicts",
+            "Verdict[]",
+            j(vec![
+                Verdict::Allowed,
+                Verdict::NeedsApproval,
+                Verdict::Refused {
+                    reason: "environment PRD allows only reading".into(),
+                },
+            ]),
+        ),
+        (
+            "pendingApproval",
+            "PendingApproval",
+            j(PendingApproval {
+                id: "a1b2".into(),
+                at: 1_790_000_000_000,
+                agent: "claude-code".into(),
+                collection: "/work/api".into(),
+                collection_name: "Orders".into(),
+                request_path: "orders/create.yml".into(),
+                environment: Some("PRD".into()),
+                method: "POST".into(),
+                url: "https://api.example/orders".into(),
+                reason: "writing request in production environment PRD".into(),
+            }),
+        ),
+        (
+            "approvalDecisions",
+            "ApprovalDecision[]",
+            j(vec![ApprovalDecision::Approved, ApprovalDecision::Denied]),
+        ),
+        (
+            "auditEntries",
+            "AuditEntry[]",
+            j(vec![
+                AuditEntry {
+                    at: 1_790_000_000_000,
+                    agent: "claude-code".into(),
+                    tool: "send_request".into(),
+                    collection: "/work/api".into(),
+                    request_path: Some("orders/create.yml".into()),
+                    environment: Some("PRD".into()),
+                    method: Some("POST".into()),
+                    url: Some("https://api.example/orders".into()),
+                    status: Some(201),
+                    outcome: AuditOutcome::Sent,
+                    approved_by: Some("app".into()),
+                    detail: String::new(),
+                },
+                AuditEntry {
+                    at: 1_790_000_000_001,
+                    agent: "claude-code".into(),
+                    tool: "list_requests".into(),
+                    collection: "/work/api".into(),
+                    request_path: None,
+                    environment: None,
+                    method: None,
+                    url: None,
+                    status: None,
+                    outcome: AuditOutcome::Read,
+                    approved_by: None,
+                    detail: String::new(),
+                },
+            ]),
+        ),
+        (
+            "auditOutcomes",
+            "AuditOutcome[]",
+            j(vec![
+                AuditOutcome::Read,
+                AuditOutcome::Sent,
+                AuditOutcome::Refused,
+                AuditOutcome::Denied,
+                AuditOutcome::TimedOut,
+                AuditOutcome::Failed,
+            ]),
+        ),
+        (
+            "aiConfigs",
+            "AiConfig[]",
+            j(vec![
+                AiConfig {
+                    provider: AiProviderKind::Anthropic,
+                    model: "claude-opus-5-5".into(),
+                    base_url: None,
+                },
+                AiConfig {
+                    provider: AiProviderKind::OpenaiCompatible,
+                    model: "llama3.1".into(),
+                    base_url: Some("http://localhost:11434/v1".into()),
+                },
+            ]),
+        ),
+        (
+            "aiTasks",
+            "AiTask[]",
+            j(vec![
+                AiTask::CreateRequest {
+                    description: "create a user".into(),
+                    folder: "users".into(),
+                },
+                AiTask::ExplainError {
+                    path: "a.yml".into(),
+                    response: 3,
+                },
+                AiTask::SuggestTests {
+                    path: "a.yml".into(),
+                    response: 3,
+                },
+            ]),
+        ),
+        (
+            "aiAnswer",
+            "AiAnswer",
+            j(AiAnswer {
+                text: "The server wants `email`.".into(),
+                request: Some(request_spec()),
+                scripts: vec![Script {
+                    phase: ScriptPhase::Tests,
+                    code: "test('201', () => expect(rt.response.status).to.equal(201));".into(),
+                }],
+                assertions: Vec::new(),
+            }),
+        ),
+        (
+            "aiErrors",
+            "AiError[]",
+            j(vec![
+                AiError::NotConfigured,
+                AiError::NoKey,
+                AiError::Transport("connection refused".into()),
+                AiError::Provider("401 invalid x-api-key".into()),
+                AiError::Answer("no request in the answer".into()),
+            ]),
+        ),
+        (
+            "mcpServerConfigs",
+            "McpServerConfig[]",
+            j(vec![
+                mcp_test().server,
+                McpServerConfig::Http {
+                    url: "http://127.0.0.1:3000/mcp".into(),
+                    headers: vec![("Authorization".into(), "Bearer {{token}}".into())],
+                },
+            ]),
+        ),
+        (
+            "mcpServerInfo",
+            "McpServerInfo",
+            j(McpServerInfo {
+                name: "orders".into(),
+                version: "1.0.0".into(),
+                protocol_version: "2025-06-18".into(),
+                capabilities: vec!["tools".into()],
+                instructions: None,
+            }),
+        ),
+        (
+            "mcpTool",
+            "McpTool",
+            j(McpTool {
+                name: "list_orders".into(),
+                title: Some("List orders".into()),
+                description: None,
+                input_schema: serde_json::json!({"type": "object"}),
+                output_schema: None,
+                annotations: Some(serde_json::json!({"readOnlyHint": true})),
+            }),
+        ),
+        ("mcpCallResult", "McpCallResult", j(mcp_result())),
+        ("mcpTest", "McpTest", j(mcp_test())),
+        (
+            "mcpTestResult",
+            "McpTestResult",
+            j(McpTestResult {
+                path: "mcp/lists-orders.mcp.yaml".into(),
+                passed: false,
+                result: Some(mcp_result()),
+                error: None,
+                assertions: Vec::new(),
             }),
         ),
     ]

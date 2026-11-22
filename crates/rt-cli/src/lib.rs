@@ -15,8 +15,13 @@
 //! argument parsing, finding the collection root, the file-system [`FileSource`], exit codes.
 
 pub mod agent;
+pub mod approvals;
 pub mod cookies;
+pub mod docs;
 pub mod import;
+pub mod mcp;
+pub mod mcp_test;
+pub mod mock;
 pub mod oauth;
 pub mod plugins;
 pub mod report;
@@ -160,6 +165,17 @@ pub enum Command {
     Scan(scan::ScanArgs),
     /// Wave 7, strand E.
     Run(run::RunArgs),
+    /// Wave 8, strand C: `rt mcp`.
+    Mcp(mcp::Args),
+    /// Wave 8, strand C: `rt approvals`, `rt approve <id>`, `rt deny <id>`.
+    Approvals(approvals::Args),
+    Approve(approvals::Args),
+    Deny(approvals::Args),
+    /// Wave 8, strand D: `rt mcp-test`.
+    McpTest(mcp_test::Args),
+    /// Wave 8, strand F: `rt mock`, `rt docs`.
+    Mock(mock::Args),
+    Docs(docs::Args),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -227,6 +243,27 @@ where
         }
         Some(Value(cmd)) if cmd == "scan" => {
             Ok(scan::parse(&mut parser)?.map_or(Command::Help, Command::Scan))
+        }
+        Some(Value(cmd)) if cmd == "mcp" => {
+            Ok(mcp::parse(&mut parser)?.map_or(Command::Help, Command::Mcp))
+        }
+        Some(Value(cmd)) if cmd == "approvals" => {
+            Ok(approvals::parse(&mut parser)?.map_or(Command::Help, Command::Approvals))
+        }
+        Some(Value(cmd)) if cmd == "approve" => {
+            Ok(approvals::parse(&mut parser)?.map_or(Command::Help, Command::Approve))
+        }
+        Some(Value(cmd)) if cmd == "deny" => {
+            Ok(approvals::parse(&mut parser)?.map_or(Command::Help, Command::Deny))
+        }
+        Some(Value(cmd)) if cmd == "mcp-test" => {
+            Ok(mcp_test::parse(&mut parser)?.map_or(Command::Help, Command::McpTest))
+        }
+        Some(Value(cmd)) if cmd == "mock" => {
+            Ok(mock::parse(&mut parser)?.map_or(Command::Help, Command::Mock))
+        }
+        Some(Value(cmd)) if cmd == "docs" => {
+            Ok(docs::parse(&mut parser)?.map_or(Command::Help, Command::Docs))
         }
         Some(Value(cmd)) => Err(format!("unknown command {:?}", cmd.to_string_lossy())),
         Some(other) => Err(other.unexpected().to_string()),
@@ -442,6 +479,13 @@ where
         Ok(Command::Import(args)) => return import::run(args, stdout, stderr),
         Ok(Command::Scan(args)) => return scan::run(args, stdout, stderr),
         Ok(Command::Run(args)) => return run::run(args, stdout, stderr),
+        Ok(Command::Mcp(args)) => return mcp::run(args, stdout, stderr),
+        Ok(Command::Approvals(args) | Command::Approve(args) | Command::Deny(args)) => {
+            return approvals::run(args, stdout, stderr);
+        }
+        Ok(Command::McpTest(args)) => return mcp_test::run(args, stdout, stderr),
+        Ok(Command::Mock(args)) => return mock::run(args, stdout, stderr),
+        Ok(Command::Docs(args)) => return docs::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
     let (root, request_path) = match find_root(&args.file) {

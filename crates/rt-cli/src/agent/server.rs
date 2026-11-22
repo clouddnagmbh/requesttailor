@@ -286,6 +286,8 @@ fn status(agent: &Agent, origin: Option<&str>, headers: &HeaderMap) -> Response<
         protocol: PROTOCOL_VERSION,
         version: env!("CARGO_PKG_VERSION").to_owned(),
         paired,
+        // Wave 8, strand A adds "stream" with `/v1/stream`.
+        features: Vec::new(),
     };
     json(StatusCode::OK, &status, origin)
 }

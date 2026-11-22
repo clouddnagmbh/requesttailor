@@ -161,6 +161,7 @@ fn body_type(body: &Body) -> &'static str {
         Body::FormUrlEncoded { .. } => "form-urlencoded",
         Body::Multipart { .. } => "multipart-form",
         Body::File { .. } => "file",
+        Body::GraphQl { .. } => "graphql",
     }
 }
 
@@ -180,6 +181,14 @@ fn body_val(body: &Body) -> Val {
         Body::FormUrlEncoded { fields } => Val::Seq(fields.iter().map(kv_val).collect()),
         Body::Multipart { parts } => Val::Seq(parts.iter().map(part_val).collect()),
         Body::File { path, content_type } => Val::Seq(vec![file_entry_val(path, content_type)]),
+        Body::GraphQl { query, variables } => {
+            // Wave 8, strand B writes GraphQL items (`graphql.body`); until then the
+            // read-back check refuses an HTTP file with this body.
+            Val::Map(vec![
+                ("query", Val::str(query)),
+                ("variables", Val::str(variables)),
+            ])
+        }
     };
     Val::Map(vec![("type", Val::str(body_type(body))), ("data", data)])
 }
@@ -579,6 +588,9 @@ pub(crate) fn folder_text(name: &str, seq: Option<f64>) -> String {
 /// Text of a new request file with name, type, seq, method and URL; the rest is added by
 /// [`apply_request`].
 pub(crate) fn new_request_text(spec: &RequestSpec) -> String {
+    if let Some(text) = crate::protocols::new_text(spec) {
+        return text;
+    }
     let mut info = vec![("name", Val::str(&spec.name)), ("type", Val::str("http"))];
     if let Some(seq) = spec.seq {
         info.push(("seq", Val::Plain(number(seq))));
@@ -619,6 +631,9 @@ fn read_request(doc: &Document, path: &str) -> Option<RequestSpec> {
 /// re-parsed document; `doc` itself is not changed.
 pub(crate) fn apply_request(doc: &Document, path: &str, spec: &RequestSpec) -> Result<Document> {
     let want = normalized(spec);
+    if let Some(edited) = crate::protocols::apply(doc, path, &want) {
+        return edited;
+    }
     let old = read_request(doc, path).ok_or("not an HTTP request")?;
     if old == want {
         return Ok(doc.clone());
@@ -793,6 +808,8 @@ fn write_body_in(map: &mut Map, old: &Body, new: &Body, variant: bool, nl: &str)
     };
     match new {
         Body::None => {}
+        // Wave 8, strand B (see `body_val`).
+        Body::GraphQl { .. } => map.put("body", &body_val(new), order, false, nl),
         Body::Raw { data, .. } => body.put("data", &Val::str(data), BODY_ORDER, false, nl),
         Body::FormUrlEncoded { fields } => sync_list(
             body,

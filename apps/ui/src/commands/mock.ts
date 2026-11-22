@@ -31,6 +31,12 @@ import { BackendError } from "./backend";
 import { mockAuth } from "./mock-auth";
 import { maskCookieHeader, maskSetCookie, mockCookies, setCookiesFor } from "./mock-cookies";
 import { mockRunner } from "./mock-runner";
+import { mockStreams } from "./mock-streams";
+import { mockGrpc } from "./mock-grpc";
+import { mockGraphQl } from "./mock-graphql";
+import { mockAgents } from "./mock-agents";
+import { mockMcp } from "./mock-mcp-client";
+import { mockAi } from "./mock-ai";
 import { mockActions, mockEvaluate } from "./mock-assert";
 import { mockScripts } from "./mock-scripts";
 import { mockGit } from "./mock-git";
@@ -187,6 +193,13 @@ export class MockBackend implements Backend {
   /** Wave 7: what "scripts" add to a send's report, for UI tests (the mock runs no JavaScript).
    *  A report with `error` set stops before the response, like `SendError::Script`. */
   scriptOutcome: ((path: string) => Partial<SendReport> | null) | null = null;
+  /** Wave 8 (one file per strand). */
+  readonly streams = mockStreams();
+  readonly grpc = mockGrpc();
+  readonly graphql = mockGraphQl();
+  readonly agents = mockAgents();
+  readonly mcp = mockMcp();
+  readonly ai = mockAi();
 
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;

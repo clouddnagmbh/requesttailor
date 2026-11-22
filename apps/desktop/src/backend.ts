@@ -36,6 +36,12 @@ import {
 import { tauriAuth } from "./auth";
 import { tauriCookies } from "./cookies";
 import { tauriRunner, type MakeChannel } from "./runner";
+import { tauriStreams } from "./streams";
+import { tauriGrpc } from "./grpc";
+import { tauriGraphQl } from "./graphql";
+import { tauriAgents } from "./agents";
+import { tauriMcp } from "./mcp-client";
+import { tauriAi } from "./ai";
 import { tauriScripts } from "./scripts";
 import { tauriGit } from "./git";
 import { tauriHistory } from "./history";
@@ -158,6 +164,13 @@ export class TauriBackend implements Backend {
   readonly cookies: CookieApi;
   readonly scripts: ScriptsApi;
   readonly runner: RunnerApi;
+  /** Wave 8 (one file per strand). */
+  readonly streams = tauriStreams();
+  readonly grpc = tauriGrpc();
+  readonly graphql = tauriGraphQl();
+  readonly agents = tauriAgents();
+  readonly mcp = tauriMcp();
+  readonly ai = tauriAi();
 
   constructor(
     private readonly invokeRaw: Invoke,

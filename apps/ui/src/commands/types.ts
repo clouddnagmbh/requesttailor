@@ -40,7 +40,9 @@ export type Body =
   | { type: "raw"; kind: RawKind; data: string }
   | { type: "form-url-encoded"; fields: KeyValue[] }
   | { type: "multipart"; parts: MultipartPart[] }
-  | { type: "file"; path: string; content_type: string | null };
+  | { type: "file"; path: string; content_type: string | null }
+  /** Wave 8: sent as JSON `{query, variables}`; `variables` is JSON text (may be empty). */
+  | { type: "graphql"; query: string; variables: string };
 
 export type ApiKeyPlacement = "header" | "query";
 
@@ -185,6 +187,9 @@ export interface RequestSpec {
   scripts: Script[];
   assertions: Assertion[];
   actions: VarAction[];
+  /** Wave 8: omitted for HTTP. gRPC and WebSocket keep url, headers (metadata / handshake),
+   *  auth, vars and scripts; `method` is `GRPC` or `WS`. */
+  protocol?: Protocol;
 }
 
 // ---- scripts, assertions, actions (rt_core::model::script, rt_core::script; wave 7) ----
@@ -797,4 +802,243 @@ export interface SecretFinding {
   kind: string;
   snippet: string;
   hint: string;
+}
+
+// ---- protocols and sessions (rt_core::model::protocol, rt_core::stream; wave 8) ----
+
+export type MessageKind = "text" | "json" | "xml" | "binary";
+
+export interface MessageVariant {
+  title: string;
+  selected: boolean;
+  kind: MessageKind;
+  /** Binary: base64. */
+  data: string;
+}
+
+export type GrpcMethodType = "unary" | "client-streaming" | "server-streaming" | "bidi-streaming";
+
+export interface GrpcSpec {
+  method: string;
+  method_type: GrpcMethodType;
+  proto_file: string | null;
+  messages: MessageVariant[];
+}
+
+export interface WebSocketSpec {
+  messages: MessageVariant[];
+  timeout_ms: number | null;
+  keep_alive_ms: number | null;
+}
+
+export type Protocol =
+  | { type: "http" }
+  | ({ type: "grpc" } & GrpcSpec)
+  | ({ type: "websocket" } & WebSocketSpec);
+
+export type Frame = { type: "text"; data: string } | { type: "binary"; data: string };
+
+export type Direction = "sent" | "received";
+
+export interface StreamHead {
+  status: number;
+  version: HttpVersion;
+  headers: [string, string][];
+  url: string;
+}
+
+export type StreamEvent =
+  | { event: "opened"; at_ms: number; head: StreamHead }
+  | {
+      event: "message";
+      at_ms: number;
+      direction: Direction;
+      frame: Frame;
+      /** SSE `event:`, gRPC message type. */
+      name?: string;
+      /** SSE `id:`. */
+      id?: string;
+    }
+  | {
+      event: "closed";
+      at_ms: number;
+      code: number | null;
+      reason: string;
+      trailers?: [string, string][];
+      by_client: boolean;
+    }
+  | { event: "error"; at_ms: number; error: TransportError };
+
+/** Masked history of one session (`rt send` output for session requests). */
+export interface StreamLog {
+  version: number;
+  request_path: string;
+  environment: string | null;
+  kind: string;
+  url: string;
+  events: StreamEvent[];
+  notes?: string[];
+}
+
+// ---- gRPC (rt_grpc; wave 8) ----
+
+export interface GrpcMethod {
+  name: string;
+  path: string;
+  method_type: GrpcMethodType;
+  input_type: string;
+  output_type: string;
+}
+
+export interface GrpcService {
+  name: string;
+  methods: GrpcMethod[];
+}
+
+export type GrpcError =
+  | { kind: "proto"; message: string }
+  | { kind: "reflection"; message: string }
+  | { kind: "unknown-method"; message: string }
+  | { kind: "message"; message: string };
+
+// ---- agents (rt_core::model::agents, rt_app::agents; wave 8) ----
+
+export type AgentAccess = "none" | "read" | "write";
+
+export interface EnvironmentPolicy {
+  environment: string;
+  access: AgentAccess;
+  production: boolean;
+}
+
+export interface AgentPolicy {
+  access: AgentAccess;
+  environments: EnvironmentPolicy[];
+}
+
+export type Effect = "read" | "write";
+
+export type Verdict =
+  | { decision: "allowed" }
+  | { decision: "needs-approval" }
+  | { decision: "refused"; reason: string };
+
+export interface PendingApproval {
+  id: string;
+  at: number;
+  agent: string;
+  collection: string;
+  collection_name: string;
+  request_path: string;
+  environment: string | null;
+  method: string;
+  url: string;
+  reason: string;
+}
+
+export type ApprovalDecision = "approved" | "denied";
+
+export type AuditOutcome = "read" | "sent" | "refused" | "denied" | "timed-out" | "failed";
+
+export interface AuditEntry {
+  at: number;
+  agent: string;
+  tool: string;
+  collection: string;
+  request_path?: string;
+  environment?: string;
+  method?: string;
+  url?: string;
+  status?: number;
+  outcome: AuditOutcome;
+  approved_by?: string;
+  detail?: string;
+}
+
+// ---- AI assistant (rt_app::ai; wave 8) ----
+
+export type AiProviderKind = "anthropic" | "openai-compatible";
+
+export interface AiConfig {
+  provider: AiProviderKind;
+  model: string;
+  base_url: string | null;
+}
+
+export type AiTask =
+  | { task: "create-request"; description: string; folder: string }
+  | { task: "explain-error"; path: string; response: number }
+  | { task: "suggest-tests"; path: string; response: number };
+
+export interface AiAnswer {
+  text: string;
+  request?: RequestSpec;
+  scripts?: Script[];
+  assertions?: Assertion[];
+}
+
+export type AiError =
+  | { kind: "not-configured" }
+  | { kind: "no-key" }
+  | { kind: "transport"; message: string }
+  | { kind: "provider"; message: string }
+  | { kind: "answer"; message: string };
+
+// ---- MCP client (rt_app::mcp_client; wave 8) ----
+
+export type McpServerConfig =
+  | {
+      transport: "stdio";
+      command: string;
+      args: string[];
+      env: [string, string][];
+      cwd: string | null;
+    }
+  | { transport: "http"; url: string; headers: [string, string][] };
+
+export interface McpServerInfo {
+  name: string;
+  version: string;
+  protocol_version: string;
+  capabilities: string[];
+  instructions: string | null;
+}
+
+export interface McpTool {
+  name: string;
+  title: string | null;
+  description: string | null;
+  input_schema: unknown;
+  output_schema: unknown | null;
+  annotations: unknown | null;
+}
+
+export type McpContent =
+  | { type: "text"; text: string }
+  | { type: "image"; mime_type: string; data: string }
+  | { type: "audio"; mime_type: string; data: string }
+  | { type: "resource"; uri: string; text: string | null }
+  | { type: "other"; value: unknown };
+
+export interface McpCallResult {
+  content: McpContent[];
+  structured: unknown | null;
+  is_error: boolean;
+  time_ms: number;
+}
+
+export interface McpTest {
+  name: string;
+  server: McpServerConfig;
+  tool: string;
+  arguments: unknown;
+  assertions: Assertion[];
+}
+
+export interface McpTestResult {
+  path: string;
+  passed: boolean;
+  result: McpCallResult | null;
+  error: string | null;
+  assertions: AssertionResult[];
 }

@@ -9,6 +9,10 @@
 //! to its events (the OAuth 2.0 `auth-prompt`; the system browser opens on the Rust side); the folder
 //! picker runs on the Rust side. The content security policy is in `tauri.conf.json`.
 
+/// Wave 8, strand C.
+mod agents;
+/// Wave 8, strand E.
+mod ai;
 mod auth;
 mod commands;
 mod cookies;
@@ -16,8 +20,12 @@ pub mod core;
 pub mod files;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
+/// Wave 8, strand B.
+mod grpc;
 pub mod history;
 mod import;
+/// Wave 8, strand D.
+mod mcp_client;
 mod plugins;
 pub mod recent;
 // Wave 7: scripts (strand A), session variables (C), runner (D).
@@ -26,6 +34,8 @@ mod scripts;
 mod search;
 mod services;
 mod session_vars;
+/// Wave 8, strand A.
+mod streams;
 
 pub use crate::core::{CollectionInfo, Core};
 

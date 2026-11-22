@@ -4921,6 +4921,7 @@ dependencies = [
  "memchr",
  "rt-core",
  "rt-format",
+ "rt-grpc",
  "rt-plugin",
  "rt-testserver",
  "serde",
@@ -5036,6 +5037,16 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rt-grpc"
+version = "0.0.0"
+dependencies = [
+ "rt-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

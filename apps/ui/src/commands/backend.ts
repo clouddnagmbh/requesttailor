@@ -44,6 +44,24 @@ import type {
   RunSummary,
   ScriptTrust,
   VarChange,
+  AgentPolicy,
+  AiAnswer,
+  AiConfig,
+  AiProviderKind,
+  AiTask,
+  ApprovalDecision,
+  AuditEntry,
+  GrpcService,
+  McpCallResult,
+  McpServerConfig,
+  McpServerInfo,
+  McpTest,
+  McpTestResult,
+  McpTool,
+  MessageVariant,
+  PendingApproval,
+  StreamEvent,
+  StreamLog,
 } from "./types";
 
 export interface CollectionInfo {
@@ -270,6 +288,78 @@ export interface RunnerApi {
   cancel(): Promise<void>;
 }
 
+/** Wave 8: sessions for WebSocket, gRPC and SSE requests (strands A and B). Desktop: native;
+ *  web: the companion's `/v1/stream` (SSE may use `fetch`). Events are masked. */
+export interface StreamsApi {
+  /** Opens a session for the request at `path` (WebSocket, gRPC, or HTTP read as SSE);
+   *  `onEvent` gets every event (`opened` first, `closed`/`error` last). Returns a session id. */
+  open(path: string, input: SendInput, onEvent: (event: StreamEvent) => void): Promise<number>;
+  /** Sends one message; `{{variables}}` are resolved, gRPC JSON is encoded to protobuf. */
+  send(session: number, message: MessageVariant): Promise<void>;
+  /** gRPC client/bidi streaming: no more messages from the client. */
+  finish(session: number): Promise<void>;
+  close(session: number): Promise<void>;
+  /** The masked history so far (also after close, until `release`). */
+  log(session: number): Promise<StreamLog>;
+  release(session: number): Promise<void>;
+}
+
+/** Wave 8, strand B. */
+export interface GrpcApi {
+  /** Services of the request's proto file, the collection's `config.protobuf`, or (if
+   *  neither) server reflection. */
+  services(path: string, input: SendInput): Promise<GrpcService[]>;
+  /** A JSON skeleton of the input message of `method` (path `/pkg.Service/Method`). */
+  template(path: string, method: string, input: SendInput): Promise<string>;
+}
+
+/** Wave 8, strand B. */
+export interface GraphQlApi {
+  /** The schema by introspection, as SDL; cached per URL and environment until `refresh`. */
+  schema(path: string, input: SendInput, refresh: boolean): Promise<string>;
+}
+
+/** Wave 8, strand C: what coding agents (`rt mcp`) may do; approvals; audit log. */
+export interface AgentsApi {
+  policy(): Promise<AgentPolicy>;
+  /** Changes `extensions.requesttailor.agents` of `opencollection.yml` (unsaved, like edits). */
+  setPolicy(policy: AgentPolicy): Promise<void>;
+  /** Approvals `rt mcp` is waiting for (any collection on this machine). Web: always empty. */
+  pending(): Promise<PendingApproval[]>;
+  decide(id: string, decision: ApprovalDecision): Promise<void>;
+  /** Called whenever the pending list changes; returns an unsubscribe function. */
+  onPending(handler: (pending: PendingApproval[]) => void): () => void;
+  /** Newest first. */
+  audit(limit: number): Promise<AuditEntry[]>;
+}
+
+/** Wave 8, strand E: the AI assistant. Off until configured; keys never leave the keychain
+ *  (web: encrypted browser storage) except in the provider call. */
+export interface AiApi {
+  config(): Promise<AiConfig | null>;
+  setConfig(config: AiConfig | null): Promise<void>;
+  hasKey(provider: AiProviderKind): Promise<boolean>;
+  setKey(provider: AiProviderKind, key: string): Promise<void>;
+  deleteKey(provider: AiProviderKind): Promise<void>;
+  /** One task; the context is masked before it leaves. `input` selects the environment. */
+  ask(task: AiTask, input: SendInput): Promise<AiAnswer>;
+}
+
+/** Wave 8, strand D: testing MCP servers. `stdio` servers only on desktop. */
+export interface McpClientApi {
+  connect(server: McpServerConfig, input: SendInput): Promise<{ id: number; info: McpServerInfo }>;
+  tools(id: number): Promise<McpTool[]>;
+  call(id: number, tool: string, args: unknown): Promise<McpCallResult>;
+  disconnect(id: number): Promise<void>;
+  /** Saved tests (`*.mcp.yaml`), paths relative to the collection root. */
+  tests(): Promise<string[]>;
+  getTest(path: string): Promise<McpTest>;
+  /** Stages a test file (written by `save`, like request edits); `path` null: a new file in
+   *  `mcp/` named after the test. Returns the path. */
+  saveTest(path: string | null, test: McpTest): Promise<string>;
+  runTest(path: string, input: SendInput): Promise<McpTestResult>;
+}
+
 export interface Backend {
   readonly kind: "tauri" | "web" | "mock";
 
@@ -330,6 +420,13 @@ export interface Backend {
   /** Wave 7. */
   readonly scripts: ScriptsApi;
   readonly runner: RunnerApi;
+  /** Wave 8. */
+  readonly streams: StreamsApi;
+  readonly grpc: GrpcApi;
+  readonly graphql: GraphQlApi;
+  readonly agents: AgentsApi;
+  readonly ai: AiApi;
+  readonly mcp: McpClientApi;
 }
 
 /** Errors from a backend are rejected promises carrying this shape. */

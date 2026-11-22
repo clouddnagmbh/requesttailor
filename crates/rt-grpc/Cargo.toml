@@ -1,0 +1,19 @@
+[package]
+name = "rt-grpc"
+description = "RequestTailor: gRPC descriptors (proto files, server reflection) and JSON <-> protobuf."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# Wave 8, strand B adds a pure-Rust proto compiler and dynamic messages (they must build for
+# wasm32 and iOS: the browser encodes messages in the WASM core, the companion only moves bytes).
+[dependencies]
+rt-core = { path = "../rt-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[lints]
+workspace = true
