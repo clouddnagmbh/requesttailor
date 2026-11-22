@@ -7,7 +7,8 @@
 // (Postman) are shims on top of this API; their coverage is in SHIM-COVERAGE.md.
 //
 // Rules of the sandbox:
-// - No file system, no network except `rt.sendRequest`, no timers except `rt.sleep`, no
+// - No file system, no network except `rt.sendRequest`, no timers except `rt.sleep` (the
+//   shims' `setTimeout`/`setInterval` are built on it and count against the time limit), no
 //   `require` of modules except the built-in ones listed below, no `eval` of host code.
 // - Time limit (default 5 s per phase and request, `rt.sleep` included) and memory limit
 //   (default 64 MiB); hitting one stops the script with an error, the app stays usable.

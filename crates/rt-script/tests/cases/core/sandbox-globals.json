@@ -1,5 +1,5 @@
 {
-  "name": "no host internals, files, network or timers besides the API",
+  "name": "no host internals, files or network besides the API; setTimeout only as the shim on rt.sleep",
   "phase": "before-request",
   "scripts": [
     {
@@ -22,7 +22,7 @@
     "logs": [
       {
         "level": "log",
-        "text": "undefined undefined undefined undefined undefined undefined undefined undefined function"
+        "text": "undefined undefined undefined undefined undefined undefined function undefined function"
       }
     ]
   }
