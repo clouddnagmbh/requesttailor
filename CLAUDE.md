@@ -198,6 +198,7 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 10 (unten). Änderungen daran sind S
 ### Erweiterungspunkte (ab Welle 13)
 
 - Tabs aus Erweiterungen: `AppExtension.tabs(ctx)` liefert `ExtensionTab` (`id`, `title`, `place`: `request` | `response` | `collection`, `contentTypes` für Antwort-Tabs wie bei Plugin-Tabs, `component` mit `ExtensionTabProps`: `ctx`, `requestPath` (`""` bei Collection-Tabs), `response` (`StoredResponse` bei Antwort-Tabs), `settle()` vor dem Lesen oder Ersetzen des Requests). Reaktiv wie `commands`; Schlüssel `<extension>/<tab>`. Die Shell stellt die Erweiterungen über `provideExtensions` bereit (`apps/ui/src/shell/extension-tabs.ts`); RequestEditor und ResponsePanel zeigen sie nach den Plugin-Tabs, `CollectionPanel` zeigt Plugin- und Erweiterungs-Tabs zusammen (Kopfzeilen-Knopf „Collection“, Palette „Collection: <Titel>“). Test: `apps/ui/src/shell/extension-tabs.test.ts`.
+- Commit ohne Checkout: `rt_git::Repo::commit_to_branch(branch, start, &[TreeFile], message, fallback)` schreibt Dateien (`TreeFile::write`/`remove`, Pfade relativ zur Collection, mit führendem `/` relativ zur Repo-Wurzel) als Commit auf einen lokalen Branch: auf dessen Spitze, oder neu ab der Revision `start`. Nur dieser Ref bewegt sich; Arbeitsbaum, Index und `HEAD` bleiben, der ausgecheckte Branch wird verweigert, ein Commit ohne Änderung auch. Nur nativ. Test: `crates/rt-git/tests/tree_commit.rs`.
 
 ## Befehle
 
