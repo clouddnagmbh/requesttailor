@@ -601,7 +601,7 @@ fn usage_errors() {
 }
 
 #[test]
-#[ignore = "wave 7: needs strand D"]
+
 fn runs_a_collection_with_reports() {
     let (_server, base) = server();
     let tmp = TempDir::new("all");
@@ -673,7 +673,7 @@ fn runs_a_collection_with_reports() {
 }
 
 #[test]
-#[ignore = "wave 7: needs strand D"]
+
 fn a_folder_runs_only_its_requests_and_junit_goes_to_stdout() {
     let (_server, base) = server();
     let tmp = TempDir::new("folder");
@@ -703,7 +703,7 @@ fn a_folder_runs_only_its_requests_and_junit_goes_to_stdout() {
 }
 
 #[test]
-#[ignore = "wave 7: needs strand D"]
+
 fn a_request_error_fails_the_run_and_bail_stops_it() {
     let tmp = TempDir::new("error");
     // Nothing listens on port 9 (discard) on loopback.
@@ -735,7 +735,7 @@ fn a_request_error_fails_the_run_and_bail_stops_it() {
 }
 
 #[test]
-#[ignore = "wave 7: needs strand D"]
+
 fn data_rows_are_iterations() {
     let (_server, base) = server();
     let tmp = TempDir::new("data");
