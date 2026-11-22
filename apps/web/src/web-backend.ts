@@ -44,7 +44,7 @@ import { createCompanionClient, type CompanionClient } from "./companion/client"
 import { webCookies, type WebCookieApi } from "./cookies";
 import { webRunner } from "./runner";
 import { webScriptTrust } from "./scripts";
-import { webSessionVars } from "./session-vars";
+import { SessionStore, webSessionVars } from "./session-vars";
 import { webGit } from "./git";
 import { WebHistory } from "./history";
 import { webImports } from "./import";
@@ -147,6 +147,8 @@ export class WebBackend implements Backend {
   /** Wave 7: trust (strand A) and session variables (strand C); runner (strand D). */
   readonly scripts: ScriptsApi;
   readonly runner: RunnerApi;
+  /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
+  private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;
 
   private current: Session | null = null;
@@ -176,7 +178,7 @@ export class WebBackend implements Backend {
     this.plugins = webPlugins(host);
     this.auth = webAuth(host);
     this.cookies = webCookies(host);
-    this.scripts = { ...webScriptTrust(host), ...webSessionVars(host) };
+    this.scripts = { ...webScriptTrust(host), ...webSessionVars(host, this.sessionVars) };
     this.runner = webRunner(host);
     this.recent = webRecent(host);
     const store = () => this.secretStore(this.session());
@@ -373,7 +375,8 @@ export class WebBackend implements Backend {
   private async coreInput(s: Session, input: SendInput, read = false): Promise<CoreSendInput> {
     return {
       environment: input.environment,
-      vars: input.vars,
+      // Wave 7: the session's variables in the runtime layer, the caller's own win.
+      vars: this.sessionVars.runtime(s.id, input.environment, input.vars),
       secrets: await this.secretValues(s, input.environment, read),
     };
   }
@@ -393,6 +396,7 @@ export class WebBackend implements Backend {
       const companion = this.companionOn ? await this.companionCredentials() : null;
       const services = await sendServices(this, s.id, input.environment);
       const result = await s.ws.send(path, await this.coreInput(s, input, true), companion, services);
+      this.sessionVars.keep(s.id, result.report);
       try {
         this.history.record(s.id, s.ws.request(path), result);
       } catch (e) {
