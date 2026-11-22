@@ -1,0 +1,147 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+openapi: 3.1.0
+info:
+  title: Orders API
+  version: 2.0.0
+servers:
+  - url: https://api.example.test/v1
+paths:
+  /orders:
+    get:
+      summary: List orders, paged
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: string
+        - name: region
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: offset
+          in: query
+          description: Skips this many orders.
+          schema:
+            type: integer
+        - name: X-Tenant
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of orders.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+    post:
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewOrder"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "409":
+          description: The order already exists.
+  /orders/{id}/items:
+    get:
+      summary: List the lines of an order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The lines.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Line"
+  /orders/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Read one order by its id
+      responses:
+        "200":
+          description: The order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: No such order.
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "204":
+          description: Alive, without a body.
+components:
+  schemas:
+    Status:
+      type: string
+      enum: [open, shipped, cancelled]
+    Order:
+      type: object
+      required: [id, customer]
+      properties:
+        id:
+          type: string
+        customer:
+          type: string
+        status:
+          $ref: "#/components/schemas/Status"
+        currency:
+          type: string
+        note:
+          type: [string, "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Line"
+    Line:
+      type: object
+      required: [sku, qty]
+      properties:
+        sku:
+          type: string
+        qty:
+          type: integer
+    NewOrder:
+      type: object
+      required: [customer, items, currency]
+      properties:
+        customer:
+          type: string
+        currency:
+          type: string
+        note:
+          type: string
+        coupon:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Line"
