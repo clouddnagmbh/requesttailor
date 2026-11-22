@@ -56,6 +56,15 @@ export interface ExtensionTab {
   component: Component<ExtensionTabProps>;
 }
 
+/** What a diff-notes component gets: the two revisions of a range (since wave 13). */
+export interface ExtensionDiffNotesProps {
+  ctx: ExtensionContext;
+  /** Old side (a revision: branch, tag, commit). */
+  from: string;
+  /** New side. */
+  to: string;
+}
+
 export interface AppExtension {
   /** Stable id, e.g. `example`; also the prefix of its command ids (`example:…`). */
   readonly id: string;
@@ -76,6 +85,13 @@ export interface AppExtension {
    * get palette entries ("Collection: <title>") like plugin collection tabs.
    */
   tabs?(ctx: ExtensionContext): readonly ExtensionTab[];
+  /**
+   * Notes on a range of revisions (since wave 13), shown after the OpenAPI contract notes in
+   * the semantic diff of two revisions and in the pull-request review, e.g. the changes of
+   * another description file. Renders nothing when it has nothing to say (or is not allowed
+   * to); reads files with `ctx.backend.git.show`/`treeAt`.
+   */
+  diffNotes?: Component<ExtensionDiffNotesProps>;
 }
 
 export interface StartOptions {

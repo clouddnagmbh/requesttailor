@@ -8,6 +8,7 @@
   import { onMount } from "svelte";
 
   import ContractNotes from "../contract/ContractNotes.svelte";
+  import ExtensionDiffNotes from "../shell/ExtensionDiffNotes.svelte";
   import type {
     ChangeTarget,
     CiStatus,
@@ -194,6 +195,7 @@
     {/if}
 
     <ContractNotes from={session.merge_base} to={session.head_ref} />
+    <ExtensionDiffNotes from={session.merge_base} to={session.head_ref} />
 
     <section class="block" aria-label="Run the changed requests">
       <div class="head">

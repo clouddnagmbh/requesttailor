@@ -146,6 +146,47 @@ pub fn changelog_title(name: Option<&str>, spec: &SpecChanges, from: &str, to: &
     }
 }
 
+/// A section a distribution adds to the changelog (since wave 13), e.g. the changes of
+/// another description file next to the collection. `section` returns Markdown starting with
+/// a `## ` heading, or `None` when it has nothing to say for this range. `Side::files` are the
+/// collection files (`*.yml`); any other file is read with `Side::read` (collection-relative,
+/// or repository-relative with a leading `/`), as the spec is.
+pub trait ChangelogSection {
+    fn section(
+        &self,
+        old: &Side<'_>,
+        new: &Side<'_>,
+        from: &str,
+        to: &str,
+    ) -> Result<Option<String>>;
+}
+
+/// [`changelog`] followed by the `sections` that have something to say, in the order given,
+/// each separated by a blank line.
+pub fn changelog_with(
+    old: &Side<'_>,
+    new: &Side<'_>,
+    from: &str,
+    to: &str,
+    sections: &[&dyn ChangelogSection],
+) -> Result<String> {
+    let mut text = changelog(old, new, from, to)?;
+    for section in sections {
+        if let Some(more) = section.section(old, new, from, to)? {
+            let more = more.trim();
+            if more.is_empty() {
+                continue;
+            }
+            while !text.ends_with("\n\n") {
+                text.push('\n');
+            }
+            text.push_str(more);
+            text.push('\n');
+        }
+    }
+    Ok(text)
+}
+
 /// The API changelog (Markdown) of a range, as `rt changelog` writes it. `from` and `to` are
 /// the labels of the sides (revisions).
 pub fn changelog(old: &Side<'_>, new: &Side<'_>, from: &str, to: &str) -> Result<String> {

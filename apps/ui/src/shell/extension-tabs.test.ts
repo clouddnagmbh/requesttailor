@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { MockBackend } from "../commands/mock";
 import type { AppExtension, ExtensionTab } from "../extensions";
 import { AppState } from "../state/app.svelte";
-import { extensionTabsFor, type ProvidedExtensions } from "./extension-tabs";
+import { extensionDiffNotes, extensionTabsFor, type ProvidedExtensions } from "./extension-tabs";
 
 // The component is never rendered here.
 const component = (() => {}) as unknown as ExtensionTab["component"];
@@ -62,5 +62,14 @@ describe("extension tabs", () => {
     expect(extensionTabsFor(p, "request")).toEqual([]);
     allowed = true;
     expect(extensionTabsFor(p, "request").map((t) => t.key)).toEqual(["gated/x"]);
+  });
+});
+
+describe("extension diff notes", () => {
+  it("lists the extensions that have diff notes, in order; none outside the shell", () => {
+    const notes = (() => {}) as unknown as NonNullable<AppExtension["diffNotes"]>;
+    const p = provided([{ id: "a", diffNotes: notes }, { id: "b" }, { id: "c", diffNotes: notes }]);
+    expect(extensionDiffNotes(p).map((n) => n.extension)).toEqual(["a", "c"]);
+    expect(extensionDiffNotes(null)).toEqual([]);
   });
 });

@@ -5,7 +5,8 @@
 //! (`rt_app::contract::changelog`) of the OpenAPI spec and the collection between two
 //! revisions, read from Git without a checkout (`rt-git`), written as Markdown to stdout.
 //!
-//! Wave 12, strand F. The spec is the one `opencollection.yml` names
+//! Wave 12, strand F. A distribution appends its own sections
+//! ([`crate::Distribution::changelog`], since wave 13). The spec is the one `opencollection.yml` names
 //! (`extensions.requesttailor.contract.spec`), else `openapi.yaml`, `openapi.yml` or
 //! `openapi.json` next to the collection or at the repository root, on each side of the range.
 //! Exit codes: 0 written, 2 usage, a revision that does not exist or a spec that cannot be
@@ -15,7 +16,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use rt_app::AppError;
-use rt_app::contract::{Side, changelog};
+use rt_app::contract::{ChangelogSection, Side, changelog_with};
 use rt_git::{Options, Repo};
 
 /// The line in `rt --help`'s "Usage:" list.
@@ -62,7 +63,7 @@ pub fn parse(parser: &mut lexopt::Parser) -> Result<Option<Args>, String> {
     }))
 }
 
-fn render(args: &Args) -> Result<String, AppError> {
+fn render(args: &Args, sections: &[&dyn ChangelogSection]) -> Result<String, AppError> {
     let repo = Repo::require(&args.collection, &Options::default())?;
     // Resolve both once, so a typo fails before anything is read.
     let old = repo.tree_at(&args.from)?;
@@ -74,7 +75,7 @@ fn render(args: &Args) -> Result<String, AppError> {
     let read_new = |path: &str| -> Result<Option<Vec<u8>>, AppError> {
         Ok(repo.show(&args.to, path)?.map(String::into_bytes))
     };
-    changelog(
+    changelog_with(
         &Side {
             files: &old_files,
             read: &read_old,
@@ -85,11 +86,18 @@ fn render(args: &Args) -> Result<String, AppError> {
         },
         &args.from,
         &args.to,
+        sections,
     )
 }
 
-pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
-    let text = match render(&args) {
+/// `sections`: what a distribution appends ([`crate::Distribution::changelog`]).
+pub fn run(
+    args: Args,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+    sections: &[&dyn ChangelogSection],
+) -> i32 {
+    let text = match render(&args, sections) {
         Ok(t) => t,
         Err(e) => {
             let _ = writeln!(stderr, "rt changelog: {e}");

@@ -55,6 +55,7 @@ fn main() {
             &rt_cli::Distribution {
                 extensions: &[],
                 guard: GuardHandle::new(Arc::new(TestGuard)),
+                ..Default::default()
             },
         );
         std::process::exit(code);

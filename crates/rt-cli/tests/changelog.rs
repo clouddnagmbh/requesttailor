@@ -195,3 +195,87 @@ fn a_removed_spec_breaks_and_collection_changes_are_listed() {
     assert!(out.stdout.contains("## Breaking changes"), "{}", out.stdout);
     assert!(out.stdout.contains("health.yml"), "{}", out.stdout);
 }
+
+/// What a distribution appends (wave 13): here, whether `service/metadata.xml` changed.
+struct MetadataSection;
+
+impl rt_app::contract::ChangelogSection for MetadataSection {
+    fn section(
+        &self,
+        old: &rt_app::contract::Side<'_>,
+        new: &rt_app::contract::Side<'_>,
+        from: &str,
+        to: &str,
+    ) -> Result<Option<String>, rt_app::AppError> {
+        let path = "service/metadata.xml";
+        // `files` holds the collection files; others are read like the spec.
+        let (a, b) = ((old.read)(path)?, (new.read)(path)?);
+        Ok((a != b).then(|| format!("## Service metadata\n\n`{path}` changed ({from} → {to}).\n")))
+    }
+}
+
+/// Says nothing, so nothing is added.
+struct Silent;
+
+impl rt_app::contract::ChangelogSection for Silent {
+    fn section(
+        &self,
+        _: &rt_app::contract::Side<'_>,
+        _: &rt_app::contract::Side<'_>,
+        _: &str,
+        _: &str,
+    ) -> Result<Option<String>, rt_app::AppError> {
+        Ok(None)
+    }
+}
+
+#[test]
+fn a_distribution_appends_its_sections_also_without_a_spec() {
+    let r = repo("sections", None, "v1.yaml", "v2.yaml");
+    std::fs::remove_file(r.0.join("openapi.yaml")).unwrap();
+    std::fs::create_dir_all(r.0.join("service")).unwrap();
+    std::fs::write(r.0.join("service/metadata.xml"), "<edmx v=\"1\"/>").unwrap();
+    git(&r.0, &["add", "-A"]);
+    git(&r.0, &["commit", "-q", "-m", "metadata 1"]);
+    std::fs::write(r.0.join("service/metadata.xml"), "<edmx v=\"2\"/>").unwrap();
+    git(&r.0, &["add", "-A"]);
+    git(&r.0, &["commit", "-q", "-m", "metadata 2"]);
+
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let sections: &[&dyn rt_app::contract::ChangelogSection] = &[&Silent, &MetadataSection];
+    let code = rt_cli::run_distribution(
+        ["changelog", "HEAD~1..HEAD", r.0.to_str().unwrap()],
+        &mut out,
+        &mut err,
+        &rt_cli::Distribution {
+            changelog: sections,
+            ..Default::default()
+        },
+    );
+    let (out, err) = (
+        String::from_utf8(out).unwrap(),
+        String::from_utf8(err).unwrap(),
+    );
+    assert_eq!(code, 0, "{err}");
+    assert!(
+        out.ends_with(
+            "\n\n## Service metadata\n\n`service/metadata.xml` changed (HEAD~1 → HEAD).\n"
+        ),
+        "{out}"
+    );
+    // The builds of this repository add nothing.
+    let mut plain = Vec::new();
+    assert_eq!(
+        rt_cli::run(
+            ["changelog", "HEAD~1..HEAD", r.0.to_str().unwrap()],
+            &mut plain,
+            &mut Vec::new()
+        ),
+        0
+    );
+    assert!(
+        !String::from_utf8(plain)
+            .unwrap()
+            .contains("Service metadata")
+    );
+}

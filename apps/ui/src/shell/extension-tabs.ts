@@ -4,10 +4,19 @@
 // Tabs of a distribution's extensions (`AppExtension.tabs`, since wave 13): the shell provides
 // its extensions once, the request editor, the response panel and the collection panel read
 // them here. Without a provider (components rendered on their own, tests) there are none.
+// Also the diff notes (`AppExtension.diffNotes`) of the diff and review views.
 
 import { getContext, setContext } from "svelte";
 
-import type { AppExtension, ExtensionContext, ExtensionTab, ExtensionTabPlace } from "../extensions";
+import type { Component } from "svelte";
+
+import type {
+  AppExtension,
+  ExtensionContext,
+  ExtensionDiffNotesProps,
+  ExtensionTab,
+  ExtensionTabPlace,
+} from "../extensions";
 import { matchesContentType } from "../plugins/permissions";
 
 export interface ExtensionTabRef {
@@ -54,4 +63,12 @@ export function extensionTabsFor(
       .filter((t) => t.place === place && (place !== "response" || matchesContentType([...(t.contentTypes ?? [])], contentType)))
       .map((tab) => ({ key: `${x.id}/${tab.id}`, extension: x.id, tab }));
   });
+}
+
+/** The diff-notes components of `provided`, in extension order. */
+export function extensionDiffNotes(
+  provided: ProvidedExtensions | null,
+): { extension: string; component: Component<ExtensionDiffNotesProps> }[] {
+  if (!provided) return [];
+  return provided.extensions.flatMap((x) => (x.diffNotes ? [{ extension: x.id, component: x.diffNotes }] : []));
 }

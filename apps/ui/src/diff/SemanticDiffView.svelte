@@ -6,6 +6,7 @@
      notes (strand F) of the OpenAPI spec between the two revisions. -->
 <script lang="ts">
   import ContractNotes from "../contract/ContractNotes.svelte";
+  import ExtensionDiffNotes from "../shell/ExtensionDiffNotes.svelte";
   import type { CollectionDiff, DiffScope } from "../commands/types";
   import { getApp } from "../state/app.svelte";
   import { summary } from "./format";
@@ -62,6 +63,7 @@
 
   {#if scope.kind === "between"}
     <ContractNotes from={scope.from} to={scope.to} />
+    <ExtensionDiffNotes from={scope.from} to={scope.to} />
   {/if}
 
   {#if error}

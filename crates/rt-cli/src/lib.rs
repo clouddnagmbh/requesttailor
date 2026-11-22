@@ -573,7 +573,7 @@ where
         stderr,
         &Distribution {
             extensions,
-            guard: GuardHandle::none(),
+            ..Distribution::default()
         },
     )
 }
@@ -589,6 +589,9 @@ pub struct Distribution<'a> {
     /// [`EXIT_BLOCKED`], `rt mcp` answers the tool call with the reason and records the rule
     /// in the audit log.
     pub guard: GuardHandle,
+    /// Sections `rt changelog` appends after the OpenAPI and collection changes (since wave
+    /// 13), in this order.
+    pub changelog: &'a [&'a dyn rt_app::contract::ChangelogSection],
 }
 
 /// [`run_with`] with everything a distribution adds.
@@ -621,7 +624,13 @@ where
         let _ = stdout.write_all(text.as_bytes());
         return EXIT_OK;
     }
-    run_guarded(args, stdout, stderr, &distribution.guard)
+    run_guarded(
+        args,
+        stdout,
+        stderr,
+        &distribution.guard,
+        distribution.changelog,
+    )
 }
 
 pub fn run<I>(args: I, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
@@ -629,7 +638,7 @@ where
     I: IntoIterator,
     I::Item: Into<OsString>,
 {
-    run_guarded(args, stdout, stderr, &GuardHandle::none())
+    run_guarded(args, stdout, stderr, &GuardHandle::none(), &[])
 }
 
 /// The parsed command with the distribution's guard on every command that sends.
@@ -656,6 +665,7 @@ fn run_guarded<I>(
     stdout: &mut dyn Write,
     stderr: &mut dyn Write,
     guard: &GuardHandle,
+    changelog_sections: &[&dyn rt_app::contract::ChangelogSection],
 ) -> i32
 where
     I: IntoIterator,
@@ -703,7 +713,9 @@ where
         Ok(Command::Diff(args)) => return diff::run(args, stdout, stderr),
         Ok(Command::MergeDriver(args)) => return merge_driver::run(args, stdout, stderr),
         Ok(Command::Bisect(args)) => return bisect::run(args, stdout, stderr),
-        Ok(Command::Changelog(args)) => return changelog::run(args, stdout, stderr),
+        Ok(Command::Changelog(args)) => {
+            return changelog::run(args, stdout, stderr, changelog_sections);
+        }
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
     let (root, request_path) = match find_root(&args.file) {
