@@ -545,6 +545,9 @@ fn request(
     };
     losses.literal_credentials(here, &model_auth, &headers);
     let spec = RequestSpec {
+        actions: Vec::new(),
+        assertions: Vec::new(),
+        scripts: Vec::new(),
         name,
         seq: None,
         method: method.to_owned(),

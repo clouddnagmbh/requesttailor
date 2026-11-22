@@ -28,6 +28,8 @@ import {
   type Preview,
   type RecentCollection,
   type RequestSpec,
+  type RunnerApi,
+  type ScriptsApi,
   type SearchHit,
   type SecretsApi,
   type SendInput,
@@ -40,6 +42,9 @@ import {
 import { webAuth, type WebAuthApi } from "./auth";
 import { createCompanionClient, type CompanionClient } from "./companion/client";
 import { webCookies, type WebCookieApi } from "./cookies";
+import { webRunner } from "./runner";
+import { webScriptTrust } from "./scripts";
+import { webSessionVars } from "./session-vars";
 import { webGit } from "./git";
 import { WebHistory } from "./history";
 import { webImports } from "./import";
@@ -139,6 +144,9 @@ export class WebBackend implements Backend {
   readonly plugins: WebPluginApi;
   readonly auth: WebAuthApi;
   readonly cookies: WebCookieApi;
+  /** Wave 7: trust (strand A) and session variables (strand C); runner (strand D). */
+  readonly scripts: ScriptsApi;
+  readonly runner: RunnerApi;
   private readonly recent: WebRecent;
 
   private current: Session | null = null;
@@ -168,6 +176,8 @@ export class WebBackend implements Backend {
     this.plugins = webPlugins(host);
     this.auth = webAuth(host);
     this.cookies = webCookies(host);
+    this.scripts = { ...webScriptTrust(host), ...webSessionVars(host) };
+    this.runner = webRunner(host);
     this.recent = webRecent(host);
     const store = () => this.secretStore(this.session());
     this.secrets = {

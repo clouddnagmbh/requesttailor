@@ -10,6 +10,7 @@ mod auth;
 mod collection;
 mod env;
 mod request;
+mod script;
 
 pub use auth::{
     AwsSigV4, CertificateSource, ClientCertificate, CollectionConfig, CredentialsPlacement,
@@ -22,3 +23,4 @@ pub use request::{
     ApiKeyPlacement, Auth, Body, KeyValue, MultipartPart, Param, ParamKind, PartKind, RawKind,
     RequestSpec, Settings,
 };
+pub use script::{Assertion, Script, ScriptPhase, VarAction, VarScope};

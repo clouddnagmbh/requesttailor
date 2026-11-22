@@ -201,6 +201,7 @@ impl<'a> Builder<'a> {
             };
         };
         RequestDefaults {
+            scripts: crate::runtime::scripts(r.get("scripts")),
             headers: key_values(r.get("headers")),
             auth: self.auth(path, r.get("auth"), no_auth),
             vars: variables(r.get("variables")),
@@ -232,7 +233,11 @@ impl<'a> Builder<'a> {
             .and_then(Node::text)
             .unwrap_or_else(|| file_stem(path))
             .to_owned();
+        let runtime = root.get("runtime");
         let spec = RequestSpec {
+            scripts: crate::runtime::scripts(runtime.and_then(|r| r.get("scripts"))),
+            assertions: crate::runtime::assertions(runtime.and_then(|r| r.get("assertions"))),
+            actions: crate::runtime::actions(runtime.and_then(|r| r.get("actions"))),
             name,
             seq: info.and_then(|i| i.get("seq")).and_then(Node::as_f64),
             method: field("method")
@@ -244,7 +249,7 @@ impl<'a> Builder<'a> {
             params: params(field("params")),
             body: self.body(path, field("body")),
             auth: self.auth(path, field("auth"), Auth::None),
-            vars: variables(root.get("runtime").and_then(|r| r.get("variables"))),
+            vars: variables(runtime.and_then(|r| r.get("variables"))),
             settings: settings(root.get("settings")),
         };
         Some(RequestEntry {

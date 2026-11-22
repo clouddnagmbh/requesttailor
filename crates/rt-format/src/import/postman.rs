@@ -441,6 +441,9 @@ impl Cx {
             method = "GET".into();
         }
         let spec = RequestSpec {
+            actions: Vec::new(),
+            assertions: Vec::new(),
+            scripts: Vec::new(),
             name: item.string("name"),
             seq: None,
             method,

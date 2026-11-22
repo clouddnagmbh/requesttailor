@@ -26,6 +26,8 @@ import type {
 import { BackendError } from "./backend";
 import { mockAuth } from "./mock-auth";
 import { maskCookieHeader, maskSetCookie, mockCookies, setCookiesFor } from "./mock-cookies";
+import { mockRunner } from "./mock-runner";
+import { mockScripts } from "./mock-scripts";
 import { mockGit } from "./mock-git";
 import { MockHistory, mockSearch } from "./mock-history";
 import { mockImports } from "./mock-import";
@@ -63,6 +65,9 @@ export function emptyRequest(name: string): RequestSpec {
     auth: { type: "inherit" },
     vars: [],
     settings: emptySettings(),
+    scripts: [],
+    assertions: [],
+    actions: [],
   };
 }
 
@@ -167,6 +172,8 @@ export class MockBackend implements Backend {
   readonly plugins: MockPlugins;
   readonly auth: AuthApi = mockAuth();
   readonly cookies = mockCookies();
+  readonly scripts = mockScripts();
+  readonly runner = mockRunner();
 
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;

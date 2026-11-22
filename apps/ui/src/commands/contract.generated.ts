@@ -5,9 +5,28 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AppError, Auth, AuthPrompt, Body, CookieInfo, Environment, FileChange, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, PluginInfo, Preview, ReportBody, RequestSpec, SearchHit, SecretFinding, SecretKey, SecretProvider, SendError, SendReport, StoredResponse, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, ViewReply, WelcomeState } from "./types";
+import type { AppError, Auth, AuthPrompt, Body, CookieInfo, Environment, FileChange, Flow, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, PluginInfo, Preview, ReportBody, RequestSpec, RunEvent, RunPlan, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendError, SendReport, StoredResponse, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
+  "actions": [
+    {
+      "enabled": false,
+      "expression": "res.body.id",
+      "method": "jsonq",
+      "phase": "after-response",
+      "scope": "environment",
+      "variable": "userId"
+    }
+  ],
+  "assertions": [
+    {
+      "description": "created",
+      "enabled": true,
+      "expression": "res.status",
+      "operator": "eq",
+      "value": "201"
+    }
+  ],
   "auth": {
     "token": "{{token}}",
     "type": "bearer"
@@ -38,6 +57,16 @@ export const requestSpec: RequestSpec = {
       "kind": "path",
       "name": "id",
       "value": "7"
+    }
+  ],
+  "scripts": [
+    {
+      "code": "rt.vars.set('a', '1');",
+      "phase": "before-request"
+    },
+    {
+      "code": "test('ok', () => expect(rt.response.status).to.equal(201));",
+      "phase": "tests"
     }
   ],
   "seq": 2.0,
@@ -494,6 +523,10 @@ export const sendErrors: SendError[] = [
     "message": "odata: no CSRF token"
   },
   {
+    "kind": "script",
+    "message": "ReferenceError: x is not defined"
+  },
+  {
     "kind": "transport",
     "message": {
       "kind": "timeout"
@@ -502,8 +535,28 @@ export const sendErrors: SendError[] = [
 ];
 
 export const reportOk: SendReport = {
+  "assertions": [
+    {
+      "actual": "201",
+      "expected": "201",
+      "expression": "res.status",
+      "operator": "eq",
+      "passed": true
+    }
+  ],
   "environment": "Local",
   "error": null,
+  "flow": {
+    "kind": "next",
+    "request": "users/list.yml"
+  },
+  "logs": [
+    {
+      "level": "warn",
+      "origin": "collection",
+      "text": "token ***"
+    }
+  ],
   "notes": [
     {
       "level": "info",
@@ -558,8 +611,33 @@ export const reportOk: SendReport = {
     "url": "http://127.0.0.1/users",
     "version": "HTTP/2"
   },
+  "tests": [
+    {
+      "name": "ok",
+      "origin": "request",
+      "passed": true
+    },
+    {
+      "error": "expected undefined to exist",
+      "name": "has id",
+      "origin": "folder:users",
+      "passed": false
+    }
+  ],
   "unresolved": [
     "missing"
+  ],
+  "var_changes": [
+    {
+      "name": "a",
+      "scope": "runtime",
+      "value": "1"
+    },
+    {
+      "name": "b",
+      "scope": "global",
+      "value": null
+    }
   ],
   "variables": [
     {
@@ -611,6 +689,15 @@ export const reportOk: SendReport = {
 };
 
 export const reportError: SendReport = {
+  "assertions": [
+    {
+      "actual": "201",
+      "expected": "201",
+      "expression": "res.status",
+      "operator": "eq",
+      "passed": true
+    }
+  ],
   "environment": null,
   "error": {
     "kind": "transport",
@@ -619,6 +706,17 @@ export const reportError: SendReport = {
       "message": "Failed to fetch"
     }
   },
+  "flow": {
+    "kind": "next",
+    "request": "users/list.yml"
+  },
+  "logs": [
+    {
+      "level": "warn",
+      "origin": "collection",
+      "text": "token ***"
+    }
+  ],
   "notes": [
     {
       "level": "info",
@@ -634,8 +732,33 @@ export const reportError: SendReport = {
   "request": null,
   "request_path": "users/create.yml",
   "response": null,
+  "tests": [
+    {
+      "name": "ok",
+      "origin": "request",
+      "passed": true
+    },
+    {
+      "error": "expected undefined to exist",
+      "name": "has id",
+      "origin": "folder:users",
+      "passed": false
+    }
+  ],
   "unresolved": [
     "missing"
+  ],
+  "var_changes": [
+    {
+      "name": "a",
+      "scope": "runtime",
+      "value": "1"
+    },
+    {
+      "name": "b",
+      "scope": "global",
+      "value": null
+    }
   ],
   "variables": [
     {
@@ -686,6 +809,236 @@ export const reportError: SendReport = {
   "version": 1
 };
 
+export const flows: Flow[] = [
+  {
+    "kind": "continue"
+  },
+  {
+    "kind": "skip"
+  },
+  {
+    "kind": "next",
+    "request": null
+  }
+];
+
+export const scriptTrust: ScriptTrust = {
+  "has_scripts": true,
+  "trusted": false
+};
+
+export const runPlan: RunPlan = {
+  "bail": true,
+  "data": [
+    [
+      [
+        "name",
+        "Ada"
+      ],
+      [
+        "age",
+        36
+      ]
+    ]
+  ],
+  "delay_ms": 10,
+  "iterations": 1,
+  "requests": [
+    "users/create.yml",
+    "users/list.yml"
+  ]
+};
+
+export const runEvents: RunEvent[] = [
+  {
+    "kind": "started",
+    "total": 2
+  },
+  {
+    "iteration": 0,
+    "kind": "request",
+    "request_path": "users/create.yml"
+  },
+  {
+    "kind": "step",
+    "step": {
+      "iteration": 0,
+      "passed": false,
+      "report": {
+        "assertions": [
+          {
+            "actual": "201",
+            "expected": "201",
+            "expression": "res.status",
+            "operator": "eq",
+            "passed": true
+          }
+        ],
+        "environment": "Local",
+        "error": null,
+        "flow": {
+          "kind": "next",
+          "request": "users/list.yml"
+        },
+        "logs": [
+          {
+            "level": "warn",
+            "origin": "collection",
+            "text": "token ***"
+          }
+        ],
+        "notes": [
+          {
+            "level": "info",
+            "source": "auth",
+            "text": "token refreshed"
+          },
+          {
+            "level": "error",
+            "source": "plugin:odata",
+            "text": "x"
+          }
+        ],
+        "request": {
+          "body_size": 2,
+          "headers": [
+            [
+              "Authorization",
+              "Bearer ***"
+            ]
+          ],
+          "method": "POST",
+          "url": "http://127.0.0.1/users"
+        },
+        "request_path": "users/create.yml",
+        "response": {
+          "body": {
+            "data": "{}",
+            "encoding": "utf8"
+          },
+          "headers": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "redirects": [
+            {
+              "location": "http://127.0.0.1/u",
+              "status": 302
+            }
+          ],
+          "size": 2,
+          "status": 201,
+          "timing": {
+            "connect": 2.0,
+            "dns": 1.5,
+            "tls": null,
+            "ttfb": 12.5
+          },
+          "total": 14.0,
+          "truncated": false,
+          "url": "http://127.0.0.1/users",
+          "version": "HTTP/2"
+        },
+        "tests": [
+          {
+            "name": "ok",
+            "origin": "request",
+            "passed": true
+          },
+          {
+            "error": "expected undefined to exist",
+            "name": "has id",
+            "origin": "folder:users",
+            "passed": false
+          }
+        ],
+        "unresolved": [
+          "missing"
+        ],
+        "var_changes": [
+          {
+            "name": "a",
+            "scope": "runtime",
+            "value": "1"
+          },
+          {
+            "name": "b",
+            "scope": "global",
+            "value": null
+          }
+        ],
+        "variables": [
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "global"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "collection"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "environment",
+              "name": "Local"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "folder",
+              "path": "users"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "request"
+            }
+          },
+          {
+            "name": "v",
+            "secret": false,
+            "source": {
+              "layer": "runtime"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "request_name": "Create user",
+      "request_path": "users/create.yml",
+      "skipped": false
+    }
+  },
+  {
+    "kind": "finished",
+    "summary": {
+      "assertions_failed": 0,
+      "assertions_passed": 1,
+      "duration_ms": 31,
+      "failed": 1,
+      "passed": 1,
+      "requests": 2,
+      "skipped": 0,
+      "stopped": false,
+      "tests_failed": 1,
+      "tests_passed": 1
+    }
+  }
+];
+
 export const binaryBody: ReportBody = {
   "data": "AAE=",
   "encoding": "base64"
@@ -695,8 +1048,28 @@ export const storedResponse: StoredResponse = {
   "is_text": true,
   "line_count": 1,
   "report": {
+    "assertions": [
+      {
+        "actual": "201",
+        "expected": "201",
+        "expression": "res.status",
+        "operator": "eq",
+        "passed": true
+      }
+    ],
     "environment": "Local",
     "error": null,
+    "flow": {
+      "kind": "next",
+      "request": "users/list.yml"
+    },
+    "logs": [
+      {
+        "level": "warn",
+        "origin": "collection",
+        "text": "token ***"
+      }
+    ],
     "notes": [
       {
         "level": "info",
@@ -751,8 +1124,33 @@ export const storedResponse: StoredResponse = {
       "url": "http://127.0.0.1/users",
       "version": "HTTP/2"
     },
+    "tests": [
+      {
+        "name": "ok",
+        "origin": "request",
+        "passed": true
+      },
+      {
+        "error": "expected undefined to exist",
+        "name": "has id",
+        "origin": "folder:users",
+        "passed": false
+      }
+    ],
     "unresolved": [
       "missing"
+    ],
+    "var_changes": [
+      {
+        "name": "a",
+        "scope": "runtime",
+        "value": "1"
+      },
+      {
+        "name": "b",
+        "scope": "global",
+        "value": null
+      }
     ],
     "variables": [
       {
@@ -1384,6 +1782,8 @@ export const viewReply: ViewReply = {
       "folder": "Books",
       "name": "Read Books",
       "spec": {
+        "actions": [],
+        "assertions": [],
         "auth": {
           "type": "inherit"
         },
@@ -1394,6 +1794,7 @@ export const viewReply: ViewReply = {
         "method": "",
         "name": "",
         "params": [],
+        "scripts": [],
         "seq": null,
         "settings": {
           "encode_url": null,
@@ -1410,6 +1811,25 @@ export const viewReply: ViewReply = {
     "page": 2
   },
   "update_request": {
+    "actions": [
+      {
+        "enabled": false,
+        "expression": "res.body.id",
+        "method": "jsonq",
+        "phase": "after-response",
+        "scope": "environment",
+        "variable": "userId"
+      }
+    ],
+    "assertions": [
+      {
+        "description": "created",
+        "enabled": true,
+        "expression": "res.status",
+        "operator": "eq",
+        "value": "201"
+      }
+    ],
     "auth": {
       "token": "{{token}}",
       "type": "bearer"
@@ -1440,6 +1860,16 @@ export const viewReply: ViewReply = {
         "kind": "path",
         "name": "id",
         "value": "7"
+      }
+    ],
+    "scripts": [
+      {
+        "code": "rt.vars.set('a', '1');",
+        "phase": "before-request"
+      },
+      {
+        "code": "test('ok', () => expect(rt.response.status).to.equal(201));",
+        "phase": "tests"
       }
     ],
     "seq": 2.0,

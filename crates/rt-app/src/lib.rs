@@ -26,6 +26,7 @@ pub mod history;
 pub mod import;
 pub mod plugins;
 pub mod response;
+pub mod scripts;
 pub mod search;
 pub mod secret_scan;
 pub mod secret_sources;

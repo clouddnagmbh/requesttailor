@@ -10,10 +10,13 @@
 //! `auth::oauth2` strand C; `auth::sigv4`, `tls`, `cookies` and client certificates in the
 //! native transport strand D.
 
+pub mod assert;
 pub mod auth;
 pub mod cookies;
 pub mod model;
 pub mod prepare;
+pub mod runner;
+pub mod script;
 pub mod send;
 pub mod serde_ms;
 pub mod services;

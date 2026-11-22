@@ -148,6 +148,8 @@ export const calls: Call[] = [
       "url": "https://api.example.com/users/7"
     },
     "spec": {
+      "actions": [],
+      "assertions": [],
       "auth": {
         "type": "inherit"
       },
@@ -158,6 +160,7 @@ export const calls: Call[] = [
       "method": "POST",
       "name": "Create user",
       "params": [],
+      "scripts": [],
       "seq": 1.0,
       "settings": {
         "encode_url": null,
@@ -182,6 +185,8 @@ export const calls: Call[] = [
     "hook": "render-tab",
     "response": null,
     "spec": {
+      "actions": [],
+      "assertions": [],
       "auth": {
         "type": "inherit"
       },
@@ -192,6 +197,7 @@ export const calls: Call[] = [
       "method": "POST",
       "name": "Create user",
       "params": [],
+      "scripts": [],
       "seq": 1.0,
       "settings": {
         "encode_url": null,
@@ -225,6 +231,8 @@ export const calls: Call[] = [
     ],
     "response": null,
     "spec": {
+      "actions": [],
+      "assertions": [],
       "auth": {
         "type": "inherit"
       },
@@ -235,6 +243,7 @@ export const calls: Call[] = [
       "method": "POST",
       "name": "Create user",
       "params": [],
+      "scripts": [],
       "seq": 1.0,
       "settings": {
         "encode_url": null,
@@ -327,6 +336,8 @@ export const viewReply: ViewReply = {
     "stats": false
   },
   "update_request": {
+    "actions": [],
+    "assertions": [],
     "auth": {
       "type": "inherit"
     },
@@ -337,6 +348,7 @@ export const viewReply: ViewReply = {
     "method": "POST",
     "name": "Create user",
     "params": [],
+    "scripts": [],
     "seq": 1.0,
     "settings": {
       "encode_url": null,
@@ -645,6 +657,8 @@ export const minimalCalls: Call[] = [
   {
     "hook": "render-tab",
     "spec": {
+      "actions": [],
+      "assertions": [],
       "auth": {
         "type": "inherit"
       },
@@ -655,6 +669,7 @@ export const minimalCalls: Call[] = [
       "method": "POST",
       "name": "Create user",
       "params": [],
+      "scripts": [],
       "seq": 1.0,
       "settings": {
         "encode_url": null,

@@ -20,6 +20,11 @@ fn report(body: ReportBody) -> SendReport {
             .len() as u64,
     };
     SendReport {
+        tests: Vec::new(),
+        assertions: Vec::new(),
+        logs: Vec::new(),
+        var_changes: Vec::new(),
+        flow: None,
         notes: Vec::new(),
         version: REPORT_VERSION,
         request_path: "a.yml".into(),

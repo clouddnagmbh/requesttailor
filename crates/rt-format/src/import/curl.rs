@@ -1131,6 +1131,9 @@ fn build(
         encode_url: None,
     };
     let spec = RequestSpec {
+        actions: Vec::new(),
+        assertions: Vec::new(),
+        scripts: Vec::new(),
         name,
         seq: None,
         method,

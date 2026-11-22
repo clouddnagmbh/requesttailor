@@ -35,6 +35,7 @@ impl SendServices {
             prompt: self.auth.prompt(),
             cookies: self.cookies.jar(),
             hooks: self.plugins.hooks(),
+            scripts: None,
         }
     }
 }

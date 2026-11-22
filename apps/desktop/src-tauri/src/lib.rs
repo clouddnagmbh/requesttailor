@@ -20,8 +20,12 @@ pub mod history;
 mod import;
 mod plugins;
 pub mod recent;
+// Wave 7: scripts (strand A), session variables (C), runner (D).
+mod runner;
+mod scripts;
 mod search;
 mod services;
+mod session_vars;
 
 pub use crate::core::{CollectionInfo, Core};
 
@@ -116,6 +120,15 @@ pub fn run() {
             cookies::cookie_list,
             cookies::cookie_delete,
             cookies::cookie_clear,
+            scripts::scripts_trust,
+            scripts::scripts_set_trusted,
+            session_vars::scripts_session_vars,
+            session_vars::scripts_set_session_var,
+            session_vars::scripts_clear_session_vars,
+            runner::runner_plan,
+            runner::runner_parse_data,
+            runner::runner_run,
+            runner::runner_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the RequestTailor desktop app");

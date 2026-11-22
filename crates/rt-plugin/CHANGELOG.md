@@ -3,6 +3,15 @@
 Every change to the plugin API (`API.md`, `src/api.rs`) is listed here, newest first.
 Additive changes keep `API_VERSION`; breaking changes bump it.
 
+## API version 1, additions (wave 7)
+
+Additive; `API_VERSION` stays 1:
+- The request model (`spec` in `import` replies, `update_request`, `create_requests`) has
+  `scripts`, `assertions` and `actions` (scripts, declarative assertions, "set variable"
+  actions of the request). Plugins may leave them out (empty); the host always sends them.
+  Plugins still never see secret values: files hold none, and scripts' output is not
+  passed to plugins.
+
 ## API version 1, additions (wave 6)
 
 Additive; `API_VERSION` stays 1, plugins built for wave 5 run unchanged:

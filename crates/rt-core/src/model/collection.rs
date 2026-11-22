@@ -18,6 +18,10 @@ pub struct RequestDefaults {
     pub auth: Auth,
     pub vars: Vec<Variable>,
     pub settings: Settings,
+    /// Scripts of the collection or folder (wave 7). They run for every request below,
+    /// outermost first, before the request's own scripts of the same phase.
+    #[serde(default)]
+    pub scripts: Vec<super::Script>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]

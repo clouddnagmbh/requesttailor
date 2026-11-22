@@ -15,7 +15,7 @@ function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown)
     calls.push([cmd, args]);
     return answer(cmd, args);
   };
-  return { backend: new TauriBackend(invoke), calls };
+  return { backend: new TauriBackend(invoke, () => "channel"), calls };
 }
 
 describe("TauriBackend", () => {
@@ -91,6 +91,16 @@ describe("TauriBackend", () => {
     await b.cookies.list("Local");
     await b.cookies.delete("Local", "example.com", "/", "sid");
     await b.cookies.clear("Local");
+    await b.scripts.trust();
+    await b.scripts.setTrusted(true);
+    await b.scripts.sessionVars("Local");
+    await b.scripts.setSessionVar("Local", { name: "id", value: "7", scope: "runtime" });
+    await b.scripts.clearSessionVars("Local");
+    await b.runner.plan(null);
+    await b.runner.parseData({ name: "d.csv", data: new Uint8Array([97]) });
+    const plan = { requests: ["a.yml"], data: [], iterations: 1, delay_ms: 0, bail: false };
+    await b.runner.run(plan, { environment: "Local", vars: [] }, () => {});
+    await b.runner.cancel();
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -157,6 +167,15 @@ describe("TauriBackend", () => {
       ["cookie_list", { environment: "Local" }],
       ["cookie_delete", { environment: "Local", domain: "example.com", path: "/", name: "sid" }],
       ["cookie_clear", { environment: "Local" }],
+      ["scripts_trust", undefined],
+      ["scripts_set_trusted", { trusted: true }],
+      ["scripts_session_vars", { environment: "Local" }],
+      ["scripts_set_session_var", { environment: "Local", change: { name: "id", value: "7", scope: "runtime" } }],
+      ["scripts_clear_session_vars", { environment: "Local" }],
+      ["runner_plan", { folder: null }],
+      ["runner_parse_data", { name: "d.csv", data: [97] }],
+      ["runner_run", { plan, input: { environment: "Local", vars: [] }, onEvent: "channel" }],
+      ["runner_cancel", undefined],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

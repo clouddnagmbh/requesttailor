@@ -38,6 +38,12 @@ import type {
   TokenInfo,
   TreeNode,
   ViewReply,
+  DataRow,
+  RunEvent,
+  RunPlan,
+  RunSummary,
+  ScriptTrust,
+  VarChange,
 } from "./types";
 
 export interface CollectionInfo {
@@ -236,6 +242,34 @@ export interface CookieApi {
   clear(environment: string): Promise<void>;
 }
 
+/** Scripts of the open collection (wave 7). Scripts run only in a collection the user trusts
+ *  (asked once per collection and device, like workspace trust); untrusted, a send runs
+ *  without scripts and its report carries a warning note (`source: "script"`). Variables set
+ *  by scripts, actions and "set as variable" live for the session (per environment) and go
+ *  into the runtime layer of every later send; files are never written. Owner: strand A
+ *  (trust), strand C (session variables). */
+export interface ScriptsApi {
+  trust(): Promise<ScriptTrust>;
+  setTrusted(trusted: boolean): Promise<void>;
+  /** The session's variables for `environment` (`""` for none), in the order set. */
+  sessionVars(environment: string): Promise<VarChange[]>;
+  /** Sets or unsets a session variable (e.g. a value clicked in the response). */
+  setSessionVar(environment: string, change: VarChange): Promise<void>;
+  clearSessionVars(environment: string): Promise<void>;
+}
+
+/** The collection runner (wave 7, strand D). One run at a time. */
+export interface RunnerApi {
+  /** Request paths below `folder` (`null`: the whole collection) in run order. */
+  plan(folder: string | null): Promise<string[]>;
+  /** Data rows of a CSV or JSON file; rejects with a message for invalid files. */
+  parseData(file: ImportSource): Promise<DataRow[]>;
+  /** Runs; `onEvent` sees progress. Variable changes stay in the run (and are not added to
+   *  the session). Resolves with the summary, also when cancelled. */
+  run(plan: RunPlan, input: SendInput, onEvent: (event: RunEvent) => void): Promise<RunSummary>;
+  cancel(): Promise<void>;
+}
+
 export interface Backend {
   readonly kind: "tauri" | "web" | "mock";
 
@@ -293,6 +327,9 @@ export interface Backend {
   readonly plugins: PluginApi;
   readonly auth: AuthApi;
   readonly cookies: CookieApi;
+  /** Wave 7. */
+  readonly scripts: ScriptsApi;
+  readonly runner: RunnerApi;
 }
 
 /** Errors from a backend are rejected promises carrying this shape. */

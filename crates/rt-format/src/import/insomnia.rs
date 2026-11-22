@@ -734,6 +734,9 @@ impl Cx {
         }
         let name = display_name(v);
         let spec = RequestSpec {
+            actions: Vec::new(),
+            assertions: Vec::new(),
+            scripts: Vec::new(),
             name,
             seq: None,
             method,

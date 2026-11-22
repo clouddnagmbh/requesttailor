@@ -72,6 +72,15 @@ const COMMANDS: &[&str] = &[
     "cookie_list",
     "cookie_delete",
     "cookie_clear",
+    "scripts_trust",
+    "scripts_set_trusted",
+    "scripts_session_vars",
+    "scripts_set_session_var",
+    "scripts_clear_session_vars",
+    "runner_plan",
+    "runner_parse_data",
+    "runner_run",
+    "runner_cancel",
 ];
 
 fn main() {

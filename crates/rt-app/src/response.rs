@@ -297,6 +297,11 @@ mod tests {
         let ptr = body.as_ptr();
         let mut store = ResponseStore::new();
         let report = SendReport {
+            tests: Vec::new(),
+            assertions: Vec::new(),
+            logs: Vec::new(),
+            var_changes: Vec::new(),
+            flow: None,
             notes: Vec::new(),
             version: 1,
             request_path: "a.yml".into(),

@@ -18,6 +18,7 @@ pub mod cookies;
 pub mod import;
 pub mod oauth;
 pub mod plugins;
+pub mod run;
 pub mod scan;
 pub mod secrets;
 pub mod services;
@@ -39,6 +40,8 @@ pub const EXIT_TRANSPORT: i32 = 1;
 pub const EXIT_USAGE: i32 = 2;
 /// The request could not be prepared: environment, variables, auth or body.
 pub const EXIT_PREPARE: i32 = 3;
+/// A response was received but a test or assertion failed (wave 7; also `rt run`).
+pub const EXIT_TESTS: i32 = 4;
 
 pub fn help() -> String {
     let limit = SendOptions::default().body_limit;
@@ -62,6 +65,7 @@ Options for send:
       --no-plugins          Do not run the installed plugins
       --cookie-jar <FILE>   Send cookies from FILE and store new ones in it
       --no-prompt           Fail instead of asking for an OAuth 2.0 login
+      --no-scripts          Do not run the collection's scripts
   -h, --help                Show this help
 
 rt agent runs the companion for the web app on 127.0.0.1 until stopped:
@@ -107,7 +111,8 @@ Exit codes:
   {EXIT_TRANSPORT}  transport error, no response (connect, DNS, TLS, timeout, redirects)
   {EXIT_USAGE}  usage error, no collection, invalid files, or request not in the collection
   {EXIT_PREPARE}  the request could not be prepared (environment, variables, auth, body),
-     authentication failed, or a plugin stopped it
+     authentication failed, a plugin or a pre-request script stopped it
+  {EXIT_TESTS}  a response was received but a test or assertion failed
 ",
         version = env!("CARGO_PKG_VERSION"),
         agent_port = agent::DEFAULT_PORT,
@@ -128,6 +133,8 @@ pub enum Command {
     Agent(agent::AgentArgs),
     Import(import::ImportArgs),
     Scan(scan::ScanArgs),
+    /// Wave 7, strand E.
+    Run(run::RunArgs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,6 +154,9 @@ pub struct SendArgs {
     /// `false` with `--no-prompt`: OAuth 2.0 flows that need the user fail instead of opening
     /// the browser or showing a device code (wave 5, strand C).
     pub prompt: bool,
+    /// `--no-scripts`: do not run the collection's scripts (wave 7). Declarative assertions
+    /// still run.
+    pub no_scripts: bool,
 }
 
 impl Default for SendArgs {
@@ -161,6 +171,7 @@ impl Default for SendArgs {
             no_plugins: false,
             cookie_jar: None,
             prompt: true,
+            no_scripts: false,
         }
     }
 }
@@ -185,6 +196,9 @@ where
         }
         Some(Value(cmd)) if cmd == "agent" => {
             Ok(agent::parse(&mut parser)?.map_or(Command::Help, Command::Agent))
+        }
+        Some(Value(cmd)) if cmd == "run" => {
+            Ok(run::parse(&mut parser)?.map_or(Command::Help, Command::Run))
         }
         Some(Value(cmd)) if cmd == "scan" => {
             Ok(scan::parse(&mut parser)?.map_or(Command::Help, Command::Scan))
@@ -222,6 +236,7 @@ fn parse_send(parser: &mut lexopt::Parser) -> Result<Command, String> {
             Long("no-plugins") => args.no_plugins = true,
             Long("cookie-jar") => args.cookie_jar = Some(parser.value().map_err(err)?.into()),
             Long("no-prompt") => args.prompt = false,
+            Long("no-scripts") => args.no_scripts = true,
             Value(v) if file.is_none() => file = Some(PathBuf::from(v)),
             other => return Err(other.unexpected().to_string()),
         }
@@ -328,6 +343,7 @@ pub async fn send_request<T: Transport>(
         runtime: args.vars.clone(),
     };
     let options = SendOptions {
+        iteration: None,
         body_limit: args.body_limit,
     };
     let collection =
@@ -353,10 +369,16 @@ pub async fn send_request<T: Transport>(
 
 pub fn exit_code(report: &SendReport) -> i32 {
     match &report.error {
+        None if !rt_core::runner::passed(report) => EXIT_TESTS,
         None => EXIT_OK,
         Some(SendError::Transport(_)) => EXIT_TRANSPORT,
         Some(SendError::NotFound(_)) => EXIT_USAGE,
-        Some(SendError::Prepare(_) | SendError::Auth(_) | SendError::Plugin(_)) => EXIT_PREPARE,
+        Some(
+            SendError::Prepare(_)
+            | SendError::Auth(_)
+            | SendError::Plugin(_)
+            | SendError::Script(_),
+        ) => EXIT_PREPARE,
     }
 }
 
@@ -394,6 +416,7 @@ where
         Ok(Command::Agent(args)) => return agent::run(args, stderr),
         Ok(Command::Import(args)) => return import::run(args, stdout, stderr),
         Ok(Command::Scan(args)) => return scan::run(args, stdout, stderr),
+        Ok(Command::Run(args)) => return run::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
     let (root, request_path) = match find_root(&args.file) {
@@ -561,6 +584,11 @@ mod tests {
     fn exit_codes() {
         use rt_core::transport::TransportError;
         let mut r = SendReport {
+            tests: Vec::new(),
+            assertions: Vec::new(),
+            logs: Vec::new(),
+            var_changes: Vec::new(),
+            flow: None,
             notes: Vec::new(),
             version: REPORT_VERSION,
             request_path: "a.yml".into(),

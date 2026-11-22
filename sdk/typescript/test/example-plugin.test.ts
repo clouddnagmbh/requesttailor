@@ -43,6 +43,9 @@ const spec: RequestSpec = {
   auth: { type: "inherit" },
   vars: [],
   settings: { timeout_ms: null, follow_redirects: null, max_redirects: null, encode_url: null },
+  scripts: [],
+  assertions: [],
+  actions: [],
 };
 
 function ok<T>(reply: { ok?: T | null; error?: string | null }): T {

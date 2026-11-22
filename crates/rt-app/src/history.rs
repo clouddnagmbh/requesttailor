@@ -183,6 +183,7 @@ fn error_text(error: &SendError) -> String {
         SendError::Prepare(m) => format!("prepare {m}"),
         SendError::Auth(m) => format!("auth {m}"),
         SendError::Plugin(m) => format!("plugin {m}"),
+        SendError::Script(m) => format!("script {m}"),
         SendError::Transport(t) => {
             let kind = serde_json::to_value(t).unwrap_or_default();
             let kind = kind["kind"].as_str().unwrap_or_default().to_owned();
@@ -204,6 +205,7 @@ pub fn scrub_error(error: &SendError) -> SendError {
         // Auth and plugin messages may quote token endpoints or plugin output: URLs go.
         SendError::Auth(m) => SendError::Auth(scrub_urls(m)),
         SendError::Plugin(m) => SendError::Plugin(scrub_urls(m)),
+        SendError::Script(m) => SendError::Script(scrub_urls(m)),
         SendError::Transport(t) => SendError::Transport(match t {
             TransportError::InvalidUrl(m) => TransportError::InvalidUrl(url_reason(m)),
             TransportError::Dns(m) => TransportError::Dns(scrub_urls(m)),

@@ -91,6 +91,8 @@ export function describeError(error: SendError): string {
       return `Authentication failed: ${error.message}`;
     case "plugin":
       return `A plugin stopped the request: ${error.message}`;
+    case "script":
+      return `A pre-request script failed: ${error.message}`;
     case "transport": {
       const t = error.message;
       switch (t.kind) {

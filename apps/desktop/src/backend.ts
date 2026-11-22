@@ -12,6 +12,8 @@ import {
   type CollectionInfo,
   type CompanionStatus,
   type CookieApi,
+  type RunnerApi,
+  type ScriptsApi,
   type Environment,
   type FileChange,
   type GitApi,
@@ -33,6 +35,8 @@ import {
 
 import { tauriAuth } from "./auth";
 import { tauriCookies } from "./cookies";
+import { tauriRunner, type MakeChannel } from "./runner";
+import { tauriScripts } from "./scripts";
 import { tauriGit } from "./git";
 import { tauriHistory } from "./history";
 import { tauriImports } from "./import";
@@ -105,6 +109,15 @@ export const COMMANDS = [
   "cookie_list",
   "cookie_delete",
   "cookie_clear",
+  "scripts_trust",
+  "scripts_set_trusted",
+  "scripts_session_vars",
+  "scripts_set_session_var",
+  "scripts_clear_session_vars",
+  "runner_plan",
+  "runner_parse_data",
+  "runner_run",
+  "runner_cancel",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -143,8 +156,13 @@ export class TauriBackend implements Backend {
   readonly plugins: PluginApi;
   readonly auth: AuthApi;
   readonly cookies: CookieApi;
+  readonly scripts: ScriptsApi;
+  readonly runner: RunnerApi;
 
-  constructor(private readonly invokeRaw: Invoke) {
+  constructor(
+    private readonly invokeRaw: Invoke,
+    makeChannel?: MakeChannel,
+  ) {
     const call: Call = (cmd, args) => this.call(cmd, args);
     this.git = tauriGit(call);
     this.imports = tauriImports(call);
@@ -152,6 +170,8 @@ export class TauriBackend implements Backend {
     this.plugins = tauriPlugins(call);
     this.auth = tauriAuth(call);
     this.cookies = tauriCookies(call);
+    this.scripts = tauriScripts(call);
+    this.runner = tauriRunner(call, makeChannel);
     this.secrets = {
       has: (environment, variable) => this.call("secret_has", { environment, variable }),
       get: (environment, variable) => this.call("secret_get", { environment, variable }),

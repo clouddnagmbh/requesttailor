@@ -131,6 +131,7 @@ pub async fn send_files<T: Transport>(
         runtime: options.vars.clone().into_iter().collect(),
     };
     let send_options = SendOptions {
+        iteration: None,
         body_limit: options
             .body_limit
             .unwrap_or(SendOptions::default().body_limit),
@@ -474,6 +475,7 @@ mod workspace_js {
             Ok(wasm_bindgen_futures::future_to_promise(async move {
                 let options = SendOptions {
                     body_limit: BODY_LIMIT,
+                    iteration: None,
                 };
                 let services = parts.services();
                 let report = match companion {

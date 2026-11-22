@@ -32,6 +32,9 @@ pub struct Services<'a> {
     pub prompt: Option<&'a dyn AuthPrompt>,
     pub cookies: Option<&'a dyn CookieJar>,
     pub hooks: Option<&'a dyn RequestHooks>,
+    /// Runs `before-request`, `after-response` and `tests` scripts (wave 7, `rt-script`).
+    /// Without it scripts are not run (and not reported as failed).
+    pub scripts: Option<&'a dyn ScriptRunner>,
 }
 
 impl Services<'_> {
@@ -151,6 +154,15 @@ pub enum NoteLevel {
 }
 
 /// Plugin hooks around the wire. Implemented by `rt-plugin`; `rt-core` knows no plugins.
+/// Runs the scripts of one phase (wave 7). Implemented by `rt-script`; see [`crate::script`].
+/// Never fails: problems are [`crate::script::ScriptOutcome::error`].
+pub trait ScriptRunner {
+    fn run<'a>(
+        &'a self,
+        call: crate::script::ScriptCall<'a>,
+    ) -> LocalBoxFuture<'a, crate::script::ScriptOutcome>;
+}
+
 pub trait RequestHooks {
     /// Runs after auth is applied and before signing. `secrets` are the values that must be
     /// masked before anything reaches a plugin. An `Err` stops the send with that message.

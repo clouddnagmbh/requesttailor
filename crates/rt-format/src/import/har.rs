@@ -144,6 +144,9 @@ fn request(entry: &Value, path: &[String], losses: &mut Losses) -> RequestOut {
     }
     let body = body(req.get("postData"), &here, losses);
     let spec = RequestSpec {
+        actions: Vec::new(),
+        assertions: Vec::new(),
+        scripts: Vec::new(),
         name: name.clone(),
         seq: None,
         method,

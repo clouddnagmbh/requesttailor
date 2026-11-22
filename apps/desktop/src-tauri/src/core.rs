@@ -276,6 +276,7 @@ impl<S: SecretStore> Core<S> {
             runtime.block_on(snapshot.send_with(
                 &transport,
                 &SendOptions {
+                    iteration: None,
                     body_limit: BODY_LIMIT,
                 },
                 &services.services(),

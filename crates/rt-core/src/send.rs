@@ -9,14 +9,19 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::model::{Auth, Body, Collection, RequestContext, Variable};
+use crate::model::{Auth, Body, Collection, RequestContext, ScriptPhase, Variable};
 use crate::prepare::{FileSource, PrepareError, PrepareInput, Prepared, prepare};
-use crate::services::{HookContext, Note, Services};
+use crate::script::{
+    AssertionResult, Flow, Iteration, ScriptCall, ScriptInfo, ScriptLog, ScriptOutcome,
+    ScriptRequest, ScriptResponse, ScriptSender, TestResult, VarChange,
+};
+use crate::services::{HookContext, LocalBoxFuture, Note, NoteLevel, Services};
 use crate::transport::{
     CompletedResponse, HttpRequest, HttpVersion, Redirect, Timing, Transport, TransportError,
     collect,
 };
 use crate::vars::VarUse;
+use crate::vars::{Scope, VarLayer, VarSource};
 
 /// Version of the `SendReport` JSON shape. Bump on breaking changes.
 pub const REPORT_VERSION: u32 = 1;
@@ -25,12 +30,16 @@ pub const REPORT_VERSION: u32 = 1;
 pub struct SendOptions {
     /// Keep at most this many body bytes in the report.
     pub body_limit: usize,
+    /// The runner's iteration, passed to scripts (wave 7). `None` for a single send.
+    #[serde(default)]
+    pub iteration: Option<Iteration>,
 }
 
 impl Default for SendOptions {
     fn default() -> Self {
         Self {
             body_limit: 10 * 1024 * 1024,
+            iteration: None,
         }
     }
 }
@@ -80,6 +89,8 @@ pub enum SendError {
     Auth(String),
     /// A plugin hook stopped the send. Wave 5.
     Plugin(String),
+    /// A `before-request` script failed (exception, time or memory limit). Wave 7.
+    Script(String),
     Transport(TransportError),
 }
 
@@ -99,6 +110,22 @@ pub struct SendReport {
     /// empty, so wave 2 reports are unchanged.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<Note>,
+    /// `test(...)` results of the `tests` scripts (wave 7). Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tests: Vec<TestResult>,
+    /// Declarative assertions (wave 7). Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assertions: Vec<AssertionResult>,
+    /// `console.*` output of scripts, secrets masked (wave 7). Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub logs: Vec<ScriptLog>,
+    /// Variables set by scripts and actions, in order; secret values masked (wave 7). The
+    /// caller keeps them (session, run). Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub var_changes: Vec<VarChange>,
+    /// Runner control requested by a script (wave 7); `None`: continue.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flow: Option<Flow>,
 }
 
 /// What `rt send` prints in place of a secret value.
@@ -161,6 +188,11 @@ pub async fn send_with<T: Transport>(
         unresolved: Vec::new(),
         error: None,
         notes: Vec::new(),
+        tests: Vec::new(),
+        assertions: Vec::new(),
+        logs: Vec::new(),
+        var_changes: Vec::new(),
+        flow: None,
     };
     let Some(context) = collection.request(request_path) else {
         return SendReport {
@@ -168,11 +200,265 @@ pub async fn send_with<T: Transport>(
             ..report
         };
     };
-    let prepared = prepare(&context, input, files);
+    let mut report = report;
+    let mut runtime = input.runtime.clone();
+    let mut changed = None;
+    // Wave 7: `before-request` scripts, on the request as written.
+    if let Some(runner) = services.scripts {
+        let scripts = crate::script::scripts_for(&context, ScriptPhase::BeforeRequest);
+        if !scripts.is_empty() {
+            let scope = crate::prepare::scope(&context, input).unwrap_or_default();
+            let mut secrets = declared_secret_values(&context, input);
+            add_secrets(&mut secrets, scope_secrets(&scope));
+            let sender = TransportSender {
+                transport,
+                body_limit: options.body_limit,
+            };
+            let outcome = runner
+                .run(ScriptCall {
+                    phase: ScriptPhase::BeforeRequest,
+                    scripts,
+                    request: crate::script::request_of(&context.request.spec),
+                    response: None,
+                    variables: crate::script::variables_of(&scope),
+                    info: script_info(&context, input, options),
+                    sender: Some(&sender),
+                })
+                .await;
+            let request = outcome.request.clone();
+            let error = outcome.error.clone();
+            let flow = outcome.flow.clone();
+            for change in &outcome.var_changes {
+                set_runtime(&mut runtime, change);
+            }
+            record(&mut report, outcome, &secrets);
+            if let Some(e) = error {
+                report.error = Some(SendError::Script(mask(&e, &secrets)));
+                return report;
+            }
+            if flow == Flow::Skip {
+                report.flow = Some(Flow::Skip);
+                return report;
+            }
+            if let Some(request) = request {
+                let mut entry = context.request.clone();
+                crate::script::apply_request(&mut entry.spec, &request);
+                changed = Some(entry);
+            }
+        }
+    }
+    let input = PrepareInput {
+        environment: input.environment,
+        globals: input.globals.clone(),
+        runtime,
+    };
+    let context = match &changed {
+        Some(entry) => RequestContext {
+            collection: context.collection,
+            folders: context.folders.clone(),
+            request: entry,
+        },
+        None => context,
+    };
+    let prepared = prepare(&context, &input, files);
     finish(
-        report, &context, input, files, prepared, transport, options, services,
+        report, &context, &input, files, prepared, transport, options, services,
     )
     .await
+}
+
+/// Runs `after-response` and `tests` scripts, then assertions and actions (wave 7). Variable
+/// changes of earlier steps are visible to later ones (runtime layer).
+#[allow(clippy::too_many_arguments)]
+async fn after_response<T: Transport>(
+    report: &mut SendReport,
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+    scope: &Scope,
+    request: ScriptRequest,
+    response: ScriptResponse,
+    transport: &T,
+    options: &SendOptions,
+    services: &Services<'_>,
+    secrets: &[String],
+) {
+    let mut scope = scope.clone();
+    let sender = TransportSender {
+        transport,
+        body_limit: options.body_limit,
+    };
+    if let Some(runner) = services.scripts {
+        for phase in [ScriptPhase::AfterResponse, ScriptPhase::Tests] {
+            let scripts = crate::script::scripts_for(context, phase);
+            if scripts.is_empty() {
+                continue;
+            }
+            let outcome = runner
+                .run(ScriptCall {
+                    phase,
+                    scripts,
+                    request: request.clone(),
+                    response: Some(response.clone()),
+                    variables: crate::script::variables_of(&scope),
+                    info: script_info(context, input, options),
+                    sender: Some(&sender),
+                })
+                .await;
+            for change in &outcome.var_changes {
+                set_scope(&mut scope, change);
+            }
+            if let Some(e) = &outcome.error {
+                report.notes.push(Note {
+                    source: format!("script:{}", crate::script::phase_name(phase)),
+                    level: NoteLevel::Error,
+                    text: mask(e, secrets),
+                });
+            }
+            record(report, outcome, secrets);
+        }
+    }
+    let spec = &context.request.spec;
+    report.assertions = crate::assert::evaluate(&spec.assertions, &response, &scope)
+        .into_iter()
+        .map(|mut a| {
+            a.expected = mask(&a.expected, secrets);
+            a.actual = a.actual.map(|v| mask(&v, secrets));
+            a.error = a.error.map(|e| mask(&e, secrets));
+            a
+        })
+        .collect();
+    report.var_changes.extend(
+        crate::assert::apply_actions(&spec.actions, &response)
+            .into_iter()
+            .map(|mut c| {
+                c.value = c.value.map(|v| mask(&v, secrets));
+                c
+            }),
+    );
+}
+
+/// Puts a variable change into the runtime layer of `scope` (added if missing).
+fn set_scope(scope: &mut Scope, change: &VarChange) {
+    let index = match scope
+        .layers
+        .iter()
+        .position(|l| l.source == VarSource::Runtime)
+    {
+        Some(i) => i,
+        None => {
+            scope.layers.push(VarLayer {
+                source: VarSource::Runtime,
+                vars: Vec::new(),
+            });
+            scope.layers.len() - 1
+        }
+    };
+    let layer = &mut scope.layers[index];
+    layer.vars.retain(|(name, _, _)| name != &change.name);
+    if let Some(value) = &change.value {
+        layer.vars.push((change.name.clone(), value.clone(), false));
+    }
+}
+
+/// Sends requests built by scripts (`rt.sendRequest`) through the transport of the send.
+struct TransportSender<'t, T> {
+    transport: &'t T,
+    body_limit: usize,
+}
+
+impl<T: Transport> ScriptSender for TransportSender<'_, T> {
+    fn send<'a>(
+        &'a self,
+        request: ScriptRequest,
+    ) -> LocalBoxFuture<'a, Result<ScriptResponse, String>> {
+        Box::pin(async move {
+            let request = HttpRequest {
+                method: request.method,
+                url: request.url,
+                headers: request.headers,
+                body: request.body.map(|b| crate::transport::HttpBody {
+                    content_type: None,
+                    bytes: b.into_bytes().into(),
+                }),
+                options: crate::transport::SendOptions::default(),
+            };
+            let started = web_time::Instant::now();
+            let response = self
+                .transport
+                .send(request)
+                .await
+                .map_err(|e| e.to_string())?;
+            let completed = collect(response, self.body_limit, started)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(script_response(&completed))
+        })
+    }
+}
+
+fn script_response(c: &CompletedResponse) -> ScriptResponse {
+    ScriptResponse {
+        status: c.head.status,
+        headers: c.head.headers.clone(),
+        body: c.body.to_vec(),
+        time_ms: u64::try_from(c.total.as_millis()).unwrap_or(u64::MAX),
+        url: c.head.url.clone(),
+    }
+}
+
+fn script_info(
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+    options: &SendOptions,
+) -> ScriptInfo {
+    ScriptInfo {
+        request_path: context.request.path.clone(),
+        request_name: context.request.spec.name.clone(),
+        collection_name: context.collection.name.clone(),
+        environment: input.environment.map(str::to_owned),
+        iteration: options.iteration.clone(),
+    }
+}
+
+/// Every secret value in `scope`.
+fn scope_secrets(scope: &Scope) -> Vec<String> {
+    scope
+        .layers
+        .iter()
+        .flat_map(|l| l.vars.iter())
+        .filter(|(_, _, secret)| *secret)
+        .map(|(_, value, _)| value.clone())
+        .collect()
+}
+
+/// Applies a variable change to the runtime layer of this send.
+fn set_runtime(runtime: &mut Vec<(String, String)>, change: &VarChange) {
+    runtime.retain(|(name, _)| name != &change.name);
+    if let Some(value) = &change.value {
+        runtime.push((change.name.clone(), value.clone()));
+    }
+}
+
+/// Moves what a script produced into the report, masked.
+fn record(report: &mut SendReport, outcome: ScriptOutcome, secrets: &[String]) {
+    report.logs.extend(outcome.logs.into_iter().map(|mut l| {
+        l.text = mask(&l.text, secrets);
+        l
+    }));
+    report.tests.extend(outcome.tests.into_iter().map(|mut t| {
+        t.name = mask(&t.name, secrets);
+        t.error = t.error.map(|e| mask(&e, secrets));
+        t
+    }));
+    report
+        .var_changes
+        .extend(outcome.var_changes.into_iter().map(|mut c| {
+            c.value = c.value.map(|v| mask(&v, secrets));
+            c
+        }));
+    if let flow @ Flow::Next { .. } = outcome.flow {
+        report.flow = Some(flow);
+    }
 }
 
 /// Everything after `prepare`. Split out so the orchestration can be tested with a
@@ -270,6 +556,15 @@ async fn finish<T: Transport>(
     }
 
     report.request = Some(sent_request(&request, &secrets));
+    let script_request = ScriptRequest {
+        method: request.method.clone(),
+        url: request.url.clone(),
+        headers: request.headers.clone(),
+        body: request
+            .body
+            .as_ref()
+            .and_then(|b| String::from_utf8(b.bytes.to_vec()).ok()),
+    };
     let started = web_time::Instant::now();
     let result = match transport.send(request).await {
         Ok(response) => collect(response, options.body_limit, started).await,
@@ -290,6 +585,21 @@ async fn finish<T: Transport>(
                     .await;
                 report.notes.extend(notes);
             }
+            // Wave 7: after-response and tests scripts, assertions, actions.
+            let response = script_response(&completed);
+            after_response(
+                &mut report,
+                context,
+                input,
+                &scope,
+                script_request,
+                response,
+                transport,
+                options,
+                services,
+                &secrets,
+            )
+            .await;
             report.response = Some(received(completed));
         }
         // Transports quote the URL and header values in their messages; secrets must not
@@ -848,6 +1158,11 @@ mod tests {
 
     fn base_report() -> SendReport {
         SendReport {
+            tests: Vec::new(),
+            assertions: Vec::new(),
+            logs: Vec::new(),
+            var_changes: Vec::new(),
+            flow: None,
             notes: Vec::new(),
             version: REPORT_VERSION,
             request_path: "api/get.yml".into(),
@@ -1121,7 +1436,10 @@ mod tests {
             &NoFiles,
             Ok(prepared()),
             &t,
-            &SendOptions { body_limit: 4 },
+            &SendOptions {
+                iteration: None,
+                body_limit: 4,
+            },
             &Services::none(),
         ));
         assert_eq!(r.error, None);

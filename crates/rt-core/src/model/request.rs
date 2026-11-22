@@ -161,4 +161,13 @@ pub struct RequestSpec {
     /// Request-level variables (highest file-based precedence).
     pub vars: Vec<Variable>,
     pub settings: Settings,
+    /// Scripts in file order (wave 7).
+    #[serde(default)]
+    pub scripts: Vec<super::Script>,
+    /// Declarative assertions (wave 7).
+    #[serde(default)]
+    pub assertions: Vec<super::Assertion>,
+    /// Variable actions such as "set variable from the response" (wave 7).
+    #[serde(default)]
+    pub actions: Vec<super::VarAction>,
 }

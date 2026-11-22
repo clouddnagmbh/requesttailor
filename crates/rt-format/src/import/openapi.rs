@@ -553,6 +553,9 @@ impl<'a> Cx<'a> {
             docs.push(s);
         }
         let spec = RequestSpec {
+            actions: Vec::new(),
+            assertions: Vec::new(),
+            scripts: Vec::new(),
             name,
             seq: None,
             method: method_upper,

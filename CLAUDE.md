@@ -69,7 +69,7 @@ Die Budgets werden als automatisierte Tests gemessen; eine Überschreitung brich
 ```
 crates/rt-core     HTTP-Engine, Variablen, Auth, Runner
 crates/rt-format   OpenCollection lesen und schreiben, Importer (`import`, ein Modul pro Quelle, Verlustbericht)
-crates/rt-script   Skript-Sandbox (QuickJS)
+crates/rt-script   Skript-Sandbox (QuickJS als WASM in wasmi), Skript-API `api.d.ts`, Shims, `SHIM-COVERAGE.md`
 crates/rt-plugin   Plugin-API (`api`, öffentlich, versioniert: `API.md`, `CHANGELOG.md`) und Plugin-Host (WASM)
 crates/rt-plugin-sdk  Rust-SDK für Plugins (wasm32-unknown-unknown)
 crates/rt-cli      CLI `rt`, Begleitdienst, MCP-Server
@@ -143,6 +143,16 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 5 (unten). Änderungen daran sind Sc
 - App-Seite: Collection-Tabs über den Header-Knopf „Collection“ und die Palette (`CollectionPanel`, nur sichtbar, wenn ein aktives Plugin einen hat). Vorschläge aus `create_requests`/`add_environments` zeigt `AdditionsDialog` zur Bestätigung (`plugins/additions.ts`: vergebene Namen bekommen „ 2“, vorhandene Umgebungen nur fehlende Variablen); angelegt über `Backend.createFolder`/`createRequest`/`updateEnvironment`, ungespeichert.
 - Mitgelieferte Plugins: im Datenordner installiert, aber deaktiviert, bis der Nutzer sie beim ersten Start wählt (`PluginApi.welcome`/`chooseWelcome`, Desktop `plugin_welcome`/`plugin_choose_welcome`). Wer SAP nicht wählt, sieht kein SAP (deaktivierte Plugins: keine Tabs, keine Hooks, keine Beschreibung). Desktop: Tauri-Ressource `src-tauri/bundled-plugins/` (`npm run bundle-plugins -w apps/desktop`, Teil von `build`; Debug-Builds lesen auch `target/plugins`), Antwort in `welcome.json` im Datenordner. Web: `dist/plugins/` aus `npm run build -w apps/web` (nicht im Dev-Server), Antwort in localStorage. Installiert wird erst beim ersten `welcome()` nach dem ersten Frame; ein entferntes mitgeliefertes Plugin bleibt entfernt. Mock: `?backend=mock&welcome=1`.
 - Testdaten nur synthetisch (kein `@sap/cds`, keine Hub-Daten); Testdienst `rt-odata-testserver` mit CSRF, ETag, `$batch`, Drafts, `sap-client`.
+
+### Skripte und Tests (ab Welle 7)
+
+- Skript-API: `crates/rt-script/api.d.ts` (`rt.request`, `rt.response`, `rt.vars`, `rt.info`, `rt.sendRequest`, `rt.sleep`, `rt.runner`, `test`, `expect`, `console`). `bru.*`/`req`/`res` und `pm.*` sind Shims darauf; Abdeckung in `crates/rt-script/SHIM-COVERAGE.md`, im Import-Verlustbericht genannt.
+- Modell `rt_core::model::{Script, ScriptPhase, Assertion, VarAction, VarScope}`: `RequestSpec.{scripts, assertions, actions}`, `RequestDefaults.scripts` (Collection und Ordner). OpenCollection: `runtime.{scripts, assertions, actions}` in Request-Dateien, `request.scripts` in `opencollection.yml`/`folder.yml`; gRPC-Phasen und andere Aktionstypen bleiben unberührt in der Datei. Lesen in `rt-format/src/runtime.rs`; Schreiben ist Strang C.
+- Ablauf in `send_with`: `before-request`-Skripte (Collection, Ordner außen nach innen, Request) auf dem Request wie geschrieben; gesetzte Variablen in die Laufzeit-Ebene, geänderter Request, dann `prepare` … Leitung … Plugin-`after_response`, danach `after-response`- und `tests`-Skripte, Assertions und Aktionen (`rt_core::assert`, ohne JavaScript). Ein Fehler vor dem Senden ist `SendError::Script`, danach eine Note. `rt_core::script` hat die Typen (`ScriptCall`, `ScriptOutcome`, `VarChange`, `TestResult`, `Flow`), `Services.scripts` ist der `ScriptRunner` (`rt_script::Sandbox`).
+- `SendReport` hat `tests`, `assertions`, `logs`, `var_changes`, `flow` (leer weggelassen), alles maskiert. Skripte sehen Secret-Werte, ihre Ausgaben nie unmaskiert. Variablenänderungen behält der Aufrufer (App: Sitzung pro Umgebung, `rt_app::scripts::SessionVars`; Runner und CLI: der Lauf); Dateien schreiben Skripte nie.
+- Vertrauen: Skripte laufen nur in Collections, denen der Nutzer vertraut (`rt_app::scripts`, einmal pro Collection und Gerät gefragt); sonst ohne Skripte mit Warn-Note. `rt send`/`rt run` führen Skripte aus, `--no-scripts` schaltet sie ab.
+- Runner `rt_core::runner` (`plan`, `run`, `RunPlan`, `RunEvent`, `RunSummary`), eine Umsetzung für App, Web und `rt run`. Exit-Code `EXIT_TESTS` (4), wenn ein Test oder eine Assertion scheitert (`rt send` und `rt run`).
+- `Backend` hat `scripts` (`ScriptsApi`: Vertrauen, Sitzungsvariablen) und `runner` (`RunnerApi`, Fortschritt per Callback; Desktop über einen Tauri-`Channel`). Dateien je Strang: Desktop `src-tauri/src/{scripts,session_vars,runner}.rs` und `src/{scripts,runner}.ts`, Web `src/{scripts,session-vars,runner}.ts`, Mock `commands/mock-{scripts,runner}.ts`, CLI `crates/rt-cli/src/run.rs`.
 
 ## Befehle
 

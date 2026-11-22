@@ -5092,6 +5092,9 @@ dependencies = [
 [[package]]
 name = "rt-script"
 version = "0.0.0"
+dependencies = [
+ "rt-core",
+]
 
 [[package]]
 name = "rt-testserver"

@@ -69,6 +69,15 @@
     "allow-cookie-list",
     "allow-cookie-delete",
     "allow-cookie-clear",
+    "allow-scripts-trust",
+    "allow-scripts-set-trusted",
+    "allow-scripts-session-vars",
+    "allow-scripts-set-session-var",
+    "allow-scripts-clear-session-vars",
+    "allow-runner-plan",
+    "allow-runner-parse-data",
+    "allow-runner-run",
+    "allow-runner-cancel",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

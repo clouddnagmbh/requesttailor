@@ -10,13 +10,16 @@ use std::path::Path;
 
 use rt_core::services::Services;
 
-use crate::{auth, cookies, plugins};
+use crate::{auth, cookies, plugins, scripts, session_vars};
 
 /// Long-lived state: installed plugins, token storage, cookie jars.
 pub struct ServiceParts {
     pub plugins: plugins::PluginParts,
     pub auth: auth::AuthParts,
     pub cookies: cookies::CookieParts,
+    /// Wave 7: trust and engine (strand A), session variables (strand C).
+    pub scripts: scripts::ScriptParts,
+    pub session: session_vars::SessionParts,
 }
 
 impl ServiceParts {
@@ -26,6 +29,8 @@ impl ServiceParts {
             plugins: plugins::PluginParts::new(data_dir),
             auth: auth::AuthParts::new(data_dir),
             cookies: cookies::CookieParts::new(data_dir),
+            scripts: scripts::ScriptParts::new(data_dir),
+            session: session_vars::SessionParts::default(),
         }
     }
 
@@ -38,6 +43,7 @@ impl ServiceParts {
                 .for_send(collection, self.cookies.for_send(collection)),
             auth: self.auth.for_send(collection),
             cookies: self.cookies.for_send(collection),
+            scripts: self.scripts.for_send(collection),
         }
     }
 }
@@ -46,6 +52,7 @@ pub struct SendServices<'a> {
     plugins: plugins::PluginSend<'a>,
     auth: auth::AuthSend<'a>,
     cookies: cookies::CookieSend<'a>,
+    scripts: scripts::ScriptSend<'a>,
 }
 
 impl SendServices<'_> {
@@ -55,6 +62,7 @@ impl SendServices<'_> {
             prompt: self.auth.prompt(),
             cookies: self.cookies.jar(),
             hooks: self.plugins.hooks(),
+            scripts: self.scripts.runner(),
         }
     }
 }

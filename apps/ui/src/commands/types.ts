@@ -181,6 +181,122 @@ export interface RequestSpec {
   auth: Auth;
   vars: Variable[];
   settings: Settings;
+  /** Wave 7. */
+  scripts: Script[];
+  assertions: Assertion[];
+  actions: VarAction[];
+}
+
+// ---- scripts, assertions, actions (rt_core::model::script, rt_core::script; wave 7) ----
+
+export type ScriptPhase = "before-request" | "after-response" | "tests";
+
+export interface Script {
+  phase: ScriptPhase;
+  code: string;
+}
+
+/** Declarative check, e.g. `res.status eq 200`. Operators as in Bruno (see Rust docs). */
+export interface Assertion {
+  expression: string;
+  operator: string;
+  value: string;
+  description: string | null;
+  enabled: boolean;
+}
+
+export type VarScope = "runtime" | "environment" | "collection" | "global";
+
+/** "Set variable from the response" (OpenCollection `set-variable`). */
+export interface VarAction {
+  phase: ScriptPhase;
+  /** e.g. `res.body.token` (method `jsonq`) or a header name (method `header`). */
+  expression: string;
+  method: string;
+  variable: string;
+  scope: VarScope;
+  enabled: boolean;
+}
+
+/** A variable set (`value` string) or unset (`null`) by a script or action. */
+export interface VarChange {
+  name: string;
+  value: string | null;
+  scope: VarScope;
+}
+
+export interface TestResult {
+  name: string;
+  passed: boolean;
+  error?: string;
+  /** `collection`, `folder:<path>` or `request`. */
+  origin: string;
+}
+
+export type LogLevel = "debug" | "log" | "info" | "warn" | "error";
+
+export interface ScriptLog {
+  level: LogLevel;
+  text: string;
+  origin: string;
+}
+
+export type Flow = { kind: "continue" } | { kind: "skip" } | { kind: "next"; request: string | null };
+
+export interface AssertionResult {
+  expression: string;
+  operator: string;
+  expected: string;
+  actual: string | null;
+  passed: boolean;
+  error?: string;
+}
+
+// ---- runner (rt_core::runner; wave 7) ----
+
+/** One data row (CSV columns as strings, JSON values as they are). */
+export type DataRow = [string, unknown][];
+
+export interface RunPlan {
+  requests: string[];
+  data: DataRow[];
+  iterations: number;
+  delay_ms: number;
+  bail: boolean;
+}
+
+export interface RunStep {
+  iteration: number;
+  request_path: string;
+  request_name: string;
+  report: SendReport;
+  passed: boolean;
+  skipped: boolean;
+}
+
+export interface RunSummary {
+  requests: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  tests_passed: number;
+  tests_failed: number;
+  assertions_passed: number;
+  assertions_failed: number;
+  duration_ms: number;
+  stopped: boolean;
+}
+
+export type RunEvent =
+  | { kind: "started"; total: number }
+  | { kind: "request"; iteration: number; request_path: string }
+  | { kind: "step"; step: RunStep }
+  | { kind: "finished"; summary: RunSummary };
+
+/** Whether the open collection has scripts and whether the user trusts it to run them. */
+export interface ScriptTrust {
+  has_scripts: boolean;
+  trusted: boolean;
 }
 
 // ---- variables (rt_core::vars) ----
@@ -232,6 +348,7 @@ export type SendError =
   | { kind: "prepare"; message: string }
   | { kind: "auth"; message: string }
   | { kind: "plugin"; message: string }
+  | { kind: "script"; message: string }
   | { kind: "transport"; message: TransportError };
 
 export type NoteLevel = "info" | "warning" | "error";
@@ -277,6 +394,12 @@ export interface SendReport {
   error: SendError | null;
   /** Omitted when empty. */
   notes?: Note[];
+  /** Wave 7, each omitted when empty. */
+  tests?: TestResult[];
+  assertions?: AssertionResult[];
+  logs?: ScriptLog[];
+  var_changes?: VarChange[];
+  flow?: Flow;
 }
 
 // ---- app (rt_app) ----

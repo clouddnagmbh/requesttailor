@@ -41,6 +41,7 @@ impl CliServices {
             prompt: self.auth.prompt(),
             cookies: self.cookies.as_deref().map(CliCookies::jar),
             hooks: self.plugins.as_ref().map(CliPlugins::hooks),
+            scripts: None,
         }
     }
 }
@@ -48,6 +49,11 @@ impl CliServices {
 /// A report for a send that failed before `send_with` could run.
 pub fn failed(request_path: &str, args: &SendArgs, error: SendError) -> SendReport {
     SendReport {
+        tests: Vec::new(),
+        assertions: Vec::new(),
+        logs: Vec::new(),
+        var_changes: Vec::new(),
+        flow: None,
         version: REPORT_VERSION,
         request_path: request_path.to_owned(),
         environment: args.environment.clone(),

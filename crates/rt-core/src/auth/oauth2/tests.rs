@@ -366,6 +366,7 @@ fn services<'a>(tokens: Option<&'a MemTokens>, prompt: Option<&'a FakePrompt>) -
         prompt: prompt.map(|p| p as &dyn AuthPrompt),
         cookies: None,
         hooks: None,
+        scripts: None,
     }
 }
 

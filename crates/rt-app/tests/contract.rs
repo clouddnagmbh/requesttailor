@@ -21,6 +21,7 @@ use rt_app::plugins::{
     ActionButton, Block, Contributions, FieldKind, FormField, ImporterContribution, Manifest,
     Permissions, PluginInfo, TabContribution, TabPlace, TabTarget, TreeItem, View, ViewReply,
 };
+use rt_app::scripts::ScriptTrust;
 use rt_app::secret_scan::SecretFinding;
 use rt_app::{
     AppError, FileChange, HistoryEntry, ImportPlan, LineSlice, Preview, PreviewVar, SearchField,
@@ -30,11 +31,14 @@ use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
     RawKind, RequestSpec, Settings, Variable,
 };
+use rt_core::model::{Assertion, Script, ScriptPhase, VarAction, VarScope};
 use rt_core::model::{
     AwsSigV4, CertificateSource, ClientCertificate, CredentialsPlacement, ExternalSecret,
     ExternalSecrets, OAuth2, OAuth2Flow, OAuth2Param, OAuth2Step, ParamPlacement, PkceMethod,
     SecretProvider, TokenPlacement, TokenSource, TokenUse,
 };
+use rt_core::runner::{RunEvent, RunPlan, RunStep, RunSummary};
+use rt_core::script::{AssertionResult, Flow, LogLevel, ScriptLog, TestResult, VarChange};
 use rt_core::send::{
     REPORT_VERSION, ReceivedResponse, ReportBody, SendError, SendReport, SentRequest,
 };
@@ -50,6 +54,31 @@ fn kv(name: &str, value: &str) -> KeyValue {
 
 fn request_spec() -> RequestSpec {
     RequestSpec {
+        scripts: vec![
+            Script {
+                phase: ScriptPhase::BeforeRequest,
+                code: "rt.vars.set('a', '1');".into(),
+            },
+            Script {
+                phase: ScriptPhase::Tests,
+                code: "test('ok', () => expect(rt.response.status).to.equal(201));".into(),
+            },
+        ],
+        assertions: vec![Assertion {
+            expression: "res.status".into(),
+            operator: "eq".into(),
+            value: "201".into(),
+            description: Some("created".into()),
+            enabled: true,
+        }],
+        actions: vec![VarAction {
+            phase: ScriptPhase::AfterResponse,
+            expression: "res.body.id".into(),
+            method: "jsonq".into(),
+            variable: "userId".into(),
+            scope: VarScope::Environment,
+            enabled: false,
+        }],
         name: "Create user".into(),
         seq: Some(2.0),
         method: "POST".into(),
@@ -442,12 +471,55 @@ fn send_errors() -> Vec<SendError> {
         SendError::Prepare("auth type \"oauth2\" is not supported yet".into()),
         SendError::Auth("token endpoint answered 401".into()),
         SendError::Plugin("odata: no CSRF token".into()),
+        SendError::Script("ReferenceError: x is not defined".into()),
         SendError::Transport(TransportError::Timeout),
     ]
 }
 
 fn report_ok() -> SendReport {
     SendReport {
+        tests: vec![
+            TestResult {
+                name: "ok".into(),
+                passed: true,
+                error: None,
+                origin: "request".into(),
+            },
+            TestResult {
+                name: "has id".into(),
+                passed: false,
+                error: Some("expected undefined to exist".into()),
+                origin: "folder:users".into(),
+            },
+        ],
+        assertions: vec![AssertionResult {
+            expression: "res.status".into(),
+            operator: "eq".into(),
+            expected: "201".into(),
+            actual: Some("201".into()),
+            passed: true,
+            error: None,
+        }],
+        logs: vec![ScriptLog {
+            level: LogLevel::Warn,
+            text: "token ***".into(),
+            origin: "collection".into(),
+        }],
+        var_changes: vec![
+            VarChange {
+                name: "a".into(),
+                value: Some("1".into()),
+                scope: VarScope::Runtime,
+            },
+            VarChange {
+                name: "b".into(),
+                value: None,
+                scope: VarScope::Global,
+            },
+        ],
+        flow: Some(Flow::Next {
+            request: Some("users/list.yml".into()),
+        }),
         notes: vec![
             Note {
                 source: "auth".into(),
@@ -500,6 +572,52 @@ fn report_ok() -> SendReport {
         unresolved: vec!["missing".into()],
         error: None,
     }
+}
+
+fn run_plan() -> RunPlan {
+    RunPlan {
+        requests: vec!["users/create.yml".into(), "users/list.yml".into()],
+        data: vec![vec![
+            ("name".into(), serde_json::json!("Ada")),
+            ("age".into(), serde_json::json!(36)),
+        ]],
+        iterations: 1,
+        delay_ms: 10,
+        bail: true,
+    }
+}
+
+fn run_events() -> Vec<RunEvent> {
+    let summary = RunSummary {
+        requests: 2,
+        passed: 1,
+        failed: 1,
+        skipped: 0,
+        tests_passed: 1,
+        tests_failed: 1,
+        assertions_passed: 1,
+        assertions_failed: 0,
+        duration_ms: 31,
+        stopped: false,
+    };
+    vec![
+        RunEvent::Started { total: 2 },
+        RunEvent::Request {
+            iteration: 0,
+            request_path: "users/create.yml".into(),
+        },
+        RunEvent::Step {
+            step: Box::new(RunStep {
+                iteration: 0,
+                request_path: "users/create.yml".into(),
+                request_name: "Create user".into(),
+                report: report_ok(),
+                passed: false,
+                skipped: false,
+            }),
+        },
+        RunEvent::Finished { summary },
+    ]
 }
 
 fn report_error() -> SendReport {
@@ -657,6 +775,25 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
         ("sendErrors", "SendError[]", j(send_errors())),
         ("reportOk", "SendReport", j(report_ok())),
         ("reportError", "SendReport", j(report_error())),
+        (
+            "flows",
+            "Flow[]",
+            j(vec![
+                Flow::Continue,
+                Flow::Skip,
+                Flow::Next { request: None },
+            ]),
+        ),
+        (
+            "scriptTrust",
+            "ScriptTrust",
+            j(ScriptTrust {
+                has_scripts: true,
+                trusted: false,
+            }),
+        ),
+        ("runPlan", "RunPlan", j(run_plan())),
+        ("runEvents", "RunEvent[]", j(run_events())),
         ("binaryBody", "ReportBody", j(binary_body())),
         (
             "storedResponse",
