@@ -34,6 +34,7 @@ use rt_app::{
     AppError, FileChange, HistoryEntry, ImportPlan, LineSlice, Preview, PreviewVar, SearchField,
     SearchHit, SecretKey, StoredResponse, TreeNode,
 };
+use rt_core::guard::{Caller, GuardVerdict, Purpose, SendCheck};
 use rt_core::model::{
     AgentAccess, AgentPolicy, EnvironmentPolicy, GrpcMethodType, GrpcSpec, MessageKind,
     MessageVariant, Protocol, WebSocketSpec,
@@ -611,6 +612,10 @@ fn send_errors() -> Vec<SendError> {
         SendError::Auth("token endpoint answered 401".into()),
         SendError::Plugin("odata: no CSRF token".into()),
         SendError::Script("ReferenceError: x is not defined".into()),
+        SendError::Blocked {
+            rule: "hosts.blocked".into(),
+            reason: "the host api.example is blocked".into(),
+        },
         SendError::Transport(TransportError::Timeout),
     ]
 }
@@ -912,6 +917,42 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
         ("varSources", "VarSource[]", j(var_sources())),
         ("transportErrors", "TransportError[]", j(transport_errors())),
         ("sendErrors", "SendError[]", j(send_errors())),
+        (
+            "sendChecks",
+            "SendCheck[]",
+            j(vec![SendCheck {
+                caller: Caller::Agent,
+                purpose: Purpose::Main,
+                collection: "Shop".into(),
+                request_path: "orders/create.yml".into(),
+                environment: Some("PRD".into()),
+                method: "POST".into(),
+                url: "https://api.example/orders?key=***".into(),
+                effect: Effect::Write,
+                production: true,
+            }]),
+        ),
+        (
+            "callers",
+            "Caller[]",
+            j(vec![Caller::App, Caller::Cli, Caller::Agent]),
+        ),
+        (
+            "purposes",
+            "SendPurpose[]",
+            j(vec![Purpose::Main, Purpose::Script]),
+        ),
+        (
+            "guardVerdicts",
+            "GuardVerdict[]",
+            j(vec![
+                GuardVerdict::Allow,
+                GuardVerdict::Refuse {
+                    rule: "agents.production-writes".into(),
+                    reason: "agents may not write to production".into(),
+                },
+            ]),
+        ),
         ("reportOk", "SendReport", j(report_ok())),
         ("reportError", "SendReport", j(report_error())),
         (
@@ -1371,6 +1412,7 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                     status: Some(201),
                     outcome: AuditOutcome::Sent,
                     approved_by: Some("app".into()),
+                    rule: None,
                     detail: String::new(),
                 },
                 AuditEntry {
@@ -1385,7 +1427,23 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                     status: None,
                     outcome: AuditOutcome::Read,
                     approved_by: None,
+                    rule: None,
                     detail: String::new(),
+                },
+                AuditEntry {
+                    at: 1_790_000_000_002,
+                    agent: "claude-code".into(),
+                    tool: "send_request".into(),
+                    collection: "/work/api".into(),
+                    request_path: Some("orders/create.yml".into()),
+                    environment: Some("PRD".into()),
+                    method: Some("POST".into()),
+                    url: Some("https://api.example/orders".into()),
+                    status: None,
+                    outcome: AuditOutcome::Refused,
+                    approved_by: None,
+                    rule: Some("agents.production-writes".into()),
+                    detail: "agents may not write to production".into(),
                 },
             ]),
         ),

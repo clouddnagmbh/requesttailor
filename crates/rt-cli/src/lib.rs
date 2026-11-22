@@ -39,6 +39,7 @@ use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
+use rt_core::guard::{Caller, GuardHandle};
 use rt_core::prepare::{FileSource, PrepareInput};
 use rt_core::send::{REPORT_VERSION, SendError, SendOptions, SendReport, send_with};
 use rt_core::transport::Transport;
@@ -54,6 +55,8 @@ pub const EXIT_USAGE: i32 = 2;
 pub const EXIT_PREPARE: i32 = 3;
 /// A response was received but a test or assertion failed (wave 7; also `rt run`).
 pub const EXIT_TESTS: i32 = 4;
+/// Wave 10: the send guard of the distribution refused a request; nothing was sent.
+pub const EXIT_BLOCKED: i32 = 5;
 
 pub fn help() -> String {
     let limit = SendOptions::default().body_limit;
@@ -163,6 +166,7 @@ Exit codes:
   {EXIT_PREPARE}  the request could not be prepared (environment, variables, auth, body),
      authentication failed, a plugin or a pre-request script stopped it
   {EXIT_TESTS}  a response was received but a test or assertion failed
+  {EXIT_BLOCKED}  a policy of this installation refused the request; nothing was sent
 ",
         version = env!("CARGO_PKG_VERSION"),
         agent_port = agent::DEFAULT_PORT,
@@ -220,6 +224,11 @@ pub struct SendArgs {
     pub no_scripts: bool,
     /// Session options (wave 8): `--sse`, `--message`, `--duration`, `--until-close`.
     pub session: stream::SessionArgs,
+    /// Wave 10: the distribution's send guard (never from the command line; see
+    /// [`run_distribution`]).
+    pub guard: GuardHandle,
+    /// Wave 10: who sends, for the guard: [`Caller::Cli`], or [`Caller::Agent`] in `rt mcp`.
+    pub caller: Caller,
 }
 
 impl Default for SendArgs {
@@ -236,6 +245,8 @@ impl Default for SendArgs {
             prompt: true,
             no_scripts: false,
             session: stream::SessionArgs::default(),
+            guard: GuardHandle::none(),
+            caller: Caller::Cli,
         }
     }
 }
@@ -474,6 +485,7 @@ pub fn exit_code(report: &SendReport) -> i32 {
             | SendError::Plugin(_)
             | SendError::Script(_),
         ) => EXIT_PREPARE,
+        Some(SendError::Blocked { .. }) => EXIT_BLOCKED,
     }
 }
 
@@ -511,6 +523,42 @@ where
     I: IntoIterator,
     I::Item: Into<OsString>,
 {
+    run_distribution(
+        args,
+        stdout,
+        stderr,
+        &Distribution {
+            extensions,
+            guard: GuardHandle::none(),
+        },
+    )
+}
+
+/// What a distribution adds to `rt` (waves 9 and 10). The builds of this repository add
+/// nothing.
+#[derive(Default)]
+pub struct Distribution<'a> {
+    /// Subcommands ([`run_with`]).
+    pub extensions: &'a [CliExtension],
+    /// Asked before every request `rt send`, `rt run` and `rt mcp` send
+    /// (`rt_core::guard`). A refused request is not sent: `rt send` and `rt run` exit with
+    /// [`EXIT_BLOCKED`], `rt mcp` answers the tool call with the reason and records the rule
+    /// in the audit log.
+    pub guard: GuardHandle,
+}
+
+/// [`run_with`] with everything a distribution adds.
+pub fn run_distribution<I>(
+    args: I,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+    distribution: &Distribution<'_>,
+) -> i32
+where
+    I: IntoIterator,
+    I::Item: Into<OsString>,
+{
+    let extensions = distribution.extensions;
     let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
     if let Some(x) = args
         .first()
@@ -529,10 +577,42 @@ where
         let _ = stdout.write_all(text.as_bytes());
         return EXIT_OK;
     }
-    run(args, stdout, stderr)
+    run_guarded(args, stdout, stderr, &distribution.guard)
 }
 
 pub fn run<I>(args: I, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
+where
+    I: IntoIterator,
+    I::Item: Into<OsString>,
+{
+    run_guarded(args, stdout, stderr, &GuardHandle::none())
+}
+
+/// The parsed command with the distribution's guard on every command that sends.
+fn with_guard(command: Command, guard: &GuardHandle) -> Command {
+    match command {
+        Command::Send(mut a) => {
+            a.guard = guard.clone();
+            Command::Send(a)
+        }
+        Command::Run(mut a) => {
+            a.guard = guard.clone();
+            Command::Run(a)
+        }
+        Command::Mcp(mut a) => {
+            a.guard = guard.clone();
+            Command::Mcp(a)
+        }
+        other => other,
+    }
+}
+
+fn run_guarded<I>(
+    args: I,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+    guard: &GuardHandle,
+) -> i32
 where
     I: IntoIterator,
     I::Item: Into<OsString>,
@@ -541,7 +621,7 @@ where
         let _ = writeln!(stderr, "rt: {msg}");
         code
     };
-    let args = match parse_args(args) {
+    let args = match parse_args(args).map(|c| with_guard(c, guard)) {
         Ok(Command::Help) => {
             let _ = stdout.write_all(help().as_bytes());
             return EXIT_OK;

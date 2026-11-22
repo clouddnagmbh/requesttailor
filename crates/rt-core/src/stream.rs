@@ -449,6 +449,8 @@ pub async fn open<'a, T: Transport, S: StreamTransport + ?Sized>(
         &mut notes,
     )
     .await?;
+    // Wave 10: the distribution's guard sees the final request before the stream opens.
+    crate::send::ask_guard(services, &context, &input, &request, &secrets)?;
 
     let (kind, url, open) = match &context.request.spec.protocol {
         Protocol::WebSocket(spec) => {
@@ -545,6 +547,7 @@ pub fn error_text(error: &SendError) -> String {
         SendError::Auth(m) => format!("authentication failed: {m}"),
         SendError::Plugin(m) => format!("a plugin stopped the request: {m}"),
         SendError::Script(m) => format!("a before-request script failed: {m}"),
+        SendError::Blocked { reason, .. } => format!("not sent: {reason}"),
         SendError::Transport(e) => e.to_string(),
     }
 }

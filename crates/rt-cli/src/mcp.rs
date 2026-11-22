@@ -50,6 +50,8 @@ pub struct Args {
     pub agent_name: Option<String>,
     /// `--body-limit <BYTES>`.
     pub body_limit: usize,
+    /// Wave 10: the distribution's send guard (never from the command line).
+    pub guard: rt_core::guard::GuardHandle,
 }
 
 impl Default for Args {
@@ -63,6 +65,7 @@ impl Default for Args {
             no_scripts: false,
             agent_name: None,
             body_limit: DEFAULT_BODY_LIMIT,
+            guard: Default::default(),
         }
     }
 }

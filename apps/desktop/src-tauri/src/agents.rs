@@ -148,6 +148,7 @@ mod tests {
                     status: None,
                     outcome: AuditOutcome::Read,
                     approved_by: None,
+                    rule: None,
                     detail: String::new(),
                 },
             )

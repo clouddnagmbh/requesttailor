@@ -2,7 +2,7 @@
 // Copyright 2026 The RequestTailor Authors
 
 //! The services of one browser send (wave 5): the web shell passes one object to
-//! `Workspace.send` (`{ plugins?, auth?, cookies?, scripts? }`, see
+//! `Workspace.send` (`{ plugins?, auth?, cookies?, scripts?, guard? }`, see
 //! `apps/web/src/send-services.ts`);
 //! each strand reads its own field in its own module.
 
@@ -11,6 +11,7 @@ use wasm_bindgen::JsValue;
 
 use crate::auth_js::AuthSend;
 use crate::cookies_js::CookieSend;
+use crate::guard_js::GuardSend;
 use crate::plugins_js::PluginSend;
 use crate::scripts_js::ScriptSend;
 
@@ -20,6 +21,8 @@ pub struct SendServices {
     cookies: CookieSend,
     /// Wave 7.
     pub scripts: ScriptSend,
+    /// Wave 10: the distribution's send guard (`services.guard`).
+    guard: GuardSend,
 }
 
 impl SendServices {
@@ -31,6 +34,7 @@ impl SendServices {
             auth: AuthSend::from_js(services)?,
             cookies,
             scripts: ScriptSend::from_js(services)?,
+            guard: GuardSend::from_js(services)?,
         })
     }
 
@@ -41,6 +45,8 @@ impl SendServices {
             cookies: self.cookies.jar(),
             hooks: self.plugins.hooks(),
             scripts: self.scripts.runner(),
+            guard: self.guard.guard(),
+            caller: rt_core::guard::Caller::App,
         }
     }
 }

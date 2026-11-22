@@ -44,6 +44,10 @@ pub use crate::core::{CollectionInfo, Core};
 /// from this crate: it adds its Tauri plugins with `.plugin(…)` and runs
 /// with the context of its own `tauri.conf.json` (wave 9). Its plugins' commands need their own
 /// capability file; the app's commands keep `capabilities/default.json`.
+///
+/// Wave 10: a distribution that checks every send manages its guard before `run`:
+/// `builder().manage(rt_core::guard::GuardHandle::new(guard))`; the app's sends (Send, runner,
+/// streams, gRPC) then ask it (`rt_core::guard`).
 pub fn builder() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -55,10 +59,16 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             let data_dir =
                 rt_plugin::host::dir::data_dir().or_else(|| app.path().app_data_dir().ok());
             // The app's keychain store (service "RequestTailor"); collection = canonical root.
+            // Wave 10: a distribution's send guard, managed on the builder before `run`.
+            let guard = app
+                .try_state::<rt_core::guard::GuardHandle>()
+                .map(|g| g.inner().clone())
+                .unwrap_or_default();
             let core = commands::AppCore::with_data_dir(
                 rt_app::secrets::keychain::KeychainStore::default(),
                 data_dir,
-            )?;
+            )?
+            .with_guard(guard);
             // OAuth 2.0 prompts reach the UI as the `auth-prompt` event (wave 5, strand C).
             core.services.auth.attach(app.handle().clone());
             // Bundled plugins (wave 6): only located here; installed on the first

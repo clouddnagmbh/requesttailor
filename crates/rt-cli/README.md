@@ -80,6 +80,7 @@ output mode is not part of wave 2; pipe through `jq` meanwhile.
 | 2 | Usage error, no collection found, invalid files, or request not in the collection |
 | 3 | The request could not be prepared: unknown environment, invalid URL after variable substitution, unsupported auth, unreadable body file; authentication failed; a plugin or a pre-request script stopped it |
 | 4 | A response was received but a test or assertion failed |
+| 5 | A policy of this installation refused the request; nothing was sent (builds of this repository have none; see "Send guard") |
 
 ## Secret variables
 
@@ -197,6 +198,7 @@ listed. Script output goes to `<system-out>`. Times are in seconds.
 | 2 | Usage error: bad arguments, no collection, not a folder of it, unknown environment, unreadable data file, a folder without requests, a report that cannot be written |
 | 3 | External secrets or plugins could not be set up |
 | 4 | A request failed, or a test or assertion failed |
+| 5 | A policy of this installation refused a request (takes precedence over 4) |
 
 ### In CI
 
@@ -456,6 +458,25 @@ under "Agent audit log". Nothing is sent anywhere.
   `--no-scripts`. Requests a trusted script sends itself (`rt.sendRequest`) are not checked
   against the policy; do not trust collections whose scripts you do not know.
 - Every call reads the files anew, so the agent works with the files as they are now.
+
+## Send guard (for distributions)
+
+A distribution that builds its own `rt` from this crate can add a check in front of every
+request: `rt_cli::run_distribution(args, stdout, stderr, &Distribution { extensions, guard })`
+with a `rt_core::guard::SendGuard`. The builds of this repository pass none.
+
+- `rt send`, `rt run`, and the tools `send_request` and `run_folder` of `rt mcp` ask the
+  guard once a request is final (after scripts, `prepare` and plugin hooks) and before it
+  goes out; requests a script sends with `rt.sendRequest` are asked too. The guard sees who
+  sends (`cli` or `agent`), method, URL with secret values masked, whether the request
+  writes, and whether the collection marks the environment as production; never a secret
+  value, a header value or a body.
+- A refused request is not sent. `rt send` and `rt run` exit with 5 and the report's error
+  is `{"kind": "blocked", "message": {"rule", "reason"}}`. `rt mcp` asks the guard before an
+  approval, answers with the reason (`isError: true`) and writes the rule into the audit
+  line (`"outcome": "refused", "rule": …`).
+- The desktop app (`rt_desktop::builder().manage(GuardHandle::new(guard))`) and the web app
+  (`createWebBackend({ sendGuard })`) ask the same way, with caller `app`.
 
 ## Companion: `rt agent`
 

@@ -58,7 +58,7 @@ import { webGit } from "./git";
 import { WebHistory } from "./history";
 import { webImports } from "./import";
 import { webPlugins, type WebPluginApi } from "./plugins";
-import { sendServices } from "./send-services";
+import { sendServices, type SendGuardFn } from "./send-services";
 import { webRecent, type WebRecent } from "./recent";
 import { readDirectory, writeChanges } from "./fs/directory";
 import { lastFolder, rememberFolder } from "./fs/recent";
@@ -78,6 +78,9 @@ export interface WebBackendDeps {
   loadCore: () => Promise<CoreModule>;
   openSecrets: (collectionId: string) => Promise<SecretsApi>;
   companion: () => CompanionClient;
+  /** Wave 10: a distribution's send guard (`rt_core::guard`), asked before every send of
+   *  this backend (send, runner, streams, gRPC, GraphQL). None in the builds of this repo. */
+  sendGuard?: SendGuardFn;
 }
 
 const DEFAULT_DEPS: WebBackendDeps = {
@@ -175,6 +178,11 @@ export class WebBackend implements Backend {
   private companionClient: CompanionClient | null = null;
   /** External secrets read through the companion, cached for the session (wave 5). */
   private readonly external: ExternalSecretReader;
+
+  /** Wave 10: read by `sendServices` (`send-services.ts`). */
+  get sendGuard(): SendGuardFn | undefined {
+    return this.deps.sendGuard;
+  }
 
   constructor(readonly deps: WebBackendDeps = DEFAULT_DEPS) {
     const host: WebHost = {

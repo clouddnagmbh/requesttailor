@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, Body, CookieInfo, Effect, Environment, FileChange, Flow, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, GrpcError, GrpcService, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, PendingApproval, PluginInfo, Preview, Protocol, ReportBody, RequestSpec, RunEvent, RunPlan, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendError, SendReport, StoredResponse, StreamEvent, StreamLog, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, Body, Caller, CookieInfo, Effect, Environment, FileChange, Flow, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitIdentity, GitPullResult, GitResolution, GitStatus, GrpcError, GrpcService, GuardVerdict, HistoryEntry, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, PendingApproval, PluginInfo, Preview, Protocol, ReportBody, RequestSpec, RunEvent, RunPlan, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, StoredResponse, StreamEvent, StreamLog, TabTarget, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -532,10 +532,53 @@ export const sendErrors: SendError[] = [
     "message": "ReferenceError: x is not defined"
   },
   {
+    "kind": "blocked",
+    "message": {
+      "reason": "the host api.example is blocked",
+      "rule": "hosts.blocked"
+    }
+  },
+  {
     "kind": "transport",
     "message": {
       "kind": "timeout"
     }
+  }
+];
+
+export const sendChecks: SendCheck[] = [
+  {
+    "caller": "agent",
+    "collection": "Shop",
+    "effect": "write",
+    "environment": "PRD",
+    "method": "POST",
+    "production": true,
+    "purpose": "main",
+    "request_path": "orders/create.yml",
+    "url": "https://api.example/orders?key=***"
+  }
+];
+
+export const callers: Caller[] = [
+  "app",
+  "cli",
+  "agent"
+];
+
+export const purposes: SendPurpose[] = [
+  "main",
+  "script"
+];
+
+export const guardVerdicts: GuardVerdict[] = [
+  {
+    "decision": "allow"
+  },
+  {
+    "decision": "refuse",
+    "reason": "agents may not write to production",
+    "rule": "agents.production-writes"
   }
 ];
 
@@ -2413,6 +2456,19 @@ export const auditEntries: AuditEntry[] = [
     "collection": "/work/api",
     "outcome": "read",
     "tool": "list_requests"
+  },
+  {
+    "agent": "claude-code",
+    "at": 1790000000002,
+    "collection": "/work/api",
+    "detail": "agents may not write to production",
+    "environment": "PRD",
+    "method": "POST",
+    "outcome": "refused",
+    "request_path": "orders/create.yml",
+    "rule": "agents.production-writes",
+    "tool": "send_request",
+    "url": "https://api.example/orders"
   }
 ];
 

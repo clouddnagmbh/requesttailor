@@ -24,6 +24,9 @@ pub struct CliServices {
     cookies: Option<Rc<CliCookies>>,
     /// Wave 7: the script sandbox, unless `--no-scripts`.
     scripts: CliScripts,
+    /// Wave 10: the distribution's send guard and who sends.
+    guard: rt_core::guard::GuardHandle,
+    caller: rt_core::guard::Caller,
 }
 
 impl CliServices {
@@ -36,6 +39,8 @@ impl CliServices {
             auth: CliAuth::new(args, root),
             cookies,
             scripts: CliScripts::new(args),
+            guard: args.guard.clone(),
+            caller: args.caller,
         })
     }
 
@@ -46,6 +51,8 @@ impl CliServices {
             cookies: self.cookies.as_deref().map(CliCookies::jar),
             hooks: self.plugins.as_ref().map(CliPlugins::hooks),
             scripts: self.scripts.runner(),
+            guard: self.guard.get(),
+            caller: self.caller,
         }
     }
 }

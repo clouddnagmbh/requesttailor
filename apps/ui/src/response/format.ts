@@ -97,6 +97,8 @@ export function describeError(error: SendError): string {
       return `A plugin stopped the request: ${error.message}`;
     case "script":
       return `A pre-request script failed: ${error.message}`;
+    case "blocked":
+      return `Not sent: ${error.message.reason}`;
     case "transport": {
       const t = error.message;
       switch (t.kind) {

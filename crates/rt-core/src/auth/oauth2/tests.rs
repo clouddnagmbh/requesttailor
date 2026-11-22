@@ -367,6 +367,8 @@ fn services<'a>(tokens: Option<&'a MemTokens>, prompt: Option<&'a FakePrompt>) -
         cookies: None,
         hooks: None,
         scripts: None,
+        guard: None,
+        caller: Default::default(),
     }
 }
 

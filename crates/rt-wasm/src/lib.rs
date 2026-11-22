@@ -653,6 +653,8 @@ mod git_js;
 #[cfg(target_arch = "wasm32")]
 mod grpc_js;
 #[cfg(target_arch = "wasm32")]
+mod guard_js;
+#[cfg(target_arch = "wasm32")]
 mod history_js;
 #[cfg(target_arch = "wasm32")]
 mod import_js;

@@ -100,7 +100,7 @@ perf/budgets.toml  Performance-Budgets, einzige Quelle für die Schwellwerte
 
 ## Kern-Schnittstellen
 
-Stand Welle 2, ergänzt in den Wellen 3 bis 8 (unten). Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
+Stand Welle 2, ergänzt in den Wellen 3 bis 10 (unten). Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
 
 - `rt_core::model`: internes Request-Modell (Collection, Folder, RequestSpec, Environment). Formatneutral.
 - `rt_core::transport::Transport`: Grenze zum Netz. Nativ eigener HTTP-Stack, im Browser `fetch`. Antwort-Body als Stream.
@@ -170,6 +170,11 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 8 (unten). Änderungen daran sind Sc
 - Desktop: `rt_desktop::builder()` liefert den fertig konfigurierten `tauri::Builder` (Plugins, Zustand, Befehle); `main.rs` ist `builder().run(generate_context!())`; der Kontext steht nur im Binary, nicht in der Bibliothek. Dasselbe Datenverzeichnis wie `rt` (`rt_plugin::host::dir::data_dir()`, auch bei anderem Bundle-Identifier). `links = "rt-desktop"`: Build-Skripte abhängiger Crates lesen `DEP_RT_DESKTOP_COMMANDS` und `DEP_RT_DESKTOP_CAPABILITIES`. Eine Distribution hängt eigene Tauri-Plugins mit `.plugin(…)` an und läuft mit dem Kontext ihrer eigenen `tauri.conf.json` und eigener Capability-Datei.
 - UI: `startApp(target, backend, { extensions })` mit `AppExtension` aus `apps/ui/src/extensions.ts` (Palette-Befehle `commands`, Kopfzeilen-Element `header`, `overlay`, `start` nach dem ersten Frame; `ExtensionContext` = Backend und `AppState`). Die Hüllen exportieren ihr Backend: `@requesttailor/desktop/backend` (`TauriBackend`), `@requesttailor/web/backend` (`createWebBackend`).
 - CLI: `rt_cli::run_with(args, stdout, stderr, &[CliExtension])`; ein erstes Argument mit dem Namen einer Erweiterung startet sie, `rt --help` listet sie unter „More commands“. `run` ist `run_with` ohne Erweiterungen.
+
+### Erweiterungspunkte (ab Welle 10)
+
+- Sende-Wächter `rt_core::guard`: `SendGuard::check(&SendCheck) -> GuardVerdict` (`allow` oder `refuse { rule, reason }`). `SendCheck` nennt Aufrufer (`Caller`: `app`, `cli`, `agent`), Zweck (`main`, `script`), Collection, Request-Pfad, Umgebung, Methode, URL mit maskierten Secrets, `Effect` (lesend/schreibend; `effect` lebt jetzt hier, `rt_app::agents` exportiert es weiter) und ob die Umgebung laut Agent-Regeln Produktion ist. `send_with` und `stream::open` fragen `Services.guard` nach Skripten, `prepare` und Plugin-Hooks, direkt vor der Leitung; `rt.sendRequest` aus Skripten ebenso. Ablehnung: `SendError::Blocked { rule, reason }`, nichts geht raus. OAuth-Token-Abrufe fragt der Wächter nicht.
+- Hüllen nehmen den Wächter so: CLI `rt_cli::run_distribution(…, &Distribution { extensions, guard })` (`rt send`, `rt run` mit Exit-Code `EXIT_BLOCKED` = 5; `rt mcp` fragt vor jeder Freigabe, schreibt `rule` ins Audit-Log, `AuditEntry.rule`), Desktop `rt_desktop::builder().manage(GuardHandle::new(…))` (`Core::with_guard`), Web `createWebBackend({ sendGuard })` (Feld `guard` der Send-Services, `crates/rt-wasm/src/guard_js.rs`, schließt bei Fehlern). Tests: `crates/rt-core/tests/guard.rs`, `crates/rt-cli/tests/guard.rs` (ohne Harness), `apps/desktop/src-tauri/tests/guard.rs`. Die Builds dieses Repos setzen keinen Wächter.
 
 ## Befehle
 

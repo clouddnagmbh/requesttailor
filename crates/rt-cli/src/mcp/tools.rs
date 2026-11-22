@@ -19,6 +19,7 @@ use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 
 use rt_app::agents::{self, AuditOutcome, Effect, PendingApproval, Verdict};
+use rt_core::guard::{Caller, GuardVerdict, Purpose, SendCheck};
 use rt_core::model::{AgentAccess, AgentPolicy, Collection, Item, Variable};
 use rt_core::prepare::PrepareInput;
 use rt_core::runner::{RunEvent, RunPlan, RunStep};
@@ -431,6 +432,8 @@ async fn prepare(
         no_scripts: !trusted,
         // Sessions (WebSocket, SSE, gRPC) are not offered to agents yet.
         session: Default::default(),
+        guard: server.opts.guard.clone(),
+        caller: rt_core::guard::Caller::Agent,
     };
     Ok(Prepared {
         collection,
@@ -486,6 +489,7 @@ fn error_text(e: &SendError) -> String {
         SendError::Auth(m) => format!("authentication failed: {m}"),
         SendError::Plugin(m) => format!("stopped by a plugin: {m}"),
         SendError::Script(m) => format!("stopped by a script: {m}"),
+        SendError::Blocked { reason, .. } => format!("not sent: {reason}"),
         SendError::Transport(t) => t.to_string(),
     }
 }
@@ -599,6 +603,27 @@ async fn send_request(
     };
     let (method, url) = preview(server, &prepared, &path, &files);
     entry.url = Some(url.clone());
+    // Wave 10: the distribution's guard, before any approval: a refused request never waits.
+    if let Some(guard) = server.opts.guard.get() {
+        let check = SendCheck {
+            caller: Caller::Agent,
+            purpose: Purpose::Main,
+            collection: doc.model().name.clone(),
+            request_path: path.clone(),
+            environment: environment.clone(),
+            method: method.clone(),
+            url: url.clone(),
+            effect: agents::effect(spec),
+            production: policy.for_environment(environment.as_deref()).1,
+        };
+        if let GuardVerdict::Refuse { rule, reason } = guard.check(&check) {
+            let reason = server.masker.borrow().text(&reason);
+            entry.outcome = AuditOutcome::Refused;
+            entry.rule = Some(server.masker.borrow().text(&rule));
+            entry.detail = reason.clone();
+            return Ok(ToolResult::error(format!("{reason}; nothing was sent")));
+        }
+    }
     if verdict == Verdict::NeedsApproval {
         let approval = pending(server, &doc, &path, environment.as_deref(), method, url);
         let outcome = approval::wait(server, call_id, &approval).await;
@@ -631,6 +656,11 @@ fn record_send(entry: &mut rt_app::agents::AuditEntry, report: &SendReport) {
         (Some(r), _) => {
             entry.outcome = AuditOutcome::Sent;
             entry.status = Some(r.status);
+        }
+        (None, Some(SendError::Blocked { rule, reason })) => {
+            entry.outcome = AuditOutcome::Refused;
+            entry.rule = Some(rule.clone());
+            entry.detail = reason.clone();
         }
         (None, Some(e)) => {
             entry.outcome = AuditOutcome::Failed;
@@ -848,8 +878,15 @@ async fn run_folder(
     // The audit entry: one per call, with a line per request.
     let approvals = gate.approvals.into_inner();
     let sent = steps.iter().filter(|s| s.report.response.is_some()).count();
+    // Wave 10: the first rule of the distribution's guard that refused a step.
+    entry.rule = steps.iter().find_map(|s| match &s.report.error {
+        Some(SendError::Blocked { rule, .. }) => Some(rule.clone()),
+        _ => None,
+    });
     entry.outcome = if sent > 0 {
         AuditOutcome::Sent
+    } else if entry.rule.is_some() {
+        AuditOutcome::Refused
     } else if approvals
         .iter()
         .any(|(_, o)| matches!(o, Outcome::Denied(_)))

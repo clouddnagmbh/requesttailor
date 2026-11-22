@@ -354,7 +354,34 @@ export type SendError =
   | { kind: "auth"; message: string }
   | { kind: "plugin"; message: string }
   | { kind: "script"; message: string }
+  /** Wave 10: the distribution's send guard refused the request; nothing was sent. */
+  | { kind: "blocked"; message: { rule: string; reason: string } }
   | { kind: "transport"; message: TransportError };
+
+// ---- send guard (rt_core::guard; wave 10) ----
+
+export type Caller = "app" | "cli" | "agent";
+
+export type SendPurpose = "main" | "script";
+
+/** What a distribution's send guard is asked before a request goes out. */
+export interface SendCheck {
+  caller: Caller;
+  purpose: SendPurpose;
+  collection: string;
+  request_path: string;
+  environment: string | null;
+  method: string;
+  /** Resolved, secret values masked. */
+  url: string;
+  effect: Effect;
+  /** The collection's agent policy marks the environment as production. */
+  production: boolean;
+}
+
+export type GuardVerdict =
+  | { decision: "allow" }
+  | { decision: "refuse"; rule: string; reason: string };
 
 export type NoteLevel = "info" | "warning" | "error";
 
@@ -952,6 +979,8 @@ export interface AuditEntry {
   status?: number;
   outcome: AuditOutcome;
   approved_by?: string;
+  /** Wave 10: the send guard's rule when it refused the call (outcome `refused`). */
+  rule?: string;
   detail?: string;
 }
 

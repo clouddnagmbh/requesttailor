@@ -35,116 +35,12 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use rt_core::model::{AgentAccess, AgentPolicy, Body, Protocol, RequestSpec};
+use rt_core::model::{AgentAccess, AgentPolicy};
 use serde::{Deserialize, Serialize};
 
-/// Whether a request changes something on the server. Writing: every method other than
-/// GET, HEAD, OPTIONS (and TRACE); a GraphQL body with a `mutation`; every gRPC call (the
-/// file does not say whether it writes); a WebSocket with messages to send. SSE and
-/// WebSocket without messages only listen.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Effect {
-    Read,
-    Write,
-}
-
-/// Methods that only read (RFC 9110 "safe" methods).
-const READING_METHODS: &[&str] = &["GET", "HEAD", "OPTIONS", "TRACE"];
-
-/// What sending `spec` does (rules at [`Effect`]).
-pub fn effect(spec: &RequestSpec) -> Effect {
-    match &spec.protocol {
-        Protocol::Grpc(_) => return Effect::Write,
-        Protocol::WebSocket(ws) => {
-            return if ws.messages.is_empty() {
-                Effect::Read
-            } else {
-                Effect::Write
-            };
-        }
-        Protocol::Http => {}
-    }
-    let method = spec.method.trim().to_ascii_uppercase();
-    let reading = READING_METHODS.contains(&method.as_str());
-    if let Body::GraphQl { query, .. } = &spec.body {
-        // GraphQL goes as POST (or GET); the operation decides.
-        if method == "POST" || reading {
-            return if graphql_has_mutation(query) {
-                Effect::Write
-            } else {
-                Effect::Read
-            };
-        }
-        return Effect::Write;
-    }
-    if reading { Effect::Read } else { Effect::Write }
-}
-
-/// Whether a GraphQL document defines a `mutation` operation: the keyword `mutation` as a
-/// name outside every selection set (`{}`) and argument list (`()`), ignoring comments,
-/// strings, `$variables` and `@directives`. A document with several operations counts as
-/// writing if any of them is a mutation (`operationName` may pick any of them).
-pub fn graphql_has_mutation(query: &str) -> bool {
-    let bytes = query.as_bytes();
-    let (mut i, mut braces, mut parens) = (0usize, 0i32, 0i32);
-    while i < bytes.len() {
-        match bytes[i] {
-            b'#' => {
-                while i < bytes.len() && bytes[i] != b'\n' && bytes[i] != b'\r' {
-                    i += 1;
-                }
-            }
-            b'"' if bytes[i..].starts_with(b"\"\"\"") => {
-                i += 3;
-                while i < bytes.len() && !bytes[i..].starts_with(b"\"\"\"") {
-                    i += if bytes[i..].starts_with(b"\\\"\"\"") {
-                        4
-                    } else {
-                        1
-                    };
-                }
-                i += 3;
-                continue;
-            }
-            b'"' => {
-                i += 1;
-                while i < bytes.len() && bytes[i] != b'"' && bytes[i] != b'\n' {
-                    i += if bytes[i] == b'\\' { 2 } else { 1 };
-                }
-            }
-            b'{' => braces += 1,
-            b'}' => braces -= 1,
-            b'(' => parens += 1,
-            b')' => parens -= 1,
-            b'$' | b'@' => {
-                // The name that follows is a variable or a directive.
-                i += 1;
-                while i < bytes.len() && is_name(bytes[i]) {
-                    i += 1;
-                }
-                continue;
-            }
-            b if b.is_ascii_alphabetic() || b == b'_' => {
-                let start = i;
-                while i < bytes.len() && is_name(bytes[i]) {
-                    i += 1;
-                }
-                if braces == 0 && parens == 0 && &bytes[start..i] == b"mutation" {
-                    return true;
-                }
-                continue;
-            }
-            _ => {}
-        }
-        i += 1;
-    }
-    false
-}
-
-fn is_name(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'_'
-}
+/// Whether a request writes (moved to `rt_core::guard` in wave 10, where every shell's send
+/// guard can use it; re-exported here unchanged).
+pub use rt_core::guard::{Effect, effect, graphql_has_mutation};
 
 /// What the policy says for one send.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -259,6 +155,10 @@ pub struct AuditEntry {
     /// `None` without approval; otherwise who decided (`app`, `cli`, `elicitation`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approved_by: Option<String>,
+    /// Set when the shell's send guard refused the call (wave 10): the rule it names
+    /// (`rt_core::guard::GuardVerdict::Refuse`). The outcome is then `refused`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule: Option<String>,
     /// Masked; e.g. the refusal reason or the error.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub detail: String,
@@ -531,7 +431,9 @@ pub fn now_ms() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rt_core::model::{EnvironmentPolicy, MessageVariant, Protocol, WebSocketSpec};
+    use rt_core::model::{
+        Body, EnvironmentPolicy, MessageVariant, Protocol, RequestSpec, WebSocketSpec,
+    };
 
     fn spec(method: &str) -> RequestSpec {
         RequestSpec {
@@ -831,6 +733,7 @@ mod tests {
             status: None,
             outcome: AuditOutcome::Read,
             approved_by: None,
+            rule: None,
             detail: String::new(),
         }
     }

@@ -35,6 +35,11 @@ pub struct Services<'a> {
     /// Runs `before-request`, `after-response` and `tests` scripts (wave 7, `rt-script`).
     /// Without it scripts are not run (and not reported as failed).
     pub scripts: Option<&'a dyn ScriptRunner>,
+    /// Wave 10: the distribution's send guard ([`crate::guard`]); `None` in the builds of
+    /// this repository.
+    pub guard: Option<&'a dyn crate::guard::SendGuard>,
+    /// Wave 10: who sends, for the guard. Shells set it; the default is the app.
+    pub caller: crate::guard::Caller,
 }
 
 impl Services<'_> {

@@ -45,6 +45,11 @@ serde = { version = "1", features = ["derive"] }
 url = "2"
 web-time = "1"
 
+# Wave 10: plays both the test and a distribution's `rt` with a send guard (see the file).
+[[test]]
+name = "guard"
+harness = false
+
 [dev-dependencies]
 rt-testserver = { path = "../rt-testserver" }
 serde = { version = "1", features = ["derive"] }

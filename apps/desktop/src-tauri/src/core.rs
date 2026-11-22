@@ -102,6 +102,15 @@ impl<S: SecretStore> Core<S> {
         })
     }
 
+    /// Wave 10: every send of this core (send, runner, streams, gRPC) asks `guard` first
+    /// (`rt_core::guard`). Call it right after creating the core, before it is shared.
+    pub fn with_guard(mut self, guard: rt_core::guard::GuardHandle) -> Self {
+        std::sync::Arc::get_mut(&mut self.services)
+            .expect("with_guard is called before the core is shared")
+            .guard = guard;
+        self
+    }
+
     /// The secret store (Git credentials are kept there too).
     pub fn secrets(&self) -> &S {
         &self.secrets

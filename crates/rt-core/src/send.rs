@@ -9,6 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::guard::{Caller, GuardVerdict, Purpose, SendCheck, SendGuard};
 use crate::model::{Auth, Body, Collection, RequestContext, ScriptPhase, Variable};
 use crate::prepare::{FileSource, PrepareError, PrepareInput, Prepared, prepare};
 use crate::script::{
@@ -91,6 +92,12 @@ pub enum SendError {
     Plugin(String),
     /// A `before-request` script failed (exception, time or memory limit). Wave 7.
     Script(String),
+    /// The shell's send guard refused the request before it went out (wave 10,
+    /// [`crate::guard`]). `rule` names the rule, `reason` says why; nothing was sent.
+    Blocked {
+        rule: String,
+        reason: String,
+    },
     Transport(TransportError),
 }
 
@@ -213,6 +220,7 @@ pub async fn send_with<T: Transport>(
             let sender = TransportSender {
                 transport,
                 body_limit: options.body_limit,
+                guard: script_guard(&context, input, services, &secrets),
             };
             let outcome = runner
                 .run(ScriptCall {
@@ -286,6 +294,7 @@ async fn after_response<T: Transport>(
     let sender = TransportSender {
         transport,
         body_limit: options.body_limit,
+        guard: script_guard(context, input, services, secrets),
     };
     if let Some(runner) = services.scripts {
         for phase in [ScriptPhase::AfterResponse, ScriptPhase::Tests] {
@@ -364,6 +373,81 @@ fn set_scope(scope: &mut Scope, change: &VarChange) {
 struct TransportSender<'t, T> {
     transport: &'t T,
     body_limit: usize,
+    /// Wave 10: asked before each script request goes out.
+    guard: Option<ScriptGuard<'t>>,
+}
+
+/// The send guard with what it needs to judge a script's request.
+struct ScriptGuard<'t> {
+    guard: &'t dyn SendGuard,
+    base: SendCheck,
+    secrets: Vec<String>,
+}
+
+/// The guard's view of a send, before method, URL and effect are known (wave 10).
+pub(crate) fn guard_base(
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+    caller: Caller,
+) -> SendCheck {
+    SendCheck {
+        caller,
+        purpose: Purpose::Main,
+        collection: context.collection.name.clone(),
+        request_path: context.request.path.clone(),
+        environment: input.environment.map(str::to_owned),
+        method: String::new(),
+        url: String::new(),
+        effect: crate::guard::effect(&context.request.spec),
+        production: context
+            .collection
+            .config
+            .agents
+            .for_environment(input.environment)
+            .1,
+    }
+}
+
+/// Asks the guard (if any) about the final `request` of a send; `Err` is the error of the
+/// report.
+pub(crate) fn ask_guard(
+    services: &Services<'_>,
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+    request: &HttpRequest,
+    secrets: &[String],
+) -> Result<(), SendError> {
+    let Some(guard) = services.guard else {
+        return Ok(());
+    };
+    let check = SendCheck {
+        method: request.method.clone(),
+        url: mask(&request.url, secrets),
+        ..guard_base(context, input, services.caller)
+    };
+    match guard.check(&check) {
+        GuardVerdict::Allow => Ok(()),
+        GuardVerdict::Refuse { rule, reason } => Err(SendError::Blocked {
+            rule: mask(&rule, secrets),
+            reason: mask(&reason, secrets),
+        }),
+    }
+}
+
+fn script_guard<'t>(
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+    services: &Services<'t>,
+    secrets: &[String],
+) -> Option<ScriptGuard<'t>> {
+    services.guard.map(|guard| ScriptGuard {
+        guard,
+        base: SendCheck {
+            purpose: Purpose::Script,
+            ..guard_base(context, input, services.caller)
+        },
+        secrets: secrets.to_vec(),
+    })
 }
 
 impl<T: Transport> ScriptSender for TransportSender<'_, T> {
@@ -382,6 +466,17 @@ impl<T: Transport> ScriptSender for TransportSender<'_, T> {
                 }),
                 options: crate::transport::SendOptions::default(),
             };
+            if let Some(g) = &self.guard {
+                let check = SendCheck {
+                    method: request.method.clone(),
+                    url: mask(&request.url, &g.secrets),
+                    effect: crate::guard::method_effect(&request.method),
+                    ..g.base.clone()
+                };
+                if let GuardVerdict::Refuse { reason, .. } = g.guard.check(&check) {
+                    return Err(format!("not sent: {}", mask(&reason, &g.secrets)));
+                }
+            }
             let started = web_time::Instant::now();
             let response = self
                 .transport
@@ -518,6 +613,11 @@ async fn finish<T: Transport>(
     };
 
     report.request = Some(sent_request(&request, &secrets));
+    // Wave 10: the distribution's guard sees the final request before the wire.
+    if let Err(error) = ask_guard(services, context, input, &request, &secrets) {
+        report.error = Some(error);
+        return report;
+    }
     let script_request = ScriptRequest {
         method: request.method.clone(),
         url: request.url.clone(),

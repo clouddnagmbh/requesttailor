@@ -252,6 +252,7 @@ impl<'a> Server<'a> {
             status: None,
             outcome,
             approved_by: None,
+            rule: None,
             detail: String::new(),
         }
     }

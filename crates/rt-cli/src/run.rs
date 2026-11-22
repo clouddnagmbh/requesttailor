@@ -20,7 +20,8 @@
 //! Exit codes: `EXIT_OK` all passed, `EXIT_TESTS` a request, test or assertion failed,
 //! `EXIT_USAGE` usage error (also: nothing to run, a report that cannot be written),
 //! `EXIT_PREPARE` external secrets or plugins could not be set up, `EXIT_TRANSPORT` no
-//! network stack.
+//! network stack, `EXIT_BLOCKED` the distribution's send guard refused a request (wave 10;
+//! before `EXIT_TESTS`).
 
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -28,7 +29,7 @@ use std::path::{Component, Path, PathBuf};
 use rt_core::model::{Collection, Item};
 use rt_core::prepare::PrepareInput;
 use rt_core::runner::{RunEvent, RunPlan, RunStep, RunSummary};
-use rt_core::send::SendOptions;
+use rt_core::send::{SendError, SendOptions};
 use rt_format::COLLECTION_FILE;
 
 use crate::report::{self, RunInfo};
@@ -90,6 +91,8 @@ pub struct RunArgs {
     pub cookie_jar: Option<PathBuf>,
     pub prompt: bool,
     pub no_scripts: bool,
+    /// Wave 10: the distribution's send guard (never from the command line).
+    pub guard: rt_core::guard::GuardHandle,
 }
 
 impl Default for RunArgs {
@@ -109,6 +112,7 @@ impl Default for RunArgs {
             cookie_jar: None,
             prompt: true,
             no_scripts: false,
+            guard: Default::default(),
         }
     }
 }
@@ -128,6 +132,8 @@ impl RunArgs {
             prompt: self.prompt,
             no_scripts: self.no_scripts,
             session: Default::default(),
+            guard: self.guard.clone(),
+            caller: rt_core::guard::Caller::Cli,
         }
     }
 }
@@ -229,8 +235,15 @@ pub(crate) fn parse(parser: &mut lexopt::Parser) -> Result<Option<RunArgs>, Stri
     Ok(Some(args))
 }
 
-/// `EXIT_TESTS` if a request, test or assertion failed, else `EXIT_OK`.
+/// `EXIT_BLOCKED` if the send guard refused a request, `EXIT_TESTS` if a request, test or
+/// assertion failed, else `EXIT_OK`.
 pub fn exit_code(summary: &RunSummary, steps: &[RunStep]) -> i32 {
+    if steps
+        .iter()
+        .any(|s| matches!(s.report.error, Some(SendError::Blocked { .. })))
+    {
+        return crate::EXIT_BLOCKED;
+    }
     let failed = summary.failed > 0
         || summary.tests_failed > 0
         || summary.assertions_failed > 0

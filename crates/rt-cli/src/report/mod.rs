@@ -54,6 +54,7 @@ pub fn error_kind(error: &SendError) -> &'static str {
         SendError::Auth(_) => "auth",
         SendError::Plugin(_) => "plugin",
         SendError::Script(_) => "script",
+        SendError::Blocked { .. } => "blocked",
         SendError::Transport(_) => "transport",
     }
 }
@@ -66,6 +67,7 @@ pub fn error_message(error: &SendError) -> String {
         SendError::Auth(m) => format!("authentication failed: {m}"),
         SendError::Plugin(m) => format!("stopped by a plugin: {m}"),
         SendError::Script(m) => format!("pre-request script failed: {m}"),
+        SendError::Blocked { reason, .. } => format!("not sent: {reason}"),
         SendError::Transport(e) => e.to_string(),
     }
 }
