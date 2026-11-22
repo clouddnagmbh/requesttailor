@@ -1,9 +1,10 @@
 # rt
 
-The RequestTailor command line: `rt send` and the companion `rt agent` (below).
+The RequestTailor command line: `rt send`, `rt import` and the companion `rt agent` (below).
 
 ```sh
 rt send <request-file> [--env NAME] [--var NAME=VALUE]... [--body-limit BYTES] [--pretty]
+rt import <file>... --out DIR [--format FORMAT] [--json]
 rt agent [--port PORT] [--allow-origin ORIGIN]...
 rt --help
 rt --version
@@ -48,6 +49,36 @@ output mode is not part of wave 2; pipe through `jq` meanwhile.
 
 Body files (file bodies, multipart file parts) are read relative to the collection root.
 Absolute paths, `..` and symlinks that lead outside the collection folder are refused.
+
+## Import: `rt import`
+
+`rt import` converts exports of other tools into a new collection folder and prints what could
+not be carried over exactly (the loss report).
+
+```sh
+rt import shop.postman_collection.json prod.postman_environment.json --out ./shop
+rt import api.yaml --format openapi --out ./api --json
+```
+
+| Option | Meaning |
+| --- | --- |
+| `-o`, `--out DIR` | Folder to create; it must not exist or must be empty |
+| `-f`, `--format FORMAT` | `postman` (v2.0, v2.1), `insomnia` (v4, v5), `openapi` (3.0 to 3.2), `curl`, `har` (1.2) or `http` (VS Code REST Client, JetBrains); default: detected per file |
+| `--json` | Print `{ collectionName, out, files, report }` instead of text |
+
+Several files form one collection: a Postman collection with its environment and globals
+files; `.http` files (one folder each) with `http-client.env.json` and
+`http-client.private.env.json`; several cURL files (one folder each).
+
+The report lists every loss with its location (`Users / Get user`), kind, effect (`dropped`:
+not in the collection; `approximated`: in it, but not exactly) and one sentence. Scripts and
+tests are reported with their line counts. Secret values (Postman `secret` variables, Insomnia
+private environments, the JetBrains private env file) are never written: the variables are
+created as secrets without a value; set them in Environments. Credentials typed into requests
+stay as in the source and each gets a report line suggesting a secret variable.
+
+Exit code 0 once the collection is written, even if the report lists losses; 2 if the files
+cannot be read or imported, or `--out` is in use (nothing is written then).
 
 ## Companion: `rt agent`
 

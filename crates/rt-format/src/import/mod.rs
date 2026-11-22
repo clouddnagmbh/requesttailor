@@ -151,6 +151,37 @@ pub enum LossKind {
     Other,
 }
 
+impl LossKind {
+    pub const ALL: [LossKind; 10] = [
+        LossKind::Script,
+        LossKind::Test,
+        LossKind::Auth,
+        LossKind::Body,
+        LossKind::Variable,
+        LossKind::Setting,
+        LossKind::Documentation,
+        LossKind::Example,
+        LossKind::Protocol,
+        LossKind::Other,
+    ];
+
+    /// Heading for a group of losses of this kind.
+    pub fn label(self) -> &'static str {
+        match self {
+            LossKind::Script => "Scripts",
+            LossKind::Test => "Tests",
+            LossKind::Auth => "Auth and credentials",
+            LossKind::Body => "Bodies",
+            LossKind::Variable => "Variables and secrets",
+            LossKind::Setting => "Settings",
+            LossKind::Documentation => "Documentation",
+            LossKind::Example => "Examples",
+            LossKind::Protocol => "Other protocols",
+            LossKind::Other => "Other",
+        }
+    }
+}
+
 /// How much of it was lost.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
