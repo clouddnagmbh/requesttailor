@@ -1172,6 +1172,8 @@ export interface MergeState {
   merging: boolean;
   conflicts: FieldConflict[];
   text_conflicts: string[];
+  /** Files Git left conflicted that merge cleanly on the model; `resolve` writes them too. */
+  clean?: string[];
 }
 
 export interface RevisionRunRequest {

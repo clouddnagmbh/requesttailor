@@ -5193,6 +5193,8 @@ dependencies = [
  "gix-transport",
  "reqwest",
  "rt-app",
+ "rt-core",
+ "rt-format",
  "rustls",
  "serde",
  "serde_json",
