@@ -123,6 +123,16 @@ impl<S: SecretStore> Core<S> {
             .unwrap_or(false)
     }
 
+    /// What coding agents may do in the open collection (wave 8, strand C, `agents.rs`).
+    pub fn agent_policy(&self) -> Result<rt_core::model::AgentPolicy, AppError> {
+        self.with_session(|s| Ok(s.workspace.collection().config.agents.clone()))
+    }
+
+    /// Changes the agent policy in memory, like other edits (wave 8, strand C).
+    pub fn set_agent_policy(&self, policy: &rt_core::model::AgentPolicy) -> Result<(), AppError> {
+        self.with_session(|s| s.workspace.set_agent_policy(policy))
+    }
+
     /// Whether the open collection has unsaved changes (Git refuses to change files then).
     pub fn has_unsaved_changes(&self) -> bool {
         lock(&self.session)

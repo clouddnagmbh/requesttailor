@@ -107,6 +107,11 @@ describe("TauriBackend", () => {
     await b.ai.setKey("anthropic", "sk-1");
     await b.ai.deleteKey("anthropic");
     await b.ai.ask({ task: "explain-error", path: "a.yml", response: 1 }, { environment: "Local", vars: [] });
+    await b.agents.policy();
+    await b.agents.setPolicy({ access: "read", environments: [] });
+    await b.agents.pending();
+    await b.agents.decide("abc", "denied");
+    await b.agents.audit(10);
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -188,6 +193,12 @@ describe("TauriBackend", () => {
       ["ai_set_key", { provider: "anthropic", key: "sk-1" }],
       ["ai_delete_key", { provider: "anthropic" }],
       ["ai_ask", { task: { task: "explain-error", path: "a.yml", response: 1 }, input: { environment: "Local", vars: [] } }],
+      ["agents_policy", undefined],
+      ["agents_set_policy", { policy: { access: "read", environments: [] } }],
+      ["agents_pending", undefined],
+      ["agents_decide", { id: "abc", decision: "denied" }],
+      ["agents_pending", undefined],
+      ["agents_audit", { limit: 10 }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

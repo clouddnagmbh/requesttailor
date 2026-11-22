@@ -398,6 +398,17 @@ impl Workspace {
         Ok(())
     }
 
+    /// Sets what coding agents may do (wave 8, strand C: `rt_app::agents`), in memory like
+    /// every edit; `opencollection.yml` is dirty until `save`.
+    pub fn set_agent_policy(
+        &mut self,
+        policy: &rt_core::model::AgentPolicy,
+    ) -> Result<(), AppError> {
+        self.doc.set_agent_policy(policy)?;
+        self.refresh_dirty();
+        Ok(())
+    }
+
     pub fn snapshot(&self, request_path: &str, input: SendInput) -> Result<SendSnapshot, AppError> {
         let collection = self.collection_for_send(request_path, &input)?;
         let spec = &collection

@@ -23,6 +23,8 @@ use std::collections::BTreeMap;
 
 use rt_core::model::Collection;
 
+/// Wave 8, strand C: `extensions.requesttailor.agents`.
+mod agents;
 mod auth;
 mod edit;
 /// Wave 8, strand F: saved examples and docs of items (read only), for `rt mock` and `rt docs`.

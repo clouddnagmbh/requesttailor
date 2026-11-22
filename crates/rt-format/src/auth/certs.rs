@@ -276,17 +276,17 @@ impl CollectionDoc {
             ),
         }
         let doc = crate::yaml::reparse(&doc).map_err(invalid)?;
+        // Only the certificates are written here; the other parts of the configuration
+        // (wave 8: agents, http3, protobuf) have their own setters and stay as they are.
         let got = CollectionConfig {
-            agents: Default::default(),
-            http3: false,
-            protobuf: Default::default(),
             client_certificates: read(
                 doc.root
                     .get("config")
                     .and_then(|c| c.get("clientCertificates")),
             ),
+            ..self.model.config.clone()
         };
-        if got != *config {
+        if got.client_certificates != config.client_certificates {
             return Err(invalid(format!(
                 "internal error: the edited configuration does not read back as written \
                  (wanted {config:?}, got {got:?})"

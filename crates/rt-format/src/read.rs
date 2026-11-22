@@ -105,7 +105,8 @@ impl<'a> Builder<'a> {
             items: Vec::new(),
             environments,
             config: CollectionConfig {
-                agents: Default::default(),
+                // Wave 8, strand C: `extensions.requesttailor.agents`.
+                agents: crate::agents::read(root),
                 http3: false,
                 protobuf: Default::default(),
                 client_certificates: crate::auth::certs::read(

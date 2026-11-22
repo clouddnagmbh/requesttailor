@@ -87,6 +87,12 @@ const COMMANDS: &[&str] = &[
     "ai_set_key",
     "ai_delete_key",
     "ai_ask",
+    // Wave 8, strand C.
+    "agents_policy",
+    "agents_set_policy",
+    "agents_pending",
+    "agents_decide",
+    "agents_audit",
 ];
 
 fn main() {

@@ -84,6 +84,11 @@
     "allow-ai-set-key",
     "allow-ai-delete-key",
     "allow-ai-ask",
+    "allow-agents-policy",
+    "allow-agents-set-policy",
+    "allow-agents-pending",
+    "allow-agents-decide",
+    "allow-agents-audit",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

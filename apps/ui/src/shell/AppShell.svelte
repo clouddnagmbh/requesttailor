@@ -18,6 +18,8 @@
   import AiDialogs from "../ai/AiDialogs.svelte";
   import { aiFor } from "../ai/ai.svelte";
   import { aiCommands } from "../ai/commands";
+  import AgentsHost from "../agents/AgentsHost.svelte";
+  import { agentCommands } from "../agents/ui.svelte";
   import AuthPromptDialog from "../auth/AuthPromptDialog.svelte";
   import type { Backend, CollectionInfo } from "../commands/backend";
   import CookiesDialog from "../cookies/CookiesDialog.svelte";
@@ -240,6 +242,7 @@
     })),
     ...(app.collection ? [{ id: "run-collection", label: "Run collection…", run: () => openRunner(null) }] : []),
     ...aiCommands(app, ai),
+    ...agentCommands(app),
   ]);
 
   // Capture phase: runs before inputs and code editors handle the key, so Mod+Enter and Mod+S
@@ -363,6 +366,7 @@
     <main>
       <TabBar panelId="rt-request-panel" />
       <TrustPrompt />
+      <AgentsHost />
       {#if runner.target}
         <RunnerPanel {runner} />
       {:else if showingCollection && collectionTab}

@@ -1,13 +1,15 @@
 # rt
 
-The RequestTailor command line: `rt send`, `rt run`, `rt import`, `rt scan` and the companion
-`rt agent` (below).
+The RequestTailor command line: `rt send`, `rt run`, `rt import`, `rt scan`, the MCP server
+`rt mcp` and the companion `rt agent` (below).
 
 ```sh
 rt send <request-file> [--env NAME] [--var NAME=VALUE]... [--body-limit BYTES] [--pretty]
 rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAME[=FILE]]...
 rt import <file>... --out DIR [--format FORMAT] [--json]
 rt scan [PATH]... [--json]
+rt mcp [<collection>] [--var NAME=VALUE]... [--env-default NAME]
+rt approvals [--json] | rt approve <id> | rt deny <id>
 rt agent [--port PORT] [--allow-origin ORIGIN]... [--allow-secrets]
 rt --help
 rt --version
@@ -294,6 +296,135 @@ exec rt scan $files
 
 The hook scans the files in the working tree; stage them as they are before committing. In
 a pipeline, `rt scan path/to/collection` fails the job on findings.
+
+## MCP server: `rt mcp`
+
+`rt mcp` offers a collection to coding agents as tools, over the Model Context Protocol on
+stdin/stdout (JSON-RPC, protocol versions 2025-06-18, 2025-03-26 and 2024-11-05). The client
+starts the process; diagnostics go to stderr.
+
+```sh
+rt mcp [<collection>] [--var NAME=VALUE]... [--env-default NAME] [--approval-timeout SECONDS]
+       [--no-scripts] [--agent-name NAME] [--body-limit BYTES]
+rt approvals [--json]
+rt approve <id>
+rt deny <id>
+```
+
+Claude Code:
+
+```sh
+claude mcp add requesttailor -- rt mcp /path/to/collection
+```
+
+Other clients (Cursor, VS Code, Claude Desktop, ...) take the same command in their JSON
+configuration:
+
+```json
+{
+  "mcpServers": {
+    "requesttailor": {
+      "command": "rt",
+      "args": ["mcp", "/path/to/collection", "--env-default", "DEV"]
+    }
+  }
+}
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--var NAME=VALUE` | Variable for every send, e.g. a token (repeatable). Treated as secret: the agent only sees `***`, and it may not override it |
+| `--env-default NAME` | Environment when the agent names none |
+| `--approval-timeout SECONDS` | How long a writing request against production waits for approval (default 300); then it fails and nothing is sent |
+| `--no-scripts` | Do not run scripts |
+| `--agent-name NAME` | Name for approvals and the audit log when the client sends none |
+| `--body-limit BYTES` | Response body bytes the agent gets per request (default 64 KiB) |
+
+### Tools
+
+| Tool | Annotations | What it does |
+| --- | --- | --- |
+| `list_requests` | read-only | Path, name, method and effect (`read` or `write`) of every request |
+| `get_request` | read-only | One request as the model sees it; credentials masked |
+| `list_environments` | read-only | Environments the agent may use, with access, production flag and non-secret values |
+| `send_request` | destructive | Sends one request (`path`, `environment`, `vars`) and returns the masked report |
+| `run_folder` | destructive | Runs a folder or the collection like `rt run`; every request is checked on its own |
+
+The effect of a request: `GET`, `HEAD`, `OPTIONS` and `TRACE` read, everything else writes.
+GraphQL reads unless the document contains a mutation; gRPC writes; WebSocket writes as soon
+as it sends messages.
+
+### Access per environment
+
+What agents may do is part of the collection, in `opencollection.yml`, and set in the app
+under "Agent access" (command palette):
+
+```yaml
+extensions:
+  requesttailor:
+    agents:
+      access: read                 # default for every environment: none, read or write
+      environments:
+        DEV: { access: write }
+        PRD: { access: write, production: true }
+        HR: none                   # hidden from agents
+```
+
+- `none`: agents do not see the environment and cannot send in it.
+- `read`: only reading requests are sent; writing ones are refused. This is the default.
+- `write`: writing requests are sent, except in an environment with `production: true`:
+  there every writing request waits for the user's approval.
+
+### Approvals
+
+A writing request against production writes an approval file to the data folder
+(`agents/approvals/<id>.json`, the same folder as the desktop app's, `RT_DATA_DIR`
+replaces it) and waits. The user answers in one of three places, and the first answer wins:
+
+- the desktop app shows a banner on every screen with method, masked URL, environment and
+  agent, with Approve and Deny;
+- `rt approvals` lists what waits (`--json` for scripts), `rt approve <id>` and `rt deny <id>`
+  answer;
+- clients that support MCP elicitation ask the user directly (a yes/no form). The answer of
+  the client counts as the user's: only use clients that ask a person, not the model.
+
+Denied, timed out or cancelled (the client cancels the call or disconnects): the request is
+not sent, the agent gets an error that says so, and the approval file is removed. While it
+waits, `rt mcp` touches the file every 5 s; files of processes that died are cleaned up after
+30 s.
+
+### Audit log
+
+Every tool call, plus the `initialize` of each session, appends one JSON line to
+`agents/audit.jsonl` in the data folder: time, agent, tool, collection, request, environment,
+method, masked URL, status, outcome (`read`, `sent`, `refused`, `denied`, `timed-out`,
+`failed`), who approved (`app`, `cli`, `elicitation`) and a detail. `run_folder` writes one entry
+with one detail line per request. The log stays on this computer; the desktop app shows it
+under "Agent audit log". Nothing is sent anywhere.
+
+### Security model
+
+- **Agents never see secret values.** Reports are masked by the core. On top of that, every
+  message `rt mcp` writes (results, errors, approval prompts) and every audit line passes a
+  final mask that replaces every secret value the process knows (`--var` values, keychain
+  values, values from secret managers; raw and percent-encoded) with `***`, also when a
+  server echoes a token back in its body. Values shorter than 4 characters are only masked
+  where the core knows them by name. `get_request` and `list_environments` leave out secret
+  values and mask credentials (auth fields, credential headers).
+- **The policy is pinned at start.** An agent that can edit files could otherwise give
+  itself write access. `rt mcp` reads the policy once; later edits apply only where they are
+  stricter. Loosening a rule needs a restart.
+- **Agent variables cannot redirect requests.** `vars` from the agent may fill in names
+  nothing else defines and override request and folder variables. They cannot override
+  variables of the collection, the environment or `--var` (base URLs and credentials live
+  there), nor any secret name.
+- **Secrets come from where the app keeps them**: the OS keychain (shared with the desktop
+  app) and the secret managers of `extensions.requesttailor.secrets`. OAuth 2.0 logins that
+  need a browser or a code are not started; use a token the app already fetched.
+- **Scripts** run only in collections the user trusted in the desktop app, and not with
+  `--no-scripts`. Requests a trusted script sends itself (`rt.sendRequest`) are not checked
+  against the policy; do not trust collections whose scripts you do not know.
+- Every call reads the files anew, so the agent works with the files as they are now.
 
 ## Companion: `rt agent`
 

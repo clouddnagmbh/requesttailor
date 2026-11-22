@@ -160,7 +160,7 @@ export class WebBackend implements Backend {
   readonly streams = webStreams();
   readonly grpc = webGrpc();
   readonly graphql = webGraphQl();
-  readonly agents = webAgents();
+  readonly agents = webAgents(() => this.session());
   readonly mcp = webMcp();
   readonly ai: AiApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
