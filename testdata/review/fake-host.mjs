@@ -5,7 +5,7 @@
 // A fake Git host for the pull-request review (wave 12, strand E). Tests run against this and
 // never against github.com or gitlab.com. Node only, no dependencies; needs `git` on the PATH.
 //
-//   node fake-host.mjs [--github-port N] [--gitlab-port N] [--token T] [--dir D] [--max-per-page N]
+//   node fake-host.mjs [--github-port N] [--gitlab-port N] [--token T] [--dir D] [--max-per-page N] [--no-stdin-exit]
 //
 // - GitHub subset under /api/v3 (default port 48041), GitLab subset under /api/v4 (default
 //   port 48042). Port 0 picks a free one. Both serve the same bare repository `acme/orders`
@@ -20,7 +20,7 @@
 // - Test hooks: `GET /__state` (posted comments, reviews, approvals, `authorizations` seen),
 //   `POST /__reset`.
 // - On start it prints one line `READY {json}` (ports, work dir, repo, shas, token) to stdout.
-//   It exits, removing its work dir, when stdin closes or on SIGTERM.
+//   It exits, removing its work dir, when stdin closes (unless --no-stdin-exit) or on SIGTERM.
 
 import { execFileSync, spawn } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
@@ -408,8 +408,22 @@ async function smartHttp(req, res, url) {
 
 // ---- servers ---------------------------------------------------------------------------
 
+/** Like the real hosts' APIs, the fake answers browsers (CORS), so the web app can call it
+ *  with `fetch` when no companion is paired. */
+const CORS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "authorization,content-type,private-token,x-github-api-version,accept",
+  "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "access-control-expose-headers": "link,x-next-page",
+};
+
 function handler(kind) {
   return async (req, res) => {
+    for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      return res.end();
+    }
     const port = req.socket.localPort;
     const url = new URL(req.url, `http://127.0.0.1:${port}`);
     try {
@@ -467,6 +481,8 @@ const stop = () => {
 };
 process.on("SIGTERM", stop);
 process.on("SIGINT", stop);
-process.stdin.on("end", stop);
-process.stdin.on("error", stop);
+if (!args.includes("--no-stdin-exit")) {
+  process.stdin.on("end", stop);
+  process.stdin.on("error", stop);
+}
 process.stdin.resume();
