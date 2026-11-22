@@ -34,7 +34,12 @@ fn git_clean(work: &Path) {
         .output()
         .unwrap();
     assert!(out.status.success());
-    assert_eq!(String::from_utf8_lossy(&out.stdout), "", "git status in {}", work.display());
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        "",
+        "git status in {}",
+        work.display()
+    );
 }
 
 fn fsck(bare: &Path) {
@@ -60,7 +65,11 @@ fn work_repo(name: &str, url: &str) -> Tmp {
     write(work.path(), "opencollection.yml", "name: over http\n");
     write(work.path(), "users/get.yml", "one\ntwo\nthree\n");
     reopen(work.path())
-        .commit("init", &paths(&["opencollection.yml", "users/get.yml"]), None)
+        .commit(
+            "init",
+            &paths(&["opencollection.yml", "users/get.yml"]),
+            None,
+        )
         .unwrap();
     work
 }
@@ -74,7 +83,10 @@ fn push_clone_and_pull_without_credentials() {
     let a = reopen(work.path());
 
     a.push(&NoCredentials).unwrap();
-    assert_eq!(ref_id(&bare_dir, "refs/heads/main"), Some(a.log(1).unwrap()[0].oid.clone()));
+    assert_eq!(
+        ref_id(&bare_dir, "refs/heads/main"),
+        Some(a.log(1).unwrap()[0].oid.clone())
+    );
     fsck(&bare_dir);
     let a = reopen(work.path());
     assert_eq!(a.status().unwrap().upstream.as_deref(), Some("origin/main"));
@@ -93,7 +105,10 @@ fn push_clone_and_pull_without_credentials() {
     a.commit("edit", &paths(&["users/get.yml"]), None).unwrap();
     a.push(&NoCredentials).unwrap();
     fsck(&bare_dir);
-    assert_eq!(b.pull(&NoCredentials, None).unwrap(), GitPullResult::FastForward { commits: 1 });
+    assert_eq!(
+        b.pull(&NoCredentials, None).unwrap(),
+        GitPullResult::FastForward { commits: 1 }
+    );
     assert_eq!(read(&b_dir, "users/get.yml"), "one\ntwo by Ada\nthree\n");
 
     // Diverged: pushing is refused, pull merges, the merge commit pushes.
@@ -103,17 +118,29 @@ fn push_clone_and_pull_without_credentials() {
     write(&b_dir, "b.yml", "Bob\n");
     b.commit("Bob", &paths(&["b.yml"]), None).unwrap();
     let err = b.push(&NoCredentials).unwrap_err();
-    assert!(matches!(&err, AppError::Git(m) if m.contains("pull first")), "{err:?}");
-    assert!(matches!(b.pull(&NoCredentials, None).unwrap(), GitPullResult::Merged { .. }));
+    assert!(
+        matches!(&err, AppError::Git(m) if m.contains("pull first")),
+        "{err:?}"
+    );
+    assert!(matches!(
+        b.pull(&NoCredentials, None).unwrap(),
+        GitPullResult::Merged { .. }
+    ));
     git_clean(&b_dir);
     b.push(&NoCredentials).unwrap();
     fsck(&bare_dir);
-    assert_eq!(ref_id(&bare_dir, "refs/heads/main"), ref_id(&b_dir, "refs/heads/main"));
+    assert_eq!(
+        ref_id(&bare_dir, "refs/heads/main"),
+        ref_id(&b_dir, "refs/heads/main")
+    );
 
     // A new branch pointing at a commit the remote already has: an empty pack.
     b.create_branch("same", true).unwrap();
     reopen(&b_dir).push(&NoCredentials).unwrap();
-    assert_eq!(ref_id(&bare_dir, "refs/heads/same"), ref_id(&b_dir, "refs/heads/main"));
+    assert_eq!(
+        ref_id(&bare_dir, "refs/heads/same"),
+        ref_id(&b_dir, "refs/heads/main")
+    );
     fsck(&bare_dir);
 }
 
@@ -127,19 +154,31 @@ fn credentials_are_asked_for_and_used() {
     let host = server.host();
 
     // No credentials: the remote's 401 becomes GitAuth(host), for push and for fetch.
-    assert_eq!(a.push(&NoCredentials).unwrap_err(), AppError::GitAuth(host.clone()));
-    assert_eq!(a.pull(&NoCredentials, None).unwrap_err(), AppError::GitAuth(host.clone()));
+    assert_eq!(
+        a.push(&NoCredentials).unwrap_err(),
+        AppError::GitAuth(host.clone())
+    );
+    assert_eq!(
+        a.pull(&NoCredentials, None).unwrap_err(),
+        AppError::GitAuth(host.clone())
+    );
     let parent = tmp("http-auth-b");
     assert_eq!(
         rt_git::clone(&url, parent.path(), &NoCredentials, &opts()).unwrap_err(),
         AppError::GitAuth(host.clone())
     );
-    assert!(!parent.path().join("auth-flow").exists(), "a failed clone leaves nothing behind");
+    assert!(
+        !parent.path().join("auth-flow").exists(),
+        "a failed clone leaves nothing behind"
+    );
 
     // Wrong credentials: the same.
     let store = MemorySecrets::default();
     rt_git::credentials::set(&store, &host, USER, "wrong").unwrap();
-    assert_eq!(a.push(&StoreCredentials(&store)).unwrap_err(), AppError::GitAuth(host.clone()));
+    assert_eq!(
+        a.push(&StoreCredentials(&store)).unwrap_err(),
+        AppError::GitAuth(host.clone())
+    );
     assert_eq!(
         a.pull(&StoreCredentials(&store), None).unwrap_err(),
         AppError::GitAuth(host.clone())
@@ -152,10 +191,13 @@ fn credentials_are_asked_for_and_used() {
     let b_dir = rt_git::clone(&url, parent.path(), &StoreCredentials(&store), &opts()).unwrap();
     assert_eq!(read(&b_dir, "opencollection.yml"), "name: over http\n");
     write(work.path(), "users/get.yml", "changed\n");
-    a.commit("change", &paths(&["users/get.yml"]), None).unwrap();
+    a.commit("change", &paths(&["users/get.yml"]), None)
+        .unwrap();
     a.push(&StoreCredentials(&store)).unwrap();
     assert_eq!(
-        reopen(&b_dir).pull(&StoreCredentials(&store), None).unwrap(),
+        reopen(&b_dir)
+            .pull(&StoreCredentials(&store), None)
+            .unwrap(),
         GitPullResult::FastForward { commits: 1 }
     );
     // The URL in the repository configuration never holds the password.
@@ -184,5 +226,8 @@ fn credentials_never_go_over_plain_http_to_other_hosts() {
     let repo = reopen(ssh.path());
     write(ssh.path(), "a.yml", "a\n");
     repo.commit("a", &paths(&["a.yml"]), None).unwrap();
-    assert!(matches!(repo.push(&NoCredentials), Err(AppError::Unsupported(_))));
+    assert!(matches!(
+        repo.push(&NoCredentials),
+        Err(AppError::Unsupported(_))
+    ));
 }
