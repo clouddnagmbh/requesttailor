@@ -137,7 +137,12 @@ export class MockBackend implements Backend {
   }
 
   // Wave 4 parts, one file per strand (./mock-*.ts).
-  readonly git: GitApi = mockGit();
+  readonly git: GitApi = mockGit({
+    requests: () => this.requests,
+    saved: () => this.saved,
+    dirty: () => this.dirty(),
+    openCollection: () => this.openCollection(),
+  });
   readonly imports: ImportApi = mockImports();
   readonly history = new MockHistory();
   readonly recent = new MockRecent();
