@@ -3,7 +3,9 @@
 <!-- One received response: summary bar, body (pretty / raw / tree / hex, JSONPath filter;
      pretty is highlighted and foldable by the body's language, up to PRETTY_LIMIT),
      headers, tests and console of scripts (wave 7), and timing. Created per response (keyed by its id), so all state here belongs to
-     that response. The full body stays in the backend; the UI only fetches what it shows. -->
+     that response. The full body stays in the backend; the UI only fetches what it shows.
+     Wave 13: response tabs of a distribution's extensions (`AppExtension.tabs`) after the
+     plugin tabs. -->
 <script lang="ts">
   import ExplainButton from "../ai/ExplainButton.svelte";
   import type { Backend } from "../commands/backend";
@@ -15,6 +17,7 @@
   import PluginTab from "../plugins/PluginTab.svelte";
   import SendNotes from "../plugins/SendNotes.svelte";
   import { pluginsState } from "../plugins/store.svelte";
+  import { extensionTabsFor, getExtensions } from "../shell/extension-tabs";
   import HeadersTable from "./HeadersTable.svelte";
   import ConsolePanel from "./ConsolePanel.svelte";
   import JsonNode from "./JsonNode.svelte";
@@ -40,8 +43,8 @@
   /** Bytes of the preview that is the complete body (small bodies need no round trip). */
   const PREVIEW_BYTES = 64 * 1024;
 
-  /** Built-in tabs, or `plugin:<plugin>/<tab>` (wave 5). */
-  type Tab = "body" | "headers" | "tests" | "console" | "timing" | `plugin:${string}`;
+  /** Built-in tabs, `plugin:<plugin>/<tab>` (wave 5) or `extension:<extension>/<tab>` (wave 13). */
+  type Tab = "body" | "headers" | "tests" | "console" | "timing" | `plugin:${string}` | `extension:${string}`;
   type Mode = "pretty" | "raw" | "tree" | "hex";
 
   // The props are fixed for the lifetime of this component (it is keyed by response id).
@@ -76,6 +79,13 @@
   const plugins = pluginsState(backend);
   const pluginTabs = $derived(tabsFor(plugins.list, "response", contentTypeOf(response.headers)));
   const pluginTab = $derived(tab.startsWith("plugin:") ? (pluginTabs.find((t) => `plugin:${t.key}` === tab) ?? null) : null);
+  // ---- extension tabs (wave 13) ----
+  const extensions = getExtensions();
+  const extensionTabs = $derived(extensionTabsFor(extensions, "response", contentTypeOf(response.headers)));
+  const extensionTab = $derived(
+    tab.startsWith("extension:") ? (extensionTabs.find((t) => `extension:${t.key}` === tab) ?? null) : null,
+  );
+  const settle = () => Promise.resolve();
   // svelte-ignore state_referenced_locally
   let mode = $state<Mode>(prettyViewable ? "pretty" : result.is_text ? "raw" : "hex");
 
@@ -287,6 +297,15 @@
           onclick={() => (tab = `plugin:${t.key}`)}>{t.tab.title}</button
         >
       {/each}
+      {#each extensionTabs as t (t.key)}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === `extension:${t.key}`}
+          data-testid="response-tab-extension-{t.key}"
+          onclick={() => (tab = `extension:${t.key}`)}>{t.tab.title}</button
+        >
+      {/each}
     </div>
     {#if tab === "body"}
       <div class="modes" role="group" aria-label="Body view">
@@ -331,6 +350,11 @@
       <PluginTab {backend} plugin={pluginTab.plugin} tab={pluginTab.tab.id} target={{ request_path: result.report.request_path, response_id: id }} />
     {:else if tab.startsWith("plugin:")}
       <p class="note">This plugin tab is no longer available.</p>
+    {:else if extensionTab && extensions}
+      {@const Tab = extensionTab.tab.component}
+      <Tab ctx={extensions.ctx} requestPath={result.report.request_path} response={result} {settle} />
+    {:else if tab.startsWith("extension:")}
+      <p class="note">This tab is no longer available.</p>
     {:else if tab === "headers"}
       <HeadersTable response={response.headers} request={result.report.request?.headers ?? null} />
     {:else if tab === "timing"}

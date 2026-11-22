@@ -15,7 +15,9 @@
      Wave 8 mount point (strand A): WebSocket, SSE and gRPC requests show Connect instead of
      Send and the SessionPane instead of the response.
      Wave 12 mount points (interface): GitViewHost in the main area (one Git-for-APIs view at
-     a time, `git/views.svelte.ts`) and the strands' palette entries (`git/api-commands.ts`). -->
+     a time, `git/views.svelte.ts`) and the strands' palette entries (`git/api-commands.ts`).
+     Wave 13: tabs of a distribution's extensions (`AppExtension.tabs`, `extension-tabs.ts`); the
+     collection panel shows plugin and extension collection tabs together. -->
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
 
@@ -42,7 +44,7 @@
   import McpPanel from "../mcp/McpPanel.svelte";
   import McpSidebar from "../mcp/McpSidebar.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
-  import CollectionPanel from "../plugins/CollectionPanel.svelte";
+  import CollectionPanel, { type CollectionTab } from "../plugins/CollectionPanel.svelte";
   import { tabsFor } from "../plugins/permissions";
   import PluginsDialog from "../plugins/PluginsDialog.svelte";
   import { pluginsState } from "../plugins/store.svelte";
@@ -61,6 +63,7 @@
   import "../styles/base.css";
   import CompanionOffer from "../transport/CompanionOffer.svelte";
   import CommandPalette from "./CommandPalette.svelte";
+  import { extensionTabsFor, provideExtensions } from "./extension-tabs";
   import { buildCommands, LABELS, type Actions } from "./commands";
   import Resizer from "./Resizer.svelte";
   import { formatShortcut, isMacPlatform, matchShortcut, shortcutFor, SHORTCUTS, type CommandId } from "./shortcuts";
@@ -77,6 +80,9 @@
   // Wave 9: extensions of a distribution (none in the builds of this repository); fixed like the backend.
   // svelte-ignore state_referenced_locally
   const extensionContext: ExtensionContext = { backend, app };
+  // Wave 13: their request, response and collection tabs.
+  // svelte-ignore state_referenced_locally
+  const provided = provideExtensions({ extensions, ctx: extensionContext });
   const sessions = provideSessions(new SessionsState(app));
   // A session lives while its request's tab is open.
   $effect(() => {
@@ -227,7 +233,27 @@
   $effect(() => {
     if (app.collection) void plugins.ensure();
   });
-  const collectionTabs = $derived(app.collection ? tabsFor(plugins.list, "collection") : []);
+  // Plugin collection tabs first, then those of the distribution's extensions (wave 13).
+  const collectionTabs = $derived<CollectionTab[]>(
+    app.collection
+      ? [
+          ...tabsFor(plugins.list, "collection").map((t) => ({
+            key: t.key,
+            title: t.tab.title,
+            source: `Plugin ${t.pluginName}`,
+            label: `Collection: ${t.tab.title} (${t.pluginName})`,
+            plugin: t,
+          })),
+          ...extensionTabsFor(provided, "collection").map((t) => ({
+            key: `extension:${t.key}`,
+            title: t.tab.title,
+            source: t.tab.title,
+            label: `Collection: ${t.tab.title}`,
+            extension: t,
+          })),
+        ]
+      : [],
+  );
   /** Key of the shown collection tab, `null`: the request editor. */
   let collectionTab = $state<string | null>(null);
   const showingCollection = $derived(collectionTab !== null && collectionTabs.some((t) => t.key === collectionTab));
@@ -310,7 +336,7 @@
     ...buildCommands(app, actions, mac),
     ...collectionTabs.map((t) => ({
       id: `collection-tab:${t.key}`,
-      label: `Collection: ${t.tab.title} (${t.pluginName})`,
+      label: t.label,
       run: () => openCollectionTab(t.key),
     })),
     ...(app.collection ? [{ id: "run-collection", label: "Run collection…", run: () => openRunner(null) }] : []),
@@ -363,7 +389,7 @@
         class="button"
         data-testid="collection-tabs"
         aria-pressed={showingCollection}
-        title="Collection tabs of plugins"
+        title="Collection tabs"
         onclick={() => (showingCollection ? (collectionTab = null) : openCollectionTab(collectionTabs[0]!.key))}>Collection</button
       >
     {/if}

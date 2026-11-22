@@ -7,7 +7,9 @@
      highlighting comes from `backend.preview`; the editor never resolves a variable itself.
      Wave 8 (strand A): WebSocket and gRPC requests have "Messages" instead of "Body" (gRPC:
      the method picker above it) and gRPC calls its headers "Metadata"; Enter in the URL
-     connects a session request instead of sending it. -->
+     connects a session request instead of sending it.
+     Wave 13: request tabs of a distribution's extensions (`AppExtension.tabs`) after the
+     plugin tabs. -->
 <script lang="ts">
   import { onMount, tick, untrack, type Snippet } from "svelte";
 
@@ -15,6 +17,7 @@
   import { tabsFor } from "../plugins/permissions";
   import PluginTab from "../plugins/PluginTab.svelte";
   import { pluginsState } from "../plugins/store.svelte";
+  import { extensionTabsFor, getExtensions } from "../shell/extension-tabs";
   import AssertionsTab from "../scripts/AssertionsTab.svelte";
   import { countScripts } from "../scripts/edit";
   import ScriptsTab from "../scripts/ScriptsTab.svelte";
@@ -202,8 +205,18 @@
 
   // ---- tabs ----
 
-  /** Built-in tabs, or `plugin:<plugin>/<tab>` (wave 5). */
-  type Tab = "params" | "headers" | "body" | "messages" | "auth" | "vars" | "scripts" | "assertions" | `plugin:${string}`;
+  /** Built-in tabs, `plugin:<plugin>/<tab>` (wave 5) or `extension:<extension>/<tab>` (wave 13). */
+  type Tab =
+    | "params"
+    | "headers"
+    | "body"
+    | "messages"
+    | "auth"
+    | "vars"
+    | "scripts"
+    | "assertions"
+    | `plugin:${string}`
+    | `extension:${string}`;
   let chosen = $state<Tab>("params");
   // Wave 8: session requests have messages, not a body.
   const protocol = $derived(spec?.protocol?.type === "websocket" || spec?.protocol?.type === "grpc" ? spec.protocol : null);
@@ -211,6 +224,15 @@
   const plugins = pluginsState(app.backend);
   const pluginTabs = $derived(tabsFor(plugins.list, "request"));
   const pluginTab = $derived(tab.startsWith("plugin:") ? (pluginTabs.find((t) => `plugin:${t.key}` === tab) ?? null) : null);
+  const extensions = getExtensions();
+  const extensionTabs = $derived(extensionTabsFor(extensions, "request"));
+  const extensionTab = $derived(
+    tab.startsWith("extension:") ? (extensionTabs.find((t) => `extension:${t.key}` === tab) ?? null) : null,
+  );
+  async function settle() {
+    flush();
+    await inflight;
+  }
   const tabs = $derived<[Tab, string, string][]>(
     spec
       ? [
@@ -348,6 +370,18 @@
             {t.tab.title}
           </button>
         {/each}
+        {#each extensionTabs as t (t.key)}
+          <button
+            role="tab"
+            id={`rt-tab-extension-${t.key}`}
+            data-testid={`tab-extension-${t.key}`}
+            aria-selected={tab === `extension:${t.key}`}
+            aria-controls="rt-request-panel"
+            onclick={() => (chosen = `extension:${t.key}`)}
+          >
+            {t.tab.title}
+          </button>
+        {/each}
       </div>
 
       <div class="panel" id="rt-request-panel" role="tabpanel" aria-labelledby={`rt-tab-${tab}`}>
@@ -365,6 +399,11 @@
           />
         {:else if tab.startsWith("plugin:")}
           <p class="hint">This plugin tab is no longer available.</p>
+        {:else if extensionTab && extensions}
+          {@const Tab = extensionTab.tab.component}
+          <Tab ctx={extensions.ctx} requestPath={path} response={null} {settle} />
+        {:else if tab.startsWith("extension:")}
+          <p class="hint">This tab is no longer available.</p>
         {:else if tab === "params"}
           <h3>Query</h3>
           <KeyValueTable

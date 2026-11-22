@@ -195,6 +195,10 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 10 (unten). Änderungen daran sind S
 - Playwright: Mock-Tests je Strang in `apps/web/e2e/<teil>/*.spec.ts`; echter Kern in `e2e/shells/*.e2e.ts` und eigenen Configs `e2e/{import,compare,review,rescue}/playwright.*.config.ts`, alle Teil von `npm run e2e:shells`. Die Web-Unit-Tests laufen teils gegen den gebauten WASM-Kern (`apps/web/public/wasm`), in der CI deshalb nach `build-wasm`.
 - Budget `semantic_diff`: 1000 Requests, 100 geändert, unter 200 ms (`crates/rt-format/tests/diff_perf.rs`, `node scripts/perf/run.mjs --only diff`).
 
+### Erweiterungspunkte (ab Welle 13)
+
+- Tabs aus Erweiterungen: `AppExtension.tabs(ctx)` liefert `ExtensionTab` (`id`, `title`, `place`: `request` | `response` | `collection`, `contentTypes` für Antwort-Tabs wie bei Plugin-Tabs, `component` mit `ExtensionTabProps`: `ctx`, `requestPath` (`""` bei Collection-Tabs), `response` (`StoredResponse` bei Antwort-Tabs), `settle()` vor dem Lesen oder Ersetzen des Requests). Reaktiv wie `commands`; Schlüssel `<extension>/<tab>`. Die Shell stellt die Erweiterungen über `provideExtensions` bereit (`apps/ui/src/shell/extension-tabs.ts`); RequestEditor und ResponsePanel zeigen sie nach den Plugin-Tabs, `CollectionPanel` zeigt Plugin- und Erweiterungs-Tabs zusammen (Kopfzeilen-Knopf „Collection“, Palette „Collection: <Titel>“). Test: `apps/ui/src/shell/extension-tabs.test.ts`.
+
 ## Befehle
 
 Toolchain ist in `rust-toolchain.toml` gepinnt; Upgrades sind ein eigener Commit. Einmalig: `rustup target add wasm32-unknown-unknown aarch64-apple-ios`. Linux braucht für jeden Workspace-Build `libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev build-essential` (Tauri).
