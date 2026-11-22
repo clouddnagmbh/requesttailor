@@ -331,3 +331,20 @@ test("variables are highlighted with their provenance", async ({ page }) => {
   await expect(tip).toContainText("environment PRD");
   await expect(tip).toContainText("https://api.example.com");
 });
+
+test("a very long URL scrolls inside its field; Send stays visible at the end of the row", async ({ page }) => {
+  for (const width of [1280, 900]) {
+    await page.setViewportSize({ width, height: 800 });
+    await openRequest(page, "List users");
+    const long = `{{baseUrl}}/search?${Array.from({ length: 40 }, (_, i) => `filter${i}=value-${i}`).join("&")}`;
+    await setText(page.getByTestId("url-input"), long);
+    const send = page.getByTestId("send");
+    await expect(send).toBeVisible();
+    const box = (await send.boundingBox())!;
+    const urlbar = (await page.getByTestId("url-input").boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(urlbar.x + urlbar.width).toBeLessThanOrEqual(box.x + 1);
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(width);
+  }
+});
