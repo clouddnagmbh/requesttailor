@@ -13,12 +13,22 @@
 //! Conflicts are not stored anywhere: after a stopped merge Git's index holds base, ours and
 //! theirs (stages 1–3), and the app recomputes [`MergeResult::conflicts`] from them.
 //!
-//! Owner: wave 12 interface; implementation strand B.
+//! Owner: wave 12 interface; implementation strand B (`fields.rs`: the model, field by field;
+//! `file.rs`: one file; `text.rs`: the line merge; `markers.rs`: comments for the working tree).
+
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
 use crate::diff::{ChangeTarget, DiffValue, FieldPath};
 use crate::{FileSet, FormatError};
+
+mod fields;
+mod file;
+mod markers;
+mod text;
+
+use file::Version;
 
 /// Both sides changed the same field differently.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -75,76 +85,255 @@ pub enum ConflictChoice {
 /// Merges `ours` and `theirs`, both descendants of `base`. An empty `base` means the sides
 /// share no ancestor (everything both added is compared field by field).
 ///
-/// Interface state (wave 12): file level only. A file is taken from the side that changed it;
-/// a file both sides changed differently is a text conflict. Strand B merges those on the
-/// model.
+/// Files are merged one by one ([`merge_with`] has the rules); a file one side moved (renamed
+/// or put in another folder: same bytes, or the same request or environment apart from its
+/// name) while the other side changed it is merged into the new path. Never fails today; the
+/// `Result` is for sides that cannot be read at all.
 pub fn merge(base: &FileSet, ours: &FileSet, theirs: &FileSet) -> Result<MergeResult, FormatError> {
-    let mut out = MergeResult::default();
-    let paths: std::collections::BTreeSet<&String> = base
+    merge_with(base, ours, theirs, &[])
+}
+
+/// [`merge`] with some conflicts decided by `choices`; conflicts without a choice stay in the
+/// result. A [`ConflictChoice::File`] takes that side's file as a whole, also for a file with
+/// field conflicts.
+///
+/// Per file: unchanged on a side → the other side's bytes. Changed on both: a collection file
+/// (request, folder, collection, environment) is merged on the model and written into one
+/// side's file with the format-preserving writer, so everything the model does not hold
+/// stays (see `file.rs` for which side). Where that is not possible (not a collection file,
+/// not parsable, a change the writer cannot make), the file is merged line by line like
+/// Git's text merge; only overlapping line changes make it a text conflict. Deleted on one
+/// side and changed on the other is a text conflict too.
+pub fn merge_with(
+    base: &FileSet,
+    ours: &FileSet,
+    theirs: &FileSet,
+    choices: &[ConflictChoice],
+) -> Result<MergeResult, FormatError> {
+    Ok(merge_marked(base, ours, theirs, choices)?.0)
+}
+
+/// [`merge_with`], plus what to put in the working tree for each conflicted file: the merged
+/// file with a comment above each conflicted field (field conflicts), or the line merge with
+/// Git's conflict markers (text conflicts; absent if a side deleted the file). Used where a
+/// merge stops for the user (`rt merge-driver`, the app's pull).
+pub fn merge_marked(
+    base: &FileSet,
+    ours: &FileSet,
+    theirs: &FileSet,
+    choices: &[ConflictChoice],
+) -> Result<(MergeResult, BTreeMap<String, Vec<u8>>), FormatError> {
+    fn v<'a>(set: &'a FileSet, path: &str) -> Option<Version<'a>> {
+        set.files.get_key_value(path).map(|(p, b)| Version {
+            path: p.as_str(),
+            bytes: b.as_slice(),
+        })
+    }
+    let moves = moved(base, ours, theirs);
+    let mut jobs: Vec<Job<'_>> = Vec::new();
+    let mut done: BTreeSet<&str> = BTreeSet::new();
+    for m in &moves {
+        let (o, t) = match m.side {
+            Side::Ours => (v(ours, &m.to), v(theirs, &m.from)),
+            Side::Theirs => (v(ours, &m.from), v(theirs, &m.to)),
+        };
+        jobs.push((m.to.clone(), v(base, &m.from), o, t));
+        done.insert(&m.from);
+        done.insert(&m.to);
+    }
+    let paths: BTreeSet<&String> = base
         .files
         .keys()
         .chain(ours.files.keys())
         .chain(theirs.files.keys())
         .collect();
-    for path in paths {
-        let (b, o, t) = (
-            base.files.get(path),
-            ours.files.get(path),
-            theirs.files.get(path),
-        );
-        let take = if o == t || b == t {
-            o
-        } else if b == o {
-            t
-        } else {
-            out.text_conflicts.push(path.clone());
-            o
-        };
-        if let Some(bytes) = take {
-            out.files.files.insert(path.clone(), bytes.clone());
+    for p in paths {
+        if !done.contains(p.as_str()) {
+            jobs.push((p.clone(), v(base, p), v(ours, p), v(theirs, p)));
         }
     }
-    Ok(out)
+    let mut out = MergeResult::default();
+    let mut marked = BTreeMap::new();
+    let mut conflicts: Vec<(String, FieldConflict)> = Vec::new();
+    for (path, b, o, t) in jobs {
+        // Only files of this collection are merged on the model.
+        let owned = |set: &FileSet| crate::owned(&path, set);
+        let model = owned(ours) || owned(theirs);
+        let (target, m) = if model {
+            file::merge_file(&path, b, o, t, choices)
+        } else {
+            file::merge_text(&path, b, o, t, choices)
+        };
+        if let Some(bytes) = &m.bytes {
+            out.files.files.insert(path.clone(), bytes.clone());
+        }
+        if m.text_conflict {
+            out.text_conflicts.push(path.clone());
+            if let Some(text) = m.marked {
+                marked.insert(path.clone(), text.into_bytes());
+            }
+        }
+        let file_conflicts: Vec<FieldConflict> = m
+            .conflicts
+            .iter()
+            .map(|c| {
+                let [base, ours, theirs] = c.values();
+                FieldConflict {
+                    target: target.clone(),
+                    file: path.clone(),
+                    field: c.field.clone(),
+                    base,
+                    ours,
+                    theirs,
+                }
+            })
+            .collect();
+        if !file_conflicts.is_empty()
+            && let Some(bytes) = &m.bytes
+        {
+            marked.insert(path.clone(), markers::mark(&path, bytes, &file_conflicts));
+        }
+        conflicts.extend(file_conflicts.into_iter().map(|c| (path.clone(), c)));
+    }
+    // Tree order: the collection, folders and requests depth first, then environments.
+    let order = |p: &str| match file::kind(p) {
+        file::Kind::Collection => (0, String::new()),
+        file::Kind::Environment => (2, p.to_owned()),
+        file::Kind::Folder(dir) => (1, format!("{dir}/")),
+        _ => (1, p.to_owned()),
+    };
+    conflicts.sort_by_key(|(p, _)| order(p));
+    out.conflicts = conflicts.into_iter().map(|(_, c)| c).collect();
+    out.text_conflicts.sort_by_key(|p| order(p));
+    Ok((out, marked))
+}
+
+/// One file to merge: result path, base, ours, theirs.
+type Job<'a> = (
+    String,
+    Option<Version<'a>>,
+    Option<Version<'a>>,
+    Option<Version<'a>>,
+);
+
+/// A file one side moved while the other side changed it at the old path.
+struct Move {
+    side: Side,
+    from: String,
+    to: String,
+}
+
+fn moved(base: &FileSet, ours: &FileSet, theirs: &FileSet) -> Vec<Move> {
+    let mut out: Vec<Move> = Vec::new();
+    for (side, mover, other) in [(Side::Ours, ours, theirs), (Side::Theirs, theirs, ours)] {
+        for (from, bytes) in &base.files {
+            let changed_by_other = other.files.get(from).is_some_and(|o| o != bytes);
+            if mover.files.contains_key(from) || !changed_by_other {
+                continue;
+            }
+            let old = Version { path: from, bytes };
+            let candidates = mover.files.iter().filter(|(to, b)| {
+                !base.files.contains_key(*to)
+                    && !other.files.contains_key(*to)
+                    && !out.iter().any(|m| &m.to == *to)
+                    && file::same_content(old, Version { path: to, bytes: b })
+            });
+            // Prefer a file of the same name (moved to another folder).
+            let name = |p: &str| p.rsplit('/').next().unwrap_or(p).to_owned();
+            let all: Vec<&String> = candidates.map(|(p, _)| p).collect();
+            let pick = all
+                .iter()
+                .find(|p| name(p) == name(from))
+                .or_else(|| all.first())
+                .map(|p| (*p).clone());
+            if let Some(to) = pick {
+                out.push(Move {
+                    side,
+                    from: from.clone(),
+                    to,
+                });
+            }
+        }
+    }
+    out
 }
 
 /// The merge of [`merge`] with every conflict decided by `choices`. Fails with
 /// [`FormatError::Invalid`] if a conflict is left without a choice.
-///
-/// Interface state (wave 12): file choices only; strand B adds field choices.
 pub fn resolve(
     base: &FileSet,
     ours: &FileSet,
     theirs: &FileSet,
     choices: &[ConflictChoice],
 ) -> Result<FileSet, FormatError> {
-    let mut result = merge(base, ours, theirs)?;
+    let result = merge_with(base, ours, theirs, choices)?;
     if let Some(c) = result.conflicts.first() {
         return Err(FormatError::Invalid {
             path: c.file.clone(),
-            message: "field conflicts cannot be resolved yet".into(),
+            message: format!("the conflict in {} has no resolution", c.field.join(" / ")),
         });
     }
-    for path in &result.text_conflicts {
-        let side = choices.iter().find_map(|c| match c {
-            ConflictChoice::File { path: p, side } if p == path => Some(*side),
-            _ => None,
+    if let Some(path) = result.text_conflicts.first() {
+        return Err(FormatError::Invalid {
+            path: path.clone(),
+            message: "the conflict has no resolution".into(),
         });
-        let from = match side {
-            Some(Side::Ours) => ours,
-            Some(Side::Theirs) => theirs,
-            None => {
-                return Err(FormatError::Invalid {
-                    path: path.clone(),
-                    message: "the conflict has no resolution".into(),
-                });
-            }
-        };
-        match from.files.get(path) {
-            Some(bytes) => result.files.files.insert(path.clone(), bytes.clone()),
-            None => result.files.files.remove(path),
-        };
     }
     Ok(result.files)
+}
+
+/// The outcome of [`merge_file`].
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct FileOutcome {
+    /// What to write: the merged file, with a comment above each conflicted field; for a
+    /// text conflict the line merge with Git's conflict markers (ours if not text). `None`:
+    /// the merge deletes the file.
+    pub bytes: Option<Vec<u8>>,
+    pub conflicts: Vec<FieldConflict>,
+    /// The file could not be merged on the model or line by line.
+    pub text_conflict: bool,
+}
+
+/// Merges one file of a collection on its own (`rt merge-driver`: Git hands over one file at
+/// a time). `path` is relative to the collection root (it decides what kind of file it is);
+/// `None` for a file that is not in a collection, which is merged line by line.
+pub fn merge_file(
+    path: Option<&str>,
+    base: Option<&[u8]>,
+    ours: Option<&[u8]>,
+    theirs: Option<&[u8]>,
+) -> FileOutcome {
+    let p = path.unwrap_or("");
+    let [b, o, t] = [base, ours, theirs].map(|v| v.map(|bytes| Version { path: p, bytes }));
+    let (target, m) = match path {
+        Some(_) => file::merge_file(p, b, o, t, &[]),
+        None => file::merge_text(p, b, o, t, &[]),
+    };
+    let conflicts: Vec<FieldConflict> = m
+        .conflicts
+        .iter()
+        .map(|c| {
+            let [base, ours, theirs] = c.values();
+            FieldConflict {
+                target: target.clone(),
+                file: p.to_owned(),
+                field: c.field.clone(),
+                base,
+                ours,
+                theirs,
+            }
+        })
+        .collect();
+    let bytes = match (&m.marked, &m.bytes) {
+        (Some(text), _) => Some(text.clone().into_bytes()),
+        (None, Some(bytes)) if !conflicts.is_empty() => Some(markers::mark(p, bytes, &conflicts)),
+        (None, bytes) => bytes.clone(),
+    };
+    FileOutcome {
+        bytes,
+        conflicts,
+        text_conflict: m.text_conflict,
+    }
 }
 
 #[cfg(test)]

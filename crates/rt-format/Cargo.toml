@@ -15,6 +15,9 @@ serde = { version = "1", features = ["derive"] }
 # Arguments of saved MCP tests (wave 8, `mcp_test`); already in the tree.
 serde_json = "1"
 thiserror = "2"
+# Wave 12, strand B: line-level three-way merge of files the model does not cover; already in
+# the tree (rt-app), Apache-2.0, builds on every target.
+similar = "3"
 
 [dev-dependencies]
 # Snapshots of the import corpus (loss reports as JSON).
