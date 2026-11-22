@@ -12,6 +12,8 @@ publish.workspace = true
 rt-core = { path = "../rt-core" }
 # Loss reports and import formats are part of the app and CLI JSON.
 serde = { version = "1", features = ["derive"] }
+# Arguments of saved MCP tests (wave 8, `mcp_test`); already in the tree.
+serde_json = "1"
 thiserror = "2"
 
 [dev-dependencies]
