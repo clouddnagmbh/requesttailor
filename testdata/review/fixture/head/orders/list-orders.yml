@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: List orders
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/orders?limit=25"
+  params:
+    - name: limit
+      value: "25"
+      type: query
+  headers:
+    - name: X-Tenant
+      value: "{{tenant}}"
+    - name: Accept
+      value: application/json
+    - name: X-Request-Source
+      value: review
