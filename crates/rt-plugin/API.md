@@ -68,6 +68,17 @@ The module **imports** from module `rt`:
 | --- | --- | --- |
 | `host` | `(ptr: i32, len: i32) -> i64` | one `api::HostCall` (JSON); returns `(ptr << 32) \| len` of a `Reply` JSON, allocated with the plugin's `rt_alloc` |
 
+Buffer ownership:
+- For `rt_call`, the host allocates the input buffer with `rt_alloc(len)` and writes the
+  `Call` JSON into it. After `rt_call` returns, the host frees both the input buffer and the
+  reply (`ptr`/`len` from the returned `i64`) with `rt_dealloc`.
+- For `rt.host(ptr, len)`, the host reads the request but does not free it; it stays the
+  plugin's. The host allocates the reply in plugin memory with `rt_alloc(reply_len)` and
+  returns exactly that length. The plugin frees the reply itself.
+
+Each call runs in a fresh instance of the module, so nothing in linear memory or globals
+survives from one call to the next. Keep state in `storage` or in a tab's `state`.
+
 Calls that wait for something, like `http`, look synchronous to the plugin. The host suspends
 the module while the request runs and resumes it with the reply. This works the same
 natively, on iOS and in the browser.
@@ -101,10 +112,33 @@ An empty list means no network. Without the permission, `http` replies
 
 `http` with `credentials: true` applies the auth of the current request: header, token or
 signature. The plugin never sees those values. This only works in the `prepare` and
-`response` hooks.
+`response` hooks, and only for URLs with the same origin (scheme, host, port) as the
+request. Otherwise the call is refused with an `error` reply and nothing is sent.
+
+`http` does not follow redirects; the plugin gets the 3xx response and decides itself. It
+times out after 30 seconds. Request and response bodies are cut at 8 MiB, and the response
+the plugin gets is masked like any other.
+
+`storage` is per plugin: keys are 1 to 256 bytes, a value is at most 1 MiB of JSON.
+
+A `prepare` or `response` reply of `{"ok": null}` means "nothing to change, no notes".
 
 The user grants a plugin's permissions at install time. In API version 1 the grant is all
-or nothing.
+or nothing. An update (same `id`, new `version`) that asks for more than was granted needs
+the user's confirmation again.
+
+## Where installed plugins live
+
+The desktop app and `rt` share one plugin folder, `plugins/` in the app's data folder:
+- macOS: `~/Library/Application Support/dev.requesttailor.desktop/plugins`;
+- Windows: `%APPDATA%\dev.requesttailor.desktop\plugins`;
+- Linux: `$XDG_DATA_HOME/dev.requesttailor.desktop/plugins` (default `~/.local/share`).
+
+`RT_DATA_DIR` replaces the data folder (for tests and CI). Inside: `<id>.wasm` per plugin,
+`plugins.json` (order, granted permissions, enabled state) and `storage/<id>.json`. `rt send`
+runs the enabled installed plugins; `--no-plugins` skips them, and `--plugin FILE` adds one
+for this send with the permissions its manifest asks for. The web app keeps plugins in the
+browser's IndexedDB (`requesttailor-plugins`).
 
 ## Secrets and sandbox
 

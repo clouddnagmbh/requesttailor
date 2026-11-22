@@ -7,7 +7,8 @@
 // fixed, realistic plan per format. Files whose text contains `INVALID` are refused, so tests
 // can show the error path. `write` "opens" the mock's demo collection.
 
-import { BackendError, type CollectionInfo, type ImportApi, type ImportSource } from "./backend";
+import { BackendError, type CollectionInfo, type ImportApi, type ImportSource, type PluginApi } from "./backend";
+import { mockPluginImporter } from "./mock-plugins";
 import type { ImportFormat, ImportPlan, Loss } from "./types";
 
 const text = (f: ImportSource) => new TextDecoder().decode(f.data);
@@ -94,7 +95,10 @@ function stem(name: string): string {
   return base.replace(/\.(postman_collection\.)?(json|ya?ml|har|http|rest|sh|txt)$/i, "") || "Imported collection";
 }
 
-export function mockImports(open?: () => Promise<CollectionInfo | null>): ImportApi {
+export function mockImports(
+  open?: () => Promise<CollectionInfo | null>,
+  plugins?: () => PluginApi,
+): ImportApi {
   let nextId = 1;
   const plans = new Map<number, ImportPlan>();
   return {
@@ -133,9 +137,21 @@ export function mockImports(open?: () => Promise<CollectionInfo | null>): Import
     discard: async (id) => {
       plans.delete(id);
     },
-    // Wave 5, strand A: plugin importers in the mock. Interface commit: none installed.
-    analyzeWithPlugin: async (_files, plugin) => {
-      throw new BackendError("plugin", `plugin ${plugin} is not installed`);
+    // Wave 5, strand A: plugin importers of the mock plugins (one request per file).
+    analyzeWithPlugin: async (files, plugin, importer) => {
+      if (!plugins) throw new BackendError("plugin", `plugin ${plugin} is not installed`);
+      if (files.length === 0) throw new BackendError("import", "no file to import");
+      const { name } = await mockPluginImporter(plugins(), plugin, importer);
+      const plan: ImportPlan = {
+        id: nextId++,
+        format: "plugin",
+        collection_name: name,
+        folder_name: name,
+        files: files.length + 1,
+        report: { format: "plugin", requests: files.length, folders: 0, environments: 0, losses: [] },
+      };
+      plans.set(plan.id, plan);
+      return plan;
     },
   };
 }

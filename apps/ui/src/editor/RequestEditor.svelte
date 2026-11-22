@@ -9,6 +9,9 @@
   import { onMount, untrack } from "svelte";
 
   import type { Auth, Body, Param, Preview, RequestSpec, Variable } from "../commands/types";
+  import { tabsFor } from "../plugins/permissions";
+  import PluginTab from "../plugins/PluginTab.svelte";
+  import { pluginsState } from "../plugins/store.svelte";
   import { getApp } from "../state/app.svelte";
   import AuthEditor from "./AuthEditor.svelte";
   import BodyEditor from "./BodyEditor.svelte";
@@ -44,8 +47,10 @@
     if (!p) return;
     pending = null;
     // `app.edit` sets `drafts` synchronously, so the editor never shows an older state.
-    void app.edit(p.path, p.spec).then(() => revision++);
+    inflight = app.edit(p.path, p.spec).then(() => revision++);
   }
+  /** The last edit handed to the backend (plugin tabs wait for it). */
+  let inflight: Promise<unknown> = Promise.resolve();
 
   /** Applies `change` to a copy of the current spec. Typing is debounced, the rest is not. */
   function update(change: (s: RequestSpec) => void, typing = false) {
@@ -180,8 +185,12 @@
 
   // ---- tabs ----
 
-  type Tab = "params" | "headers" | "body" | "auth" | "vars";
+  /** Built-in tabs, or `plugin:<plugin>/<tab>` (wave 5). */
+  type Tab = "params" | "headers" | "body" | "auth" | "vars" | `plugin:${string}`;
   let tab = $state<Tab>("params");
+  const plugins = pluginsState(app.backend);
+  const pluginTabs = $derived(tabsFor(plugins.list, "request"));
+  const pluginTab = $derived(tab.startsWith("plugin:") ? (pluginTabs.find((t) => `plugin:${t.key}` === tab) ?? null) : null);
   const tabs = $derived<[Tab, string, string][]>(
     spec
       ? [
@@ -263,10 +272,37 @@
             {text}{#if badge}<span class="badge">{badge}</span>{/if}
           </button>
         {/each}
+        {#each pluginTabs as t (t.key)}
+          <button
+            role="tab"
+            id={`rt-tab-plugin-${t.key}`}
+            data-testid={`tab-plugin-${t.key}`}
+            title="Plugin {t.pluginName}"
+            aria-selected={tab === `plugin:${t.key}`}
+            aria-controls="rt-request-panel"
+            onclick={() => (tab = `plugin:${t.key}`)}
+          >
+            {t.tab.title}
+          </button>
+        {/each}
       </div>
 
       <div class="panel" id="rt-request-panel" role="tabpanel" aria-labelledby={`rt-tab-${tab}`}>
-        {#if tab === "params"}
+        {#if pluginTab}
+          <PluginTab
+            backend={app.backend}
+            plugin={pluginTab.plugin}
+            tab={pluginTab.tab.id}
+            target={{ request_path: path, response_id: null }}
+            before={async () => {
+              flush();
+              await inflight;
+            }}
+            onupdate={(next) => app.edit(path, next)}
+          />
+        {:else if tab.startsWith("plugin:")}
+          <p class="hint">This plugin tab is no longer available.</p>
+        {:else if tab === "params"}
           <h3>Query</h3>
           <KeyValueTable
             testid="params-table"

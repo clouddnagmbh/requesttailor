@@ -4,9 +4,10 @@
 // `ImportApi` of the web app: the core's `Importer` converts; `write` asks for a folder,
 // creates `plan.folder_name` in it, writes the files and opens it. Owner: wave 4, strand B.
 
-import { BackendError, type ImportApi } from "@requesttailor/ui";
+import { BackendError, type ImportApi, type ImportPlan } from "@requesttailor/ui";
 
 import { writeChanges } from "./fs/directory";
+import { pluginsOf } from "./plugins";
 import { toBackendError, type CoreImporter } from "./wasm";
 import type { WebHost } from "./web-backend";
 
@@ -74,9 +75,18 @@ export function webImports(host: WebHost): ImportApi {
       if (importer) (await importer).discard(id);
     },
 
-    // Wave 5, strand A: plugin importers through the web plugin host.
-    analyzeWithPlugin: async (_files, plugin) => {
-      throw new BackendError("unsupported", `plugin ${plugin} is not available yet`);
+    // Wave 5, strand A: plugin importers through the web plugin host (./plugins.ts); the
+    // result is checked and kept by the same core importer, so `write` works as for any import.
+    analyzeWithPlugin: async (files, plugin, importerId) => {
+      try {
+        const reply = await pluginsOf(host).importReply(files, plugin, importerId);
+        const imports = (await core()) as CoreImporter & { addPluginImport(reply: unknown): ImportPlan };
+        const plan = imports.addPluginImport(reply);
+        folders.set(plan.id, plan.folder_name);
+        return plan;
+      } catch (e) {
+        throw toBackendError(e);
+      }
     },
   };
 }

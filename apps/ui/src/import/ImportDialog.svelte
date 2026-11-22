@@ -8,6 +8,8 @@
 
   import type { CollectionInfo, ImportSource } from "../commands/backend";
   import type { ImportFormat, ImportPlan } from "../commands/types";
+  import { pluginImporters } from "../plugins/permissions";
+  import { pluginsState } from "../plugins/store.svelte";
   import { getApp } from "../state/app.svelte";
   import { FORMATS, formatName, groupLosses, pasted, readFiles, reportText, summary, type LossGroup } from "./report";
 
@@ -18,7 +20,10 @@
   }: { open: boolean; onclose: () => void; onopen: (info: CollectionInfo) => Promise<void> } = $props();
   const app = getApp();
 
-  let format = $state<ImportFormat | "auto">("auto");
+  /** A built-in format, or `plugin:<plugin>/<importer>` (wave 5). */
+  let format = $state<ImportFormat | "auto" | `plugin:${string}`>("auto");
+  const plugins = pluginsState(app.backend, false);
+  const importers = $derived(pluginImporters(plugins.list));
   let text = $state("");
   let dragging = $state(false);
   let busy = $state<null | "analyzing" | "writing">(null);
@@ -49,6 +54,7 @@
   function opened(node: HTMLDialogElement) {
     node.showModal();
     untrack(reset);
+    void plugins.refresh();
     return () => node.close();
   }
 
@@ -70,7 +76,11 @@
     error = null;
     copied = false;
     try {
-      plan = await app.backend.imports.analyze(files, format === "auto" ? null : format);
+      const viaPlugin = format.startsWith("plugin:") ? importers.find((i) => `plugin:${i.value}` === format) : undefined;
+      if (format.startsWith("plugin:") && !viaPlugin) throw new Error("That plugin importer is no longer available.");
+      plan = viaPlugin
+        ? await app.backend.imports.analyzeWithPlugin(files, viaPlugin.plugin, viaPlugin.importer)
+        : await app.backend.imports.analyze(files, format === "auto" ? null : (format as ImportFormat));
       sources = files.map((f) => f.name);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
@@ -180,6 +190,7 @@
             <select data-testid="import-format" bind:value={format}>
               <option value="auto">Detect automatically</option>
               {#each FORMATS as f (f.value)}<option value={f.value}>{f.label}</option>{/each}
+              {#each importers as i (i.value)}<option value={`plugin:${i.value}`}>{i.label}</option>{/each}
             </select>
           </label>
           <button

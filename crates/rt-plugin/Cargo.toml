@@ -11,7 +11,7 @@ publish.workspace = true
 default = ["host"]
 # The host side (WASM runtime, permission checks). The SDK uses the API types only:
 # `rt-plugin = { default-features = false }`.
-host = []
+host = ["dep:wasmi", "dep:base64", "dep:url", "dep:web-time"]
 
 [dependencies]
 rt-core = { path = "../rt-core" }
@@ -19,6 +19,20 @@ rt-format = { path = "../rt-format" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+
+# The host: wasmi is a pure-Rust interpreter (no JIT), so the same engine runs natively, on
+# iOS and inside the browser's WebAssembly. `validate` checks every module before it runs;
+# `auto-dispatch` falls back to the portable interpreter loop where tail calls are not
+# reliable (debug builds, some targets).
+base64 = { version = "0.22", optional = true }
+url = { version = "2", optional = true }
+wasmi = { version = "2", default-features = false, features = ["std", "validate", "auto-dispatch"], optional = true }
+# std::time panics on wasm32-unknown-unknown.
+web-time = { version = "1", optional = true }
+
+[dev-dependencies]
+# Test plugins are written as WAT fixtures.
+wat = "1"
 
 [lints]
 workspace = true

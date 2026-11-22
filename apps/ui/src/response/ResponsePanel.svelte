@@ -15,6 +15,10 @@
     statusClass,
     waterfall,
   } from "./format";
+  import { contentTypeOf, tabsFor } from "../plugins/permissions";
+  import PluginTab from "../plugins/PluginTab.svelte";
+  import SendNotes from "../plugins/SendNotes.svelte";
+  import { pluginsState } from "../plugins/store.svelte";
   import HeadersTable from "./HeadersTable.svelte";
   import JsonNode from "./JsonNode.svelte";
   import { arraySource, hexSource, type LineSource } from "./lines";
@@ -30,7 +34,8 @@
   /** Bytes of the preview that is the complete body (small bodies need no round trip). */
   const PREVIEW_BYTES = 64 * 1024;
 
-  type Tab = "body" | "headers" | "timing";
+  /** Built-in tabs, or `plugin:<plugin>/<tab>` (wave 5). */
+  type Tab = "body" | "headers" | "timing" | `plugin:${string}`;
   type Mode = "pretty" | "raw" | "tree" | "hex";
 
   // The props are fixed for the lifetime of this component (it is keyed by response id).
@@ -42,6 +47,12 @@
   const jsonViewable = jsonCandidate && result.size <= JSON_VIEW_LIMIT;
 
   let tab = $state<Tab>("body");
+
+  // ---- plugin tabs (wave 5, strand A) ----
+  // svelte-ignore state_referenced_locally
+  const plugins = pluginsState(backend);
+  const pluginTabs = $derived(tabsFor(plugins.list, "response", contentTypeOf(response.headers)));
+  const pluginTab = $derived(tab.startsWith("plugin:") ? (pluginTabs.find((t) => `plugin:${t.key}` === tab) ?? null) : null);
   // svelte-ignore state_referenced_locally
   let mode = $state<Mode>(jsonViewable ? "pretty" : result.is_text ? "raw" : "hex");
 
@@ -188,6 +199,8 @@
     {/if}
   </div>
 
+  <SendNotes notes={result.report.notes ?? []} />
+
   <div class="bar">
     <div class="tabs" role="tablist" aria-label="Response parts">
       {#each [["body", "Body"], ["headers", `Headers (${response.headers.length})`], ["timing", "Timing"]] as [t, label] (t)}
@@ -197,6 +210,16 @@
           aria-selected={tab === t}
           data-testid="response-tab-{t}"
           onclick={() => (tab = t as Tab)}>{label}</button
+        >
+      {/each}
+      {#each pluginTabs as t (t.key)}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === `plugin:${t.key}`}
+          title="Plugin {t.pluginName}"
+          data-testid="response-tab-plugin-{t.key}"
+          onclick={() => (tab = `plugin:${t.key}`)}>{t.tab.title}</button
         >
       {/each}
     </div>
@@ -239,7 +262,11 @@
   {/if}
 
   <div class="content">
-    {#if tab === "headers"}
+    {#if pluginTab}
+      <PluginTab {backend} plugin={pluginTab.plugin} tab={pluginTab.tab.id} target={{ request_path: result.report.request_path, response_id: id }} />
+    {:else if tab.startsWith("plugin:")}
+      <p class="note">This plugin tab is no longer available.</p>
+    {:else if tab === "headers"}
       <HeadersTable response={response.headers} request={result.report.request?.headers ?? null} />
     {:else if tab === "timing"}
       <TimingWaterfall data={timing} />
