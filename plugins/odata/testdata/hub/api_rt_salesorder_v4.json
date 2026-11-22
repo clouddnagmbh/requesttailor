@@ -1,0 +1,68 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Sales Order (RequestTailor test API, OData V4)",
+    "version": "1",
+    "description": "Synthetic test file of the RequestTailor OData plugin (Apache-2.0), in the shape of an OData V4 API specification from the SAP Business Accelerator Hub. Not SAP data."
+  },
+  "x-sap-api-type": "ODATAV4",
+  "x-sap-shortText": "Create and read test sales orders.",
+  "security": [{ "APIKey": [] }, { "OAuth2": [] }],
+  "servers": [
+    { "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_rt_salesorder/srvd_a2x/sap/rt_salesorder/0001" }
+  ],
+  "paths": {
+    "/SalesOrder": {
+      "get": {
+        "summary": "Retrieves a list of sales orders.",
+        "parameters": [
+          { "name": "$top", "in": "query", "schema": { "type": "integer" } },
+          { "name": "$count", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": { "200": { "description": "Retrieved entities" } }
+      },
+      "post": {
+        "summary": "Creates a sales order.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SalesOrder-create" },
+              "examples": {
+                "minimal": { "summary": "Minimal order", "value": { "SalesOrderType": "OR", "SoldToParty": "RT-CUST-1" } }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/SalesOrder/{SalesOrder}": {
+      "get": {
+        "operationId": "readSalesOrder",
+        "parameters": [
+          { "name": "SalesOrder", "in": "path", "required": true, "schema": { "type": "string", "default": "1" } }
+        ],
+        "responses": { "200": { "description": "Retrieved entity" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SalesOrder-create": {
+        "type": "object",
+        "properties": {
+          "SalesOrderType": { "type": "string" },
+          "SoldToParty": { "type": "string" },
+          "RequestedDeliveryDate": { "type": "string", "format": "date" }
+        }
+      }
+    },
+    "securitySchemes": {
+      "APIKey": { "type": "apiKey", "name": "APIKey", "in": "header" },
+      "OAuth2": {
+        "type": "oauth2",
+        "flows": { "clientCredentials": { "tokenUrl": "https://auth.example.com/oauth/token", "scopes": {} } }
+      }
+    }
+  }
+}

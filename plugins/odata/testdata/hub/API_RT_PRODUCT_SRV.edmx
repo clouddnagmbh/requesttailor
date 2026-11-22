@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<!-- Synthetic test file in the shape of an EDMX download of the SAP Business Accelerator Hub: a SAP Gateway OData V2 $metadata whose atom:link points to the Hub sandbox (not SAP data). -->
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata" xmlns:sap="http://www.sap.com/Protocols/SAPData">
+  <edmx:DataServices m:DataServiceVersion="2.0">
+    <Schema Namespace="API_RT_PRODUCT_SRV" xml:lang="en" sap:schema-version="1" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+      <EntityType Name="A_RtProductType" sap:content-version="1" sap:label="Product">
+        <Key>
+          <PropertyRef Name="Product"/>
+        </Key>
+        <Property Name="Product" Type="Edm.String" Nullable="false" MaxLength="18" sap:label="Product"/>
+        <Property Name="ProductType" Type="Edm.String" MaxLength="4" sap:label="Product Type"/>
+        <Property Name="BaseUnit" Type="Edm.String" MaxLength="3" sap:label="Base Unit" sap:semantics="unit-of-measure"/>
+        <Property Name="IsMarkedForDeletion" Type="Edm.Boolean" sap:label="Marked for Deletion"/>
+        <NavigationProperty Name="to_Description" Relationship="API_RT_PRODUCT_SRV.assoc_Product_Description" FromRole="FromRole_Product" ToRole="ToRole_Description"/>
+      </EntityType>
+      <EntityType Name="A_RtProductDescriptionType" sap:content-version="1" sap:label="Product Description">
+        <Key>
+          <PropertyRef Name="Product"/>
+          <PropertyRef Name="Language"/>
+        </Key>
+        <Property Name="Product" Type="Edm.String" Nullable="false" MaxLength="18" sap:label="Product"/>
+        <Property Name="Language" Type="Edm.String" Nullable="false" MaxLength="2" sap:label="Language"/>
+        <Property Name="ProductDescription" Type="Edm.String" MaxLength="40" sap:label="Description"/>
+      </EntityType>
+      <Association Name="assoc_Product_Description" sap:content-version="1">
+        <End Type="API_RT_PRODUCT_SRV.A_RtProductType" Multiplicity="1" Role="FromRole_Product"/>
+        <End Type="API_RT_PRODUCT_SRV.A_RtProductDescriptionType" Multiplicity="*" Role="ToRole_Description"/>
+      </Association>
+      <EntityContainer Name="API_RT_PRODUCT_SRV_Entities" m:IsDefaultEntityContainer="true" sap:supported-formats="atom json xlsx">
+        <EntitySet Name="A_RtProduct" EntityType="API_RT_PRODUCT_SRV.A_RtProductType" sap:content-version="1"/>
+        <EntitySet Name="A_RtProductDescription" EntityType="API_RT_PRODUCT_SRV.A_RtProductDescriptionType" sap:deletable="false" sap:content-version="1"/>
+        <AssociationSet Name="assoc_Product_Description_set" Association="API_RT_PRODUCT_SRV.assoc_Product_Description" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1">
+          <End EntitySet="A_RtProduct" Role="FromRole_Product"/>
+          <End EntitySet="A_RtProductDescription" Role="ToRole_Description"/>
+        </AssociationSet>
+      </EntityContainer>
+      <atom:link rel="self" href="https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_RT_PRODUCT_SRV/$metadata" xmlns:atom="http://www.w3.org/2005/Atom"/>
+      <atom:link rel="latest-version" href="https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_RT_PRODUCT_SRV/$metadata" xmlns:atom="http://www.w3.org/2005/Atom"/>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

@@ -1,0 +1,204 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Product Master (RequestTailor test API)",
+    "version": "1.0.0",
+    "description": "Synthetic test file of the RequestTailor OData plugin (Apache-2.0), in the shape of an API specification from the SAP Business Accelerator Hub. Not SAP data."
+  },
+  "x-sap-api-type": "ODATA",
+  "x-sap-shortText": "Read and maintain test products and their descriptions.",
+  "x-sap-software-min-version": "2402",
+  "x-sap-stateInfo": { "state": "Active" },
+  "x-sap-ext-overview": [
+    { "name": "Communication Scenario", "values": [{ "text": "Product Integration (RT_COM_0001)", "format": "plain" }] }
+  ],
+  "externalDocs": {
+    "description": "Business documentation",
+    "url": "https://help.example.com/rt-product"
+  },
+  "security": [{ "APIKey": [] }, { "basic": [] }],
+  "servers": [
+    { "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_RT_PRODUCT_SRV" },
+    {
+      "url": "https://{host}:{port}/sap/opu/odata/sap/API_RT_PRODUCT_SRV",
+      "variables": {
+        "host": { "default": "", "description": "Host of your SAP S/4HANA system" },
+        "port": { "default": "443" }
+      }
+    }
+  ],
+  "tags": [
+    { "name": "Product", "description": "Products of the product master" },
+    { "name": "Product Description", "description": "Language-dependent descriptions" },
+    { "name": "Batch Requests" }
+  ],
+  "paths": {
+    "/A_RtProduct": {
+      "get": {
+        "summary": "Get entities from A_RtProduct",
+        "description": "Reads all products.",
+        "tags": ["Product"],
+        "parameters": [
+          { "$ref": "#/components/parameters/top" },
+          { "$ref": "#/components/parameters/skip" },
+          { "$ref": "#/components/parameters/filter" },
+          { "$ref": "#/components/parameters/inlinecount" },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values",
+            "explode": false,
+            "schema": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["Product", "Product desc", "ProductType"] } }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "explode": false,
+            "schema": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["Product", "ProductType", "BaseUnit"] } }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Retrieved entities", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Wrapper" } } } },
+          "4XX": { "$ref": "#/components/responses/error" }
+        }
+      },
+      "post": {
+        "summary": "Add new entity to A_RtProduct",
+        "tags": ["Product"],
+        "requestBody": {
+          "description": "New entity",
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/A_RtProductType-create" } } }
+        },
+        "responses": {
+          "201": { "description": "Created entity" },
+          "4XX": { "$ref": "#/components/responses/error" }
+        }
+      }
+    },
+    "/A_RtProduct('{Product}')": {
+      "parameters": [
+        { "name": "Product", "in": "path", "required": true, "description": "Product number", "schema": { "type": "string", "maxLength": 18 }, "example": "RT-1000" }
+      ],
+      "get": {
+        "summary": "Get entity from A_RtProduct by key",
+        "tags": ["Product"],
+        "parameters": [
+          {
+            "name": "$select",
+            "in": "query",
+            "explode": false,
+            "schema": { "type": "array", "items": { "type": "string" } }
+          }
+        ],
+        "responses": { "200": { "description": "Retrieved entity" } }
+      },
+      "patch": {
+        "summary": "Update entity in A_RtProduct",
+        "tags": ["Product"],
+        "parameters": [
+          { "name": "If-Match", "in": "header", "required": false, "description": "ETag of the entity", "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/A_RtProductType-update" },
+              "example": { "ProductType": "FERT", "BaseUnit": "PC" }
+            }
+          }
+        },
+        "responses": { "204": { "description": "Success" } }
+      },
+      "delete": {
+        "summary": "Delete entity from A_RtProduct",
+        "tags": ["Product"],
+        "responses": { "204": { "description": "Success" } }
+      }
+    },
+    "/A_RtProduct('{Product}')/to_Description": {
+      "parameters": [
+        { "name": "Product", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Get entities from related to_Description",
+        "tags": ["Product Description"],
+        "parameters": [
+          { "$ref": "#/components/parameters/top" },
+          { "name": "sap-language", "in": "query", "required": true, "schema": { "type": "string", "default": "EN" } }
+        ],
+        "responses": { "200": { "description": "Retrieved entities" } },
+        "callbacks": {}
+      }
+    },
+    "/$batch": {
+      "post": {
+        "summary": "Send a group of requests",
+        "tags": ["Batch Requests"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/mixed;boundary=request-separator": {
+              "schema": { "type": "string" }
+            }
+          }
+        },
+        "responses": { "202": { "description": "Batch request processed" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "A_RtProductType-create": {
+        "type": "object",
+        "title": "Product (for create)",
+        "properties": {
+          "Product": { "type": "string", "maxLength": 18, "example": "RT-1000" },
+          "ProductType": { "type": "string", "maxLength": 4 },
+          "BaseUnit": { "type": "string", "maxLength": 3 },
+          "GrossWeight": { "type": "string", "format": "decimal", "nullable": true },
+          "IsMarkedForDeletion": { "type": "boolean" },
+          "to_Description": {
+            "type": "object",
+            "properties": {
+              "results": { "type": "array", "items": { "$ref": "#/components/schemas/A_RtProductDescriptionType-create" } }
+            }
+          }
+        },
+        "required": ["Product"]
+      },
+      "A_RtProductDescriptionType-create": {
+        "type": "object",
+        "properties": {
+          "Language": { "type": "string", "maxLength": 2 },
+          "ProductDescription": { "type": "string", "maxLength": 40 }
+        }
+      },
+      "A_RtProductType-update": {
+        "type": "object",
+        "properties": {
+          "ProductType": { "type": "string" },
+          "BaseUnit": { "type": "string" }
+        }
+      },
+      "Wrapper": {
+        "type": "object",
+        "properties": { "d": { "type": "object", "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/A_RtProductType-create" } } } } }
+      }
+    },
+    "parameters": {
+      "top": { "name": "$top", "in": "query", "description": "Show only the first n items", "schema": { "type": "integer", "minimum": 0 }, "example": 50 },
+      "skip": { "name": "$skip", "in": "query", "description": "Skip the first n items", "schema": { "type": "integer", "minimum": 0 } },
+      "filter": { "name": "$filter", "in": "query", "description": "Filter items by property values", "schema": { "type": "string" } },
+      "inlinecount": { "name": "$inlinecount", "in": "query", "description": "Include count of items", "schema": { "type": "string", "enum": ["allpages", "none"] } }
+    },
+    "responses": {
+      "error": { "description": "Error", "content": { "application/json": { "schema": { "type": "object" } } } }
+    },
+    "securitySchemes": {
+      "APIKey": { "type": "apiKey", "name": "APIKey", "in": "header", "description": "API key of the SAP Business Accelerator Hub sandbox" },
+      "basic": { "type": "http", "scheme": "basic" }
+    }
+  }
+}
