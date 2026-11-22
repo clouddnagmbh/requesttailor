@@ -1,0 +1,102 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Open the API collection of a Git repository in RequestTailor: on the desktop, in a pipeline with rt, or in the web app. With a badge for your README.">
+<title>Run in RequestTailor · RequestTailor</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../">Home</a></li>
+<li><a href="../sap/">SAP and OData</a></li>
+<li><a href="../docs/">Docs</a></li>
+<li><a href="../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<h1>Run in RequestTailor</h1>
+<p class="lead">You followed a <q>Run in RequestTailor</q> badge. The repository you came
+from keeps its API requests as plain files, so you open them straight from a copy of the
+repository: no import, no account, no upload.</p>
+<p><img src="../assets/run-in-requesttailor.svg" alt="Run in RequestTailor" width="152" height="20"></p>
+
+<div class="note">
+<p>The address of the repository is in your browser's address bar after
+<code>?repo=</code>. This page runs no scripts, so it cannot fill it in for you; the steps
+below say <code>&lt;repository&gt;</code> where it goes. A folder inside the repository may
+follow after <code>&amp;path=</code>.</p>
+</div>
+
+<h2 id="desktop">On the desktop</h2>
+<ol>
+<li>Get the app from the <a href="../download/">download page</a> (macOS).</li>
+<li>Clone the repository: <code>git clone &lt;repository&gt;</code></li>
+<li>In RequestTailor, choose <em>Open folder</em> and select the folder that contains
+<code>opencollection.yml</code> (the repository itself, or the folder given after
+<code>&amp;path=</code>).</li>
+<li>Pick an environment. Secret values (tokens, passwords) are not in the repository; the
+app asks for them once and keeps them in your keychain.</li>
+</ol>
+<p>Changes are ordinary file changes: commit them with the built-in Git view or any Git
+tool.</p>
+
+<h2 id="cli">In a pipeline or on the command line</h2>
+<p>With <code>rt</code> from the <a href="../download/#cli">download page</a>:</p>
+<pre><code>git clone &lt;repository&gt; api &amp;&amp; cd api
+rt run . --env &lt;environment&gt; --reporter junit=junit.xml</code></pre>
+<p><code>rt run</code> sends every request of the collection in order and fails the build when a
+test or assertion fails. Without a server to call, <code>rt mock .</code> answers with the
+examples saved in the collection. See <a href="../docs/cli/">Command line: rt</a>.</p>
+
+<h2 id="web">In the web app</h2>
+<p>The web app runs from the RequestTailor repository on your own machine; there is no hosted
+version yet.</p>
+<pre><code>git clone https://github.com/clouddnagmbh/requesttailor
+cd requesttailor
+npm ci --ignore-scripts
+node scripts/build-wasm.mjs
+npm run dev -w apps/web</code></pre>
+<p>Then open the address it prints in Chrome or Edge, choose <em>Open folder</em> and select
+your clone of <code>&lt;repository&gt;</code>. The browser asks once for access to that
+folder.</p>
+
+<h2 id="badge">Add the badge to your README</h2>
+<p>Put the collection in your repository (a folder with <code>opencollection.yml</code>), then
+add one of these snippets. Replace <code>OWNER/REPO</code> with your repository and, if the
+collection is not at the root, set <code>path</code> to its folder.</p>
+<h3 id="markdown">Markdown</h3>
+<pre><code>[![Run in RequestTailor](https://clouddnagmbh.github.io/requesttailor/assets/run-in-requesttailor.svg)](https://clouddnagmbh.github.io/requesttailor/run/?repo=https://github.com/OWNER/REPO&amp;path=api)</code></pre>
+<h3 id="html">HTML</h3>
+<pre><code>&lt;a href="https://clouddnagmbh.github.io/requesttailor/run/?repo=https://github.com/OWNER/REPO&amp;amp;path=api"&gt;
+  &lt;img src="https://clouddnagmbh.github.io/requesttailor/assets/run-in-requesttailor.svg" alt="Run in RequestTailor" width="152" height="20"&gt;
+&lt;/a&gt;</code></pre>
+<p>If you would rather not load the image from this site, copy
+<a href="../assets/run-in-requesttailor.svg">the SVG file</a> into your repository and link
+it from there. Please use the badge unchanged; how the name RequestTailor may be used is
+explained in the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

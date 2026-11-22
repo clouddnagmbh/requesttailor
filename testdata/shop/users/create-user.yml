@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Create user
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/{{apiVersion}}/users"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {"name": "Grace"}
+  auth:
+    type: basic
+    username: "{{adminUser}}"
+    password: "{{adminPassword}}"
+
+examples:
+  - name: Created
+    request:
+      body:
+        type: json
+        data: |-
+          {"name": "Grace"}
+    response:
+      status: 201
+      headers:
+        - name: Location
+          value: /api/v1/users/43
+      body:
+        type: json
+        data: '{"id": 43, "name": "Grace"}'
+  - name: Invalid
+    request:
+      body:
+        type: json
+        data: "{}"
+    response:
+      status: 400
+      body:
+        type: text
+        data: name is required
