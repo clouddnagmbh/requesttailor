@@ -71,7 +71,6 @@ fn semantic_diff_of_1000_requests_is_measured() {
 }
 
 #[test]
-#[ignore = "wave 12, strand A: the semantic diff"]
 fn semantic_diff_of_1000_requests_finds_every_change() {
     let (old, new) = collections();
     let result = diff(&old, &new).unwrap();

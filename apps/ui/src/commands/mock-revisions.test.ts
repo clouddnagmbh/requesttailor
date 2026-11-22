@@ -52,8 +52,7 @@ describe("mock revisions", () => {
 
   it("wave 12 APIs refuse with unsupported until their strand lands", async () => {
     const { b } = await demo();
-    await expect(b.diffs.working()).rejects.toBeInstanceOf(BackendError);
-    await expect(b.diffs.working()).rejects.toMatchObject({ kind: "unsupported" });
+    await expect(b.merges.resolve([])).rejects.toBeInstanceOf(BackendError);
     expect(await b.merges.conflicts()).toEqual({ merging: false, conflicts: [], text_conflicts: [] });
     expect(await b.review.repo()).toBeNull();
     expect(await b.contract.spec()).toBeNull();
