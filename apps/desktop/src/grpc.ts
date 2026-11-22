@@ -1,10 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// `GrpcApi` (wave 8, strand B). Interface placeholder; the strand replaces it.
+// `GrpcApi` of the desktop app (src-tauri/src/grpc.rs). Wave 8, strand B.
 
-import { stubGrpc, type GrpcApi } from "@requesttailor/ui";
+import type { GrpcApi, GrpcService } from "@requesttailor/ui";
 
-export function tauriGrpc(): GrpcApi {
-  return stubGrpc();
+import type { Call } from "./backend";
+
+export function tauriGrpc(call: Call): GrpcApi {
+  // Secret values come from the keychain on the Rust side, never from the webview.
+  return {
+    services: (path, input) =>
+      call<GrpcService[]>("grpc_services", {
+        path,
+        input: { environment: input.environment, vars: input.vars },
+      }),
+    template: (path, method, input) =>
+      call<string>("grpc_template", {
+        path,
+        method,
+        input: { environment: input.environment, vars: input.vars },
+      }),
+  };
 }

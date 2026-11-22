@@ -17,7 +17,7 @@ use rt_core::model::{GrpcSpec, Protocol};
 use rt_core::prepare::{PrepareInput, prepare};
 use rt_core::stream::StreamTransport;
 use rt_format::FileSet;
-use rt_grpc::{Descriptors, GrpcError, GrpcService, ProtoSource};
+pub use rt_grpc::{Descriptors, GrpcError, GrpcMethod, GrpcService, ProtoSource};
 
 use crate::{AppError, SendInput, Workspace};
 

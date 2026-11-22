@@ -78,6 +78,9 @@
     "allow-runner-parse-data",
     "allow-runner-run",
     "allow-runner-cancel",
+    "allow-grpc-services",
+    "allow-grpc-template",
+    "allow-graphql-schema",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

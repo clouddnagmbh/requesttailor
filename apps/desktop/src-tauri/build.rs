@@ -81,6 +81,10 @@ const COMMANDS: &[&str] = &[
     "runner_parse_data",
     "runner_run",
     "runner_cancel",
+    // Wave 8, strand B.
+    "grpc_services",
+    "grpc_template",
+    "graphql_schema",
 ];
 
 fn main() {
