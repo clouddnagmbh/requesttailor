@@ -15,12 +15,9 @@ use rt_cli::{Command as Cli, EXIT_OK, EXIT_TESTS, EXIT_USAGE, parse_args};
 
 #[test]
 fn parses_the_options() {
-    let Ok(Cli::Bisect(a)) = parse_args(
-        [
-            "bisect", "--good", "v1", "--bad", "main", "-e", "Local", "--var", "a=1", "api",
-        ]
-        .into_iter(),
-    ) else {
+    let Ok(Cli::Bisect(a)) = parse_args([
+        "bisect", "--good", "v1", "--bad", "main", "-e", "Local", "--var", "a=1", "api",
+    ]) else {
         panic!("not parsed")
     };
     assert_eq!(a.good, "v1");
@@ -37,16 +34,13 @@ fn good_and_bad_are_required() {
         vec!["bisect", "--good", "a"],
         vec!["bisect", "--bad", "b"],
     ] {
-        let err = parse_args(args.clone().into_iter()).unwrap_err();
+        let err = parse_args(args.clone()).unwrap_err();
         assert!(
             err.contains("--good") || err.contains("--bad"),
             "{args:?}: {err}"
         );
     }
-    assert!(matches!(
-        parse_args(["bisect", "--help"].into_iter()),
-        Ok(Cli::Help)
-    ));
+    assert!(matches!(parse_args(["bisect", "--help"]), Ok(Cli::Help)));
 }
 
 // ---------------------------------------------------------------------------------------
