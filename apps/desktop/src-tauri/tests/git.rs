@@ -45,7 +45,7 @@ fn temp(name: &str) -> TempDir {
     let dir = std::env::temp_dir().join(format!("rt-desktop-git-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    TempDir(std::fs::canonicalize(dir).unwrap())
+    TempDir(rt_git::canonical(&dir).unwrap())
 }
 
 fn append_config(work: &Path, text: &str) {
@@ -99,7 +99,7 @@ fn commit_push_switch_branches_clone_and_pull() {
         &work.0,
         &format!(
             "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
-            remote.0.display()
+            remote.0.display().to_string().replace('\\', "/")
         ),
     );
     assert_eq!(
@@ -179,8 +179,7 @@ fn commit_push_switch_branches_clone_and_pull() {
     // A second machine: clone opens the collection; pull brings the next change.
     let parent = temp("clone");
     let other = Core::new(MemorySecrets::default()).unwrap();
-    let info =
-        git::clone_into(&other, &format!("file://{}", remote.0.display()), &parent.0).unwrap();
+    let info = git::clone_into(&other, &rt_git::local_url(&remote.0), &parent.0).unwrap();
     assert_eq!(info.name, "Git flow");
     let cloned = other.root().unwrap();
     set_user(&cloned, "Bob");

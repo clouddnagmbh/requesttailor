@@ -352,7 +352,7 @@ fn remote_with_main(name: &str) -> (Tmp, Tmp, std::path::PathBuf) {
 }
 
 fn clone_as(remote: &std::path::Path, user: &str, parent: &Tmp) -> std::path::PathBuf {
-    let url = format!("file://{}", remote.display());
+    let url = rt_git::local_url(remote);
     let dir = rt_git::clone(&url, parent.path(), &NoCredentials, &opts()).unwrap();
     set_user(&dir, user);
     dir
@@ -409,7 +409,7 @@ fn push_sets_the_upstream_and_clone_checks_out() {
 
     // Cloning into a folder that is not empty is refused.
     let err = rt_git::clone(
-        &format!("file://{}", remote.path().display()),
+        &rt_git::local_url(remote.path()),
         parent.path(),
         &NoCredentials,
         &opts(),
