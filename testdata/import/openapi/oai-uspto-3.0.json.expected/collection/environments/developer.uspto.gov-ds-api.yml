@@ -1,0 +1,6 @@
+name: developer.uspto.gov/ds-api
+variables:
+  - name: baseUrl
+    value: "{{scheme}}://developer.uspto.gov/ds-api"
+  - name: scheme
+    value: https

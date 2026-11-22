@@ -1,0 +1,10 @@
+{
+  "collectionName": "mitmproxy-flows-get-post-form",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "har",
+    "losses": [],
+    "requests": 2
+  }
+}

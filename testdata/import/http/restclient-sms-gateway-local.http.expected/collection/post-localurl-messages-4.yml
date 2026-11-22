@@ -1,0 +1,26 @@
+info:
+  name: POST {{localUrl}}/messages
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{localUrl}}/messages"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Basic {{localCredentials}}
+  body:
+    type: json
+    data: |-
+      {
+          "message": "17wc9/ZRf1l84LHkEK3hgA==.aH1XrMHAeMyF4PeiavV3dk8o2fP0nSo92IqseLQfg14=",
+          "ttl": 600,
+          "phoneNumbers": [
+              "xkQeXzSDFj2xP6JBUMK0pA==.PfUHEa9QZv8h7JnUoBlmWw=="
+          ],
+          "simNumber": 1,
+          "withDeliveryReport": true,
+          "isEncrypted": true
+      }

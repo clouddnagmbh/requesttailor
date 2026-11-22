@@ -1,0 +1,11 @@
+info:
+  name: GET {{localUrl}}/messages/{{messageId}}
+  type: http
+  seq: 11
+
+http:
+  method: GET
+  url: "{{localUrl}}/messages/{{messageId}}"
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}

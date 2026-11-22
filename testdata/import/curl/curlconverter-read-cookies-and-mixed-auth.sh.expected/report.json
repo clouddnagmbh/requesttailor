@@ -1,0 +1,35 @@
+{
+  "collectionName": "curlconverter-read-cookies-and-mixed-auth",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "Digest auth settings kept in the file, but RequestTailor cannot send with Digest auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET localhost:28139"
+      },
+      {
+        "detail": "Digest auth password stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET localhost:28139"
+      },
+      {
+        "detail": "cookie file `cookies.txt` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET localhost:28139"
+      },
+      {
+        "detail": "unknown option `--no-basic` ignored",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "GET localhost:28139"
+      }
+    ],
+    "requests": 1
+  }
+}

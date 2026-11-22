@@ -1,0 +1,20 @@
+info:
+  name: Trigger verification event
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{transmitterIssuer}}/ssf/verify"
+  headers:
+    - name: Authorization
+      value: Bearer {{transmitterToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "stream_id": "{{ stream_id }}",
+        "state": "dummyState"
+      }

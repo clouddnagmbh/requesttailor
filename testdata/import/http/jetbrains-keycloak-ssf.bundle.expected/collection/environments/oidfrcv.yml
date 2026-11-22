@@ -1,0 +1,12 @@
+name: oidfrcv
+variables:
+  - name: issuer
+    value: https://id.acme.test:1443/auth/realms/ssf-demo
+  - name: transmitterConfigUrl
+    value: https://id.acme.test:1443/.well-known/ssf-configuration/auth/realms/ssf-demo
+  - name: transmitterIssuer
+    value: https://tdworkshops.ngrok.dev/ssf-receiver-dev
+  - name: transmitterUrl
+    value: https://tdworkshops.ngrok.dev/ssf-receiver-dev
+  - name: receiverAlias
+    value: ssf-receiver-1

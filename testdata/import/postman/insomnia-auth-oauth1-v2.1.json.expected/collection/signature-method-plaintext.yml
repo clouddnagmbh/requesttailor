@@ -1,0 +1,19 @@
+info:
+  name: Signature Method PLAINTEXT
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: https://insomnia.rest
+  auth:
+    type: oauth1
+    consumerKey: plaintext-consumer-key-value
+    consumerSecret: plaintext-consumer-secret-value
+    accessToken: plaintext-access-token-value
+    accessTokenSecret: plaintext-token-secret-value
+    signatureMethod: PLAINTEXT
+    timestamp: plaintext-timestamp-value
+    nonce: plaintext-nonce-value
+    version: "1.0"
+    realm: plaintext-realm-value

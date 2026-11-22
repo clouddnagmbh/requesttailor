@@ -1,0 +1,15 @@
+info:
+  name: Add note
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/notes"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: '{"text": "Buy milk"}'
+  auth: inherit

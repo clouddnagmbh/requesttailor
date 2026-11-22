@@ -1,0 +1,11 @@
+info:
+  name: WHAT localhost:28139
+  type: http
+  seq: 1
+
+http:
+  method: WHAT
+  url: http://localhost:28139
+
+settings:
+  followRedirects: false

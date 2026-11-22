@@ -1,0 +1,22 @@
+info:
+  name: POST {{api}}/parcels
+  type: http
+  seq: 32
+
+http:
+  method: POST
+  url: "{{api}}/parcels"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "variant": "weapon",
+        "size": "large",
+        "name": "Parcel #1",
+        "description": "My parcel #1"
+      }

@@ -1,0 +1,18 @@
+info:
+  name: POST /streams
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/streams?callbackUrl=https://tonys-server.com"
+  params:
+    - name: callbackUrl
+      value: https://tonys-server.com
+      type: query
+      description: |
+        the location where data will be sent.  Must be network accessible
+        by the source server
+  auth: inherit
+
+docs: subscribes a client to receive out-of-band data

@@ -1,0 +1,101 @@
+{
+  "collectionName": "synthetic-features",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "1 more URL in the command not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "GET api.example.com/a"
+      },
+      {
+        "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET api.example.com/basic"
+      },
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET api.example.com/cookies"
+      },
+      {
+        "detail": "Digest auth settings kept in the file, but RequestTailor cannot send with Digest auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET api.example.com/digest"
+      },
+      {
+        "detail": "NTLM auth settings kept in the file, but RequestTailor cannot send with NTLM auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET api.example.com/ntlm"
+      },
+      {
+        "detail": "option `--http2` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET api.example.com/quiet"
+      },
+      {
+        "detail": "option `--proxy` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET api.example.com/tls"
+      },
+      {
+        "detail": "option `--cert` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET api.example.com/tls"
+      },
+      {
+        "detail": "unknown option `--unknown-option` ignored",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "GET api.example.com/unknown"
+      },
+      {
+        "detail": "AWS Signature v4 settings kept in the file, but RequestTailor cannot send with AWS Signature v4 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET s3.example.com/bucket"
+      },
+      {
+        "detail": "body file `body.json` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST api.example.com/from-file"
+      },
+      {
+        "detail": "file `/home/someone/report.pdf` for `file` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST api.example.com/upload"
+      },
+      {
+        "detail": "option `-k` not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "POST api.example.com/users"
+      },
+      {
+        "detail": "body file `./blob.bin` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "PUT api.example.com/put"
+      },
+      {
+        "detail": "`echo` is not a curl command; not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "synthetic-features.sh"
+      }
+    ],
+    "requests": 18
+  }
+}

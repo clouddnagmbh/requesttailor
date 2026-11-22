@@ -1,0 +1,17 @@
+info:
+  name: consumerToken
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{sapApimTokenUrl}}"
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: text
+    data: |-
+      client_id={{clientId}}
+      &client_secret={{clientSecret}}
+      &grant_type=client_credentials

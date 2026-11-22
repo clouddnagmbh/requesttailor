@@ -1,0 +1,11 @@
+info:
+  name: Test Request Unknown Body
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/api/users"
+  auth: inherit
+
+docs: Request with unknown body

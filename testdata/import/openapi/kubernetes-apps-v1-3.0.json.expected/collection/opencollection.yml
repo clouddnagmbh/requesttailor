@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Kubernetes
+
+request:
+  variables:
+    - name: baseUrl
+      value: ""
+
+docs: Version unversioned
+
+bundled: false

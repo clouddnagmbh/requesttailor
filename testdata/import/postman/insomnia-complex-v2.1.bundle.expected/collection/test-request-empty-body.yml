@@ -1,0 +1,11 @@
+info:
+  name: Test Request Empty Body
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/api/users"
+  auth: inherit
+
+docs: Request with empty raw body

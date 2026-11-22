@@ -1,0 +1,12 @@
+info:
+  name: Digest Auth
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://jigsaw.w3.org/HTTP/Digest/
+  auth:
+    type: digest
+    username: guest
+    password: guest

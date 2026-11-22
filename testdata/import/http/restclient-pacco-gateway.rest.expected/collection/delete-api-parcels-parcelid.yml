@@ -1,0 +1,14 @@
+info:
+  name: DELETE {{api}}/parcels/{{parcelId}}
+  type: http
+  seq: 33
+
+http:
+  method: DELETE
+  url: "{{api}}/parcels/{{parcelId}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+  body:
+    type: text
+    data: "# ============== PRICING ==================== #"

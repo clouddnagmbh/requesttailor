@@ -1,0 +1,17 @@
+info:
+  name: POST test.k6.io/login
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: http://test.k6.io/login
+  body:
+    type: multipart-form
+    data:
+      - name: username
+        type: text
+        value: admin
+      - name: password
+        type: text
+        value: "123"

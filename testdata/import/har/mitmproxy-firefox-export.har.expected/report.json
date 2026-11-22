@@ -1,0 +1,17 @@
+{
+  "collectionName": "mitmproxy-firefox-export",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "har",
+    "losses": [
+      {
+        "detail": "recorded binary response kept as base64 text",
+        "effect": "approximated",
+        "kind": "example",
+        "location": "GET mitmproxy.org/favicon.ico"
+      }
+    ],
+    "requests": 14
+  }
+}

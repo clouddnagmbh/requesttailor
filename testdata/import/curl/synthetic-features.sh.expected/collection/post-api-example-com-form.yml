@@ -1,0 +1,18 @@
+info:
+  name: POST api.example.com/form
+  type: http
+  seq: 13
+
+http:
+  method: POST
+  url: https://api.example.com/form
+  body:
+    type: form-urlencoded
+    data:
+      - name: a
+        value: "1"
+      - name: b
+        value: two
+
+settings:
+  followRedirects: false

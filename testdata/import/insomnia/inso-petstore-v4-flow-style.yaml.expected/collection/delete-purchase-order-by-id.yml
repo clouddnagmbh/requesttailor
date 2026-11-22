@@ -1,0 +1,9 @@
+info:
+  name: Delete purchase order by ID
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{base_url}}/store/order/{{orderId}}"
+  auth: inherit

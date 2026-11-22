@@ -1,0 +1,16 @@
+info:
+  name: GET localhost:28139/cookies
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:28139/cookies
+  headers:
+    - name: accept
+      value: application/json
+    - name: Cookie
+      value: mysamplecookie=someValue; emptycookie=; otherCookie=2
+
+settings:
+  followRedirects: false

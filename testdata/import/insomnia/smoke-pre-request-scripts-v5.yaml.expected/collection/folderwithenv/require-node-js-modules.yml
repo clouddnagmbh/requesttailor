@@ -1,0 +1,28 @@
+info:
+  name: require node.js modules
+  type: http
+  seq: 24
+
+http:
+  method: POST
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "path": {{path}},
+        "assert": {{assert}},
+        "buffer": {{buffer}},
+        "util": {{util}},
+        "url": {{url}},
+        "punycode": {{punycode}},
+        "querystring": {{querystring}},
+        "stringDecoder": {{stringDecoder}},
+        "stream": {{stream}},
+        "timers": {{timers}},
+        "events": {{events}}
+      }
+  auth: inherit

@@ -1,0 +1,24 @@
+info:
+  name: POST {{localUrl}}/messages
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{localUrl}}/messages"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Basic {{localCredentials}}
+  body:
+    type: json
+    data: |-
+      {
+          "textMessage": {
+            "text": "{{$localDatetime iso8601}}"
+          },
+          "phoneNumbers": [
+              "{{phone}}"
+          ]
+      }

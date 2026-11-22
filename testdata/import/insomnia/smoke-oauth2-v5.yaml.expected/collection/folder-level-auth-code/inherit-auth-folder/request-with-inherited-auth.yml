@@ -1,0 +1,12 @@
+info:
+  name: Request with Inherited Auth
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://127.0.0.1:4010/oidc/me
+  headers:
+    - name: User-Agent
+      value: insomnia/9.2.0
+  auth: inherit

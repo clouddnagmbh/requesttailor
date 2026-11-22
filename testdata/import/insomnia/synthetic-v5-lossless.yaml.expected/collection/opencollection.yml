@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Lossless v5
+
+request:
+  variables:
+    - name: base_url
+      value: https://items.example.com
+    - name: user
+      value: alice
+
+bundled: false

@@ -1,0 +1,36 @@
+info:
+  name: GET shop.example.com/products
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://shop.example.com/products?page=2&sort=price
+  params:
+    - name: page
+      value: "2"
+      type: query
+    - name: sort
+      value: price
+      type: query
+  headers:
+    - name: accept
+      value: application/json
+    - name: authorization
+      value: Bearer recorded-token
+    - name: Cookie
+      value: session=recorded-session
+
+docs: First page load
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: content-type
+          value: application/json
+      body:
+        type: json
+        data: '[{"id":1}]'

@@ -1,0 +1,24 @@
+info:
+  name: GET localhost:28139
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:28139/?format=json&
+  params:
+    - name: format
+      value: json
+      type: query
+  headers:
+    - name: Host
+      value: api.ipify.org
+    - name: Accept
+      value: "*/*"
+    - name: User-Agent
+      value: GiftTalk/2.7.2 (iPhone; iOS 9.0.2; Scale/3.00)
+    - name: Accept-Language
+      value: en-CN;q=1, zh-Hans-CN;q=0.9
+
+settings:
+  followRedirects: false

@@ -1,0 +1,23 @@
+{
+  "collectionName": "folder-inheritance-doc.yaml",
+  "report": {
+    "environments": 0,
+    "folders": 1,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "My Folder"
+      },
+      {
+        "detail": "unit test suite (1 test) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "New Suite"
+      }
+    ],
+    "requests": 1
+  }
+}

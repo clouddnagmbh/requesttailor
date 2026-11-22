@@ -1,0 +1,18 @@
+info:
+  name: Create (JSON)
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/users"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: "{\"name\": \"{{user}}\", \"at\": \"{% now 'iso-8601' %}\"}"
+  auth:
+    type: basic
+    username: admin
+    password: typed-password

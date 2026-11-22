@@ -1,0 +1,6 @@
+opencollection: "1.0.0"
+
+info:
+  name: har-to-k6-params-no-version
+
+bundled: false

@@ -1,0 +1,23 @@
+{
+  "collectionName": "USPTO Data Set API",
+  "report": {
+    "environments": 1,
+    "folders": 2,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "form fields generated from the schema",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "search / Provides search capability for the data set with the given search criteria."
+      }
+    ],
+    "requests": 3
+  }
+}

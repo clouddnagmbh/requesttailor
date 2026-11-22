@@ -1,0 +1,11 @@
+info:
+  name: Delete article
+  type: http
+  seq: 14
+
+http:
+  method: DELETE
+  url: "{{host_api}}/articles/{{article_slug}}"
+  headers:
+    - name: Authorization
+      value: Token {{token}}

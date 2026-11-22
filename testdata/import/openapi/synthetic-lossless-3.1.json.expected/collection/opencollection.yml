@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Lossless
+
+request:
+  variables:
+    - name: baseUrl
+      value: https://notes.example.com/api
+
+docs: Version 1.0.0
+
+bundled: false

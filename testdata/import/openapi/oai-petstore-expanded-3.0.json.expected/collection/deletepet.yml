@@ -1,0 +1,16 @@
+info:
+  name: deletePet
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/pets/:id"
+  params:
+    - name: id
+      value: ""
+      type: path
+      description: ID of pet to delete
+  auth: inherit
+
+docs: deletes a single pet based on the ID supplied

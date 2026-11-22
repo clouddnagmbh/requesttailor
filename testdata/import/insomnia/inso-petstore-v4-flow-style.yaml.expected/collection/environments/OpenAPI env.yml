@@ -1,0 +1,10 @@
+name: OpenAPI env
+variables:
+  - name: scheme
+    value: http
+  - name: base_path
+    value: /v2
+  - name: host
+    value: petstore.swagger.io
+  - name: apiKey
+    value: apiKey

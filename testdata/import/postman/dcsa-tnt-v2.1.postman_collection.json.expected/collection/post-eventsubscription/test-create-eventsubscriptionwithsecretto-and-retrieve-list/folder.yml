@@ -1,0 +1,4 @@
+info:
+  name: "Test: create EventSubscriptionWithSecretTO and retrieve list"
+  type: folder
+  seq: 2

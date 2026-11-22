@@ -1,0 +1,17 @@
+{
+  "collectionName": "curlconverter-post-basic-auth-url-encoded-data",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "POST localhost:28139/api/oauth/token"
+      }
+    ],
+    "requests": 1
+  }
+}

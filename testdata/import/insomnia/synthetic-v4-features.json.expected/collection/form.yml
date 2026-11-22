@@ -1,0 +1,21 @@
+info:
+  name: Form
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: https://api.example.com/form
+  body:
+    type: form-urlencoded
+    data:
+      - name: a
+        value: "1"
+      - name: b
+        value: "{{user}}"
+        disabled: true
+  auth:
+    type: apikey
+    key: X-API-Key
+    value: "{{api_token}}"
+    placement: header

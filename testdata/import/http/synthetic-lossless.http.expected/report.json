@@ -1,0 +1,10 @@
+{
+  "collectionName": "synthetic-lossless",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [],
+    "requests": 2
+  }
+}

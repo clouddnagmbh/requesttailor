@@ -1,0 +1,14 @@
+info:
+  name: POST fakedings.intern.dev.nav.no/fake/custom
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://fakedings.intern.dev.nav.no/fake/custom
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: text
+    data: azp=dev-gcp:fager:notifikasjon-test-produsent&aud=produsent-api

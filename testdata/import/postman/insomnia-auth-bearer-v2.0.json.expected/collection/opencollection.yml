@@ -1,0 +1,8 @@
+opencollection: "1.0.0"
+
+info:
+  name: Bearer Token Test
+
+docs: A collection for testing
+
+bundled: false

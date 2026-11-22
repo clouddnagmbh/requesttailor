@@ -1,0 +1,14 @@
+info:
+  name: GET httpbin.org/get
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://httpbin.org/get?page=Home
+  params:
+    - name: page
+      value: Home
+      type: query
+
+docs: Exercise home page

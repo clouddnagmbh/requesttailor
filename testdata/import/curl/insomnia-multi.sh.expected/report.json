@@ -1,0 +1,23 @@
+{
+  "collectionName": "insomnia-multi",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET insomnia.rest"
+      },
+      {
+        "detail": "`echo` is not a curl command; not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "insomnia-multi.sh"
+      }
+    ],
+    "requests": 4
+  }
+}

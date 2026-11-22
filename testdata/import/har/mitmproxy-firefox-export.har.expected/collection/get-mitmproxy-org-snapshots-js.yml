@@ -1,0 +1,133 @@
+info:
+  name: GET mitmproxy.org/snapshots.js
+  type: http
+  seq: 9
+
+http:
+  method: GET
+  url: https://mitmproxy.org/snapshots.js
+  headers:
+    - name: Host
+      value: mitmproxy.org
+    - name: User-Agent
+      value: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0
+    - name: Accept
+      value: "*/*"
+    - name: Accept-Language
+      value: en-US,en;q=0.5
+    - name: Accept-Encoding
+      value: gzip, deflate, br
+    - name: DNT
+      value: "1"
+    - name: Alt-Used
+      value: mitmproxy.org
+    - name: Connection
+      value: keep-alive
+    - name: Referer
+      value: https://mitmproxy.org/
+    - name: Sec-Fetch-Dest
+      value: script
+    - name: Sec-Fetch-Mode
+      value: no-cors
+    - name: Sec-Fetch-Site
+      value: same-origin
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: content-type
+          value: text/javascript
+        - name: alt-svc
+          value: h3=":443"; ma=86400
+        - name: age
+          value: "76473"
+        - name: last-modified
+          value: Sat, 04 Mar 2023 16:01:14 GMT
+        - name: server
+          value: AmazonS3
+        - name: content-encoding
+          value: gzip
+        - name: date
+          value: Wed, 29 Mar 2023 02:43:50 GMT
+        - name: etag
+          value: W/"20a8c9dba8b59dc27b96998053650836"
+        - name: vary
+          value: Accept-Encoding
+        - name: x-cache
+          value: Hit from cloudfront
+        - name: via
+          value: 1.1 28663e5849ed20a9d037ca8066957990.cloudfront.net (CloudFront)
+        - name: x-amz-cf-pop
+          value: SFO5-C1
+        - name: x-amz-cf-id
+          value: TOLqHpQWMFHQDWnv2yHHFWI5xkA3R13TTJQDJe1ARViKrgihxZdhxA==
+      body:
+        type: text
+        data: |
+          const WEB_ROOT = "https://snapshots.mitmproxy.org/"
+          const BUCKET_URL = "https://s3-us-west-2.amazonaws.com/snapshots.mitmproxy.org";
+          const EXCLUDE = {
+              "index.html": true,
+              "error.html": true,
+              "list.js": true,
+          }
+
+          function sortByName(a, b) {
+              // 5.0 > 4.0 > 1.0 > a > b > z
+              let invert = (/^[0-9]/.test(a.name) && /^[0-9]/.test(b.name)) ? -1 : 1;
+              if (a.name > b.name) return invert;
+              if (a.name < b.name) return -invert;
+              return 0;
+          }
+
+          let s3cache = {};
+          function fetchS3(directory) {
+              let url = BUCKET_URL + "?delimiter=/&prefix=" + directory;
+              s3cache[url] = s3cache[url] || (fetch(url)
+                  .then(function (response) {
+                      return response.text()
+                  })
+                  .then(function (data) {
+                      let s3 = (new DOMParser()).parseFromString(data, "text/xml");
+                      let files = [];
+                      s3.querySelectorAll("Contents").forEach(function (item) {
+                          if (item.querySelector("Key").textContent in EXCLUDE) {
+                              return;
+                          }
+                          files.push({
+                              name: item.querySelector("Key").textContent.replace(directory, ""),
+                              time: new Date(item.querySelector("LastModified").textContent),
+                              size: parseInt(item.querySelector("Size").textContent)
+                          });
+                      })
+                      files.sort(sortByName);
+
+                      let directories = [];
+                      s3.querySelectorAll("CommonPrefixes").forEach(function (item) {
+                          directories.push({
+                              name: item.querySelector("Prefix").textContent.replace(directory, ""),
+                          });
+                      })
+                      directories.sort(sortByName);
+
+                      return { directory: directory, files: files, directories: directories };
+                  }));
+              return s3cache[url];
+          }
+
+
+          function getLatestRelease(suffix) {
+              return fetchS3("").then(function (data) {
+                  let latestVersion = data.directories
+                      .map(function (x) {
+                          return x.name.replace("/", "")
+                      })
+                      .filter(function (x) {
+                          return /^[\d.]+$/.test(x);
+                      })[0]
+                  return WEB_ROOT + latestVersion + "/mitmproxy-" + latestVersion + suffix;
+              })
+          }

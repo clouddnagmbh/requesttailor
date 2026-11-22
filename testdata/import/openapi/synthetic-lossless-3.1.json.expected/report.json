@@ -1,0 +1,10 @@
+{
+  "collectionName": "Lossless",
+  "report": {
+    "environments": 1,
+    "folders": 1,
+    "format": "openapi",
+    "losses": [],
+    "requests": 3
+  }
+}

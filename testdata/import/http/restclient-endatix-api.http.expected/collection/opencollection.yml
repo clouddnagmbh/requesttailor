@@ -1,0 +1,23 @@
+opencollection: "1.0.0"
+
+info:
+  name: restclient-endatix-api
+
+request:
+  variables:
+    - name: host
+      value: https://localhost
+    - name: port
+      value: "5001"
+    - name: apiBaseUrl
+      value: "{{host}}:{{port}}/api"
+    - name: jwt
+      value: "{{login.response.body.$.accessToken}}"
+    - name: formId
+      value: "1263081289527853056"
+    - name: validEmail
+      value: user@example.com
+    - name: validPassword
+      value: Password123!
+
+bundled: false

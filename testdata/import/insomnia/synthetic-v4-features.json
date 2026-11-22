@@ -1,0 +1,308 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-11-22T10:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_1",
+      "parentId": null,
+      "name": "Synthetic v4",
+      "description": "Covers every construct the importer maps or reports.",
+      "scope": "collection",
+      "_type": "workspace"
+    },
+    {
+      "_id": "env_base",
+      "parentId": "wrk_1",
+      "name": "Base Environment",
+      "data": { "base_url": "https://api.example.com", "nested": { "level": { "deep": 1 } }, "list": [1, 2] },
+      "isPrivate": false,
+      "metaSortKey": 1,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_dev",
+      "parentId": "env_base",
+      "name": "Development",
+      "data": { "base_url": "http://localhost:8080", "user": "dev" },
+      "isPrivate": false,
+      "metaSortKey": 2,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_secret",
+      "parentId": "env_base",
+      "name": "Private",
+      "data": { "api_token": "not-a-real-token", "empty": "" },
+      "isPrivate": true,
+      "metaSortKey": 3,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_kv",
+      "parentId": "env_base",
+      "name": "Key value",
+      "environmentType": "kv",
+      "kvPairData": [
+        { "id": "p1", "name": "plain", "value": "{{ _.base_url }}/v2", "type": "str", "enabled": true },
+        { "id": "p2", "name": "off", "value": "x", "type": "str", "enabled": false },
+        { "id": "p3", "name": "hidden", "value": "not-a-real-secret", "type": "secret", "enabled": true }
+      ],
+      "isPrivate": false,
+      "metaSortKey": 4,
+      "_type": "environment"
+    },
+    {
+      "_id": "jar_1",
+      "parentId": "wrk_1",
+      "name": "Default Jar",
+      "cookies": [{ "key": "session", "value": "abc", "domain": "example.com" }],
+      "_type": "cookie_jar"
+    },
+    {
+      "_id": "spc_1",
+      "parentId": "wrk_1",
+      "fileName": "Synthetic v4",
+      "contents": "openapi: 3.0.0",
+      "contentType": "yaml",
+      "_type": "api_spec"
+    },
+    {
+      "_id": "fld_users",
+      "parentId": "wrk_1",
+      "name": "Users",
+      "description": "User endpoints",
+      "environment": { "page_size": 20 },
+      "metaSortKey": -10,
+      "preRequestScript": "insomnia.environment.set('x', 1);\nconsole.log('folder');",
+      "afterResponseScript": "",
+      "headers": [{ "name": "X-Folder", "value": "users", "description": "set on the folder" }],
+      "authentication": { "type": "bearer", "token": "{{ _.token }}", "prefix": "" },
+      "_type": "request_group"
+    },
+    {
+      "_id": "fld_nested",
+      "parentId": "fld_users",
+      "name": "Nested",
+      "metaSortKey": 5,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_list",
+      "parentId": "fld_users",
+      "name": "List users",
+      "description": "Lists users.",
+      "method": "get",
+      "url": "{{ _.base_url }}/users?active=true",
+      "parameters": [
+        { "name": "page", "value": "{{ _.page_size }}", "description": "page number" },
+        { "name": "sort", "value": "name", "disabled": true }
+      ],
+      "headers": [
+        { "name": "Accept", "value": "application/json" },
+        { "name": "X-Off", "value": "1", "disabled": true },
+        { "name": "X-Request-Id", "value": "{% uuid 'v4' %}" }
+      ],
+      "authentication": {},
+      "body": {},
+      "metaSortKey": 1,
+      "settingFollowRedirects": "off",
+      "settingEncodeUrl": false,
+      "settingSendCookies": false,
+      "settingStoreCookies": true,
+      "settingDisableRenderRequestBody": true,
+      "settingRebuildPath": true,
+      "_type": "request"
+    },
+    {
+      "_id": "req_get",
+      "parentId": "fld_nested",
+      "name": "Get user",
+      "method": "GET",
+      "url": "{{ _.base_url }}/users/:id",
+      "pathParameters": [{ "name": "id", "value": "42" }],
+      "authentication": { "type": "none" },
+      "settingFollowRedirects": "on",
+      "_type": "request"
+    },
+    {
+      "_id": "req_create",
+      "parentId": "wrk_1",
+      "name": "Create (JSON)",
+      "method": "POST",
+      "url": "{{base_url}}/users",
+      "body": { "mimeType": "application/json", "text": "{\"name\": \"{{ _.user }}\", \"at\": \"{% now 'iso-8601' %}\"}" },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "authentication": { "type": "basic", "username": "admin", "password": "typed-password" },
+      "preRequestScript": "const a = 1;\nconst b = 2;\n\nconsole.log(a + b);",
+      "afterResponseScript": "insomnia.test('ok', () => {});",
+      "metaSortKey": 1,
+      "_type": "request"
+    },
+    {
+      "_id": "req_form",
+      "parentId": "wrk_1",
+      "name": "Form",
+      "method": "POST",
+      "url": "https://api.example.com/form",
+      "body": {
+        "mimeType": "application/x-www-form-urlencoded",
+        "params": [
+          { "name": "a", "value": "1" },
+          { "name": "b", "value": "{{ _.user }}", "disabled": true }
+        ]
+      },
+      "authentication": { "type": "apikey", "key": "X-API-Key", "value": "{{ _.api_token }}", "addTo": "header" },
+      "metaSortKey": 2,
+      "_type": "request"
+    },
+    {
+      "_id": "req_multipart",
+      "parentId": "wrk_1",
+      "name": "Upload",
+      "method": "POST",
+      "url": "https://api.example.com/upload",
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": [
+          { "name": "title", "value": "Report" },
+          { "name": "file", "type": "file", "fileName": "/Users/someone/report.pdf" },
+          { "name": "empty", "type": "file", "fileName": "" }
+        ]
+      },
+      "authentication": { "type": "apikey", "key": "key", "value": "typed-key", "addTo": "queryParams" },
+      "metaSortKey": 3,
+      "_type": "request"
+    },
+    {
+      "_id": "req_file",
+      "parentId": "wrk_1",
+      "name": "Binary body",
+      "method": "PUT",
+      "url": "https://api.example.com/blob",
+      "body": { "mimeType": "application/octet-stream", "fileName": "/tmp/blob.bin" },
+      "authentication": { "type": "apikey", "key": "c", "value": "1", "addTo": "cookie" },
+      "metaSortKey": 4,
+      "_type": "request"
+    },
+    {
+      "_id": "req_graphql",
+      "parentId": "wrk_1",
+      "name": "GraphQL",
+      "method": "POST",
+      "url": "https://api.example.com/graphql",
+      "body": { "mimeType": "application/graphql", "text": "{\"query\":\"{ me { id } }\",\"variables\":{}}" },
+      "authentication": { "type": "digest", "username": "u", "password": "{{ _.password }}" },
+      "metaSortKey": 5,
+      "_type": "request"
+    },
+    {
+      "_id": "req_xml",
+      "parentId": "wrk_1",
+      "name": "XML with filter",
+      "method": "POST",
+      "url": "https://api.example.com/xml",
+      "body": { "mimeType": "application/xml", "text": "<a>{{ _.user | upper }}</a>" },
+      "authentication": { "type": "ntlm", "username": "u", "password": "{{ _.password }}", "domain": "CORP" },
+      "metaSortKey": 6,
+      "_type": "request"
+    },
+    {
+      "_id": "req_aws",
+      "parentId": "wrk_1",
+      "name": "AWS",
+      "method": "GET",
+      "url": "https://s3.amazonaws.com/bucket",
+      "authentication": { "type": "iam", "accessKeyId": "{{ _.aws_key }}", "secretAccessKey": "{{ _.aws_secret }}", "sessionToken": "", "region": "eu-central-1", "service": "s3" },
+      "metaSortKey": 7,
+      "_type": "request"
+    },
+    {
+      "_id": "req_oauth1",
+      "parentId": "wrk_1",
+      "name": "OAuth 1",
+      "method": "GET",
+      "url": "https://api.example.com/oauth1",
+      "authentication": { "type": "oauth1", "consumerKey": "ck", "consumerSecret": "{{ _.cs }}", "tokenKey": "", "tokenSecret": "", "signatureMethod": "RSA-SHA1", "privateKey": "-----BEGIN KEY-----" },
+      "metaSortKey": 8,
+      "_type": "request"
+    },
+    {
+      "_id": "req_oauth2",
+      "parentId": "wrk_1",
+      "name": "OAuth 2",
+      "method": "GET",
+      "url": "https://api.example.com/oauth2",
+      "authentication": {
+        "type": "oauth2", "grantType": "authorization_code", "authorizationUrl": "https://id.example.com/auth",
+        "accessTokenUrl": "https://id.example.com/token", "clientId": "app", "clientSecret": "{{ _.client_secret }}",
+        "redirectUrl": "https://app.example.com/cb", "scope": "read", "state": "s", "usePkce": true, "pkceMethod": "S256",
+        "audience": "api", "responseType": "id_token", "tokenPrefix": "Bearer"
+      },
+      "metaSortKey": 9,
+      "_type": "request"
+    },
+    {
+      "_id": "req_hawk",
+      "parentId": "wrk_1",
+      "name": "Hawk",
+      "method": "GET",
+      "url": "https://api.example.com/hawk",
+      "authentication": { "type": "hawk", "id": "x", "key": "y", "algorithm": "sha256" },
+      "metaSortKey": 10,
+      "_type": "request"
+    },
+    {
+      "_id": "req_disabled",
+      "parentId": "wrk_1",
+      "name": "Disabled auth",
+      "method": "GET",
+      "url": "https://api.example.com/disabled",
+      "authentication": { "type": "basic", "username": "u", "password": "p", "disabled": true },
+      "metaSortKey": 11,
+      "_type": "request"
+    },
+    {
+      "_id": "req_header_token",
+      "parentId": "wrk_1",
+      "name": "",
+      "method": "",
+      "url": "https://api.example.com/header?x={{ _.page_size }}",
+      "headers": [{ "name": "Authorization", "value": "Token typed-token" }],
+      "metaSortKey": 12,
+      "_type": "request"
+    },
+    {
+      "_id": "greq_1",
+      "parentId": "wrk_1",
+      "name": "gRPC call",
+      "url": "grpc.example.com:443",
+      "protoMethodName": "/pkg.Service/Call",
+      "metaSortKey": 13,
+      "_type": "grpc_request"
+    },
+    {
+      "_id": "ws-req_1",
+      "parentId": "wrk_1",
+      "name": "Socket",
+      "url": "wss://ws.example.com",
+      "metaSortKey": 14,
+      "_type": "websocket_request"
+    },
+    {
+      "_id": "uts_1",
+      "parentId": "wrk_1",
+      "name": "Suite",
+      "metaSortKey": 15,
+      "_type": "unit_test_suite"
+    },
+    {
+      "_id": "ut_1",
+      "parentId": "uts_1",
+      "name": "Returns 200",
+      "code": "expect(1).to.equal(1);",
+      "_type": "unit_test"
+    }
+  ]
+}

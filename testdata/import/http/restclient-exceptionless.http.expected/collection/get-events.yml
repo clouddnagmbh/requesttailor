@@ -1,0 +1,15 @@
+info:
+  name: get events
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: "{{apiUrl}}/events?sort=date"
+  params:
+    - name: sort
+      value: date
+      type: query
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}

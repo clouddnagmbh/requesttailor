@@ -1,0 +1,11 @@
+@base = https://orders.example.com
+
+# @name createOrder
+POST {{base}}/orders
+Content-Type: application/json
+
+{"sku": "A-1"}
+
+###
+
+GET {{base}}/orders/{{createOrder.response.body.$.id}}

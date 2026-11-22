@@ -1,0 +1,15 @@
+info:
+  name: GET SubscriptionEvents
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{fhirUrl}}/Subscription/{{postRestHookSubscription.response.body.$.id}}/$events?content={{contentLevel}}"
+  params:
+    - name: content
+      value: "{{contentLevel}}"
+      type: query
+  headers:
+    - name: Accept
+      value: "{{format}}"

@@ -1,0 +1,143 @@
+{
+  "collectionName": "Synthetic Features",
+  "report": {
+    "environments": 2,
+    "folders": 1,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "callbacks of 1 operation not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "collection"
+      },
+      {
+        "detail": "1 webhook not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "collection"
+      },
+      {
+        "detail": "references to other files not resolved (`./bodies.yaml#/Pet`, `./other.yaml#/paths/~1external`)",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "collection"
+      },
+      {
+        "detail": "path item with an external reference not imported",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "/external"
+      },
+      {
+        "detail": "request body with an external reference not imported",
+        "effect": "dropped",
+        "kind": "body",
+        "location": "External body"
+      },
+      {
+        "detail": "alternative security schemes not imported: `apiKeyHeader`",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Pets / Create pet"
+      },
+      {
+        "detail": "body imported as `application/json`; other media types not imported: `application/xml`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Pets / Create pet"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Pets / Create pet"
+      },
+      {
+        "detail": "OAuth 2.0 flow `authorizationCode` imported; other flows of `oauth` not imported",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Pets / DELETE /pets/{petId}"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Pets / DELETE /pets/{petId}"
+      },
+      {
+        "detail": "cookie parameters imported as a disabled `Cookie` header",
+        "effect": "approximated",
+        "kind": "other",
+        "location": "Pets / List pets"
+      },
+      {
+        "detail": "API key in `cookie` (scheme `apiKeyCookie`) not imported; send it as a header instead",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Pets / replacePet"
+      },
+      {
+        "detail": "`text/plain` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Public"
+      },
+      {
+        "detail": "mutual TLS (scheme `mtls`) not imported; the request is sent without auth",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Raw bytes"
+      },
+      {
+        "detail": "`application/octet-stream` body: choose the file to send in the request",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Raw bytes"
+      },
+      {
+        "detail": "security scheme `nowhere` is not defined; not imported",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Undefined scheme"
+      },
+      {
+        "detail": "OpenID Connect (scheme `openId`) not imported; the request is sent without auth",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Upload"
+      },
+      {
+        "detail": "form fields generated from the schema",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Upload"
+      },
+      {
+        "detail": "file parts have no file selected; choose them in the request",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Upload"
+      },
+      {
+        "detail": "additional required security schemes not imported: `apiKeyHeader`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Urlencoded form"
+      },
+      {
+        "detail": "form fields generated from the schema",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Urlencoded form"
+      }
+    ],
+    "requests": 12
+  }
+}

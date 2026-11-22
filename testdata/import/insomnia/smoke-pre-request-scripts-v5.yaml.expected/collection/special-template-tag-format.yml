@@ -1,0 +1,12 @@
+info:
+  name: Special template tag format
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{ _['examplehost']}}"
+  headers:
+    - name: User-Agent
+      value: insomnia/10.3.1-beta.3
+  auth: inherit

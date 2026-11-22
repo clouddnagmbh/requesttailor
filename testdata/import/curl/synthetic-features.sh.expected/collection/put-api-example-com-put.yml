@@ -1,0 +1,16 @@
+info:
+  name: PUT api.example.com/put
+  type: http
+  seq: 10
+
+http:
+  method: PUT
+  url: https://api.example.com/put
+  body:
+    type: file
+    data:
+      - filePath: ./blob.bin
+        selected: true
+
+settings:
+  followRedirects: false

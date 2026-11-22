@@ -1,0 +1,16 @@
+info:
+  name: PUT localhost:28139/third
+  type: http
+  seq: 3
+
+http:
+  method: PUT
+  url: http://localhost:28139/third
+  body:
+    type: file
+    data:
+      - filePath: "-"
+        selected: true
+
+settings:
+  followRedirects: false

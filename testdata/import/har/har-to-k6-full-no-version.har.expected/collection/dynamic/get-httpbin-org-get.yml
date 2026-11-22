@@ -1,0 +1,17 @@
+info:
+  name: GET httpbin.org/get
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://httpbin.org/get?page=User
+  params:
+    - name: page
+      value: User
+      type: query
+  headers:
+    - name: Authorization
+      value: Bearer ${token}
+
+docs: Test user page latency

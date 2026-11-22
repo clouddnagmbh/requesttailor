@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: New Collection
+
+request:
+  variables:
+    - name: dssx
+      value: "{{env-var-in-global}}"
+    - name: bob
+      value: something
+
+bundled: false

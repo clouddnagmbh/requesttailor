@@ -1,0 +1,29 @@
+{
+  "collectionName": "Test API Collection v4 with Environments",
+  "report": {
+    "environments": 2,
+    "folders": 0,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "nested values imported as flat variables (`a.b`); lists as JSON text",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "environment Base Environment"
+      },
+      {
+        "detail": "nested values imported as flat variables (`a.b`); lists as JSON text",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "environment Development"
+      },
+      {
+        "detail": "nested values imported as flat variables (`a.b`); lists as JSON text",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "environment Staging"
+      }
+    ],
+    "requests": 1
+  }
+}

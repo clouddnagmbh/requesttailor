@@ -1,0 +1,53 @@
+{
+  "collectionName": "jetbrains-ore-api-v2",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Authenticate fake"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Authenticate key"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Authenticate public"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Authenticate user"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Create a new key"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Delete a key"
+      },
+      {
+        "detail": "response handler script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Invalidate session"
+      }
+    ],
+    "requests": 16
+  }
+}

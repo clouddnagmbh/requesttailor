@@ -1,10 +1,1201 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! Importer for Openapi files. Owner: wave 4, strand B.
+//! Importer for OpenAPI 3.0, 3.1 and 3.2 descriptions (JSON or YAML). Owner: wave 4, strand B.
+//!
+//! An API description is not a collection, so the import builds one request per operation:
+//! - Folders: one per operation's first tag (in the order of the top-level `tags`, with their
+//!   descriptions as folder docs); operations without tags at the root.
+//! - URL: `{{baseUrl}}` + the path, `{id}` → `:id` (path parameters with their example or
+//!   default). Required query parameters are in the URL, optional ones are disabled
+//!   parameters; header parameters become headers (disabled when optional).
+//! - `baseUrl`: a collection variable from the first server; every server becomes an
+//!   environment with its `baseUrl` and server variables.
+//! - Request bodies: the media type's example, or one generated from the schema (reported).
+//! - Security: the first scheme of the requirement maps to auth with `{{variables}}`
+//!   (`{{username}}`, `{{password}}`, `{{token}}`, `{{apiKey}}`, ...), which are added to
+//!   every environment, secrets as `secret: true` without value.
+//! - Explicit response examples become request examples; schemas, response definitions,
+//!   callbacks and webhooks are documentation only and reported once.
+//!
+//! References: local `$ref`s (`#/components/...`) are resolved, with cycles and depth bounded;
+//! references to other files are reported.
 
-use super::{Import, ImportError, ImportFormat};
+use std::collections::BTreeSet;
 
-pub(super) fn import(_file_name: &str, _data: &[u8]) -> Result<Import, ImportError> {
-    super::not_yet(ImportFormat::Openapi)
+use rt_core::model::{
+    ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
+    RawKind, RequestSpec, Variable,
+};
+
+use super::auth::{self, OAuth2};
+use super::common::{Losses, finish, invalid, location, plural, raw_kind, utf8};
+use super::out::{AuthOut, CollectionOut, DefaultsOut, ExampleOut, FolderOut, ItemOut, RequestOut};
+use super::value::{Value, parse_any};
+use super::{Import, ImportError, ImportFormat, LossKind, SourceFile, stem};
+
+const F: ImportFormat = ImportFormat::Openapi;
+
+/// Operation keys of a path item (`query` is new in 3.2).
+const METHODS: &[&str] = &[
+    "get", "put", "post", "delete", "options", "head", "patch", "trace", "query",
+];
+
+/// Deepest `$ref` chain and schema nesting followed.
+const MAX_REF_DEPTH: usize = 32;
+const MAX_SAMPLE_DEPTH: usize = 8;
+
+pub(super) fn import(file: &SourceFile<'_>) -> Result<Import, ImportError> {
+    let root = parse_any(&utf8(F, file.data)?).map_err(|e| invalid(F, e))?;
+    if !root.is_obj() {
+        return Err(invalid(F, "expected a JSON or YAML object"));
+    }
+    if let Some(v) = root.str_of("swagger") {
+        return Err(ImportError::UnsupportedVersion {
+            format: F,
+            version: format!("{v} (Swagger; convert it to OpenAPI 3 first)"),
+        });
+    }
+    let version = root.string("openapi");
+    if !(version.starts_with("3.0") || version.starts_with("3.1") || version.starts_with("3.2")) {
+        return Err(ImportError::UnsupportedVersion {
+            format: F,
+            version: if version.is_empty() {
+                "unknown".into()
+            } else {
+                version
+            },
+        });
+    }
+    let mut cx = Cx {
+        root: &root,
+        losses: Losses::default(),
+        secrets: Vec::new(),
+        plain_vars: Vec::new(),
+        external_refs: BTreeSet::new(),
+    };
+    cx.build(file)
+}
+
+struct Cx<'a> {
+    root: &'a Value,
+    losses: Losses,
+    /// Variables the auth uses, to add to every environment: `(name, secret)`.
+    secrets: Vec<(String, bool)>,
+    plain_vars: Vec<String>,
+    external_refs: BTreeSet<String>,
+}
+
+/// JSON pointer `#/a/b~1c` → the value.
+fn pointer<'v>(root: &'v Value, reference: &str) -> Option<&'v Value> {
+    let path = reference.strip_prefix('#')?;
+    let mut cur = root;
+    for part in path.split('/').skip(1) {
+        let key = part.replace("~1", "/").replace("~0", "~");
+        cur = match cur {
+            Value::Arr(items) => items.get(key.parse::<usize>().ok()?)?,
+            _ => cur.get(&key)?,
+        };
+    }
+    Some(cur)
+}
+
+impl<'a> Cx<'a> {
+    /// Follows `$ref`s; an unresolvable reference gives `None`.
+    fn resolve(&mut self, v: &'a Value) -> Option<&'a Value> {
+        let mut cur = v;
+        for _ in 0..MAX_REF_DEPTH {
+            let Some(r) = cur.get("$ref").and_then(Value::as_str) else {
+                return Some(cur);
+            };
+            if !r.starts_with('#') {
+                self.external_refs.insert(r.to_owned());
+                return None;
+            }
+            cur = pointer(self.root, r)?;
+        }
+        None
+    }
+
+    fn build(&mut self, file: &SourceFile<'_>) -> Result<Import, ImportError> {
+        let root = self.root;
+        let info = root.get("info").cloned().unwrap_or(Value::Null);
+        let mut name = info.string("title");
+        if name.trim().is_empty() {
+            name = stem(
+                file.name,
+                &[".openapi.json", ".openapi.yaml", ".json", ".yaml", ".yml"],
+            )
+            .to_owned();
+        }
+        let mut docs = Vec::new();
+        if let Some(v) = info.str_of("version") {
+            docs.push(format!("Version {v}"));
+        }
+        if let Some(d) = info.str_of("description").filter(|d| !d.trim().is_empty()) {
+            docs.push(d);
+        }
+
+        // Servers → baseUrl and environments.
+        let mut environments = Vec::new();
+        let servers = root.get("servers").map(Value::items).unwrap_or_default();
+        let mut base = String::new();
+        let mut server_vars: Vec<Variable> = Vec::new();
+        for (i, s) in servers.iter().enumerate() {
+            let (url, vars) = self.server(s);
+            if i == 0 {
+                base = url.clone();
+                server_vars = vars.clone();
+                if !url.contains("://") && !url.starts_with("{{") {
+                    self.losses.approximated(
+                        "collection",
+                        LossKind::Variable,
+                        format!(
+                            "server URL `{url}` is relative; set `baseUrl` to the full address"
+                        ),
+                    );
+                }
+            }
+            let mut env_name = s
+                .string("description")
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_owned();
+            if env_name.is_empty() {
+                env_name = url
+                    .split_once("://")
+                    .map_or(url.as_str(), |(_, r)| r)
+                    .trim_end_matches('/')
+                    .to_owned();
+            }
+            if env_name.is_empty() || env_name.chars().any(char::is_control) {
+                env_name = format!("Server {}", i + 1);
+            }
+            let env_name: String = env_name.chars().take(60).collect();
+            let mut unique = env_name.clone();
+            let mut n = 2;
+            while environments.iter().any(|e: &Environment| e.name == unique) {
+                unique = format!("{env_name} ({n})");
+                n += 1;
+            }
+            let mut variables = vec![Variable::new("baseUrl", url)];
+            variables.extend(vars);
+            environments.push(Environment {
+                name: unique,
+                variables,
+            });
+        }
+        if servers.is_empty() {
+            self.losses.approximated(
+                "collection",
+                LossKind::Variable,
+                "the description names no server; set `baseUrl` in the collection variables",
+            );
+        }
+
+        // Folders from tags.
+        let mut folders: Vec<FolderOut> = Vec::new();
+        for t in root.get("tags").map(Value::items).unwrap_or_default() {
+            if let Some(n) = t.str_of("name")
+                && !folders.iter().any(|f| f.name == n)
+            {
+                folders.push(FolderOut {
+                    name: n,
+                    docs: t.str_of("description"),
+                    ..FolderOut::default()
+                });
+            }
+        }
+        let global_security = root.get("security");
+        let collection_auth = match global_security {
+            Some(sec) => self.security(sec, "collection"),
+            None => AuthOut::Model(Auth::None),
+        };
+        let mut loose = Vec::new();
+        let mut callbacks = 0;
+        let paths = root.get("paths").map(Value::entries).unwrap_or_default();
+        for (path, item) in paths {
+            let Some(item) = self.resolve(item) else {
+                self.losses.dropped(
+                    path,
+                    LossKind::Other,
+                    "path item with an external reference not imported",
+                );
+                continue;
+            };
+            let common: Vec<&Value> = item
+                .get("parameters")
+                .map(Value::items)
+                .unwrap_or_default()
+                .iter()
+                .collect();
+            let path_servers = item.get("servers");
+            // 3.2 lists operations with other methods under `additionalOperations`.
+            let extra = item
+                .get("additionalOperations")
+                .map(Value::entries)
+                .unwrap_or_default();
+            let ops = item
+                .entries()
+                .iter()
+                .filter(|(m, _)| METHODS.contains(&m.as_str()))
+                .chain(extra.iter());
+            for (method, op) in ops {
+                if !op.is_obj() {
+                    continue;
+                }
+                if op.get("callbacks").is_some_and(|c| !c.entries().is_empty()) {
+                    callbacks += 1;
+                }
+                let tag = op
+                    .get("tags")
+                    .and_then(|t| t.items().first())
+                    .and_then(Value::text);
+                let folder_path: Vec<String> = tag.iter().cloned().collect();
+                let r = self.operation(
+                    path,
+                    method,
+                    op,
+                    &common,
+                    path_servers,
+                    &folder_path,
+                    global_security,
+                );
+                match tag {
+                    Some(tag) => {
+                        let i = match folders.iter().position(|f| f.name == tag) {
+                            Some(i) => i,
+                            None => {
+                                folders.push(FolderOut {
+                                    name: tag.clone(),
+                                    ..FolderOut::default()
+                                });
+                                folders.len() - 1
+                            }
+                        };
+                        folders[i].items.push(ItemOut::Request(r));
+                    }
+                    None => loose.push(ItemOut::Request(r)),
+                }
+            }
+        }
+        let mut items: Vec<ItemOut> = folders
+            .into_iter()
+            .filter(|f| !f.items.is_empty())
+            .map(ItemOut::Folder)
+            .collect();
+        items.extend(loose);
+
+        if callbacks > 0 {
+            self.losses.dropped(
+                "collection",
+                LossKind::Protocol,
+                format!(
+                    "callbacks of {callbacks} {} not imported",
+                    plural(callbacks, "operation", "operations")
+                ),
+            );
+        }
+        let webhooks = root.get("webhooks").map(|w| w.entries().len()).unwrap_or(0);
+        if webhooks > 0 {
+            self.losses.dropped(
+                "collection",
+                LossKind::Protocol,
+                format!(
+                    "{webhooks} {} not imported",
+                    plural(webhooks, "webhook", "webhooks")
+                ),
+            );
+        }
+        let has_models = root
+            .get("components")
+            .is_some_and(|c| c.get("schemas").is_some_and(|s| !s.entries().is_empty()));
+        let has_responses = paths.iter().any(|(_, item)| {
+            item.entries()
+                .iter()
+                .any(|(m, op)| METHODS.contains(&m.as_str()) && op.get("responses").is_some())
+        });
+        if has_models || has_responses {
+            self.losses.dropped(
+                "collection",
+                LossKind::Documentation,
+                "schemas and response definitions are API documentation and not imported; \
+                 explicit response examples are kept as request examples",
+            );
+        }
+        if !self.external_refs.is_empty() {
+            let refs: Vec<String> = self
+                .external_refs
+                .iter()
+                .take(5)
+                .map(|r| format!("`{r}`"))
+                .collect();
+            self.losses.dropped(
+                "collection",
+                LossKind::Other,
+                format!(
+                    "references to other files not resolved ({}{})",
+                    refs.join(", "),
+                    if self.external_refs.len() > 5 {
+                        ", ..."
+                    } else {
+                        ""
+                    }
+                ),
+            );
+        }
+
+        // Variables the auth needs.
+        let mut collection_vars = vec![Variable::new("baseUrl", base)];
+        collection_vars.extend(server_vars);
+        for name in &self.plain_vars {
+            if !collection_vars.iter().any(|v| v.name == *name) {
+                collection_vars.push(Variable::new(name.clone(), ""));
+            }
+        }
+        let secrets: Vec<(String, bool)> = self.secrets.clone();
+        if !secrets.is_empty() && environments.is_empty() {
+            environments.push(Environment {
+                name: "Default".into(),
+                variables: Vec::new(),
+            });
+        }
+        for env in &mut environments {
+            for (name, secret) in &secrets {
+                if !env.variables.iter().any(|v| v.name == *name) {
+                    env.variables.push(Variable {
+                        name: name.clone(),
+                        value: if *secret { None } else { Some(String::new()) },
+                        enabled: true,
+                        secret: *secret,
+                    });
+                }
+            }
+        }
+        let collection = CollectionOut {
+            name,
+            docs: (!docs.is_empty()).then(|| docs.join("\n\n")),
+            defaults: DefaultsOut {
+                auth: collection_auth,
+                vars: collection_vars,
+                ..DefaultsOut::default()
+            },
+            items,
+            environments,
+        };
+        let losses = std::mem::take(&mut self.losses);
+        finish(F, collection, losses)
+    }
+
+    /// Server URL with `{var}` → `{{var}}`, and its variables with their defaults.
+    fn server(&mut self, s: &Value) -> (String, Vec<Variable>) {
+        let url = s.string("url");
+        let mut vars = Vec::new();
+        for (name, v) in s.get("variables").map(Value::entries).unwrap_or_default() {
+            vars.push(Variable::new(name.clone(), v.string("default")));
+        }
+        (braces_to_vars(&url), vars)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn operation(
+        &mut self,
+        path: &str,
+        method: &str,
+        op: &'a Value,
+        common: &[&'a Value],
+        path_servers: Option<&'a Value>,
+        folder: &[String],
+        global_security: Option<&'a Value>,
+    ) -> RequestOut {
+        let method_upper = method.to_ascii_uppercase();
+        let name = op
+            .str_of("summary")
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| op.str_of("operationId"))
+            .unwrap_or_else(|| format!("{method_upper} {path}"));
+        let name: String = name
+            .lines()
+            .next()
+            .unwrap_or("")
+            .chars()
+            .take(120)
+            .collect();
+        let here = location(folder, &name);
+
+        // Operation parameters override path-level ones of the same name and location.
+        let mut params: Vec<&Value> = Vec::new();
+        let own: Vec<&Value> = op
+            .get("parameters")
+            .map(Value::items)
+            .unwrap_or_default()
+            .iter()
+            .collect();
+        for p in common.iter().chain(own.iter()) {
+            let Some(p) = self.resolve(p) else { continue };
+            let key = (p.string("name"), p.string("in"));
+            params.retain(|q| (q.string("name"), q.string("in")) != key);
+            params.push(p);
+        }
+        let server = op
+            .get("servers")
+            .or(path_servers)
+            .and_then(|s| s.items().first())
+            .map(|s| self.server(s).0);
+        let mut url = format!(
+            "{}{}",
+            server.unwrap_or_else(|| "{{baseUrl}}".into()),
+            path_to_url(path)
+        );
+        let mut query = Vec::new();
+        let mut out_params = Vec::new();
+        let mut param_docs = Vec::new();
+        let mut headers = Vec::new();
+        let mut header_docs = Vec::new();
+        let mut cookies = Vec::new();
+        let mut path_params = Vec::new();
+        for p in &params {
+            let pname = p.string("name");
+            let value = self.param_value(p);
+            let required = p.flag("required");
+            let doc = p.str_of("description").filter(|d| !d.trim().is_empty());
+            match p.string("in").as_str() {
+                "path" => path_params.push((pname, value, doc)),
+                "query" => {
+                    if required {
+                        query.push(format!("{pname}={value}"));
+                    }
+                    out_params.push(Param {
+                        name: pname,
+                        value,
+                        kind: ParamKind::Query,
+                        enabled: required,
+                    });
+                    param_docs.push(doc);
+                }
+                "header" => {
+                    if ["accept", "content-type", "authorization"]
+                        .contains(&pname.to_ascii_lowercase().as_str())
+                    {
+                        // OpenAPI ignores these as parameters.
+                        continue;
+                    }
+                    headers.push(KeyValue {
+                        name: pname,
+                        value,
+                        enabled: required,
+                    });
+                    header_docs.push(doc);
+                }
+                "cookie" => cookies.push(format!("{pname}={value}")),
+                _ => {}
+            }
+        }
+        if !query.is_empty() {
+            url.push('?');
+            url.push_str(&query.join("&"));
+        }
+        // Path parameters after query parameters, in URL order.
+        for seg in url.split(['/', '?']).map(str::to_owned).collect::<Vec<_>>() {
+            if let Some(n) = seg.strip_prefix(':')
+                && !out_params
+                    .iter()
+                    .any(|p: &Param| p.kind == ParamKind::Path && p.name == n)
+            {
+                let (value, doc) = path_params
+                    .iter()
+                    .find(|(pn, _, _)| pn == n)
+                    .map(|(_, v, d)| (v.clone(), d.clone()))
+                    .unwrap_or_default();
+                out_params.push(Param {
+                    name: n.to_owned(),
+                    value,
+                    kind: ParamKind::Path,
+                    enabled: true,
+                });
+                param_docs.push(doc);
+            }
+        }
+        if !cookies.is_empty() {
+            self.losses.approximated(
+                &here,
+                LossKind::Other,
+                "cookie parameters imported as a disabled `Cookie` header",
+            );
+            headers.push(KeyValue {
+                name: "Cookie".into(),
+                value: cookies.join("; "),
+                enabled: false,
+            });
+            header_docs.push(None);
+        }
+        let body = match op.get("requestBody") {
+            Some(rb) => self.request_body(rb, &here, &mut headers, &mut header_docs),
+            None => Body::None,
+        };
+        let auth = match op.get("security") {
+            Some(sec) if Some(sec) != global_security => self.security(sec, &here),
+            _ => AuthOut::Model(Auth::Inherit),
+        };
+        let mut docs = Vec::new();
+        if op.flag("deprecated") {
+            docs.push("**Deprecated.**".to_owned());
+        }
+        if let Some(d) = op.str_of("description").filter(|d| !d.trim().is_empty()) {
+            docs.push(d);
+        } else if let Some(s) = op.str_of("summary").filter(|s| s.lines().count() > 1) {
+            docs.push(s);
+        }
+        let spec = RequestSpec {
+            name,
+            seq: None,
+            method: method_upper,
+            url,
+            headers,
+            params: out_params,
+            body,
+            auth: Auth::Inherit,
+            vars: Vec::new(),
+            settings: Default::default(),
+        };
+        let mut r = RequestOut::new(spec);
+        r.auth = auth;
+        r.docs = (!docs.is_empty()).then(|| docs.join("\n\n"));
+        r.param_docs = param_docs;
+        r.header_docs = header_docs;
+        r.examples = self.examples(op);
+        r
+    }
+
+    /// Example, then default, then first enum value of a parameter.
+    fn param_value(&mut self, p: &'a Value) -> String {
+        if let Some(v) = p.field("example") {
+            return scalar_text(v);
+        }
+        if let Some(first) = p
+            .get("examples")
+            .map(Value::entries)
+            .and_then(|e| e.first())
+            && let Some(ex) = self.resolve(&first.1)
+            && let Some(v) = ex.field("value")
+        {
+            return scalar_text(v);
+        }
+        let Some(schema) = p.get("schema").and_then(|s| self.resolve(s)) else {
+            return String::new();
+        };
+        for key in ["example", "default"] {
+            if let Some(v) = schema.field(key) {
+                return scalar_text(v);
+            }
+        }
+        if let Some(v) = schema.get("examples").and_then(|e| e.items().first()) {
+            return scalar_text(v);
+        }
+        if let Some(v) = schema.get("enum").and_then(|e| e.items().first()) {
+            return scalar_text(v);
+        }
+        String::new()
+    }
+
+    fn request_body(
+        &mut self,
+        rb: &'a Value,
+        here: &str,
+        headers: &mut Vec<KeyValue>,
+        header_docs: &mut Vec<Option<String>>,
+    ) -> Body {
+        let Some(rb) = self.resolve(rb) else {
+            self.losses.dropped(
+                here,
+                LossKind::Body,
+                "request body with an external reference not imported",
+            );
+            return Body::None;
+        };
+        let content = rb.get("content").map(Value::entries).unwrap_or_default();
+        if content.is_empty() {
+            return Body::None;
+        }
+        let pick = content
+            .iter()
+            .find(|(m, _)| m.to_ascii_lowercase().contains("json"))
+            .or_else(|| content.first())
+            .expect("not empty");
+        let (media, mt) = (pick.0.clone(), &pick.1);
+        if content.len() > 1 {
+            let others: Vec<String> = content
+                .iter()
+                .filter(|(m, _)| *m != media)
+                .map(|(m, _)| format!("`{m}`"))
+                .collect();
+            self.losses.approximated(
+                here,
+                LossKind::Body,
+                format!(
+                    "body imported as `{media}`; other media types not imported: {}",
+                    others.join(", ")
+                ),
+            );
+        }
+        let lower = media.to_ascii_lowercase();
+        headers.push(KeyValue::new("Content-Type", media.clone()));
+        header_docs.push(None);
+        let schema = mt.get("schema").and_then(|s| self.resolve(s));
+        let example = mt.field("example").or_else(|| {
+            mt.get("examples")
+                .map(Value::entries)
+                .and_then(|e| e.first())
+                .and_then(|(_, ex)| pointer_or(self.root, ex))
+                .and_then(|ex| ex.field("value"))
+        });
+        if lower.contains("x-www-form-urlencoded") || lower.contains("multipart/form-data") {
+            let sample = example
+                .cloned()
+                .or_else(|| schema.map(|s| self.sample(s, 0, &mut Vec::new())));
+            if example.is_none() {
+                self.losses.approximated(
+                    here,
+                    LossKind::Body,
+                    "form fields generated from the schema",
+                );
+            }
+            let fields: Vec<(String, Value)> =
+                sample.map(|s| s.entries().to_vec()).unwrap_or_default();
+            if lower.contains("multipart") {
+                let props = schema.and_then(|s| s.get("properties"));
+                let parts = fields
+                    .into_iter()
+                    .map(|(n, v)| {
+                        let file = props
+                            .and_then(|p| p.get(&n))
+                            .and_then(|p| pointer_or(self.root, p))
+                            .is_some_and(|p| {
+                                let f = p.string("format");
+                                f == "binary"
+                                    || f == "base64"
+                                    || p.get("contentMediaType").is_some()
+                            });
+                        if file {
+                            MultipartPart {
+                                name: n,
+                                kind: PartKind::File,
+                                values: Vec::new(),
+                                content_type: None,
+                                enabled: true,
+                            }
+                        } else {
+                            MultipartPart {
+                                name: n,
+                                kind: PartKind::Text,
+                                values: vec![scalar_text(&v)],
+                                content_type: None,
+                                enabled: true,
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if parts.iter().any(|p| p.kind == PartKind::File) {
+                    self.losses.approximated(
+                        here,
+                        LossKind::Body,
+                        "file parts have no file selected; choose them in the request",
+                    );
+                }
+                // The transport sets the multipart Content-Type with its boundary.
+                headers.pop();
+                header_docs.pop();
+                return Body::Multipart { parts };
+            }
+            headers.pop();
+            header_docs.pop();
+            return Body::FormUrlEncoded {
+                fields: fields
+                    .into_iter()
+                    .map(|(n, v)| KeyValue::new(n, scalar_text(&v)))
+                    .collect(),
+            };
+        }
+        if lower.contains("octet-stream")
+            || lower.starts_with("image/")
+            || lower.starts_with("audio/")
+            || lower.starts_with("video/")
+            || lower.contains("pdf")
+        {
+            self.losses.approximated(
+                here,
+                LossKind::Body,
+                format!("`{media}` body: choose the file to send in the request"),
+            );
+            headers.pop();
+            header_docs.pop();
+            return Body::File {
+                path: String::new(),
+                content_type: Some(media),
+            };
+        }
+        let kind = raw_kind(&media);
+        if let Some(ex) = example {
+            let data = match ex {
+                Value::Str(s) if kind != RawKind::Json => s.clone(),
+                v => v.to_json_pretty(),
+            };
+            return Body::Raw { kind, data };
+        }
+        match (kind, schema) {
+            (RawKind::Json, Some(s)) => {
+                let sample = self.sample(s, 0, &mut Vec::new());
+                self.losses.approximated(
+                    here,
+                    LossKind::Body,
+                    "request body generated from the schema; edit the example values",
+                );
+                Body::Raw {
+                    kind,
+                    data: sample.to_json_pretty(),
+                }
+            }
+            _ => {
+                self.losses.approximated(
+                    here,
+                    LossKind::Body,
+                    format!("`{media}` body has no example; it is empty"),
+                );
+                Body::None
+            }
+        }
+    }
+
+    /// An example value for a schema.
+    fn sample(&mut self, schema: &'a Value, depth: usize, stack: &mut Vec<*const Value>) -> Value {
+        let Some(s) = self.resolve(schema) else {
+            return Value::Null;
+        };
+        let ptr = s as *const Value;
+        if depth > MAX_SAMPLE_DEPTH || stack.contains(&ptr) {
+            return Value::Null;
+        }
+        for key in ["example", "default", "const"] {
+            if let Some(v) = s.get(key) {
+                return v.clone();
+            }
+        }
+        if let Some(v) = s.get("examples").and_then(|e| e.items().first()) {
+            return v.clone();
+        }
+        if let Some(v) = s.get("enum").and_then(|e| e.items().first()) {
+            return v.clone();
+        }
+        stack.push(ptr);
+        let out = self.sample_inner(s, depth, stack);
+        stack.pop();
+        out
+    }
+
+    fn sample_inner(&mut self, s: &'a Value, depth: usize, stack: &mut Vec<*const Value>) -> Value {
+        if let Some(all) = s.get("allOf").filter(|a| a.is_arr()) {
+            let mut merged = Vec::new();
+            for part in all.items() {
+                if let Value::Obj(entries) = self.sample(part, depth + 1, stack) {
+                    for (k, v) in entries {
+                        merged.retain(|(m, _): &(String, Value)| *m != k);
+                        merged.push((k, v));
+                    }
+                }
+            }
+            return Value::Obj(merged);
+        }
+        for key in ["oneOf", "anyOf"] {
+            if let Some(first) = s.get(key).and_then(|a| a.items().first()) {
+                return self.sample(first, depth + 1, stack);
+            }
+        }
+        let ty = match s.get("type") {
+            Some(Value::Arr(types)) => types
+                .iter()
+                .filter_map(Value::as_str)
+                .find(|t| *t != "null")
+                .unwrap_or("null")
+                .to_owned(),
+            Some(t) => t.text().unwrap_or_default(),
+            None if s.get("properties").is_some() => "object".into(),
+            None if s.get("items").is_some() => "array".into(),
+            None => String::new(),
+        };
+        match ty.as_str() {
+            "object" | "" if s.get("properties").is_some() || ty == "object" => {
+                let mut entries = Vec::new();
+                for (k, v) in s.get("properties").map(Value::entries).unwrap_or_default() {
+                    if pointer_or(self.root, v).is_some_and(|p| p.flag("readOnly")) {
+                        continue;
+                    }
+                    entries.push((k.clone(), self.sample(v, depth + 1, stack)));
+                }
+                Value::Obj(entries)
+            }
+            "array" => match s.get("items") {
+                Some(items) => {
+                    let one = self.sample(items, depth + 1, stack);
+                    if one.is_null() {
+                        Value::Arr(Vec::new())
+                    } else {
+                        Value::Arr(vec![one])
+                    }
+                }
+                None => Value::Arr(Vec::new()),
+            },
+            "string" => Value::Str(
+                match s.string("format").as_str() {
+                    "date-time" => "2024-01-01T00:00:00Z",
+                    "date" => "2024-01-01",
+                    "time" => "00:00:00",
+                    "email" => "user@example.com",
+                    "uuid" => "00000000-0000-0000-0000-000000000000",
+                    "uri" | "url" => "https://example.com",
+                    "hostname" => "example.com",
+                    "ipv4" => "192.0.2.1",
+                    "ipv6" => "2001:db8::1",
+                    "byte" | "binary" | "password" => "",
+                    _ => "string",
+                }
+                .to_owned(),
+            ),
+            "integer" => Value::Num("0".into()),
+            "number" => Value::Num("0".into()),
+            "boolean" => Value::Bool(true),
+            _ => Value::Null,
+        }
+    }
+
+    /// Auth for a security requirement list. `[]` means no auth.
+    fn security(&mut self, sec: &'a Value, here: &str) -> AuthOut {
+        let reqs = sec.items();
+        let Some(first) = reqs.first() else {
+            return AuthOut::Model(Auth::None);
+        };
+        if reqs.len() > 1 {
+            let others: Vec<String> = reqs[1..]
+                .iter()
+                .flat_map(|r| r.entries().iter().map(|(k, _)| format!("`{k}`")))
+                .collect();
+            if !others.is_empty() {
+                self.losses.approximated(
+                    here,
+                    LossKind::Auth,
+                    format!(
+                        "alternative security schemes not imported: {}",
+                        others.join(", ")
+                    ),
+                );
+            }
+        }
+        let entries = first.entries();
+        let Some((scheme_name, scopes)) = entries.first() else {
+            // `{}`: auth is optional.
+            return AuthOut::Model(Auth::None);
+        };
+        if entries.len() > 1 {
+            let more: Vec<String> = entries[1..].iter().map(|(k, _)| format!("`{k}`")).collect();
+            self.losses.dropped(
+                here,
+                LossKind::Auth,
+                format!(
+                    "additional required security schemes not imported: {}",
+                    more.join(", ")
+                ),
+            );
+        }
+        let scheme = self
+            .root
+            .get("components")
+            .and_then(|c| c.get("securitySchemes"))
+            .and_then(|s| s.get(scheme_name));
+        let Some(scheme) = scheme.and_then(|s| self.resolve(s)) else {
+            self.losses.dropped(
+                here,
+                LossKind::Auth,
+                format!("security scheme `{scheme_name}` is not defined; not imported"),
+            );
+            return AuthOut::Model(Auth::None);
+        };
+        let secret = |cx: &mut Self, name: &str, is_secret: bool| {
+            if !cx.secrets.iter().any(|(n, _)| n == name) {
+                cx.secrets.push((name.to_owned(), is_secret));
+            }
+            format!("{{{{{name}}}}}")
+        };
+        match (
+            scheme.string("type").as_str(),
+            scheme.string("scheme").to_ascii_lowercase().as_str(),
+        ) {
+            ("http", "basic") => AuthOut::Model(Auth::Basic {
+                username: secret(self, "username", false),
+                password: secret(self, "password", true),
+            }),
+            ("http", "bearer") => AuthOut::Model(Auth::Bearer {
+                token: secret(self, "token", true),
+            }),
+            ("http", "digest") => {
+                let out = auth::user_password(
+                    "digest",
+                    &secret(self, "username", false),
+                    &secret(self, "password", true),
+                );
+                auth::report(&mut self.losses, here, &out, "Digest auth");
+                out
+            }
+            ("apiKey", _) => {
+                let key = scheme.string("name");
+                let value = secret(self, "apiKey", true);
+                match scheme.string("in").as_str() {
+                    "query" => AuthOut::Model(Auth::ApiKey {
+                        key,
+                        value,
+                        placement: ApiKeyPlacement::Query,
+                    }),
+                    "header" => AuthOut::Model(Auth::ApiKey {
+                        key,
+                        value,
+                        placement: ApiKeyPlacement::Header,
+                    }),
+                    other => {
+                        self.losses.dropped(
+                            here,
+                            LossKind::Auth,
+                            format!("API key in `{other}` (scheme `{scheme_name}`) not imported; send it as a header instead"),
+                        );
+                        AuthOut::Model(Auth::None)
+                    }
+                }
+            }
+            ("oauth2", _) => {
+                let flows = scheme.get("flows").map(Value::entries).unwrap_or_default();
+                let Some((flow_name, flow)) = flows.first() else {
+                    self.losses.dropped(
+                        here,
+                        LossKind::Auth,
+                        format!("OAuth 2.0 scheme `{scheme_name}` without flows not imported"),
+                    );
+                    return AuthOut::Model(Auth::None);
+                };
+                if flows.len() > 1 {
+                    self.losses.approximated(
+                        here,
+                        LossKind::Auth,
+                        format!("OAuth 2.0 flow `{flow_name}` imported; other flows of `{scheme_name}` not imported"),
+                    );
+                }
+                let mut scope_list: Vec<String> =
+                    scopes.items().iter().filter_map(Value::text).collect();
+                if scope_list.is_empty() {
+                    scope_list = flow
+                        .get("scopes")
+                        .map(Value::entries)
+                        .unwrap_or_default()
+                        .iter()
+                        .map(|(k, _)| k.clone())
+                        .collect();
+                }
+                let flow_id = auth::oauth2_flow(flow_name).unwrap_or("authorization_code");
+                let client_id = secret(self, "clientId", false);
+                let client_secret = if flow_id == "implicit" {
+                    String::new()
+                } else {
+                    secret(self, "clientSecret", true)
+                };
+                let (username, password) = if flow_id == "resource_owner_password_credentials" {
+                    (
+                        secret(self, "username", false),
+                        secret(self, "password", true),
+                    )
+                } else {
+                    (String::new(), String::new())
+                };
+                let out = auth::oauth2(&OAuth2 {
+                    flow: flow_id,
+                    authorization_url: flow.string("authorizationUrl"),
+                    access_token_url: flow.string("tokenUrl"),
+                    refresh_token_url: flow.string("refreshUrl"),
+                    client_id,
+                    client_secret,
+                    scope: scope_list.join(" "),
+                    username,
+                    password,
+                    pkce: None,
+                    ..OAuth2::default()
+                });
+                auth::report(&mut self.losses, here, &out, "OAuth 2.0");
+                out
+            }
+            (kind, _) => {
+                let label = match kind {
+                    "openIdConnect" => "OpenID Connect",
+                    "mutualTLS" => "mutual TLS",
+                    _ => "this security scheme",
+                };
+                self.losses.dropped(
+                    here,
+                    LossKind::Auth,
+                    format!("{label} (scheme `{scheme_name}`) not imported; the request is sent without auth"),
+                );
+                AuthOut::Model(Auth::None)
+            }
+        }
+    }
+
+    /// Explicit response examples.
+    fn examples(&mut self, op: &'a Value) -> Vec<ExampleOut> {
+        let mut out = Vec::new();
+        for (status, resp) in op.get("responses").map(Value::entries).unwrap_or_default() {
+            let Some(resp) = self.resolve(resp) else {
+                continue;
+            };
+            let code = status.parse::<u16>().ok();
+            for (media, mt) in resp.get("content").map(Value::entries).unwrap_or_default() {
+                let kind = body_kind(media);
+                let mut found: Vec<(String, Value)> = Vec::new();
+                if let Some(v) = mt.field("example") {
+                    found.push((String::new(), v.clone()));
+                }
+                for (ex_name, ex) in mt.get("examples").map(Value::entries).unwrap_or_default() {
+                    if let Some(ex) = self.resolve(ex)
+                        && let Some(v) = ex.field("value")
+                    {
+                        found.push((ex_name.clone(), v.clone()));
+                    }
+                }
+                for (ex_name, v) in found {
+                    let data = match (&v, kind) {
+                        (Value::Str(s), k) if k != "json" => s.clone(),
+                        (v, _) => v.to_json_pretty(),
+                    };
+                    let mut name = format!(
+                        "{status} {}",
+                        resp.string("description")
+                            .lines()
+                            .next()
+                            .unwrap_or("")
+                            .trim()
+                    );
+                    if !ex_name.is_empty() {
+                        name = format!("{status} {ex_name}");
+                    }
+                    out.push(ExampleOut {
+                        name: name.trim().chars().take(120).collect(),
+                        status: code,
+                        headers: vec![("Content-Type".into(), media.clone())],
+                        body: Some((kind, data)),
+                        ..ExampleOut::default()
+                    });
+                }
+            }
+        }
+        out
+    }
+}
+
+fn pointer_or<'v>(root: &'v Value, v: &'v Value) -> Option<&'v Value> {
+    let mut cur = v;
+    for _ in 0..MAX_REF_DEPTH {
+        match cur.get("$ref").and_then(Value::as_str) {
+            Some(r) => cur = pointer(root, r)?,
+            None => return Some(cur),
+        }
+    }
+    None
+}
+
+fn body_kind(media: &str) -> &'static str {
+    let m = media.to_ascii_lowercase();
+    if m.contains("json") {
+        "json"
+    } else if m.contains("xml") {
+        "xml"
+    } else if m.contains("html") {
+        "html"
+    } else {
+        "text"
+    }
+}
+
+/// A scalar as text; objects and arrays as compact JSON.
+fn scalar_text(v: &Value) -> String {
+    match v {
+        Value::Obj(_) | Value::Arr(_) => v.to_json(),
+        Value::Null => String::new(),
+        v => v.text().unwrap_or_default(),
+    }
+}
+
+/// `/pets/{petId}` → `/pets/:petId`.
+fn path_to_url(path: &str) -> String {
+    let mut out = String::new();
+    let mut rest = path;
+    while let Some(start) = rest.find('{') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        match after.find('}') {
+            Some(end) => {
+                let name = &after[..end];
+                if name.is_empty() {
+                    out.push_str("{}");
+                } else {
+                    out.push(':');
+                    out.push_str(name);
+                }
+                rest = &after[end + 1..];
+            }
+            None => {
+                out.push_str(&rest[start..]);
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// `https://{region}.example.com` → `https://{{region}}.example.com`.
+fn braces_to_vars(url: &str) -> String {
+    let mut out = String::new();
+    let mut rest = url;
+    while let Some(start) = rest.find('{') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        match after.find('}') {
+            Some(end) => {
+                out.push_str("{{");
+                out.push_str(&after[..end]);
+                out.push_str("}}");
+                rest = &after[end + 1..];
+            }
+            None => {
+                out.push_str(&rest[start..]);
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn paths_and_servers() {
+        assert_eq!(path_to_url("/pets/{petId}/x{y}"), "/pets/:petId/x:y");
+        assert_eq!(path_to_url("/a/{"), "/a/{");
+        assert_eq!(braces_to_vars("https://{r}.x/{v}"), "https://{{r}}.x/{{v}}");
+    }
+
+    #[test]
+    fn pointers() {
+        let v = parse_any(r#"{"a": {"b/c": [1, {"d": 2}]}}"#).unwrap();
+        assert_eq!(pointer(&v, "#/a/b~1c/1/d"), Some(&Value::Num("2".into())));
+        assert_eq!(pointer(&v, "#/a/x"), None);
+    }
 }

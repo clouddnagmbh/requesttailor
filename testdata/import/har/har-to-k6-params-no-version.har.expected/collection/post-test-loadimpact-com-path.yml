@@ -1,0 +1,19 @@
+info:
+  name: POST test.loadimpact.com/path
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://test.loadimpact.com/path
+  body:
+    type: form-urlencoded
+    data:
+      - name: login
+        value: admin
+      - name: password
+        value: ""
+      - name: ${userName}
+        value: ""
+      - name: id
+        value: ${userID}

@@ -1,0 +1,10 @@
+name: ExampleB
+variables:
+  - name: exampleString
+    value: subenvB0
+  - name: exampleNumber
+    value: "2222"
+  - name: exampleObject.anotherString
+    value: subenvB1
+  - name: exampleObject.anotherNumber
+    value: "2222"

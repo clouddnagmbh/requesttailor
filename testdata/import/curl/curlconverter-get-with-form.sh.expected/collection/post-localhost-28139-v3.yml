@@ -1,0 +1,30 @@
+info:
+  name: POST localhost:28139/v3
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:28139/v3
+  body:
+    type: multipart-form
+    data:
+      - name: from
+        type: text
+        value: test@tester.com
+      - name: to
+        type: text
+        value: devs@tester.net
+      - name: subject
+        type: text
+        value: Hello
+      - name: text
+        type: text
+        value: Testing the converter!
+  auth:
+    type: basic
+    username: test
+    password: ""
+
+settings:
+  followRedirects: false

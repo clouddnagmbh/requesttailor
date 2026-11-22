@@ -1,0 +1,62 @@
+@host = api.example.com
+@token = {{login.response.body.$.token}}
+
+### Login
+# @name login
+POST https://{{host}}/login HTTP/1.1
+Content-Type: application/json
+Authorization: Basic alice:typed-password
+
+{
+  "user": "alice",
+  "at": "{{$timestamp}}"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.test("ok", () => client.assert(response.status === 200));
+%}
+
+### List orders
+# @no-redirect
+# @timeout 5
+GET https://{{host}}/orders
+    ?page=1
+    &size=20
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### Upload a file
+< {%
+  request.variables.set("t", Date.now());
+%}
+PUT https://{{host}}/files/report.pdf
+Content-Type: application/pdf
+
+< ./report.pdf
+
+### Form with file reference
+POST https://{{host}}/form
+Content-Type: application/x-www-form-urlencoded
+
+name=alice&age=30
+
+### Digest
+GET https://{{host}}/digest
+Authorization: Digest bob secret
+
+### Literal header token
+GET https://{{host}}/me
+X-Api-Key: typed-key
+
+>> ./out/me.json
+
+### Prompted
+# @prompt otp One-time password
+GET https://{{host}}/otp?code={{otp}}
+
+### Socket
+WEBSOCKET wss://{{host}}/ws
+
+### Local
+GET http://localhost:8080/health

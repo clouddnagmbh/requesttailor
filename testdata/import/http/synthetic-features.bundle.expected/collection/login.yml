@@ -1,0 +1,22 @@
+info:
+  name: login
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://{{host}}/login
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "user": "alice",
+        "at": "{{$timestamp}}"
+      }
+  auth:
+    type: basic
+    username: alice
+    password: typed-password

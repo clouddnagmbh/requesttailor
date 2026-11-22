@@ -1,0 +1,15 @@
+info:
+  name: GET {{localUrl}}/messages
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: "{{localUrl}}/messages?includeContent=true"
+  params:
+    - name: includeContent
+      value: "true"
+      type: query
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}

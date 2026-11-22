@@ -1,0 +1,11 @@
+opencollection: "1.0.0"
+
+info:
+  name: Auth tests
+
+request:
+  variables:
+    - name: customValue
+      value: fromEnvManager
+
+bundled: false

@@ -1,0 +1,11 @@
+info:
+  name: Unfollow profile
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{host_api}}/profiles/user1/follow"
+  headers:
+    - name: Authorization
+      value: Token {{token}}

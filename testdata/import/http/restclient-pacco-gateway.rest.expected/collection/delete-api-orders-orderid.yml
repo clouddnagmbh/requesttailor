@@ -1,0 +1,11 @@
+info:
+  name: DELETE {{api}}/orders/{{orderId}}
+  type: http
+  seq: 25
+
+http:
+  method: DELETE
+  url: "{{api}}/orders/{{orderId}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}

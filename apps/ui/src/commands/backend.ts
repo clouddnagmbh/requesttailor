@@ -123,12 +123,22 @@ export interface GitApi {
   deleteCredentials(host: string): Promise<void>;
 }
 
+/** One file handed to `ImportApi.analyze`: its name as picked (only the last path component
+ *  counts) and its bytes. Pasted text is a file named `pasted.txt`. */
+export interface ImportSource {
+  name: string;
+  data: Uint8Array;
+}
+
 /** Import another tool's file as a new collection: `analyze` converts and reports what would
  *  be lost, `write` puts it into a new folder (`plan.folder_name` inside a folder the user
  *  picks) and opens it. Owner in wave 4: strand B. */
 export interface ImportApi {
-  /** `format: null` detects it. Rejects with kind `import` for unknown or invalid files. */
-  analyze(fileName: string, data: Uint8Array, format: ImportFormat | null): Promise<ImportPlan>;
+  /** Converts `files` as one collection: one export, or a collection with its environment
+   *  files (Postman environments and globals, `http-client.env.json`), or several `.http` /
+   *  cURL files (one folder each). `format: null` detects it. Rejects with kind `import` for
+   *  unknown, invalid or mismatched files. */
+  analyze(files: ImportSource[], format: ImportFormat | null): Promise<ImportPlan>;
   /** `null` if the user cancelled the folder picker (the plan stays available). */
   write(id: number): Promise<CollectionInfo | null>;
   discard(id: number): Promise<void>;

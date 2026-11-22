@@ -1,0 +1,11 @@
+info:
+  name: DELETE {{localUrl}}/messages/{{messageId}}
+  type: http
+  seq: 12
+
+http:
+  method: DELETE
+  url: "{{localUrl}}/messages/{{messageId}}"
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}

@@ -1,0 +1,11 @@
+info:
+  name: DELETE Encounter
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{fhirUrl}}/Encounter/{{postCompleteEncounter.response.body.$.id}}"
+  headers:
+    - name: Accept
+      value: "{{format}}"

@@ -1,0 +1,21 @@
+info:
+  name: POST 192.168.1.1:9200/executions/_search
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://192.168.1.1:9200/executions/_search?pretty
+  params:
+    - name: pretty
+      value: ""
+      type: query
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: text
+    data: '{"query":{"match_all":{}}}'
+
+settings:
+  followRedirects: false

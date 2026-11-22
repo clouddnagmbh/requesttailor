@@ -1,0 +1,11 @@
+info:
+  name: Unfavorite article
+  type: http
+  seq: 19
+
+http:
+  method: DELETE
+  url: "{{host_api}}/articles/{{article_slug}}/favorite"
+  headers:
+    - name: Authorization
+      value: Token {{token}}

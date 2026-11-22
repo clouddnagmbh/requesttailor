@@ -1,0 +1,19 @@
+info:
+  name: Urlencoded form
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/forms"
+  body:
+    type: form-urlencoded
+    data:
+      - name: name
+        value: string
+      - name: age
+        value: "0"
+  auth:
+    type: basic
+    username: "{{username}}"
+    password: "{{password}}"

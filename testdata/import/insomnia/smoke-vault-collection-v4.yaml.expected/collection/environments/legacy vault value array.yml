@@ -1,0 +1,4 @@
+name: legacy vault value array
+variables:
+  - name: vault
+    value: '["vault_array_a","vault_array_b","vault_array_c"]'

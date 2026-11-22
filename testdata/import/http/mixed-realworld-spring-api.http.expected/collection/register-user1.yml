@@ -1,0 +1,21 @@
+info:
+  name: Register user1
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{host_api}}/users"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "user": {
+          "email": "user1@example.com",
+          "username": "user1",
+          "password": "user1"
+        }
+      }

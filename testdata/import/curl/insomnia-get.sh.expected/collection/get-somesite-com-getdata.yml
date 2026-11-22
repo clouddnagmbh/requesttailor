@@ -1,0 +1,15 @@
+info:
+  name: GET somesite.com/getdata
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://somesite.com/getdata?id=1234
+  params:
+    - name: id
+      value: "1234"
+      type: query
+
+settings:
+  followRedirects: false

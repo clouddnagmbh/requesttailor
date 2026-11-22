@@ -1,0 +1,25 @@
+info:
+  name: POST {{localUrl}}/messages
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{localUrl}}/messages"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Basic {{localCredentials}}
+  body:
+    type: json
+    data: |-
+      {
+          "dataMessage": {
+            "data": "SGVsbG8gV29ybGQh",
+            "port": 12345
+          },
+          "phoneNumbers": [
+              "{{phone}}"
+          ]
+      }

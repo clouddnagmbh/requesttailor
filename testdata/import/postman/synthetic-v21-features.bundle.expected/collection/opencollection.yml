@@ -1,0 +1,26 @@
+opencollection: "1.0.0"
+
+info:
+  name: Synthetic Features
+
+request:
+  variables:
+    - name: baseUrl
+      value: https://api.example.com
+      description: API root
+    - name: retries
+      value: "3"
+    - secret: true
+      name: token
+    - name: off
+      value: x
+      disabled: true
+    - name: region
+      value: eu
+
+docs: |-
+  Covers every construct the Postman importer knows.
+
+  Markdown **kept**.
+
+bundled: false

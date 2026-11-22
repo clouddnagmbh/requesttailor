@@ -1,0 +1,21 @@
+info:
+  name: environments setting and overriding
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "fallbackToBase": "{{fallbackToBase}}",
+        "scriptValue": "{{scriptValue}}",
+        "preDefinedValue": "{{preDefinedValue}}",
+        "folderEnv": "{{folderEnv}}"
+      }
+  auth: inherit

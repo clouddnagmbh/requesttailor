@@ -1,0 +1,8 @@
+info:
+  name: GET {{localUrl}}/health
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{localUrl}}/health"

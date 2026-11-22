@@ -1,0 +1,9 @@
+info:
+  name: Query method
+  type: http
+  seq: 8
+
+http:
+  method: QUERY
+  url: "{{baseUrl}}/query"
+  auth: inherit

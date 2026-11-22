@@ -1,0 +1,23 @@
+{
+  "collectionName": "restclient-smilr-checks",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "file variables refer to other requests' responses, kept as text: {{create.response.body.$._id}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      },
+      {
+        "detail": "body file `etc/demodata.json` is read relative to the collection folder; copy it there",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Bulk load demo data"
+      }
+    ],
+    "requests": 10
+  }
+}

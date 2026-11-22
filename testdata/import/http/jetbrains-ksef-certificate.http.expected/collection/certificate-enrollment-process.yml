@@ -1,0 +1,24 @@
+info:
+  name: certificate enrollment process
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:8082/certificate/send-enrollment
+  headers:
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: "{{token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "commonName": "{{commonName}}",
+        "countryName": "{{countryName}}",
+        "organizationIdentifier": "{{organizationIdentifier}}",
+        "organizationName": "{{organizationName}}"
+      }

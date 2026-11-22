@@ -1,0 +1,23 @@
+{
+  "collectionName": "Redocly Museum API",
+  "report": {
+    "environments": 1,
+    "folders": 3,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "1 webhook not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "collection"
+      }
+    ],
+    "requests": 8
+  }
+}

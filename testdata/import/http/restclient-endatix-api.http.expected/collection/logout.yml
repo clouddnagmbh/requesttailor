@@ -1,0 +1,13 @@
+info:
+  name: logout
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{apiBaseUrl}}/auth/logout"
+  headers:
+    - name: Authorization
+      value: Bearer {{jwt}}
+    - name: Content-Type
+      value: application/json

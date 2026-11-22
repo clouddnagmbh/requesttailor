@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! `rt-cli`: the `rt` command line: `rt send` (wave 2) and the companion `rt agent` (wave 3).
+//! `rt-cli`: the `rt` command line: `rt send` (wave 2), the companion `rt agent` (wave 3) and
+//! `rt import` (wave 4).
 //! The MCP server follows in a later wave.
 //!
 //! Everything the binary does is here, so it can be tested without spawning a process:
 //! argument parsing, finding the collection root, the file-system [`FileSource`], exit codes.
 
 pub mod agent;
+pub mod import;
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -36,6 +38,7 @@ rt {version}: send requests from OpenCollection (YAML) files
 Usage:
   rt send <request-file> [options]
   rt agent [--port <PORT>] [--allow-origin <ORIGIN>]...
+  rt import <file>... --out <dir> [--format <FORMAT>] [--json]
   rt --help | --version
 
 Options for send:
@@ -49,6 +52,17 @@ rt agent runs the companion for the web app on 127.0.0.1 until stopped:
       --port <PORT>           Listen on PORT (default {agent_port})
       --allow-origin <ORIGIN> Web app origin that may pair and send; repeatable
                               (default {agent_origins})
+
+rt import converts exports of other tools into a new collection folder:
+  -o, --out <DIR>           Folder to create (must not exist, or be empty)
+  -f, --format <FORMAT>     postman, insomnia, openapi, curl, har or http
+                            (default: detected from each file)
+      --json                Print the loss report as JSON instead of text
+  Several files form one collection: a Postman collection with its environment
+  and globals files, .http files with http-client(.private).env.json, or
+  several cURL files. Secret values are never written; set them in
+  Environments. Exit code {EXIT_OK} once the collection is written, even if the report
+  lists losses; {EXIT_USAGE} if the files cannot be imported.
 
 The collection root is the nearest folder above <request-file> that contains
 {COLLECTION_FILE}.
@@ -80,6 +94,7 @@ pub enum Command {
     Version,
     Send(SendArgs),
     Agent(agent::AgentArgs),
+    Import(import::ImportArgs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,6 +121,9 @@ where
         Some(Short('h') | Long("help")) => Ok(Command::Help),
         Some(Short('V') | Long("version")) => Ok(Command::Version),
         Some(Value(cmd)) if cmd == "send" => parse_send(&mut parser),
+        Some(Value(cmd)) if cmd == "import" => {
+            Ok(import::parse(&mut parser)?.map_or(Command::Help, Command::Import))
+        }
         Some(Value(cmd)) if cmd == "agent" => {
             Ok(agent::parse(&mut parser)?.map_or(Command::Help, Command::Agent))
         }
@@ -298,6 +316,7 @@ where
         }
         Ok(Command::Send(args)) => args,
         Ok(Command::Agent(args)) => return agent::run(args, stderr),
+        Ok(Command::Import(args)) => return import::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
     let (root, request_path) = match find_root(&args.file) {

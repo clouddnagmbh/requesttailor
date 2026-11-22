@@ -1,0 +1,9 @@
+name: Staging
+variables:
+  - name: baseUrl
+    value: https://staging.example.com
+  - secret: true
+    name: apiKey
+  - name: unused
+    value: x
+    disabled: true

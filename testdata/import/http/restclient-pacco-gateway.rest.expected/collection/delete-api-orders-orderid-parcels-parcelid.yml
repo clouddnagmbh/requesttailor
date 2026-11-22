@@ -1,0 +1,14 @@
+info:
+  name: DELETE {{api}}/orders/{{orderId}}/parcels/{{parcelId}}
+  type: http
+  seq: 28
+
+http:
+  method: DELETE
+  url: "{{api}}/orders/{{orderId}}/parcels/{{parcelId}}"
+  headers:
+    - name: AuthorizatiOrderDiscountPriceon
+      value: Bearer {{accessToken}}
+  body:
+    type: text
+    data: "# ============== PARCELS ==================== #"

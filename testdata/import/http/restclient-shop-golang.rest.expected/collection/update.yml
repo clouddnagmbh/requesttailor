@@ -1,0 +1,25 @@
+info:
+  name: Update
+  type: http
+  seq: 6
+
+http:
+  method: PUT
+  url: "{{product-api}}/api/v1/products/09d7ef0b-b1ba-4c4c-a44b-9541fc8719bb"
+  headers:
+    - name: accept
+      value: application/json
+    - name: Content-Type
+      value: application/json
+    - name: authorization
+      value: Bearer {{Token.response.body.access_token}}
+  body:
+    type: json
+    data: |-
+      {
+        "description": "test-desc",
+        "name": "test-product",
+        "price": 50,
+        "inventoryId": 1,
+        "count": 10
+      }

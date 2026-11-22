@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: restclient-shop-golang
+
+request:
+  variables:
+    - name: identity-api
+      value: http://localhost:5002
+    - name: product-api
+      value: http://localhost:5000
+
+bundled: false

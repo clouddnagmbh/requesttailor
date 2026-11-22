@@ -1,0 +1,14 @@
+info:
+  name: Binary body
+  type: http
+  seq: 5
+
+http:
+  method: PUT
+  url: https://api.example.com/blob
+  body:
+    type: file
+    data:
+      - filePath: /tmp/blob.bin
+        contentType: application/octet-stream
+        selected: true

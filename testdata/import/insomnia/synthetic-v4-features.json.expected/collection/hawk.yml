@@ -1,0 +1,8 @@
+info:
+  name: Hawk
+  type: http
+  seq: 11
+
+http:
+  method: GET
+  url: https://api.example.com/hawk

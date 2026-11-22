@@ -1,0 +1,23 @@
+info:
+  name: legacy-array-vault
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: localhost:4010/
+  headers:
+    - name: Content-Type
+      value: text/plain
+    - name: User-Agent
+      value: insomnia/10.2.1-beta.1
+  body:
+    type: text
+    data: |-
+      {{vault.secret}}
+      {{ _.vault[0] }}
+  auth:
+    type: apikey
+    key: ""
+    value: ""
+    placement: header

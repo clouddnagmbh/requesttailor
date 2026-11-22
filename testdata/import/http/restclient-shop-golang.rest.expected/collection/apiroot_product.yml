@@ -1,0 +1,8 @@
+info:
+  name: ApiRoot_Product
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{product-api}}"

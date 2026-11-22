@@ -1,0 +1,29 @@
+info:
+  name: GET no.playwright
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://no.playwright/
+  headers:
+    - name: Accept
+      value: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+    - name: Upgrade-Insecure-Requests
+      value: "1"
+    - name: User-Agent
+      value: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.33 Safari/537.36
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: content-length
+          value: "111"
+        - name: content-type
+          value: text/html
+      body:
+        type: html
+        data: <title>Hey</title><link rel='stylesheet' href='./style.css'><script src='./script.js'></script><div>hello</div>

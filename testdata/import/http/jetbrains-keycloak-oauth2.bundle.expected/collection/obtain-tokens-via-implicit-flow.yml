@@ -1,0 +1,24 @@
+info:
+  name: Obtain tokens via Implicit flow
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{ISSUER}}/protocol/openid-connect/auth?client_id={{CLIENT_WITH_IMPLICIT_GRANT}}&redirect_uri={{CLIENT_WITH_IMPLICIT_GRANT_REDIRECT}}&state=12345678&response_type=token&scope=openid profile email"
+  params:
+    - name: client_id
+      value: "{{CLIENT_WITH_IMPLICIT_GRANT}}"
+      type: query
+    - name: redirect_uri
+      value: "{{CLIENT_WITH_IMPLICIT_GRANT_REDIRECT}}"
+      type: query
+    - name: state
+      value: "12345678"
+      type: query
+    - name: response_type
+      value: token
+      type: query
+    - name: scope
+      value: openid profile email
+      type: query

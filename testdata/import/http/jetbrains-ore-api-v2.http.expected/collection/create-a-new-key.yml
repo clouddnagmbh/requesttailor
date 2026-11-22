@@ -1,0 +1,25 @@
+info:
+  name: Create a new key
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: http://localhost:9000/api/v2/keys
+  headers:
+    - name: Authorization
+      value: OreApi session={{api_session}}
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "permissions": [
+          "edit_api_keys",
+          "edit_all_user_settings"
+        ],
+        "name": "Foo"
+      }

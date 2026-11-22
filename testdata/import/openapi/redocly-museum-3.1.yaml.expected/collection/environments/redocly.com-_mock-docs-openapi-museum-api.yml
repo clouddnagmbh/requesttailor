@@ -1,0 +1,8 @@
+name: redocly.com/_mock/docs/openapi/museum-api
+variables:
+  - name: baseUrl
+    value: https://redocly.com/_mock/docs/openapi/museum-api
+  - name: username
+    value: ""
+  - secret: true
+    name: password

@@ -1,0 +1,18 @@
+info:
+  name: Users
+  type: folder
+  seq: 1
+
+request:
+  headers:
+    - name: X-Folder
+      value: users
+      description: set on the folder
+  auth:
+    type: bearer
+    token: "{{token}}"
+  variables:
+    - name: page_size
+      value: "20"
+
+docs: User endpoints

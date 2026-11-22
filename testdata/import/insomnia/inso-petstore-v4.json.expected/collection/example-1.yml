@@ -1,0 +1,9 @@
+info:
+  name: Example 1
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: https://jsonplaceholder.typicode.com/posts/1
+  auth: inherit

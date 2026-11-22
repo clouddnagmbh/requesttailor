@@ -1,0 +1,9 @@
+info:
+  name: External body
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{baseUrl}}/external-body"
+  auth: inherit

@@ -1,0 +1,31 @@
+info:
+  name: Create Stream (Push)
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{transmitterIssuer}}/ssf/streams"
+  headers:
+    - name: Authorization
+      value: Bearer {{transmitterToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "delivery": {
+          "method": "urn:ietf:rfc:8935",
+          "endpoint_url": "https://tdworkshops.ngrok.de/auth/realms/ssf-demo/ssf/push/caepdev",
+          "authorization_header": "dummyAuthToken"
+        },
+        "events_requested": [
+          "https://schemas.openid.net/secevent/caep/event-type/session-revoked",
+          "https://schemas.openid.net/secevent/caep/event-type/credential-change",
+          "https://schemas.openid.net/secevent/caep/event-type/device-compliance-change",
+          "https://schemas.openid.net/secevent/caep/event-type/token-claims-change",
+          "https://schemas.openid.net/secevent/caep/event-type/assurance-level-change"
+        ],
+        "description": "This field is optional. Remove this field if not needed."
+      }

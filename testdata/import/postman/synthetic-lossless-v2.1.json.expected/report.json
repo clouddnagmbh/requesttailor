@@ -1,0 +1,10 @@
+{
+  "collectionName": "Lossless",
+  "report": {
+    "environments": 0,
+    "folders": 1,
+    "format": "postman",
+    "losses": [],
+    "requests": 2
+  }
+}

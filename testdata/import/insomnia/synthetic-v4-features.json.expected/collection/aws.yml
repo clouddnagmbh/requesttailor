@@ -1,0 +1,14 @@
+info:
+  name: AWS
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: https://s3.amazonaws.com/bucket
+  auth:
+    type: awsv4
+    accessKeyId: "{{aws_key}}"
+    secretAccessKey: "{{aws_secret}}"
+    service: s3
+    region: eu-central-1

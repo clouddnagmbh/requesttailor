@@ -1,0 +1,22 @@
+info:
+  name: PATCH {{localUrl}}/settings
+  type: http
+  seq: 19
+
+http:
+  method: PATCH
+  url: "{{localUrl}}/settings"
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "webhooks": {
+          "internet_required": true,
+          "retry_count": 1
+        }
+      }

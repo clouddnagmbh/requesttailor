@@ -1,0 +1,21 @@
+info:
+  name: createWebhook
+  type: http
+  seq: 14
+
+http:
+  method: POST
+  url: "{{localUrl}}/webhooks"
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+          "id": "LreFUt-Z3sSq0JufY9uWB",
+          "url": "https://webhook.site/7598bc37-8765-4e7d-89e0-01e7f5ea5346",
+          "event": "sms:received"
+      }

@@ -1,0 +1,17 @@
+info:
+  name: GET httpbin.org/get
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: https://httpbin.org/get?latest=874
+  params:
+    - name: latest
+      value: "874"
+      type: query
+  headers:
+    - name: Authorization
+      value: Bearer ${token}
+
+docs: Load forum front page

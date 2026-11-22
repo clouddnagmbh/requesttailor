@@ -1,0 +1,31 @@
+info:
+  name: POST shop.example.com/upload
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://shop.example.com/upload
+  headers:
+    - name: Content-Type
+      value: multipart/form-data; boundary=x
+  body:
+    type: multipart-form
+    data:
+      - name: title
+        type: text
+        value: Photo
+      - name: photo
+        type: file
+        value:
+          - photo.jpg
+        contentType: image/jpeg
+
+examples:
+  - name: Recorded response
+    response:
+      status: 201
+      statusText: Created
+      body:
+        type: binary
+        data: iVBORw==

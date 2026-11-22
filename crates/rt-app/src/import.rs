@@ -15,6 +15,7 @@
 use std::collections::BTreeMap;
 
 use rt_format::FileSet;
+pub use rt_format::import::SourceFile;
 use rt_format::import::{ImportFormat, LossReport};
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +39,8 @@ pub struct ImportPlan {
 #[derive(Debug, Default)]
 pub struct Imports {
     next: u64,
-    pending: BTreeMap<u64, FileSet>,
+    /// Plan id → (suggested folder name, files).
+    pending: BTreeMap<u64, (String, FileSet)>,
 }
 
 impl Imports {
@@ -46,14 +48,15 @@ impl Imports {
         Self::default()
     }
 
-    /// Converts `data` (the file `file_name`) as `format`, or as the detected format.
+    /// Converts `files` as one collection (`rt_format::import::import_files`: a collection
+    /// with its environment files, several `.http` or cURL files) as `format`, or as the
+    /// detected format.
     pub fn analyze(
         &mut self,
-        file_name: &str,
-        data: &[u8],
+        files: &[SourceFile<'_>],
         format: Option<ImportFormat>,
     ) -> Result<ImportPlan, AppError> {
-        let import = rt_format::import::import(format, file_name, data)
+        let import = rt_format::import::import_files(format, files)
             .map_err(|e| AppError::Import(e.to_string()))?;
         self.next += 1;
         let id = self.next;
@@ -65,20 +68,35 @@ impl Imports {
             files: import.files.files.len() as u32,
             report: import.report,
         };
-        self.pending.insert(id, import.files);
+        self.pending
+            .insert(id, (plan.folder_name.clone(), import.files));
         Ok(plan)
+    }
+
+    /// The suggested folder name and the files of plan `id`; the plan stays, so a cancelled
+    /// or failed write can be tried again. Call [`Imports::discard`] once written.
+    pub fn get(&self, id: u64) -> Result<(&str, &FileSet), AppError> {
+        self.pending
+            .get(&id)
+            .map(|(name, files)| (name.as_str(), files))
+            .ok_or_else(|| not_found(id))
     }
 
     /// The files of plan `id`, for writing; the plan is gone afterwards.
     pub fn take(&mut self, id: u64) -> Result<FileSet, AppError> {
         self.pending
             .remove(&id)
-            .ok_or_else(|| AppError::Import(format!("import {id} not found")))
+            .map(|(_, files)| files)
+            .ok_or_else(|| not_found(id))
     }
 
     pub fn discard(&mut self, id: u64) {
         self.pending.remove(&id);
     }
+}
+
+fn not_found(id: u64) -> AppError {
+    AppError::Import(format!("import {id} not found"))
 }
 
 /// A folder name for `collection_name` that is safe on every file system.
@@ -110,11 +128,75 @@ mod tests {
         assert_eq!(folder_name("  ..  "), "Imported collection");
     }
 
+    fn file<'a>(name: &'a str, data: &'a [u8]) -> SourceFile<'a> {
+        SourceFile { name, data }
+    }
+
     #[test]
     fn unknown_formats_are_an_import_error() {
         let mut imports = Imports::new();
-        let e = imports.analyze("x.bin", b"\x00", None).unwrap_err();
+        let e = imports
+            .analyze(&[file("x.bin", b"\x00")], None)
+            .unwrap_err();
         assert!(matches!(e, AppError::Import(_)), "{e:?}");
         assert!(imports.take(1).is_err());
+    }
+
+    const COLLECTION: &str = r#"{"info": {"name": "Shop", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+        "item": [{"name": "List", "request": {"method": "GET", "url": "{{base}}/items"}}]}"#;
+    const ENVIRONMENT: &str = r#"{"name": "Prod", "_postman_variable_scope": "environment",
+        "values": [{"key": "base", "value": "https://shop.example.com"}, {"key": "token", "value": "not-real", "type": "secret"}]}"#;
+
+    #[test]
+    fn analyze_then_take_hands_over_the_files_once() {
+        let mut imports = Imports::new();
+        let plan = imports
+            .analyze(
+                &[
+                    file("shop.postman_collection.json", COLLECTION.as_bytes()),
+                    file("prod.postman_environment.json", ENVIRONMENT.as_bytes()),
+                ],
+                None,
+            )
+            .unwrap();
+        assert_eq!(plan.format, ImportFormat::Postman);
+        assert_eq!(plan.collection_name, "Shop");
+        assert_eq!(plan.folder_name, "Shop");
+        assert_eq!((plan.report.requests, plan.report.environments), (1, 1));
+        // The secret's value is reported, never written.
+        assert!(
+            plan.report
+                .losses
+                .iter()
+                .any(|l| l.detail.contains("secret value of `token`"))
+        );
+        let (folder, kept) = imports.get(plan.id).unwrap();
+        assert_eq!(folder, "Shop");
+        assert_eq!(kept.files.len() as u32, plan.files);
+        let files = imports.take(plan.id).unwrap();
+        assert_eq!(files.files.len() as u32, plan.files);
+        assert!(
+            files.files.contains_key("environments/Prod.yml"),
+            "{:?}",
+            files.files.keys()
+        );
+        let all: Vec<u8> = files.files.values().flatten().copied().collect();
+        assert!(!String::from_utf8_lossy(&all).contains("not-real"));
+        assert!(imports.take(plan.id).is_err(), "taken twice");
+    }
+
+    #[test]
+    fn discarded_plans_are_gone_and_ids_are_not_reused() {
+        let mut imports = Imports::new();
+        let a = imports
+            .analyze(&[file("a.sh", b"curl https://a.example.com")], None)
+            .unwrap();
+        imports.discard(a.id);
+        assert!(imports.take(a.id).is_err());
+        let b = imports
+            .analyze(&[file("b.sh", b"curl https://b.example.com")], None)
+            .unwrap();
+        assert_ne!(a.id, b.id);
+        assert_eq!(b.format, ImportFormat::Curl);
     }
 }

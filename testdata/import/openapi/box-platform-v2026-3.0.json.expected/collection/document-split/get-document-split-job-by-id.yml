@@ -1,0 +1,23 @@
+info:
+  name: Get Document Split job by ID
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{baseUrl}}/document_splits/:document_split_id"
+  params:
+    - name: document_split_id
+      value: "1748426"
+      type: path
+      description: The unique identifier for the Document Split job.
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+  auth: inherit
+
+docs: |-
+  Returns details for a single Document Split job identified by its ID,
+  including the current status, the input definition, and any output files
+  produced by the job.

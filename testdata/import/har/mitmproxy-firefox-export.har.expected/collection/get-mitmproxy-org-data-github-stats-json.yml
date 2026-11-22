@@ -1,0 +1,206 @@
+info:
+  name: GET mitmproxy.org/data/github-stats.json
+  type: http
+  seq: 13
+
+http:
+  method: GET
+  url: https://mitmproxy.org/data/github-stats.json
+  headers:
+    - name: Host
+      value: mitmproxy.org
+    - name: User-Agent
+      value: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0
+    - name: Accept
+      value: "*/*"
+    - name: Accept-Language
+      value: en-US,en;q=0.5
+    - name: Accept-Encoding
+      value: gzip, deflate, br
+    - name: DNT
+      value: "1"
+    - name: Connection
+      value: keep-alive
+    - name: Sec-Fetch-Dest
+      value: empty
+    - name: Sec-Fetch-Mode
+      value: cors
+    - name: Sec-Fetch-Site
+      value: same-origin
+    - name: If-Modified-Since
+      value: Wed, 29 Mar 2023 23:55:21 GMT
+    - name: If-None-Match
+      value: W/"07201abd774cb0523be31d94fffe67a3"
+    - name: TE
+      value: trailers
+
+examples:
+  - name: Recorded response
+    response:
+      status: 304
+      statusText: Not Modified
+      headers:
+        - name: age
+          value: "205"
+        - name: date
+          value: Wed, 29 Mar 2023 23:58:59 GMT
+        - name: etag
+          value: W/"07201abd774cb0523be31d94fffe67a3"
+        - name: server
+          value: AmazonS3
+        - name: vary
+          value: Accept-Encoding
+        - name: x-cache
+          value: Hit from cloudfront
+        - name: via
+          value: 1.1 5fa120f79d5713714191c32768eca58c.cloudfront.net (CloudFront)
+        - name: x-amz-cf-pop
+          value: SFO5-C1
+        - name: alt-svc
+          value: h3=":443"; ma=86400
+        - name: x-amz-cf-id
+          value: 0okGWJw6nYo7R-4egQWE-WfonThN2EXyRSLO9MlCNKyMfD-2v1AU0Q==
+      body:
+        type: json
+        data: |
+          {
+            "id": 519832,
+            "node_id": "MDEwOlJlcG9zaXRvcnk1MTk4MzI=",
+            "name": "mitmproxy",
+            "full_name": "mitmproxy/mitmproxy",
+            "private": false,
+            "owner": {
+              "login": "mitmproxy",
+              "id": 4652787,
+              "node_id": "MDEyOk9yZ2FuaXphdGlvbjQ2NTI3ODc=",
+              "avatar_url": "https://avatars.githubusercontent.com/u/4652787?v=4",
+              "gravatar_id": "",
+              "url": "https://api.github.com/users/mitmproxy",
+              "html_url": "https://github.com/mitmproxy",
+              "followers_url": "https://api.github.com/users/mitmproxy/followers",
+              "following_url": "https://api.github.com/users/mitmproxy/following{/other_user}",
+              "gists_url": "https://api.github.com/users/mitmproxy/gists{/gist_id}",
+              "starred_url": "https://api.github.com/users/mitmproxy/starred{/owner}{/repo}",
+              "subscriptions_url": "https://api.github.com/users/mitmproxy/subscriptions",
+              "organizations_url": "https://api.github.com/users/mitmproxy/orgs",
+              "repos_url": "https://api.github.com/users/mitmproxy/repos",
+              "events_url": "https://api.github.com/users/mitmproxy/events{/privacy}",
+              "received_events_url": "https://api.github.com/users/mitmproxy/received_events",
+              "type": "Organization",
+              "site_admin": false
+            },
+            "html_url": "https://github.com/mitmproxy/mitmproxy",
+            "description": "An interactive TLS-capable intercepting HTTP proxy for penetration testers and software developers.",
+            "fork": false,
+            "url": "https://api.github.com/repos/mitmproxy/mitmproxy",
+            "forks_url": "https://api.github.com/repos/mitmproxy/mitmproxy/forks",
+            "keys_url": "https://api.github.com/repos/mitmproxy/mitmproxy/keys{/key_id}",
+            "collaborators_url": "https://api.github.com/repos/mitmproxy/mitmproxy/collaborators{/collaborator}",
+            "teams_url": "https://api.github.com/repos/mitmproxy/mitmproxy/teams",
+            "hooks_url": "https://api.github.com/repos/mitmproxy/mitmproxy/hooks",
+            "issue_events_url": "https://api.github.com/repos/mitmproxy/mitmproxy/issues/events{/number}",
+            "events_url": "https://api.github.com/repos/mitmproxy/mitmproxy/events",
+            "assignees_url": "https://api.github.com/repos/mitmproxy/mitmproxy/assignees{/user}",
+            "branches_url": "https://api.github.com/repos/mitmproxy/mitmproxy/branches{/branch}",
+            "tags_url": "https://api.github.com/repos/mitmproxy/mitmproxy/tags",
+            "blobs_url": "https://api.github.com/repos/mitmproxy/mitmproxy/git/blobs{/sha}",
+            "git_tags_url": "https://api.github.com/repos/mitmproxy/mitmproxy/git/tags{/sha}",
+            "git_refs_url": "https://api.github.com/repos/mitmproxy/mitmproxy/git/refs{/sha}",
+            "trees_url": "https://api.github.com/repos/mitmproxy/mitmproxy/git/trees{/sha}",
+            "statuses_url": "https://api.github.com/repos/mitmproxy/mitmproxy/statuses/{sha}",
+            "languages_url": "https://api.github.com/repos/mitmproxy/mitmproxy/languages",
+            "stargazers_url": "https://api.github.com/repos/mitmproxy/mitmproxy/stargazers",
+            "contributors_url": "https://api.github.com/repos/mitmproxy/mitmproxy/contributors",
+            "subscribers_url": "https://api.github.com/repos/mitmproxy/mitmproxy/subscribers",
+            "subscription_url": "https://api.github.com/repos/mitmproxy/mitmproxy/subscription",
+            "commits_url": "https://api.github.com/repos/mitmproxy/mitmproxy/commits{/sha}",
+            "git_commits_url": "https://api.github.com/repos/mitmproxy/mitmproxy/git/commits{/sha}",
+            "comments_url": "https://api.github.com/repos/mitmproxy/mitmproxy/comments{/number}",
+            "issue_comment_url": "https://api.github.com/repos/mitmproxy/mitmproxy/issues/comments{/number}",
+            "contents_url": "https://api.github.com/repos/mitmproxy/mitmproxy/contents/{+path}",
+            "compare_url": "https://api.github.com/repos/mitmproxy/mitmproxy/compare/{base}...{head}",
+            "merges_url": "https://api.github.com/repos/mitmproxy/mitmproxy/merges",
+            "archive_url": "https://api.github.com/repos/mitmproxy/mitmproxy/{archive_format}{/ref}",
+            "downloads_url": "https://api.github.com/repos/mitmproxy/mitmproxy/downloads",
+            "issues_url": "https://api.github.com/repos/mitmproxy/mitmproxy/issues{/number}",
+            "pulls_url": "https://api.github.com/repos/mitmproxy/mitmproxy/pulls{/number}",
+            "milestones_url": "https://api.github.com/repos/mitmproxy/mitmproxy/milestones{/number}",
+            "notifications_url": "https://api.github.com/repos/mitmproxy/mitmproxy/notifications{?since,all,participating}",
+            "labels_url": "https://api.github.com/repos/mitmproxy/mitmproxy/labels{/name}",
+            "releases_url": "https://api.github.com/repos/mitmproxy/mitmproxy/releases{/id}",
+            "deployments_url": "https://api.github.com/repos/mitmproxy/mitmproxy/deployments",
+            "created_at": "2010-02-16T04:10:13Z",
+            "updated_at": "2023-03-29T21:46:17Z",
+            "pushed_at": "2023-03-29T11:13:54Z",
+            "git_url": "git://github.com/mitmproxy/mitmproxy.git",
+            "ssh_url": "git@github.com:mitmproxy/mitmproxy.git",
+            "clone_url": "https://github.com/mitmproxy/mitmproxy.git",
+            "svn_url": "https://github.com/mitmproxy/mitmproxy",
+            "homepage": "https://mitmproxy.org",
+            "size": 57388,
+            "stargazers_count": 30554,
+            "watchers_count": 30554,
+            "language": "Python",
+            "has_issues": true,
+            "has_projects": true,
+            "has_downloads": true,
+            "has_wiki": false,
+            "has_pages": false,
+            "has_discussions": true,
+            "forks_count": 3658,
+            "mirror_url": null,
+            "archived": false,
+            "disabled": false,
+            "open_issues_count": 260,
+            "license": {
+              "key": "mit",
+              "name": "MIT License",
+              "spdx_id": "MIT",
+              "url": "https://api.github.com/licenses/mit",
+              "node_id": "MDc6TGljZW5zZTEz"
+            },
+            "allow_forking": true,
+            "is_template": false,
+            "web_commit_signoff_required": false,
+            "topics": [
+              "debugging",
+              "http",
+              "http2",
+              "man-in-the-middle",
+              "mitmproxy",
+              "proxy",
+              "python",
+              "security",
+              "ssl",
+              "tls",
+              "websocket"
+            ],
+            "visibility": "public",
+            "forks": 3658,
+            "open_issues": 260,
+            "watchers": 30554,
+            "default_branch": "main",
+            "temp_clone_token": null,
+            "organization": {
+              "login": "mitmproxy",
+              "id": 4652787,
+              "node_id": "MDEyOk9yZ2FuaXphdGlvbjQ2NTI3ODc=",
+              "avatar_url": "https://avatars.githubusercontent.com/u/4652787?v=4",
+              "gravatar_id": "",
+              "url": "https://api.github.com/users/mitmproxy",
+              "html_url": "https://github.com/mitmproxy",
+              "followers_url": "https://api.github.com/users/mitmproxy/followers",
+              "following_url": "https://api.github.com/users/mitmproxy/following{/other_user}",
+              "gists_url": "https://api.github.com/users/mitmproxy/gists{/gist_id}",
+              "starred_url": "https://api.github.com/users/mitmproxy/starred{/owner}{/repo}",
+              "subscriptions_url": "https://api.github.com/users/mitmproxy/subscriptions",
+              "organizations_url": "https://api.github.com/users/mitmproxy/orgs",
+              "repos_url": "https://api.github.com/users/mitmproxy/repos",
+              "events_url": "https://api.github.com/users/mitmproxy/events{/privacy}",
+              "received_events_url": "https://api.github.com/users/mitmproxy/received_events",
+              "type": "Organization",
+              "site_admin": false
+            },
+            "network_count": 3658,
+            "subscribers_count": 619
+          }

@@ -1,0 +1,4 @@
+@base = https://users.example.com
+
+### List users
+GET {{base}}/users

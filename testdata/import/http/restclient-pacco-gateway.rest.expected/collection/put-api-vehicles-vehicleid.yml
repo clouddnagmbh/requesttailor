@@ -1,0 +1,22 @@
+info:
+  name: PUT {{api}}/vehicles/{{vehicleId}}
+  type: http
+  seq: 38
+
+http:
+  method: PUT
+  url: "{{api}}/vehicles/{{vehicleId}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "{{vehicleId}}",
+        "description": "Updated vehicle description",
+        "pricePerService": 150,
+        "variants": 2
+      }

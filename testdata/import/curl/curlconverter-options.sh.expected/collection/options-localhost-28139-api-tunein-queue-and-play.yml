@@ -1,0 +1,55 @@
+info:
+  name: OPTIONS localhost:28139/api/tunein/queue-and-play
+  type: http
+  seq: 1
+
+http:
+  method: OPTIONS
+  url: http://localhost:28139/api/tunein/queue-and-play?deviceSerialNumber=xxx&deviceType=xxx&guideId=s56876&contentType=station&callSign=&mediaOwnerCustomerId=xxx
+  params:
+    - name: deviceSerialNumber
+      value: xxx
+      type: query
+    - name: deviceType
+      value: xxx
+      type: query
+    - name: guideId
+      value: s56876
+      type: query
+    - name: contentType
+      value: station
+      type: query
+    - name: callSign
+      value: ""
+      type: query
+    - name: mediaOwnerCustomerId
+      value: xxx
+      type: query
+  headers:
+    - name: Pragma
+      value: no-cache
+    - name: Access-Control-Request-Method
+      value: POST
+    - name: Origin
+      value: https://alexa.amazon.de
+    - name: Accept-Encoding
+      value: gzip, deflate, br
+    - name: Accept-Language
+      value: de-DE,de;q=0.8,en-US;q=0.6,en;q=0.4
+    - name: User-Agent
+      value: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36
+    - name: Accept
+      value: "*/*"
+    - name: Cache-Control
+      value: no-cache
+    - name: Referer
+      value: https://alexa.amazon.de/spa/index.html
+    - name: Connection
+      value: keep-alive
+    - name: DNT
+      value: "1"
+    - name: Access-Control-Request-Headers
+      value: content-type,csrf
+
+settings:
+  followRedirects: false

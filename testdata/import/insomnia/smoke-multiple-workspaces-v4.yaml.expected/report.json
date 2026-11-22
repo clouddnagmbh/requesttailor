@@ -1,0 +1,17 @@
+{
+  "collectionName": "smoke-multiple-workspaces-v4",
+  "report": {
+    "environments": 2,
+    "folders": 2,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "several workspaces imported as one folder each; their base environments are folder variables",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      }
+    ],
+    "requests": 2
+  }
+}

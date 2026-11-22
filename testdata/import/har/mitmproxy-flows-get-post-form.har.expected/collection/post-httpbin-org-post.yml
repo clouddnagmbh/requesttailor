@@ -1,0 +1,63 @@
+info:
+  name: POST httpbin.org/post
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: https://httpbin.org/post
+  headers:
+    - name: user-agent
+      value: curl/7.86.0
+    - name: accept
+      value: "*/*"
+    - name: content-type
+      value: application/x-www-form-urlencoded
+  body:
+    type: form-urlencoded
+    data:
+      - name: key1
+        value: value1
+      - name: key2
+        value: value2
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      headers:
+        - name: date
+          value: Tue, 25 Jul 2023 10:58:40 GMT
+        - name: content-type
+          value: application/json
+        - name: content-length
+          value: "453"
+        - name: server
+          value: gunicorn/19.9.0
+        - name: access-control-allow-origin
+          value: "*"
+        - name: access-control-allow-credentials
+          value: "true"
+      body:
+        type: json
+        data: |
+          {
+            "args": {}, 
+            "data": "", 
+            "files": {}, 
+            "form": {
+              "key1": "value1", 
+              "key2": "value2"
+            }, 
+            "headers": {
+              "Accept": "*/*", 
+              "Content-Length": "23", 
+              "Content-Type": "application/x-www-form-urlencoded", 
+              "Host": "httpbin.org", 
+              "User-Agent": "curl/7.86.0", 
+              "X-Amzn-Trace-Id": "Root=1-64bfaad1-5780a79a5bc60f5e7a38cafa"
+            }, 
+            "json": null, 
+            "origin": "212.56.161.20", 
+            "url": "https://httpbin.org/post"
+          }

@@ -1,0 +1,14 @@
+info:
+  name: GET localhost:28139
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:28139
+  headers:
+    - name: sec-ch-ua
+      value: '" Not A;Brand";v="99", "Chromium";v="92"'
+
+settings:
+  followRedirects: false

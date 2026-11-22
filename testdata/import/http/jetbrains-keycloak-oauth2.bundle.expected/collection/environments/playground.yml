@@ -1,0 +1,28 @@
+name: playground
+variables:
+  - name: ISSUER
+    value: https://id.rust.test:8443/auth/realms/playground
+  - name: API_HOST_ROCKET
+    value: https://api.rust.test:4853
+  - name: API_HOST_ACTIX
+    value: https://api.rust.test:4853
+  - name: ADMIN_USERNAME
+    value: admin
+  - name: ADMIN_PASSWORD
+    value: admin
+  - name: USER_USERNAME
+    value: tester
+  - name: USER_PASSWORD
+    value: test
+  - name: CLIENT_WITH_PASSWORD_GRANT
+    value: demo-confidential-client-ropc
+  - name: SECRET
+    value: secret
+  - name: CLIENT_WITH_CLIENT_CREDENTIALS_GRANT
+    value: demo-confidential-client-service
+  - name: CLIENT_WITH_IMPLICIT_GRANT
+    value: demo-public-client
+  - name: CLIENT_WITH_IMPLICIT_GRANT_REDIRECT
+    value: http://localhost/demo-implcit-client/oauth/callback
+  - name: CLIENT_WITH_AUTHORIZATION_CODE_GRANT
+    value: demo-confidential-standard-client

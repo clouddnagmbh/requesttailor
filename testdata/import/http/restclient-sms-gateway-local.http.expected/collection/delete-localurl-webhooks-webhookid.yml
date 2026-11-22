@@ -1,0 +1,11 @@
+info:
+  name: DELETE {{localUrl}}/webhooks/{{webhookId}}
+  type: http
+  seq: 15
+
+http:
+  method: DELETE
+  url: "{{localUrl}}/webhooks/{{webhookId}}"
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}

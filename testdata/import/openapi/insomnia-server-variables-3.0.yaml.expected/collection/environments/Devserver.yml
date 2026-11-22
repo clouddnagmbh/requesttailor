@@ -1,0 +1,12 @@
+name: Devserver
+variables:
+  - name: baseUrl
+    value: "{{protocol}}://{{host}}:{{port}}/{{basePath}}"
+  - name: protocol
+    value: https
+  - name: port
+    value: "8080"
+  - name: host
+    value: localhost
+  - name: basePath
+    value: filemanagement

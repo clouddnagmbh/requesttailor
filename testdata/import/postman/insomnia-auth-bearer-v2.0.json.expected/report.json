@@ -1,0 +1,17 @@
+{
+  "collectionName": "Bearer Token Test",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "the bearer token is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Bearer Token"
+      }
+    ],
+    "requests": 1
+  }
+}

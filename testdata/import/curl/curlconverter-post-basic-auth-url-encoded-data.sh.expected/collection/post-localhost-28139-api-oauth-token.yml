@@ -1,0 +1,20 @@
+info:
+  name: POST localhost:28139/api/oauth/token
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:28139/api/oauth/token/
+  body:
+    type: form-urlencoded
+    data:
+      - name: grant_type
+        value: client_credentials
+  auth:
+    type: basic
+    username: foo
+    password: bar
+
+settings:
+  followRedirects: false

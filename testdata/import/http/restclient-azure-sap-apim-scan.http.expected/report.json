@@ -1,0 +1,17 @@
+{
+  "collectionName": "restclient-azure-sap-apim-scan",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "file variables refer to other requests' responses, kept as text: {{consumerToken.response.body.$.access_token}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      }
+    ],
+    "requests": 3
+  }
+}

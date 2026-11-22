@@ -1,0 +1,6 @@
+info:
+  name: Pets
+  type: folder
+  seq: 1
+
+docs: Pet operations

@@ -1,0 +1,21 @@
+info:
+  name: Update article
+  type: http
+  seq: 13
+
+http:
+  method: PUT
+  url: "{{host_api}}/articles/{{article_slug}}"
+  headers:
+    - name: Authorization
+      value: Token {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "article": {
+          "body": "With a lot of patience"
+        }
+      }

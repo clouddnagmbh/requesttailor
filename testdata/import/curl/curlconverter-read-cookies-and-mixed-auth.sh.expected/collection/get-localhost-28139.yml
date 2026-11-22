@@ -1,0 +1,15 @@
+info:
+  name: GET localhost:28139
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:28139
+  auth:
+    type: digest
+    username: user
+    password: pass
+
+settings:
+  followRedirects: false

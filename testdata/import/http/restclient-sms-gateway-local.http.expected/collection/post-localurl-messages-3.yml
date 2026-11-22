@@ -1,0 +1,24 @@
+info:
+  name: POST {{localUrl}}/messages
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{localUrl}}/messages"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Basic {{localCredentials}}
+  body:
+    type: json
+    data: |-
+      {
+          "message": "{{$localDatetime iso8601}}",
+          "ttl": 86400,
+          "phoneNumbers": [
+              "{{phone}}"
+          ],
+          "withDeliveryReport": true
+      }

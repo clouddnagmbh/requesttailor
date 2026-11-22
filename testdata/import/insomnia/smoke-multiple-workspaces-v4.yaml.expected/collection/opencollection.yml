@@ -1,0 +1,6 @@
+opencollection: "1.0.0"
+
+info:
+  name: smoke-multiple-workspaces-v4
+
+bundled: false

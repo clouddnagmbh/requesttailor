@@ -1,0 +1,30 @@
+info:
+  name: Update shuttle job
+  type: http
+  seq: 10
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/shuttle_jobs/:shuttle_job_id"
+  params:
+    - name: shuttle_job_id
+      value: 6a3ba68e810d9156194530a1
+      type: path
+      description: The unique identifier for the shuttle job.
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Q4 SharePoint to Box (Primary)"
+      }
+  auth: inherit
+
+docs: |-
+  Updates the mutable properties of an existing shuttle job identified by its
+  ID. Only the fields supplied in the request body are changed.

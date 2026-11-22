@@ -1,0 +1,10 @@
+name: prod
+variables:
+  - name: host
+    value: api.example.com
+  - name: retries
+    value: "3"
+  - secret: true
+    name: password
+  - secret: true
+    name: empty

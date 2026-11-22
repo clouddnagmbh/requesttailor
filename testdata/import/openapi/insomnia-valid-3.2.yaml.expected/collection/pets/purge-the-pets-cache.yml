@@ -1,0 +1,11 @@
+info:
+  name: Purge the pets cache
+  type: http
+  seq: 4
+
+http:
+  method: PURGE
+  url: "{{baseUrl}}/pets"
+  auth: inherit
+
+docs: Purge the pets cache

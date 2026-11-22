@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Link Example
+
+request:
+  variables:
+    - name: baseUrl
+      value: ""
+
+docs: Version 1.0.0
+
+bundled: false

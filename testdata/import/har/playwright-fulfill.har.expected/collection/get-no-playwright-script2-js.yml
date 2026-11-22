@@ -1,0 +1,29 @@
+info:
+  name: GET no.playwright/script2.js
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: http://no.playwright/script2.js
+  headers:
+    - name: Accept
+      value: "*/*"
+    - name: Referer
+      value: http://no.playwright/
+    - name: User-Agent
+      value: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.33 Safari/537.36
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: content-length
+          value: "18"
+        - name: content-type
+          value: text/javascript
+      body:
+        type: text
+        data: window.value='foo'

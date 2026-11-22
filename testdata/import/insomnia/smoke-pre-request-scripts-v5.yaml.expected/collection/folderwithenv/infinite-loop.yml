@@ -1,0 +1,15 @@
+info:
+  name: infinite loop
+  type: http
+  seq: 16
+
+http:
+  method: POST
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: "{}"
+  auth: inherit

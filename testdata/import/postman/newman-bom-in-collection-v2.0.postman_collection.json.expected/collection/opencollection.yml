@@ -1,0 +1,8 @@
+opencollection: "1.0.0"
+
+info:
+  name: Sample Postman Collection
+
+docs: A sample collection to demonstrate collections as a set of related requests
+
+bundled: false

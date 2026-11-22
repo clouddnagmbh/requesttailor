@@ -1,0 +1,29 @@
+opencollection: "1.0.0"
+
+info:
+  name: Pet Store (OpenAPI 3.2 sample)
+
+request:
+  auth:
+    type: oauth2
+    flow: authorization_code
+    accessTokenUrl: https://auth.example.com/token
+    credentials:
+      clientId: "{{clientId}}"
+      clientSecret: "{{clientSecret}}"
+      placement: basic_auth_header
+    scope: read:pets
+    pkce:
+      disabled: true
+  variables:
+    - name: baseUrl
+      value: https://{{env}}.example.com/v1
+    - name: env
+      value: api
+
+docs: |-
+  Version 1.0.0
+
+  Used to test Insomnia's lint support for OpenAPI 3.2.
+
+bundled: false

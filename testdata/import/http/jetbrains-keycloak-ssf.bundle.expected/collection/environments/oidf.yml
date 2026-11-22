@@ -1,0 +1,12 @@
+name: oidf
+variables:
+  - name: issuer
+    value: http://localhost:18080/auth/realms/ssf-demo
+  - name: transmitterIssuer
+    value: https://tdworkshops.ngrok.dev/ssf-receiver-dev
+  - name: transmitterUrl
+    value: https://tdworkshops.ngrok.dev/ssf-receiver-dev
+  - name: transmitterConfigUrl
+    value: https://tdworkshops.ngrok.dev/test/a/ssf-receiver-dev/ssf/ssf-configuration
+  - name: receiverAlias
+    value: oidf

@@ -1,0 +1,27 @@
+opencollection: "1.0.0"
+
+info:
+  name: restclient-sms-gateway-local
+
+request:
+  variables:
+    - name: localUrl
+      value: "{{$dotenv LOCAL__URL}}"
+    - name: localCredentials
+      value: "{{$dotenv LOCAL__CREDENTIALS}}"
+    - name: localToken
+      value: "{{$dotenv LOCAL__TOKEN}}"
+    - name: phone
+      value: "{{$dotenv PHONE}}"
+    - name: messageId
+      value: "{{sendMessage.response.body.$.id}}"
+    - name: webhookId
+      value: "{{createWebhook.response.body.$.id}}"
+    - name: jti
+      value: "{{issueToken.response.body.$.id}}"
+    - name: accessToken
+      value: "{{issueToken.response.body.$.access_token}}"
+    - name: inboxMessageId
+      value: "{{getInbox.response.body.$.0.id}}"
+
+bundled: false

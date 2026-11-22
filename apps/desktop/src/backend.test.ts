@@ -7,6 +7,7 @@ import { BackendError } from "@requesttailor/ui";
 import { describe, expect, it } from "vitest";
 
 import { COMMANDS, TauriBackend, type Command, type Invoke } from "./backend";
+import { packImport } from "./import";
 
 function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown) {
   const calls: [Command, Record<string, unknown> | undefined][] = [];
@@ -64,7 +65,7 @@ describe("TauriBackend", () => {
     await g.hasCredentials("example.com");
     await g.setCredentials("example.com", "ada", "pw");
     await g.deleteCredentials("example.com");
-    await b.imports.analyze("c.json", new Uint8Array([1, 2]), "postman");
+    await b.imports.analyze([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman");
     await b.imports.write(1);
     await b.imports.discard(1);
     await b.history.list("q", 20);
@@ -111,7 +112,7 @@ describe("TauriBackend", () => {
       ["git_has_credentials", { host: "example.com" }],
       ["git_set_credentials", { host: "example.com", username: "ada", password: "pw" }],
       ["git_delete_credentials", { host: "example.com" }],
-      ["import_analyze", { fileName: "c.json", data: [1, 2], format: "postman" }],
+      ["import_analyze", packImport([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman")],
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],
       ["history_list", { query: "q", limit: 20 }],

@@ -1,0 +1,27 @@
+info:
+  name: GET mitmproxy.org/logo-navbar.png
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: https://mitmproxy.org/logo-navbar.png
+  headers:
+    - name: Host
+      value: mitmproxy.org
+    - name: User-Agent
+      value: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0
+    - name: Accept
+      value: image/avif,image/webp,*/*
+    - name: Accept-Language
+      value: en-US,en;q=0.5
+    - name: Accept-Encoding
+      value: gzip, deflate, br
+    - name: Referer
+      value: https://mitmproxy.org/
+
+examples:
+  - name: Recorded response
+    response:
+      status: 200
+      statusText: OK

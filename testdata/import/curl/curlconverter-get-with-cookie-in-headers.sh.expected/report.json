@@ -1,0 +1,17 @@
+{
+  "collectionName": "curlconverter-get-with-cookie-in-headers",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET localhost:28139/cookies"
+      }
+    ],
+    "requests": 1
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "collectionName": "restclient-sms-gateway-local",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "file variables refer to other requests' responses, kept as text: {{sendMessage.response.body.$.id}}, {{createWebhook.response.body.$.id}}, {{issueToken.response.body.$.id}}, {{issueToken.response.body.$.access_token}}, {{getInbox.response.body.$.0.id}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      },
+      {
+        "detail": "dynamic variables {{$dotenv LOCAL__CREDENTIALS}}, {{$dotenv LOCAL__TOKEN}}, {{$dotenv LOCAL__URL}}, {{$dotenv PHONE}} kept as text; RequestTailor does not generate dynamic values yet",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      },
+      {
+        "detail": "dynamic variable {{$randomInt 0 100}} kept as text; RequestTailor does not generate dynamic values yet",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "GET {{localUrl}}/inbox"
+      },
+      {
+        "detail": "dynamic variable {{$localDatetime iso8601}} kept as text; RequestTailor does not generate dynamic values yet",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "POST {{localUrl}}/messages"
+      },
+      {
+        "detail": "dynamic variables {{$localDatetime iso8601}}, {{$randomInt 1 3}} kept as text; RequestTailor does not generate dynamic values yet",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "sendMessage"
+      }
+    ],
+    "requests": 26
+  }
+}

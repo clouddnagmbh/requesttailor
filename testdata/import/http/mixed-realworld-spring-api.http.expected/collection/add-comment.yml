@@ -1,0 +1,21 @@
+info:
+  name: Add comment
+  type: http
+  seq: 16
+
+http:
+  method: POST
+  url: "{{host_api}}/articles/{{article_slug}}/comments"
+  headers:
+    - name: Authorization
+      value: Token {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "comment": {
+          "body": "Great article!"
+        }
+      }

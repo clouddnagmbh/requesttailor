@@ -1,0 +1,11 @@
+info:
+  name: GET SubscriptionStatus
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{fhirUrl}}/Subscription/{{postRestHookSubscription.response.body.$.id}}/$status"
+  headers:
+    - name: Accept
+      value: "{{format}}"

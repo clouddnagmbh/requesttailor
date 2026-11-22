@@ -1,0 +1,35 @@
+info:
+  name: POST localhost:28139/api/library
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:28139/api/library
+  headers:
+    - name: accept
+      value: application/json
+    - name: Content-Type
+      value: multipart/form-data
+  body:
+    type: multipart-form
+    data:
+      - name: files
+        type: file
+        value:
+          - 47.htz
+      - name: name
+        type: text
+        value: "47"
+      - name: oldMediaId
+        type: text
+        value: "47"
+      - name: updateInLayouts
+        type: text
+        value: "1"
+      - name: deleteOldRevisions
+        type: text
+        value: "1"
+
+settings:
+  followRedirects: false

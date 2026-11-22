@@ -1,0 +1,29 @@
+{
+  "collectionName": "Digest Authentication Test",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "Digest auth settings kept in the file, but RequestTailor cannot send with Digest auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Digest Auth"
+      },
+      {
+        "detail": "Digest auth password stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Digest Auth"
+      },
+      {
+        "detail": "Digest auth settings not imported: `nonceCount`, `qop`, `algorithm`, `nonce`, `realm`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Digest Auth"
+      }
+    ],
+    "requests": 1
+  }
+}

@@ -1,0 +1,11 @@
+opencollection: "1.0.0"
+
+info:
+  name: Insomnia
+
+request:
+  variables:
+    - name: base_url
+      value: "{{scheme}}://{{host}}{{base_path}}"
+
+bundled: false

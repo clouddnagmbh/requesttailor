@@ -1,0 +1,23 @@
+info:
+  name: certificate metadata list query
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: http://localhost:8082/certificate/certListMetadata
+  headers:
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: "{{token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "certificateSerialNumber": "{{certificateSerialNumber}}",
+        "name" : "",
+        "expiresAfter" : ""
+      }

@@ -1,0 +1,21 @@
+info:
+  name: No PKCE
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://127.0.0.1:4010/oidc/me
+  auth:
+    type: oauth2
+    flow: authorization_code
+    authorizationUrl: http://127.0.0.1:4010/oidc/auth
+    accessTokenUrl: http://127.0.0.1:4010/oidc/token
+    callbackUrl: http://127.0.0.1:4010/callback
+    credentials:
+      clientId: authorization_code
+      clientSecret: secret
+      placement: basic_auth_header
+    scope: openid offline_access
+    pkce:
+      disabled: true

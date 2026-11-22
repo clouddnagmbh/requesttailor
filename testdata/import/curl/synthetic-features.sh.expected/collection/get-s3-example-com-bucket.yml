@@ -1,0 +1,17 @@
+info:
+  name: GET s3.example.com/bucket
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: https://s3.example.com/bucket
+  auth:
+    type: awsv4
+    accessKeyId: "{{key}}"
+    secretAccessKey: "{{secret}}"
+    service: s3
+    region: eu-central-1
+
+settings:
+  followRedirects: false

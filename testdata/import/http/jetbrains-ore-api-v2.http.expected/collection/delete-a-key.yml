@@ -1,0 +1,19 @@
+info:
+  name: Delete a key
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: http://localhost:9000/api/v2/keys?name=Foo
+  params:
+    - name: name
+      value: Foo
+      type: query
+  headers:
+    - name: Authorization
+      value: OreApi session={{api_session}}
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/json

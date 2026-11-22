@@ -1,0 +1,24 @@
+info:
+  name: Get shuttle run by ID
+  type: http
+  seq: 16
+
+http:
+  method: GET
+  url: "{{baseUrl}}/shuttle_runs/:shuttle_run_id"
+  params:
+    - name: shuttle_run_id
+      value: 6a3ba68e810d9156194530a1:42
+      type: path
+      description: |-
+        The unique identifier for the shuttle run, in the form
+        `{job_id}:{run_number}`.
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+  auth: inherit
+
+docs: |-
+  Returns details for a single shuttle run identified by its ID, including
+  its mode, state, timing, and transfer statistics.

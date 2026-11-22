@@ -1,0 +1,27 @@
+info:
+  name: Common Tag
+  type: http
+  seq: 13
+
+http:
+  method: GET
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: text/plain
+    - name: User-Agent
+      value: insomnia/11.1.0
+  body:
+    type: text
+    data: |
+      {% base64 'encode', 'normal', 'insomnia-test' %}
+      {% base64 'decode', 'normal', 'aW5zb21uaWEtdGVzdA==' %}
+      {% faker 'guid' %}
+      {% file '__TEMPLATE_TAG_FILE_PATH' %}
+      {% hash 'md5', 'hex', 'insomnia-test' %}
+      {% os 'arch', '' %}
+      {% jsonpath '{"foo":"bar"}', 'b64::JC5mb28=::46b' %}
+      {% now 'millis', '' %}
+      {% uuid 'v4' %}
+      {% cookie 'http://127.0.0.1/echo', 'from' %}
+  auth: inherit

@@ -1,0 +1,10 @@
+{
+  "collectionName": "Lossless v5",
+  "report": {
+    "environments": 1,
+    "folders": 1,
+    "format": "insomnia",
+    "losses": [],
+    "requests": 2
+  }
+}

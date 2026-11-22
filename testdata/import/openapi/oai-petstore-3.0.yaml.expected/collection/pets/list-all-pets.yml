@@ -1,0 +1,15 @@
+info:
+  name: List all pets
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/pets"
+  params:
+    - name: limit
+      value: ""
+      type: query
+      description: How many items to return at one time (max 100)
+      disabled: true
+  auth: inherit

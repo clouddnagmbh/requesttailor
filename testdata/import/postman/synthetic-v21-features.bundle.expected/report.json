@@ -1,0 +1,161 @@
+{
+  "collectionName": "Synthetic Features",
+  "report": {
+    "environments": 1,
+    "folders": 3,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "test script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "collection"
+      },
+      {
+        "detail": "AWS Signature v4 settings kept in the file, but RequestTailor cannot send with AWS Signature v4 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Auth schemes / AWS"
+      },
+      {
+        "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Auth schemes / Basic literal"
+      },
+      {
+        "detail": "Digest auth settings kept in the file, but RequestTailor cannot send with Digest auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Auth schemes / Digest"
+      },
+      {
+        "detail": "Digest auth settings not imported: `realm`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Auth schemes / Digest"
+      },
+      {
+        "detail": "Hawk auth (`hawk`) not imported: OpenCollection cannot hold it; the request is sent without auth",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Auth schemes / Hawk"
+      },
+      {
+        "detail": "stored OAuth 2.0 tokens not imported; fetch a new token",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Auth schemes / OAuth 2"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Auth schemes / OAuth 2"
+      },
+      {
+        "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Auth schemes / OAuth 2"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `audience`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Auth schemes / OAuth 2"
+      },
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Auth schemes / Token header"
+      },
+      {
+        "detail": "request settings not imported: `strictSSL`",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "Bodies"
+      },
+      {
+        "detail": "file `C:\\data\\blob.bin` for `body` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Bodies / Binary"
+      },
+      {
+        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Bodies / GraphQL"
+      },
+      {
+        "detail": "file `/Users/someone/photo.png` for `upload` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Bodies / Multipart"
+      },
+      {
+        "detail": "file part `empty` has no file selected; choose one in the request",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Bodies / Multipart"
+      },
+      {
+        "detail": "proxy settings not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "Bodies / XML"
+      },
+      {
+        "detail": "pre-request script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Users"
+      },
+      {
+        "detail": "cookies of example `Created` not imported",
+        "effect": "dropped",
+        "kind": "example",
+        "location": "Users / Create user"
+      },
+      {
+        "detail": "request body (formdata) of example `Created` not imported",
+        "effect": "dropped",
+        "kind": "example",
+        "location": "Users / Create user"
+      },
+      {
+        "detail": "test script (3 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Users / Get user"
+      },
+      {
+        "detail": "dynamic variables {{$guid}}, {{$randomInt}} kept as text; RequestTailor does not generate dynamic values yet",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Users / Get user"
+      },
+      {
+        "detail": "secret value of `apiKey` not imported; set it in Environments",
+        "effect": "dropped",
+        "kind": "variable",
+        "location": "environment Staging"
+      },
+      {
+        "detail": "global `baseUrl` not imported: a collection variable of the same name takes precedence",
+        "effect": "dropped",
+        "kind": "variable",
+        "location": "globals"
+      },
+      {
+        "detail": "1 global variable imported as collection variable",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "globals"
+      }
+    ],
+    "requests": 16
+  }
+}

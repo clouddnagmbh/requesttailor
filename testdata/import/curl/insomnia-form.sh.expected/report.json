@@ -1,0 +1,17 @@
+{
+  "collectionName": "insomnia-form",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "curl",
+    "losses": [
+      {
+        "detail": "file `/home/user/file.txt` for `file` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST insomnia.rest/signup"
+      }
+    ],
+    "requests": 1
+  }
+}

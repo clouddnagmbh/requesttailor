@@ -1,0 +1,22 @@
+info:
+  name: PUT {{api}}/customers/{{customerId}}/state/{{state}}
+  type: http
+  seq: 9
+
+http:
+  method: PUT
+  url: "{{api}}/customers/{{customerId}}/state/{{state}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{accessToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "customerId": "{{customerId}}",
+        "state": "{{state}}"
+      }
+
+      # ============== AVAILABILITY ==================== #

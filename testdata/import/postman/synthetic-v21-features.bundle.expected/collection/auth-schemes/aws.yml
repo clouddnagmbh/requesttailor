@@ -1,0 +1,14 @@
+info:
+  name: AWS
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: https://example.com/aws
+  auth:
+    type: awsv4
+    accessKeyId: "{{awsKey}}"
+    secretAccessKey: "{{awsSecret}}"
+    service: execute-api
+    region: eu-central-1

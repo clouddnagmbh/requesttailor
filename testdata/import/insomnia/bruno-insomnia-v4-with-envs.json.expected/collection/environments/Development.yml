@@ -1,0 +1,10 @@
+name: Development
+variables:
+  - name: baseUrl
+    value: https://dev-api.example.com
+  - name: authToken
+    value: dev_token_123
+  - name: newFeature.enabled
+    value: "true"
+  - name: newFeature.version
+    value: "2.099123123"

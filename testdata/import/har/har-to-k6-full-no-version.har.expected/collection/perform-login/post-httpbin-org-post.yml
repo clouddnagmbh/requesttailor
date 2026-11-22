@@ -1,0 +1,16 @@
+info:
+  name: POST httpbin.org/post
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://httpbin.org/post
+  headers:
+    - name: Accept
+      value: application/json
+  body:
+    type: text
+    data: 92n2nf093n
+
+docs: Acquire auth token

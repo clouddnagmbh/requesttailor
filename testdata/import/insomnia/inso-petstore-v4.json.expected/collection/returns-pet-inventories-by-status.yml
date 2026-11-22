@@ -1,0 +1,12 @@
+info:
+  name: Returns pet inventories by status
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{base_url}}/store/inventory"
+  headers:
+    - name: api_key
+      value: "{{apiKey}}"
+  auth: inherit

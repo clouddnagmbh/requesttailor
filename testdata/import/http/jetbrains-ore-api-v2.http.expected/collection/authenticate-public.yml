@@ -1,0 +1,11 @@
+info:
+  name: Authenticate public
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:9000/api/v2/authenticate
+  headers:
+    - name: Accept
+      value: application/json

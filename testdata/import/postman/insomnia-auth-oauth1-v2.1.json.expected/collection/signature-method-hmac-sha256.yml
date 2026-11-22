@@ -1,0 +1,19 @@
+info:
+  name: Signature Method HMAC-SHA256
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: https://insomnia.rest
+  auth:
+    type: oauth1
+    consumerKey: sha256-consumer-key-value
+    consumerSecret: sha256-consumer-secret-value
+    accessToken: sha256-access-token-value
+    accessTokenSecret: sha256-token-secret-value
+    signatureMethod: HMAC-SHA256
+    timestamp: sha256-timestamp-value
+    nonce: sha256-nonce-value
+    version: "1.0"
+    realm: sha256-realm-value

@@ -1,0 +1,18 @@
+info:
+  name: GET localhost:28139
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:28139?foo=bar&baz=qux
+  params:
+    - name: foo
+      value: bar
+      type: query
+    - name: baz
+      value: qux
+      type: query
+
+settings:
+  followRedirects: false

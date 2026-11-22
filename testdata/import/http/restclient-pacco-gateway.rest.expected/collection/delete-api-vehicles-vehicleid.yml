@@ -1,0 +1,8 @@
+info:
+  name: DELETE {{api}}/vehicles/{{vehicleId}}
+  type: http
+  seq: 39
+
+http:
+  method: DELETE
+  url: "{{api}}/vehicles/{{vehicleId}}"

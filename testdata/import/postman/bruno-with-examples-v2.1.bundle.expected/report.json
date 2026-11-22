@@ -1,0 +1,10 @@
+{
+  "collectionName": "collection with examples",
+  "report": {
+    "environments": 1,
+    "folders": 0,
+    "format": "postman",
+    "losses": [],
+    "requests": 1
+  }
+}

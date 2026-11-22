@@ -1,0 +1,8 @@
+info:
+  name: GET /none
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/none"

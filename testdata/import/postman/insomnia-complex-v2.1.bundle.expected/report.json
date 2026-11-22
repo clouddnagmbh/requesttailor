@@ -1,0 +1,41 @@
+{
+  "collectionName": "Complex Test Collection",
+  "report": {
+    "environments": 1,
+    "folders": 1,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "First Folder / Urlencoded Form Test"
+      },
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "First Folder / {{base_url}}/api/users"
+      },
+      {
+        "detail": "file `/home/user/test.txt` for `file` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "First Folder / {{base_url}}/api/users"
+      },
+      {
+        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Test Request GraphQL Body"
+      },
+      {
+        "detail": "body of type `unknown` not imported",
+        "effect": "dropped",
+        "kind": "body",
+        "location": "Test Request Unknown Body"
+      }
+    ],
+    "requests": 6
+  }
+}

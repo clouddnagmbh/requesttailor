@@ -1,0 +1,20 @@
+info:
+  name: variables / manipulate variables and set them to environment
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "varStr": "{{varStr}}",
+        "varNum": {{varNum}},
+        "varBool": {{varBool}}
+      }
+  auth: inherit

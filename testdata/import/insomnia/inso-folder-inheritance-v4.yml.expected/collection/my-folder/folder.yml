@@ -1,0 +1,16 @@
+info:
+  name: My Folder
+  type: folder
+  seq: 1
+
+request:
+  headers:
+    - name: customheader
+      value: jack
+  auth:
+    type: basic
+    username: admin
+    password: password
+  variables:
+    - name: foo
+      value: bar

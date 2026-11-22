@@ -1,0 +1,14 @@
+info:
+  name: GET localhost:8888
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:8888/
+  headers:
+    - name: Cookie
+      value: a=b; c
+
+settings:
+  followRedirects: false

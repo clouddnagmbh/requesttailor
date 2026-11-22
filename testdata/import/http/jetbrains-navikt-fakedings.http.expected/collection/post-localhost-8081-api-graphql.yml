@@ -1,0 +1,21 @@
+info:
+  name: POST localhost:8081/api/graphql
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:8081/api/graphql
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Host
+      value: ag-notifikasjon-produsent-api.local
+    - name: Authorization
+      value: Bearer {{auth_token}}
+  body:
+    type: json
+    data: |-
+      {
+        "query": "query { whoami  }"
+      }

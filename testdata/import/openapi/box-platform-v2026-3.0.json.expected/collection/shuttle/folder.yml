@@ -1,0 +1,9 @@
+info:
+  name: Shuttle
+  type: folder
+  seq: 6
+
+docs: |-
+  Endpoints for managing Box Shuttle, the service that migrates content into
+  Box from external sources. Use these endpoints to manage the systems that
+  Shuttle migrates content from and the migration jobs that Shuttle runs.

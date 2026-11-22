@@ -1,0 +1,19 @@
+opencollection: "1.0.0"
+
+info:
+  name: restclient-fhir-candle-r4
+
+request:
+  variables:
+    - name: fhirUrl
+      value: http://localhost:5826/fhir/r4
+    - name: endpoint
+      value: http://localhost:5826/fhir/r4/$subscription-hook
+    - name: topic
+      value: http://example.org/FHIR/SubscriptionTopic/encounter-complete
+    - name: contentLevel
+      value: id-only
+    - name: format
+      value: application/fhir+json
+
+bundled: false

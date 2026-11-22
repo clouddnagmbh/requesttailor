@@ -1,0 +1,26 @@
+info:
+  name: POST api.example.com/items
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.example.com/items?x=1&y=2
+  params:
+    - name: x
+      value: "1"
+      type: query
+    - name: y
+      value: "2"
+      type: query
+  headers:
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: text
+    data: '{"name":"pen"}'
+
+settings:
+  followRedirects: false

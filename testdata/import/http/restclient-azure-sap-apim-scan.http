@@ -1,0 +1,26 @@
+@sapApimTokenUrl = <https://<your-sap-btp-service-instance-name>.authentication.<btp-region>.hana.ondemand.com/oauth/token>
+@sapApimDiscoveryUrl = <https://<btp-region>devportal.cfapps.<btp-region>.hana.ondemand.com/apidiscovery/v1/apis>
+@sapApimResourceUrl = <https://<btp-region>devportal.cfapps.<btp-region>.hana.ondemand.com/odata/1.0/data.svc/APIMgmt.APIResourceDocumentations('yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyyy')/content/$value>
+@clientId = <client id from SAP BTP service key>
+@clientSecret = <client secret from SAP BTP service key>
+
+### Get Token for consumer
+# @name consumerToken
+
+POST {{sapApimTokenUrl}} HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{clientId}}
+&client_secret={{clientSecret}}
+&grant_type=client_credentials
+
+#### Get Token Response
+@accessToken = {{consumerToken.response.body.$.access_token}}
+
+### Test Discovery endpoint
+GET {{sapApimDiscoveryUrl}} HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+### Test SAP API Management endpoint
+GET {{sapApimResourceUrl}} HTTP/1.1
+Authorization: Bearer {{accessToken}}

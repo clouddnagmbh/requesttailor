@@ -1,0 +1,35 @@
+{
+  "collectionName": "restclient-fhir-candle-r4",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [
+      {
+        "detail": "references to other requests' responses kept as text: {{postCompleteEncounter.response.body.$.id}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "DELETE Encounter"
+      },
+      {
+        "detail": "references to other requests' responses kept as text: {{postCompleteEncounter.response.body.$.id}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "GET Encounter"
+      },
+      {
+        "detail": "references to other requests' responses kept as text: {{postRestHookSubscription.response.body.$.id}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "GET SubscriptionEvents"
+      },
+      {
+        "detail": "references to other requests' responses kept as text: {{postRestHookSubscription.response.body.$.id}}",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "GET SubscriptionStatus"
+      }
+    ],
+    "requests": 6
+  }
+}

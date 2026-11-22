@@ -1,0 +1,19 @@
+info:
+  name: POST httpbin.org/post
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: https://httpbin.org/post
+  headers:
+    - name: Authorization
+      value: Bearer ${token}
+  body:
+    type: text
+    data: |-
+      kitten OR puppy OR quokka
+      result1:2345
+      result2:9347
+
+docs: Exercise image search

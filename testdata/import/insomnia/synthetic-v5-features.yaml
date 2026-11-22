@@ -1,0 +1,136 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: Synthetic v5
+meta:
+  id: wrk_v5
+  description: Covers the v5 tree, scripts, settings and environments.
+collection:
+  - name: Orders
+    meta:
+      id: fld_orders
+      sortKey: -1
+      description: Order endpoints
+    headers:
+      - name: X-Team
+        value: shop
+    authentication:
+      type: oauth2
+      grantType: client_credentials
+      accessTokenUrl: https://id.example.com/token
+      clientId: shop
+      clientSecret: typed-client-secret
+      scope: orders
+    environment:
+      region: eu
+    scripts:
+      preRequest: insomnia.environment.set('t', Date.now());
+      afterResponse: |-
+        const body = insomnia.response.json();
+        insomnia.test('has id', () => insomnia.expect(body.id).to.exist);
+    children:
+      - url: "{{ _.base_url }}/orders/{{ _.order_id }}"
+        name: Get order
+        meta:
+          id: req_order
+          sortKey: 2
+          description: Reads one order.
+        method: GET
+        parameters:
+          - name: expand
+            value: items
+            description: include items
+        headers:
+          - name: Accept
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/orders"
+        name: Create order
+        meta:
+          id: req_create
+          sortKey: 1
+        method: post
+        body:
+          mimeType: application/json
+          text: |-
+            {"sku": "{{ _.sku }}", "id": "{% faker 'randomUUID' %}"}
+        authentication:
+          type: bearer
+          token: "{{ _.token }}"
+          prefix: Token
+        settings:
+          followRedirects: "off"
+          encodeUrl: false
+          cookies:
+            send: false
+            store: false
+          renderRequestBody: false
+          rebuildPath: false
+  - url: "{{ _.base_url }}/health"
+    name: Health
+    meta:
+      id: req_health
+      sortKey: 5
+    method: HEAD
+    authentication:
+      type: none
+    settings:
+      followRedirects: "on"
+  - url: wss://ws.example.com/feed
+    name: Feed
+    meta:
+      id: ws-req_feed
+      sortKey: 6
+  - url: grpc.example.com:443
+    name: Call
+    meta:
+      id: greq_call
+      sortKey: 7
+    protoMethodName: /pkg.Service/Call
+  - name: Something else
+    meta:
+      id: x_1
+      sortKey: 8
+cookieJar:
+  name: Default Jar
+  cookies:
+    - key: a
+      value: b
+      domain: example.com
+    - key: c
+      value: d
+      domain: example.com
+environments:
+  name: Base Environment
+  meta:
+    id: env_base
+  data:
+    base_url: https://shop.example.com
+    sku: A-1
+  subEnvironments:
+    - name: Production
+      meta:
+        id: env_prod
+        sortKey: 2
+      data:
+        base_url: https://shop.example.com
+    - name: Local secrets
+      meta:
+        id: env_local
+        sortKey: 1
+        isPrivate: true
+      data:
+        token: not-a-real-token
+        order_id: "7"
+    - name: Production
+      meta:
+        id: env_prod2
+        sortKey: 3
+      data:
+        base_url: https://eu.shop.example.com

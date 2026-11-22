@@ -1,0 +1,17 @@
+{
+  "collectionName": "datadog-polly-upload-multipart",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "har",
+    "losses": [
+      {
+        "detail": "multipart body kept as recorded text; its boundary must match the Content-Type header",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "POST api.datadoghq.com/api/v2/saml_configurations/idp_metadata"
+      }
+    ],
+    "requests": 1
+  }
+}

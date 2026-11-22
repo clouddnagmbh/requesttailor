@@ -1,0 +1,17 @@
+opencollection: "1.0.0"
+
+info:
+  name: Synthetic v4
+
+request:
+  variables:
+    - name: base_url
+      value: https://api.example.com
+    - name: nested.level.deep
+      value: "1"
+    - name: list
+      value: "[1,2]"
+
+docs: Covers every construct the importer maps or reports.
+
+bundled: false

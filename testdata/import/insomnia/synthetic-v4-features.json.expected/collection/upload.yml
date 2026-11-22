@@ -1,0 +1,26 @@
+info:
+  name: Upload
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: https://api.example.com/upload
+  body:
+    type: multipart-form
+    data:
+      - name: title
+        type: text
+        value: Report
+      - name: file
+        type: file
+        value:
+          - /Users/someone/report.pdf
+      - name: empty
+        type: file
+        value: []
+  auth:
+    type: apikey
+    key: key
+    value: typed-key
+    placement: query

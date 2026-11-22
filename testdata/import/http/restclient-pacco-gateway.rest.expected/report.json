@@ -1,0 +1,10 @@
+{
+  "collectionName": "restclient-pacco-gateway",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "http",
+    "losses": [],
+    "requests": 39
+  }
+}

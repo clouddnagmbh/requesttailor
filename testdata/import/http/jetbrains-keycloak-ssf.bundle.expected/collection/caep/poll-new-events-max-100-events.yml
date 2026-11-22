@@ -1,0 +1,18 @@
+info:
+  name: Poll new events max:100 events
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{transmitterIssuer}}/ssf/streams/poll"
+  headers:
+    - name: Authorization
+      value: Bearer {{transmitterToken}}
+    - name: Content-Type
+      value: application/json
+    - name: Accept
+      value: application/json
+  body:
+    type: json
+    data: '{"returnImmediately":true,"maxEvents":100}'

@@ -1,0 +1,31 @@
+info:
+  name: Update shuttle job schedule
+  type: http
+  seq: 20
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/shuttle_job_schedules/:shuttle_job_schedule_id"
+  params:
+    - name: shuttle_job_schedule_id
+      value: 7c1ba68e810d9156194530b2
+      type: path
+      description: The unique identifier for the shuttle job schedule.
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "state": "paused"
+      }
+  auth: inherit
+
+docs: |-
+  Updates the mutable properties of an existing shuttle job schedule
+  identified by its ID. Only the fields supplied in the request body are
+  changed. The owning job cannot be changed.

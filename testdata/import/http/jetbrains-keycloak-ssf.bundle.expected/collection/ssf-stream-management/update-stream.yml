@@ -1,0 +1,30 @@
+info:
+  name: Update Stream
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{issuer}}/ssf/streams"
+  headers:
+    - name: Authorization
+      value: Bearer {{keycloakToken}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "stream_id": "{{ stream_id }}",
+        "description": "Stream for ssf-receiver-1 with POLL",
+        "delivery": {
+          "method": "urn:ietf:rfc:8936"
+        },
+        "events_requested": [
+          "https://schemas.openid.net/secevent/caep/event-type/session-revoked",
+          "https://schemas.openid.net/secevent/caep/event-type/credential-change",
+          "https://schemas.openid.net/secevent/caep/event-type/device-compliance-change",
+          "https://schemas.openid.net/secevent/caep/event-type/token-claims-change",
+          "https://schemas.openid.net/secevent/caep/event-type/assurance-level-change"
+        ]
+      }

@@ -1,0 +1,13 @@
+info:
+  name: Invalidate session
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: http://localhost:9000/api/v2/sessions/current
+  headers:
+    - name: Authorization
+      value: OreApi session={{api_session}}
+    - name: Accept
+      value: application/json

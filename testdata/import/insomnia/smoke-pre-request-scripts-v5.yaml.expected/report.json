@@ -1,0 +1,275 @@
+{
+  "collectionName": "Pre-request Scripts",
+  "report": {
+    "environments": 0,
+    "folders": 3,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "pre-request script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Fetch from remote"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv"
+      },
+      {
+        "detail": "after-response script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / can manipulate global envs"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / environments setting and overriding"
+      },
+      {
+        "detail": "pre-request script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / eval() works in script"
+      },
+      {
+        "detail": "pre-request script (13 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / get sendRequest response through await or callback"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / infinite loop"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / insomnia.request auth manipulation (basic)"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / insomnia.request auth manipulation (bearer)"
+      },
+      {
+        "detail": "pre-request script (15 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / insomnia.request manipulation"
+      },
+      {
+        "detail": "pre-request script (19 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "FolderWithEnv / insomnia.test"
+      },
+      {
+        "detail": "pre-request script (6 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / not return until all Promise settled"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / not return until all async tasks finished"
+      },
+      {
+        "detail": "pre-request script (3 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / not return until all setTimeout finished"
+      },
+      {
+        "detail": "pre-request script (3 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / persist environment"
+      },
+      {
+        "detail": "pre-request script (4 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / persist global environment"
+      },
+      {
+        "detail": "pre-request script (86 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / require / require classes from insomnia-collection module and init them"
+      },
+      {
+        "detail": "pre-request script (24 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / require external modules and built-in lodash"
+      },
+      {
+        "detail": "pre-request script (23 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / require node.js modules"
+      },
+      {
+        "detail": "pre-request script (14 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / require the url module"
+      },
+      {
+        "detail": "pre-request script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / require the uuid module"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / simple log"
+      },
+      {
+        "detail": "pre-request script (13 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / test certificate manipulation"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / test certificate manipulation with tagged url"
+      },
+      {
+        "detail": "after-response script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / test certificate manipulation with tagged url"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / test proxies manipulation"
+      },
+      {
+        "detail": "pre-request script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / update kv pair environment"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / use external modules"
+      },
+      {
+        "detail": "pre-request script (8 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "FolderWithEnv / variables / manipulate variables and set them to environment"
+      },
+      {
+        "detail": "pre-request script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Long running task"
+      },
+      {
+        "detail": "after-response script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Long running task - post"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Multiple template tags format"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Range error"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Reference error"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Special template tag format"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Syntax error"
+      },
+      {
+        "detail": "pre-request script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Type error"
+      },
+      {
+        "detail": "nested values imported as flat variables (`a.b`); lists as JSON text",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "environment Base Environment"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "folder1"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "folder1 / folder2"
+      },
+      {
+        "detail": "pre-request script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "folder1 / folder2 / manipulate folder envs"
+      },
+      {
+        "detail": "pre-request script (15 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "get sendRequest error through callback and rejected await"
+      },
+      {
+        "detail": "pre-request script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "testQueryParams"
+      }
+    ],
+    "requests": 41
+  }
+}

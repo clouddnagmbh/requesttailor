@@ -49,7 +49,7 @@
 //!
 //! Wave 4 (one file each): `search(query, limit) -> SearchHit[]` on `Workspace`;
 //! `textDiff(path, old, new) -> GitDiff` (`git_js.rs`); `Importer` with
-//! `analyze(fileName, data, format) -> ImportPlan`, `take(id) -> FileChange[]`, `discard(id)`
+//! `analyze(files, format) -> ImportPlan` (`files`: `{ name, data: Uint8Array }[]`), `take(id) -> FileChange[]`, `discard(id)`
 //! (`import_js.rs`); history helpers (`history_js.rs`, strand E).
 //!
 //! Saving is two-step so a failed write keeps the changes unsaved: `prepareSave()` returns

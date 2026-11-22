@@ -1,0 +1,14 @@
+info:
+  name: GET mockbin.com/har
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://mockbin.com/har
+  headers:
+    - name: accept-encoding
+      value: deflate, gzip, br
+
+settings:
+  followRedirects: false

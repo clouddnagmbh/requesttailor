@@ -1,0 +1,22 @@
+info:
+  name: issueToken
+  type: http
+  seq: 20
+
+http:
+  method: POST
+  url: "{{localUrl}}/auth/token"
+  headers:
+    - name: Authorization
+      value: Basic {{localCredentials}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "scopes": [
+          "webhooks:list"
+        ],
+        "ttl": 86400
+      }

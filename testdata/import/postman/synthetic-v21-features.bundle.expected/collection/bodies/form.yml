@@ -1,0 +1,20 @@
+info:
+  name: Form
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://example.com/form
+  body:
+    type: form-urlencoded
+    data:
+      - name: a
+        value: "1"
+      - name: b
+        value: "2"
+        disabled: true
+  auth: inherit
+
+settings:
+  followRedirects: false

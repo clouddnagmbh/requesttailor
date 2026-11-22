@@ -1,0 +1,37 @@
+opencollection: "1.0.0"
+
+info:
+  name: restclient-pacco-gateway
+
+request:
+  variables:
+    - name: api
+      value: http://localhost:5000
+    - name: accessToken
+      value: xxx.xxx.xxx
+    - name: customerId
+      value: 00000000-0000-0000-0000-000000000000
+    - name: operationId
+      value: 00000000-0000-0000-0000-000000000000
+    - name: parcelId
+      value: 00000000-0000-0000-0000-000000000000
+    - name: orderId
+      value: 00000000-0000-0000-0000-000000000000
+    - name: vehicleId
+      value: 00000000-0000-0000-0000-000000000000
+    - name: resourceId
+      value: 00000000-0000-0000-0000-000000000000
+    - name: deliveryId
+      value: 00000000-0000-0000-0000-000000000000
+    - name: dateTime
+      value: 2020-01-10
+    - name: deliveryDate
+      value: 2020-01-10
+    - name: orderPrice
+      value: "100"
+    - name: state
+      value: valid
+    - name: tags
+      value: '["vehicle", "armor"]'
+
+bundled: false

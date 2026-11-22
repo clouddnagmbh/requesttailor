@@ -1,0 +1,12 @@
+info:
+  name: Token header
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: https://example.com/header
+  headers:
+    - name: Authorization
+      value: Bearer literal-token-123
+  auth: inherit

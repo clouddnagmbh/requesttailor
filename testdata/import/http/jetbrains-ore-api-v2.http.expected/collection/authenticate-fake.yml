@@ -1,0 +1,16 @@
+info:
+  name: Authenticate fake
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: http://localhost:9000/api/v2/authenticate
+  headers:
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: '{"fake": true}'

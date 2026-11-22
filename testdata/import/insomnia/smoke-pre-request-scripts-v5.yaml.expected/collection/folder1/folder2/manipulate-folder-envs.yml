@@ -1,0 +1,34 @@
+info:
+  name: manipulate folder envs
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "folder1ValByReq": {{folder1ValByReq}},
+        "folder1ValByReqByName": {{folder1ValByReqByName}},
+        "folder2ValByReq": {{folder2ValByReq}},
+        "folder2ValByReqByName": {{folder2ValByReqByName}},
+        "valFound": {{valFound}},
+
+        "folder1ValByFolder1": {{folder1ValByFolder1}},
+        "folder1ValByFolder1ByName": {{folder1ValByFolder1ByName}},
+        "folder2ValByFolder1": {{folder2ValByFolder1}},
+        "folder2ValByFolder1ByName": {{folder2ValByFolder1ByName}},
+        "valFoundByFolder1": {{valFoundByFolder1}},
+
+        "folder1ValByFolder2": {{folder1ValByFolder2}},
+        "folder1ValByFolder2ByName": {{folder1ValByFolder2ByName}},
+        "folder2ValByFolder2": {{folder2ValByFolder2}},
+        "folder2ValByFolder2ByName": {{folder2ValByFolder2ByName}},
+        "valFoundByFolder2": {{valFoundByFolder2}}
+      }
+  auth: inherit

@@ -1,0 +1,14 @@
+info:
+  name: Obtain Token info from Token Introspection Endpoint
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{ISSUER}}/protocol/openid-connect/token/introspect"
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: text
+    data: client_id={{CLIENT_WITH_PASSWORD_GRANT}}&client_secret={{SECRET}}&token={{ACCESS_TOKEN}}&token_type_hint=access_token

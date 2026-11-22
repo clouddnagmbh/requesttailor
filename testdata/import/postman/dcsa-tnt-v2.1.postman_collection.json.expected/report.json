@@ -1,0 +1,245 @@
+{
+  "collectionName": "DCSA-TNT",
+  "report": {
+    "environments": 0,
+    "folders": 10,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "test script (6 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events"
+      },
+      {
+        "detail": "test script (3 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / BY TransportEventCombo"
+      },
+      {
+        "detail": "test script (11 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By CarrierServiceCode"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By CarrierVoyageNumber 3419E"
+      },
+      {
+        "detail": "request settings not imported: `disableBodyPruning`",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET events / Positive test cases / By CarrierVoyageNumber 3419E"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By CarrierVoyageNumber TNT1E"
+      },
+      {
+        "detail": "request settings not imported: `disableBodyPruning`",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET events / Positive test cases / By CarrierVoyageNumber TNT1E"
+      },
+      {
+        "detail": "test script (13 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By DocumentReferenceCBR"
+      },
+      {
+        "detail": "test script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By EquipmentEventTypeCode"
+      },
+      {
+        "detail": "test script (16 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By EquipmentReference"
+      },
+      {
+        "detail": "test script (7 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By ImpossibleCombo"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By TransportCallReference"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By TransportEventTypeCode"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By UniversalServiceReference"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By shipmentEventTypeCode RECE"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / By vesselIMONumber"
+      },
+      {
+        "detail": "request settings not imported: `disableBodyPruning`",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "GET events / Positive test cases / By vesselIMONumber"
+      },
+      {
+        "detail": "test script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / GET All Events"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / GET Equipment events"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / GET Shipment events"
+      },
+      {
+        "detail": "test script (9 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "GET events / Positive test cases / GET Transport events"
+      },
+      {
+        "detail": "test script (31 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription"
+      },
+      {
+        "detail": "test script (5 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, and delete / Get created EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (10 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, and delete / create single EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (4 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, and delete / update EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (28 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, and update with nulls / Get created EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (12 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, and update with nulls / create single EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (6 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, and update with nulls / update EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (27 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, update and retrieve it / Get created EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (12 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, update and retrieve it / create single EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (6 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create ESWithSecretTO, update and retrieve it / update EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (26 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create EventSubscriptionWithSecretTO and retrieve it / Get created EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (12 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create EventSubscriptionWithSecretTO and retrieve it / create single EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (23 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create EventSubscriptionWithSecretTO and retrieve list / Get created EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (12 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Post EventSubscription / Test: create EventSubscriptionWithSecretTO and retrieve list / create single EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (12 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Test Unofficial API: create ESWithSecretTO, update secret / Get created EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (12 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Test Unofficial API: create ESWithSecretTO, update secret / create single EventSubscriptionWithSecretTO"
+      },
+      {
+        "detail": "test script (5 lines) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Test Unofficial API: create ESWithSecretTO, update secret / update EventSubscriptionWith Secret body"
+      }
+    ],
+    "requests": 34
+  }
+}

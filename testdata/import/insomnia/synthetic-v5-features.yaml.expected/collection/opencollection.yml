@@ -1,0 +1,15 @@
+opencollection: "1.0.0"
+
+info:
+  name: Synthetic v5
+
+request:
+  variables:
+    - name: base_url
+      value: https://shop.example.com
+    - name: sku
+      value: A-1
+
+docs: Covers the v5 tree, scripts, settings and environments.
+
+bundled: false

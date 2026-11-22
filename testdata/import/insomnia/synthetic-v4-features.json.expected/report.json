@@ -1,0 +1,203 @@
+{
+  "collectionName": "Synthetic v4",
+  "report": {
+    "environments": 3,
+    "folders": 2,
+    "format": "insomnia",
+    "losses": [
+      {
+        "detail": "1 cookie of the cookie jar not imported",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "collection"
+      },
+      {
+        "detail": "API design document not imported; import it as an OpenAPI file",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "AWS Signature v4 settings kept in the file, but RequestTailor cannot send with AWS Signature v4 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "AWS"
+      },
+      {
+        "detail": "API key in a cookie not imported; send it as a header instead",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Binary body"
+      },
+      {
+        "detail": "body file `/tmp/blob.bin` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Binary body"
+      },
+      {
+        "detail": "pre-request script (3 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Create (JSON)"
+      },
+      {
+        "detail": "after-response script (1 line) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Create (JSON)"
+      },
+      {
+        "detail": "the password is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Create (JSON)"
+      },
+      {
+        "detail": "template tag `{% now %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Create (JSON)"
+      },
+      {
+        "detail": "disabled basic auth not imported",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Disabled auth"
+      },
+      {
+        "detail": "Digest auth settings kept in the file, but RequestTailor cannot send with Digest auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GraphQL"
+      },
+      {
+        "detail": "GraphQL body imported as a JSON body ({\"query\", \"variables\"})",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "GraphQL"
+      },
+      {
+        "detail": "Hawk auth (`hawk`) not imported: OpenCollection cannot hold it; the request is sent without auth",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Hawk"
+      },
+      {
+        "detail": "OAuth 1.0 private key not imported",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "OAuth 1"
+      },
+      {
+        "detail": "OAuth 1.0 settings kept in the file, but RequestTailor cannot send with OAuth 1.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "OAuth 1"
+      },
+      {
+        "detail": "OAuth 2.0 settings not imported: `audience`, `responseType`",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "OAuth 2"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "OAuth 2"
+      },
+      {
+        "detail": "WebSocket request not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "Socket"
+      },
+      {
+        "detail": "unit test suite (1 test) not imported",
+        "effect": "dropped",
+        "kind": "test",
+        "location": "Suite"
+      },
+      {
+        "detail": "the API key is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "Upload"
+      },
+      {
+        "detail": "file `/Users/someone/report.pdf` for `file` refers to the original computer; copy it into the collection folder and update the path",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Upload"
+      },
+      {
+        "detail": "file part `empty` has no file selected; choose one in the request",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Upload"
+      },
+      {
+        "detail": "pre-request script (2 lines) not imported",
+        "effect": "dropped",
+        "kind": "script",
+        "location": "Users"
+      },
+      {
+        "detail": "template tag `{% uuid %}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "Users / List users"
+      },
+      {
+        "detail": "request settings not imported: do not send cookies, do not render the body",
+        "effect": "dropped",
+        "kind": "setting",
+        "location": "Users / List users"
+      },
+      {
+        "detail": "NTLM auth settings kept in the file, but RequestTailor cannot send with NTLM auth yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "XML with filter"
+      },
+      {
+        "detail": "template tag `{{_.user | upper}}` kept as text; RequestTailor does not evaluate it",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "XML with filter"
+      },
+      {
+        "detail": "nested values imported as flat variables (`a.b`); lists as JSON text",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "environment Base Environment"
+      },
+      {
+        "detail": "secret value of `hidden` not imported; set it in Environments",
+        "effect": "dropped",
+        "kind": "variable",
+        "location": "environment Key value"
+      },
+      {
+        "detail": "secret value of `api_token` not imported; set it in Environments",
+        "effect": "dropped",
+        "kind": "variable",
+        "location": "environment Private"
+      },
+      {
+        "detail": "gRPC request not imported",
+        "effect": "dropped",
+        "kind": "protocol",
+        "location": "gRPC call"
+      },
+      {
+        "detail": "the credential header is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "https://api.example.com/header?x={{page_size}}"
+      }
+    ],
+    "requests": 14
+  }
+}

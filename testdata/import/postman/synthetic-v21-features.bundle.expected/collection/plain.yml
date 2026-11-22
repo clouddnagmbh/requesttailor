@@ -1,0 +1,9 @@
+info:
+  name: Plain
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: https://example.com/plain
+  auth: inherit

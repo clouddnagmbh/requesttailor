@@ -1,0 +1,15 @@
+info:
+  name: A simple POST request with JSON body
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: https://postman-echo.com/post
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: '{"text":"Duis posuere augue vel cursus pharetra. In luctus a ex nec pretium..."}'
+  auth: inherit

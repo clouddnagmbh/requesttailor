@@ -1,0 +1,292 @@
+{
+  "info": {
+    "_postman_id": "0b7d9a52-1111-4c1e-9f00-000000000001",
+    "name": "Synthetic Features",
+    "description": "Covers every construct the Postman importer knows.\n\nMarkdown **kept**.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Users",
+      "description": "User endpoints.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+      },
+      "event": [
+        { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["// folder script", "pm.variables.set('x', 1);"] } }
+      ],
+      "item": [
+        {
+          "name": "Get user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json", "description": "Wanted type" },
+              { "key": "X-Trace", "value": "{{$guid}}", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/:id?expand=roles&page={{$randomInt}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", ":id"],
+              "query": [
+                { "key": "expand", "value": "roles", "description": "Related data" },
+                { "key": "page", "value": "{{$randomInt}}" },
+                { "key": "debug", "value": "1", "disabled": true }
+              ],
+              "variable": [{ "key": "id", "value": "42", "description": "User id" }]
+            },
+            "description": "Returns one user."
+          },
+          "response": [
+            {
+              "name": "Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": { "raw": "{{baseUrl}}/users/42", "host": ["{{baseUrl}}"], "path": ["users", "42"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"id\": 42,\n  \"name\": \"Ada\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/users"
+          },
+          "response": [
+            {
+              "name": "Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": { "mode": "formdata", "formdata": [{ "key": "a", "value": "b", "type": "text" }] },
+                "url": "{{baseUrl}}/users"
+              },
+              "code": 201,
+              "status": "Created",
+              "header": "Location: /users/43",
+              "cookie": [{ "domain": "example.com", "key": "s", "value": "1" }],
+              "body": "created"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth schemes",
+      "item": [
+        {
+          "name": "Basic literal",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "ada", "type": "string" },
+                { "key": "password", "value": "not-a-real-password", "type": "string" },
+                { "key": "showPassword", "value": false, "type": "boolean" }
+              ]
+            },
+            "method": "GET",
+            "url": "https://example.com/basic"
+          }
+        },
+        {
+          "name": "API key in query",
+          "request": {
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                { "key": "key", "value": "api_key", "type": "string" },
+                { "key": "value", "value": "{{apiKey}}", "type": "string" },
+                { "key": "in", "value": "query", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "url": "https://example.com/apikey"
+          }
+        },
+        {
+          "name": "No auth",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "https://example.com/open" }
+        },
+        {
+          "name": "OAuth 2",
+          "request": {
+            "auth": {
+              "type": "oauth2",
+              "oauth2": [
+                { "key": "grant_type", "value": "authorization_code_with_pkce", "type": "string" },
+                { "key": "authUrl", "value": "https://auth.example.com/authorize", "type": "string" },
+                { "key": "accessTokenUrl", "value": "https://auth.example.com/token", "type": "string" },
+                { "key": "redirect_uri", "value": "https://app.example.com/cb", "type": "string" },
+                { "key": "clientId", "value": "{{clientId}}", "type": "string" },
+                { "key": "clientSecret", "value": "dummy-secret", "type": "string" },
+                { "key": "scope", "value": "read write", "type": "string" },
+                { "key": "accessToken", "value": "stored-token-value", "type": "string" },
+                { "key": "tokenName", "value": "Token", "type": "string" },
+                { "key": "audience", "value": "api", "type": "string" },
+                { "key": "addTokenTo", "value": "header", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "url": "https://example.com/oauth2"
+          }
+        },
+        {
+          "name": "Digest",
+          "request": {
+            "auth": {
+              "type": "digest",
+              "digest": [
+                { "key": "username", "value": "{{user}}", "type": "string" },
+                { "key": "password", "value": "{{password}}", "type": "string" },
+                { "key": "realm", "value": "example", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "url": "https://example.com/digest"
+          }
+        },
+        {
+          "name": "AWS",
+          "request": {
+            "auth": {
+              "type": "awsv4",
+              "awsv4": [
+                { "key": "accessKey", "value": "{{awsKey}}", "type": "string" },
+                { "key": "secretKey", "value": "{{awsSecret}}", "type": "string" },
+                { "key": "region", "value": "eu-central-1", "type": "string" },
+                { "key": "service", "value": "execute-api", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "url": "https://example.com/aws"
+          }
+        },
+        {
+          "name": "Hawk",
+          "request": {
+            "auth": { "type": "hawk", "hawk": [{ "key": "authId", "value": "x", "type": "string" }] },
+            "method": "GET",
+            "url": "https://example.com/hawk"
+          }
+        },
+        {
+          "name": "Token header",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer literal-token-123" }],
+            "url": "https://example.com/header"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bodies",
+      "protocolProfileBehavior": { "followRedirects": false, "strictSSL": false },
+      "item": [
+        {
+          "name": "Form",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "a", "value": "1" },
+                { "key": "b", "value": "2", "disabled": true }
+              ]
+            },
+            "url": "https://example.com/form"
+          }
+        },
+        {
+          "name": "Multipart",
+          "protocolProfileBehavior": { "maxRedirects": 3, "disableUrlEncoding": true },
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "text", "value": "hello", "type": "text" },
+                { "key": "upload", "type": "file", "src": "/Users/someone/photo.png" },
+                { "key": "empty", "type": "file", "src": [] }
+              ]
+            },
+            "url": "https://example.com/upload"
+          }
+        },
+        {
+          "name": "GraphQL",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "graphql",
+              "graphql": { "query": "query { me { id } }", "variables": "{\"a\": 1}" }
+            },
+            "url": "https://example.com/graphql"
+          }
+        },
+        {
+          "name": "XML",
+          "request": {
+            "method": "PUT",
+            "header": "Content-Type: application/xml\nX-One: 1",
+            "body": { "mode": "raw", "raw": "<a/>", "options": { "raw": { "language": "xml" } } },
+            "url": { "protocol": "https", "host": ["example", "com"], "path": ["xml"], "query": [{ "key": "q", "value": "1" }] },
+            "proxy": { "host": "proxy.local" }
+          }
+        },
+        {
+          "name": "Binary",
+          "request": {
+            "method": "POST",
+            "body": { "mode": "file", "file": { "src": "C:\\data\\blob.bin" } },
+            "url": "https://example.com/binary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Plain",
+      "request": { "method": "delete", "url": "https://example.com/plain" }
+    }
+  ],
+  "event": [
+    { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [""] } },
+    { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ok', () => {});"] } }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "https://api.example.com", "description": "API root" },
+    { "key": "retries", "value": 3, "type": "number" },
+    { "key": "token", "value": "", "type": "secret" },
+    { "key": "off", "value": "x", "disabled": true }
+  ]
+}

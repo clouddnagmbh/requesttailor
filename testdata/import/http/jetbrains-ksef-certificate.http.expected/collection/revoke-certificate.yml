@@ -1,0 +1,21 @@
+info:
+  name: revoke certificate
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: http://localhost:8082/certificate/revoke/{{certificateSerialNumber}}
+  headers:
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: "{{token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "revocationReason": "Superseded"
+      }

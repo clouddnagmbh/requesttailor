@@ -1,0 +1,15 @@
+info:
+  name: GET {{api}}/availability/resources
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: "{{api}}/availability/resources?tags={{tags}}&matchAllTags=false"
+  params:
+    - name: tags
+      value: "{{tags}}"
+      type: query
+    - name: matchAllTags
+      value: "false"
+      type: query

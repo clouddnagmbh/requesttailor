@@ -1,0 +1,21 @@
+info:
+  name: POST mockbin.com/har
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://mockbin.com/har
+  headers:
+    - name: content-type
+      value: application/x-www-form-urlencoded
+  body:
+    type: form-urlencoded
+    data:
+      - name: foo
+        value: bar
+      - name: hello
+        value: world
+
+settings:
+  followRedirects: false

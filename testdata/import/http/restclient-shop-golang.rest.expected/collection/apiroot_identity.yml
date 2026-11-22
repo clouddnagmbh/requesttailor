@@ -1,0 +1,8 @@
+info:
+  name: ApiRoot_Identity
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{identity-api}}"

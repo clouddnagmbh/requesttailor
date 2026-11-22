@@ -1,0 +1,56 @@
+info:
+  name: Create insights for Box items
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/query_insights"
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "query": {
+          "predicate": "EXISTS(:templateArg) AND box:item:created_at >= :dateArg1 AND box:item:created_at < :dateArg2",
+          "params": {
+            "templateArg": "enterprise_12345678:sales",
+            "dateArg1": "2025-06-01T00:00:00-07:00",
+            "dateArg2": "2025-07-01T00:00:00-07:00"
+          },
+          "ancestors": [
+            {
+              "id": "123",
+              "type": "folder"
+            }
+          ],
+          "group_by": [
+            {
+              "field": "enterprise_12345678:sales:contractType",
+              "bucket_limit": 3
+            }
+          ]
+        },
+        "metrics": {
+          "totalContractValue": {
+            "type": "sum",
+            "field": "enterprise_12345678:sales:contractValue"
+          },
+          "countContractType": {
+            "type": "count",
+            "field": "enterprise_12345678:sales:contractType"
+          }
+        }
+      }
+  auth: inherit
+
+docs: |-
+  Computes aggregated metrics over Box items matching a query predicate.
+  Filters are applied first, followed by optional grouping, after which the
+  requested metrics (such as `sum`, `avg`, `min`, `max`, and `count`) are
+  computed for each resulting group or over the entire filtered dataset.

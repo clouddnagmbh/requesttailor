@@ -1,0 +1,16 @@
+info:
+  name: XML with filter
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: https://api.example.com/xml
+  body:
+    type: xml
+    data: <a>{{ _.user | upper }}</a>
+  auth:
+    type: ntlm
+    username: u
+    password: "{{password}}"
+    domain: CORP

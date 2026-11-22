@@ -1,0 +1,13 @@
+info:
+  name: Add a new pet to the store
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pet"
+  auth:
+    type: apikey
+    key: X-API-KEY
+    value: "{{apiKey}}"
+    placement: header

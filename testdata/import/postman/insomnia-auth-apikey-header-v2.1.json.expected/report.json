@@ -1,0 +1,17 @@
+{
+  "collectionName": "New Collection",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "postman",
+    "losses": [
+      {
+        "detail": "the API key is stored in the request file as typed; consider a secret variable (set its value in Environments) and use {{name}} here",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "New Request"
+      }
+    ],
+    "requests": 1
+  }
+}

@@ -1,0 +1,17 @@
+info:
+  name: Binary
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: https://example.com/binary
+  body:
+    type: file
+    data:
+      - filePath: C:\data\blob.bin
+        selected: true
+  auth: inherit
+
+settings:
+  followRedirects: false

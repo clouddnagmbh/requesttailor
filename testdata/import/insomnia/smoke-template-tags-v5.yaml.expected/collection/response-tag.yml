@@ -1,0 +1,20 @@
+info:
+  name: Response Tag
+  type: http
+  seq: 12
+
+http:
+  method: GET
+  url: http://127.0.0.1:4010/echo
+  headers:
+    - name: Content-Type
+      value: text/plain
+    - name: User-Agent
+      value: insomnia/11.1.0
+  body:
+    type: text
+    data: |-
+      {% response 'body', 'req_60295920e8a9459fb32cacb739a261f5', 'b64::JC5tZXRob2Q=::46b', 'never', 60 %}
+      {% response 'header', 'req_60295920e8a9459fb32cacb739a261f5', 'b64::Y29udGVudC10eXBl::46b', 'never', 60 %}
+      {% response 'url', 'req_60295920e8a9459fb32cacb739a261f5', '', 'never', 60 %}
+  auth: inherit

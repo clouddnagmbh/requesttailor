@@ -1,0 +1,23 @@
+info:
+  name: Orders
+  type: folder
+  seq: 1
+
+request:
+  headers:
+    - name: X-Team
+      value: shop
+  auth:
+    type: oauth2
+    flow: client_credentials
+    accessTokenUrl: https://id.example.com/token
+    credentials:
+      clientId: shop
+      clientSecret: typed-client-secret
+      placement: basic_auth_header
+    scope: orders
+  variables:
+    - name: region
+      value: eu
+
+docs: Order endpoints

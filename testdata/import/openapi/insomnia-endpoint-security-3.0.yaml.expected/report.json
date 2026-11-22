@@ -1,0 +1,77 @@
+{
+  "collectionName": "Endpoint Security",
+  "report": {
+    "environments": 1,
+    "folders": 0,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "alternative security schemes not imported: `Basic`, `Key-Query`, `Key-Header`, `Key-Cookie`, `OAuth2-AuthorizationCode`, `OAuth2-Implicit`, `OAuth2-ClientCredentials`, `OAuth2-Password`",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /all"
+      },
+      {
+        "detail": "alternative security schemes not imported: `AnotherKey-Cookie`",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /key/cookie"
+      },
+      {
+        "detail": "API key in `cookie` (scheme `Key-Cookie`) not imported; send it as a header instead",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "GET /key/cookie"
+      },
+      {
+        "detail": "alternative security schemes not imported: `AnotherKey-Header`",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /key/header"
+      },
+      {
+        "detail": "alternative security schemes not imported: `AnotherKey-Query`",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /key/query"
+      },
+      {
+        "detail": "alternative security schemes not imported: `Basic`",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /none/basic"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /oauth2/authorization-code"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /oauth2/client-credentials"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /oauth2/implicit"
+      },
+      {
+        "detail": "OAuth 2.0 settings kept in the file, but RequestTailor cannot send with OAuth 2.0 yet",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "GET /oauth2/password"
+      }
+    ],
+    "requests": 12
+  }
+}

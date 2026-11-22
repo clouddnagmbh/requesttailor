@@ -1,0 +1,19 @@
+info:
+  name: Get order
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{base_url}}/orders/{{order_id}}?expand=items"
+  params:
+    - name: expand
+      value: items
+      type: query
+      description: include items
+  headers:
+    - name: Accept
+      value: application/json
+  auth: inherit
+
+docs: Reads one order.

@@ -1,0 +1,6 @@
+name: Private
+variables:
+  - secret: true
+    name: api_token
+  - secret: true
+    name: empty

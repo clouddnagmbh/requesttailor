@@ -1,0 +1,10 @@
+name: Localhost REST API - QA_master_localhost
+variables:
+  - name: serviceHostName
+    value: localhost
+  - name: servicePortNumber
+    value: "44393"
+  - name: expectedDataXML
+    value: <root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><email_type><email_type_code>HOME</email_type_code><email_type_description>Home Email Address</email_type_description><sort_order>1</sort_order><is_unique>1</is_unique><timestamp>AAAAAAAAWMM=</timestamp></email_type><email_type><email_type_code>VACA</email_type_code><email_type_description>Vacation address</email_type_description><sort_order xsi:nil="true"/><is_unique>0</is_unique><timestamp>AAAAAAAADgw=</timestamp></email_type><email_type><email_type_code>WORK</email_type_code><email_type_description>Work Email Address</email_type_description><sort_order xsi:nil="true"/><is_unique>0</is_unique><timestamp>AAAAAAAAC5Q=</timestamp></email_type></root>
+  - name: serviceDatabaseConnection
+    value: QA_master_localhost

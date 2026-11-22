@@ -1,0 +1,8 @@
+name: dev
+variables:
+  - name: host
+    value: localhost:8080
+  - name: user
+    value: alice
+  - secret: true
+    name: password

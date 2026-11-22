@@ -1,0 +1,9 @@
+info:
+  name: Create user
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{base_url}}/user"
+  auth: inherit

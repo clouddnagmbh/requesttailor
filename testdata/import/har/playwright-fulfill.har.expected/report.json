@@ -1,0 +1,10 @@
+{
+  "collectionName": "playwright-fulfill",
+  "report": {
+    "environments": 0,
+    "folders": 0,
+    "format": "har",
+    "losses": [],
+    "requests": 5
+  }
+}

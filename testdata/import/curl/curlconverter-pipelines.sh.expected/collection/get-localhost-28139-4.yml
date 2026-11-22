@@ -1,0 +1,11 @@
+info:
+  name: GET localhost:28139
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: http://localhost:28139
+
+settings:
+  followRedirects: false

@@ -1,0 +1,25 @@
+opencollection: "1.0.0"
+
+info:
+  name: globals+env+data tests
+
+request:
+  variables:
+    - name: full_global_url
+      value: https://postman-echo.com/get
+    - name: global_resource_get
+      value: /get
+    - name: Global Foo
+      value: Global Bar
+    - name: Global Phew
+      value: Global Works
+    - name: global
+      value: global1
+    - name: env
+      value: global1
+    - name: data
+      value: global1
+
+docs: A set of tests for global and data variable operations
+
+bundled: false

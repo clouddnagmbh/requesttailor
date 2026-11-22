@@ -1,0 +1,16 @@
+opencollection: "1.0.0"
+
+info:
+  name: Swagger Petstore
+
+request:
+  variables:
+    - name: baseUrl
+      value: http://petstore.swagger.io/api
+
+docs: |-
+  Version 1.0.0
+
+  A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
+
+bundled: false

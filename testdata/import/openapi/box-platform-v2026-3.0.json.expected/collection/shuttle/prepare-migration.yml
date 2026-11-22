@@ -1,0 +1,22 @@
+info:
+  name: Prepare migration
+  type: http
+  seq: 14
+
+http:
+  method: POST
+  url: "{{baseUrl}}/shuttle_jobs/:shuttle_job_id/prepare_migration"
+  params:
+    - name: shuttle_job_id
+      value: 6a3ba68e810d9156194530a1
+      type: path
+      description: The unique identifier for the shuttle job.
+  headers:
+    - name: box-version
+      value: "2026.0"
+      description: Version header.
+  auth: inherit
+
+docs: |-
+  Validates the configured account and path mappings before a transfer. Only
+  relevant when account mapping is enabled.

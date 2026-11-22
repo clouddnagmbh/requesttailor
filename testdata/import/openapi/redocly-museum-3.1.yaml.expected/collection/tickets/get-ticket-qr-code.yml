@@ -1,0 +1,16 @@
+info:
+  name: Get ticket QR code
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/tickets/:ticketId/qr"
+  params:
+    - name: ticketId
+      value: a54a57ca-36f8-421b-a6b4-2e8f26858a4c
+      type: path
+      description: Identifier for a ticket to a museum event. Used to generate ticket image.
+  auth: inherit
+
+docs: Return an image of your ticket with scannable QR code. Used for event entry.

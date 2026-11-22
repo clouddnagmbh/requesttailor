@@ -1,0 +1,13 @@
+info:
+  name: "followRedirects: true"
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: localhost:4042/1
+  auth: inherit
+
+settings:
+  followRedirects: true
+  maxRedirects: 10

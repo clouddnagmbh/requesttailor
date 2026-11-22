@@ -1,0 +1,23 @@
+opencollection: "1.0.0"
+
+info:
+  name: Synthetic Features
+
+request:
+  auth:
+    type: bearer
+    token: "{{token}}"
+  variables:
+    - name: baseUrl
+      value: https://{{region}}.api.example.com/{{version}}
+    - name: region
+      value: eu
+    - name: version
+      value: v1
+
+docs: |-
+  Version 1.0.0
+
+  Covers every construct the OpenAPI importer maps or reports.
+
+bundled: false

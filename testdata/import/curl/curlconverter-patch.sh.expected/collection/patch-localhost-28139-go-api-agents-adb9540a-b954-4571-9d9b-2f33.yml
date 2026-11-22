@@ -1,0 +1,23 @@
+info:
+  name: PATCH localhost:28139/go/api/agents/adb9540a-b954-4571-9d9b-2f330739d4da
+  type: http
+  seq: 1
+
+http:
+  method: PATCH
+  url: http://localhost:28139/go/api/agents/adb9540a-b954-4571-9d9b-2f330739d4da
+  headers:
+    - name: Accept
+      value: application/vnd.go.cd.v4+json
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: '{        "hostname": "agent02.example.com",        "agent_config_state": "Enabled",        "resources": ["Java","Linux"],        "environments": ["Dev"]        }'
+  auth:
+    type: basic
+    username: username
+    password: password
+
+settings:
+  followRedirects: false
