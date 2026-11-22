@@ -11,6 +11,8 @@
 // - isomorphic-git (with its Buffer polyfill) loads on the first Git call, not at app start.
 // - Operations run one at a time. `checkout`, `pull` and `resolve` refuse while the workspace
 //   has unsaved changes and reopen the collection afterwards, so the core sees the new files.
+// - `commit` runs the secret scanner (./scan.ts) over the files first and refuses with
+//   `secrets-found` while they contain credentials (wave 5, strand E).
 // - Credentials per host live in the encrypted browser secret store (collection
 //   "git:credentials", environment = host, variables `username` and `password`). The author
 //   identity is not secret: it is kept per browser profile in `localStorage`.
@@ -27,6 +29,7 @@ import type { WebHost } from "../web-backend";
 import { directoryFs } from "./fs";
 import { companionHttp, NO_COMPANION_MESSAGE } from "./http";
 import type { Network, Repo } from "./repo";
+import { refuseSecrets, scanPaths } from "./scan";
 
 type RepoModule = typeof import("./repo");
 
@@ -164,7 +167,12 @@ export function webGit(host: WebHost): GitApi {
         return core.textDiff(path, old, current);
       }),
 
-    commit: (message, paths) => run(async () => (await ops()).commit(repo(), message, paths, requireIdentity())),
+    commit: (message, paths) =>
+      run(async () => {
+        // The secret scanner first (wave 5): no commit while the files hold credentials.
+        await refuseSecrets(session().handle, paths, await host.deps.loadCore());
+        return (await ops()).commit(repo(), message, paths, requireIdentity());
+      }),
 
     log: (limit) => run(async () => (await ops()).log(repo(), limit)),
 
@@ -259,8 +267,8 @@ export function webGit(host: WebHost): GitApi {
       await s.delete(h, "password");
     },
 
-    // Wave 5, strand E: `rt_app::secret_scan` through rt-wasm; `commit` refuses with
-    // `secrets-found`. Interface commit: finds nothing.
-    scan: async () => [],
+    // Wave 5, strand E: `rt_app::secret_scan` through rt-wasm (./scan.ts); `commit` refuses
+    // with `secrets-found`.
+    scan: (paths) => run(async () => scanPaths(session().handle, paths, await host.deps.loadCore())),
   };
 }

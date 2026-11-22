@@ -37,3 +37,15 @@ pub fn scan_secrets(files: JsValue) -> Result<JsValue, JsValue> {
         .collect();
     to_js(&rt_app::secret_scan::scan(&refs))
 }
+
+/// The message of a refused commit for `findings` (`SecretFinding[]`, not empty), as the
+/// desktop's `AppError::SecretsFound` (`rt_app::secret_scan::refusal`).
+#[wasm_bindgen(js_name = secretRefusal)]
+pub fn secret_refusal(findings: JsValue) -> Result<String, JsValue> {
+    let findings: Vec<rt_app::secret_scan::SecretFinding> =
+        crate::workspace_js::from_js(&findings, "findings")?;
+    if findings.is_empty() {
+        return Err(js_sys::TypeError::new("findings must not be empty").into());
+    }
+    Ok(rt_app::secret_scan::refusal(&findings))
+}

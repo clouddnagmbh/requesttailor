@@ -48,6 +48,7 @@ import { sendServices } from "./send-services";
 import { webRecent, type WebRecent } from "./recent";
 import { readDirectory, writeChanges } from "./fs/directory";
 import { lastFolder, rememberFolder } from "./fs/recent";
+import { ExternalSecretReader } from "./secrets/external";
 import { openBrowserSecretStore } from "./secrets/store";
 import {
   loadCore,
@@ -139,6 +140,8 @@ export class WebBackend implements Backend {
   private triedLast = false;
   private companionOn = false;
   private companionClient: CompanionClient | null = null;
+  /** External secrets read through the companion, cached for the session (wave 5). */
+  private readonly external: ExternalSecretReader;
 
   constructor(readonly deps: WebBackendDeps = DEFAULT_DEPS) {
     const host: WebHost = {
@@ -153,6 +156,7 @@ export class WebBackend implements Backend {
         }
       },
     };
+    this.external = new ExternalSecretReader(host.companionCredentials);
     this.git = webGit(host);
     this.imports = webImports(host);
     this.history = new WebHistory(host);
@@ -292,26 +296,35 @@ export class WebBackend implements Backend {
 
   // ---- sending ----
 
-  /** Values of the enabled secret variables of the selected environment. The secret store
-   *  is only opened when that environment has secret variables. */
-  private async secretValues(s: Session, environment: string | null): Promise<[string, string][]> {
+  /** Values of the enabled secret variables of the selected environment, plus its external
+   *  secrets (browser store values win). The secret store is only opened when that
+   *  environment has secret variables. External secrets are read through the companion when
+   *  sending (`read`); preview uses only those already read. */
+  private async secretValues(s: Session, environment: string | null, read = false): Promise<[string, string][]> {
     const env = environment == null ? undefined : s.ws.environments().find((e) => e.name === environment);
     const names = env?.variables.filter((v) => v.secret && v.enabled).map((v) => v.name) ?? [];
-    if (!env || names.length === 0) return [];
-    const store = await this.secretStore(s);
+    if (!env) return [];
     const values: [string, string][] = [];
-    for (const name of names) {
-      const value = await store.get(env.name, name);
-      if (value != null) values.push([name, value]);
+    if (names.length > 0) {
+      const store = await this.secretStore(s);
+      for (const name of names) {
+        const value = await store.get(env.name, name);
+        if (value != null) values.push([name, value]);
+      }
+    }
+    const external = env.external_secrets;
+    if (external) {
+      const skip = values.map(([name]) => name);
+      values.push(...(read ? await this.external.resolve(external, skip) : this.external.cached(external, skip)));
     }
     return values;
   }
 
-  private async coreInput(s: Session, input: SendInput): Promise<CoreSendInput> {
+  private async coreInput(s: Session, input: SendInput, read = false): Promise<CoreSendInput> {
     return {
       environment: input.environment,
       vars: input.vars,
-      secrets: await this.secretValues(s, input.environment),
+      secrets: await this.secretValues(s, input.environment, read),
     };
   }
 
@@ -329,7 +342,7 @@ export class WebBackend implements Backend {
       const s = this.session();
       const companion = this.companionOn ? await this.companionCredentials() : null;
       const services = await sendServices(this, s.id, input.environment);
-      const result = await s.ws.send(path, await this.coreInput(s, input), companion, services);
+      const result = await s.ws.send(path, await this.coreInput(s, input, true), companion, services);
       try {
         this.history.record(s.id, s.ws.request(path), result);
       } catch (e) {
