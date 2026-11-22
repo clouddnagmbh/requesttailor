@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
+use rt_app::grpc::SessionCodec;
 use rt_app::{AppError, SecretStore, SendInput};
 use rt_core::model::MessageVariant;
 use rt_core::send::{SendError, SendOptions};
@@ -36,6 +37,8 @@ struct Handle {
     log: Arc<Mutex<StreamLog>>,
     /// The session's variables, for `{{templates}}` in messages.
     scope: Scope,
+    /// gRPC sessions (strand B): encodes sent messages.
+    codec: Option<SessionCodec>,
 }
 
 /// The app's sessions by id.
@@ -61,8 +64,18 @@ impl Streams {
 
     /// Sends a saved message: variables resolved from the session's scope.
     pub fn send(&self, id: u32, message: &MessageVariant) -> Result<(), AppError> {
-        let frame = self.with(id, |h| frame(&h.scope, message))??;
-        self.command(id, Command::Send(frame))
+        let (frame, single) = self.with(id, |h| {
+            let frame = frame(&h.scope, message)?;
+            match &h.codec {
+                Some(codec) => Ok((codec.encode(frame)?, codec.ends_after_send())),
+                None => Ok::<_, AppError>((frame, false)),
+            }
+        })??;
+        self.command(id, Command::Send(frame))?;
+        if single {
+            self.command(id, Command::Finish)?;
+        }
+        Ok(())
     }
 
     pub fn finish(&self, id: u32) -> Result<(), AppError> {
@@ -94,7 +107,7 @@ impl Streams {
 static STREAMS: std::sync::LazyLock<Streams> = std::sync::LazyLock::new(Streams::default);
 
 /// The frame of a saved message: variables resolved, binary from base64. gRPC messages are
-/// JSON that `rt-grpc` encodes to protobuf (strand B); until that lands they go out as text.
+/// JSON, encoded to protobuf by the session's [`SessionCodec`] (strand B).
 fn frame(scope: &Scope, message: &MessageVariant) -> Result<Frame, AppError> {
     rt_core::stream::message_frame(message, scope).map_err(AppError::Shell)
 }
@@ -122,6 +135,16 @@ pub async fn open<S: SecretStore>(
         secrets: Vec::new(),
         ..input
     };
+    // Wave 8, strand B: gRPC sessions encode and decode with the request's descriptors.
+    let grpc = core
+        .with_send_input(input.clone(), |ws, input, _| {
+            match rt_app::grpc::snapshot(ws, path, input) {
+                Ok(snapshot) => Ok(Some(snapshot)),
+                Err(AppError::Unsupported(_)) => Ok(None),
+                Err(e) => Err(e),
+            }
+        })
+        .await?;
     let (snapshot, collection) = core.stream_snapshot(path, input).await?;
     let parts = Arc::clone(&core.services);
     let (commands, mut rx) = unbounded_channel();
@@ -141,6 +164,16 @@ pub async fn open<S: SecretStore>(
             iteration: None,
         };
         runtime.block_on(async {
+            let codec = match &grpc {
+                Some(g) => match SessionCodec::open(g, &transport).await {
+                    Ok(codec) => Some(codec),
+                    Err(e) => {
+                        let _ = opened_tx.send(Err(SendError::Prepare(e.to_string())));
+                        return;
+                    }
+                },
+                None => None,
+            };
             let opened = snapshot
                 .open_stream(&transport, &transport, &options, &services.services())
                 .await;
@@ -151,9 +184,12 @@ pub async fn open<S: SecretStore>(
                     return;
                 }
             };
+            if let Some(codec) = codec.clone() {
+                session.decode = Some(Box::new(move |e| codec.decode(e)));
+            }
             let log = Arc::new(Mutex::new(session.log.clone()));
             if opened_tx
-                .send(Ok((Arc::clone(&log), session.scope.clone())))
+                .send(Ok((Arc::clone(&log), session.scope.clone(), codec.clone())))
                 .is_err()
             {
                 session.close().await;
@@ -173,7 +209,7 @@ pub async fn open<S: SecretStore>(
                 .await;
         });
     });
-    let (log, scope) = opened_rx
+    let (log, scope, codec) = opened_rx
         .await
         .map_err(|_| AppError::Shell("the session failed to start".into()))?
         .map_err(open_error)?;
@@ -188,6 +224,7 @@ pub async fn open<S: SecretStore>(
                 commands,
                 log,
                 scope,
+                codec,
             },
         );
     Ok(id)

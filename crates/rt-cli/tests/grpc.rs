@@ -66,24 +66,34 @@ fn rt(file: &Path, extra: &[&str]) -> (i32, String, String) {
 #[test]
 fn an_unknown_method_or_bad_message_is_a_prepare_error() {
     let root = collection("bad", "localhost:1", "/rt.echo.v1.EchoService/Nope", "");
-    let (code, _, err) = rt(&root.join("call.yml"), &[]);
+    let (code, out, err) = rt(&root.join("call.yml"), &[]);
     assert_eq!(code, 3, "{err}");
-    assert!(err.contains("/rt.echo.v1.EchoService/Nope"), "{err}");
+    assert!(out.contains("/rt.echo.v1.EchoService/Nope"), "{out}{err}");
 
+    // The message is encoded once the call is open.
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let addr = runtime
+        .block_on(rt_testserver::spawn_grpc(SocketAddr::from((
+            [127, 0, 0, 1],
+            0,
+        ))))
+        .unwrap();
     let root = collection(
         "msg",
-        "localhost:1",
+        &format!("grpc://{addr}"),
         "/rt.echo.v1.EchoService/Echo",
         "  message: '{\"nope\": 1}'\n",
     );
-    let (code, _, err) = rt(&root.join("call.yml"), &[]);
+    let (code, out, err) = rt(&root.join("call.yml"), &[]);
     assert_eq!(code, 3, "{err}");
-    assert!(err.contains("nope"), "{err}");
+    assert!(out.contains("nope"), "{out}{err}");
     let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
-#[ignore = "wave 8: needs strand A"]
 fn rt_send_prints_the_decoded_stream_log() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()

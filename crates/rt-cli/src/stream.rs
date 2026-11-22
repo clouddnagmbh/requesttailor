@@ -7,7 +7,8 @@
 //! The session is opened like a send (`rt_core::stream::open`, same services as `rt send`),
 //! the selected message (or `--message <title>`) is sent once the session is open, and then:
 //!
-//! - by default, the session is closed after the first received message, or after 10 s;
+//! - by default, the session is closed after the first received message (gRPC: when the
+//!   call ends), or after 10 s;
 //! - `--duration <s>`: closed after that many seconds;
 //! - `--until-close`: runs until the server ends it.
 //!
@@ -167,6 +168,18 @@ pub async fn run_session(
         Err(e) => return SessionOutput::failed(request_path, args, kind, SendError::Plugin(e)),
     };
     let context = collection.request(request_path).expect("same collection");
+    // Wave 8, strand B: gRPC messages are encoded with the request's descriptors.
+    let grpc = match &context.request.spec.protocol {
+        Protocol::Grpc(g) => {
+            match crate::grpc::descriptors(&collection, request_path, g, args, files, transport)
+                .await
+            {
+                Ok(d) => Some((d, g.method.clone())),
+                Err(e) => return SessionOutput::failed(request_path, args, kind, e),
+            }
+        }
+        _ => None,
+    };
     let input = PrepareInput {
         environment: args.environment.as_deref(),
         globals: Vec::new(),
@@ -190,9 +203,12 @@ pub async fn run_session(
         Ok(s) => s,
         Err(e) => return SessionOutput::failed(request_path, args, kind, e),
     };
+    if let Some((d, method)) = grpc.clone() {
+        session.decode = Some(Box::new(move |e| d.decode_event(&method, e)));
+    }
     // SSE sessions only receive; an empty message is not sent.
     let frame = match message.filter(|m| kind != "sse" && !m.data.is_empty()) {
-        Some(m) => match frame_for(&session, kind, &m) {
+        Some(m) => match frame_for(&session, grpc.as_ref(), &m) {
             Ok(frame) => Some(frame),
             Err(e) => {
                 session.close().await;
@@ -235,7 +251,7 @@ pub async fn run_session(
             StreamEvent::Message {
                 direction: rt_core::stream::Direction::Received,
                 ..
-            } if until == Until::FirstMessage => {
+            } if until == Until::FirstMessage && kind != "grpc" => {
                 let _ = tx.send(Command::Close);
             }
             _ => {}
@@ -261,13 +277,14 @@ pub async fn run_session(
 /// messages are JSON that `rt-grpc` encodes to protobuf (wave 8, strand B).
 fn frame_for(
     session: &rt_core::stream::Session<'_>,
-    kind: &str,
+    grpc: Option<&(rt_grpc::Descriptors, String)>,
     message: &MessageVariant,
 ) -> Result<Frame, String> {
-    if kind == "grpc" {
-        return Err("sending gRPC messages from rt send arrives with wave 8, strand B".into());
+    let frame = session.frame(message)?;
+    match grpc {
+        Some((d, method)) => crate::grpc::encode(d, method, frame),
+        None => Ok(frame),
     }
-    session.frame(message)
 }
 
 /// Parses the session option `name` (`sse`, `message`, `duration`, `until-close`) of

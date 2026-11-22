@@ -13,9 +13,9 @@
 //! (headers and static auth from `rt_core::prepare`; OAuth 2.0 tokens and plugin hooks are not
 //! applied to reflection calls).
 
-use rt_core::model::{GrpcSpec, Protocol};
+use rt_core::model::{GrpcMethodType, GrpcSpec, Protocol};
 use rt_core::prepare::{PrepareInput, prepare};
-use rt_core::stream::StreamTransport;
+use rt_core::stream::{Frame, StreamEvent, StreamTransport};
 use rt_format::FileSet;
 pub use rt_grpc::{Descriptors, GrpcError, GrpcMethod, GrpcService, ProtoSource};
 
@@ -135,6 +135,67 @@ impl GrpcSnapshot {
                 .get(p)
                 .map(|b| String::from_utf8_lossy(b).into_owned())
         })
+    }
+}
+
+/// The protobuf codec of an open gRPC session (desktop and web sessions): sent JSON
+/// messages are encoded with the method's input type, and events are decoded for display
+/// (received: output type, sent: input type) before they reach the log and the webview.
+#[derive(Debug, Clone)]
+pub struct SessionCodec {
+    descriptors: Descriptors,
+    method: String,
+    /// Unary and server-streaming calls take one message: the shells half-close after it.
+    single: bool,
+}
+
+impl SessionCodec {
+    /// The descriptors of `snapshot` (proto files or reflection); the method must be one of
+    /// them.
+    pub async fn open<S: StreamTransport + ?Sized>(
+        snapshot: &GrpcSnapshot,
+        transport: &S,
+    ) -> Result<Self, AppError> {
+        let descriptors = snapshot.descriptors(transport).await?;
+        descriptors.method(&snapshot.spec.method)?;
+        Ok(Self::new(descriptors, snapshot))
+    }
+
+    /// The codec of `snapshot`'s method with descriptors already in hand.
+    pub fn new(descriptors: Descriptors, snapshot: &GrpcSnapshot) -> Self {
+        let method = snapshot.spec.method.clone();
+        let method_type = descriptors
+            .method(&method)
+            .map(|m| m.method_type)
+            .unwrap_or(snapshot.spec.method_type);
+        Self {
+            descriptors,
+            method,
+            single: matches!(
+                method_type,
+                GrpcMethodType::Unary | GrpcMethodType::ServerStreaming
+            ),
+        }
+    }
+
+    /// Whether the call ends its client side after one message (unary, server streaming).
+    pub fn ends_after_send(&self) -> bool {
+        self.single
+    }
+
+    /// A message frame (variables resolved) as protobuf.
+    pub fn encode(&self, frame: Frame) -> Result<Frame, AppError> {
+        match frame {
+            Frame::Text(json) => Ok(self.descriptors.encode_frame(&self.method, &json)?),
+            Frame::Binary(_) => Err(AppError::Format(
+                "gRPC messages are JSON; binary messages are not supported".into(),
+            )),
+        }
+    }
+
+    /// `event` with protobuf messages as JSON text.
+    pub fn decode(&self, event: StreamEvent) -> StreamEvent {
+        self.descriptors.decode_event(&self.method, event)
     }
 }
 

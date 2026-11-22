@@ -4,16 +4,16 @@
 //! gRPC services and message templates, GraphQL schemas in the browser (wave 8, strand B).
 //!
 //! ```text
-//! Workspace.grpcServices(path, input) -> Promise<GrpcService[]>
-//! Workspace.grpcTemplate(path, method, input) -> Promise<string>
+//! Workspace.grpcServices(path, input, companion) -> Promise<GrpcService[]>
+//! Workspace.grpcTemplate(path, method, input, companion) -> Promise<string>
 //! Workspace.graphqlSchema(path, input, refresh, companion, services) -> Promise<string>
 //! ```
 //!
 //! `input` is an `rt_app::SendInput` (with the secret values), `companion` and `services` as
 //! for `Workspace.send`. gRPC descriptors come from the proto files of the opened folder
-//! (`protoFilePath` of the request or `config.protobuf`); server reflection needs a stream
-//! transport, which in the browser is the companion's relay (strand A) and rejects with kind
-//! `unsupported` until it is there. The GraphQL introspection query goes out like a send
+//! (`protoFilePath` of the request or `config.protobuf`), else from server reflection over the
+//! companion's stream relay (`streams_js`); without the companion reflection rejects with kind
+//! `unsupported`. The GraphQL introspection query goes out like a send
 //! (`fetch`, or the companion when it is on); the SDL is cached per environment and URL until
 //! `refresh`. Errors reject with an `AppError` (`kind`, `message`).
 
@@ -34,26 +34,52 @@ thread_local! {
     static SCHEMAS: RefCell<SchemaCache> = RefCell::new(SchemaCache::default());
 }
 
-fn local_descriptors(snapshot: &grpc::GrpcSnapshot) -> Result<grpc::Descriptors, AppError> {
-    snapshot.local_descriptors().unwrap_or_else(|| {
-        Err(AppError::Unsupported(
-            "gRPC server reflection in the browser goes through the companion's stream relay; \
-             until then, add the proto files to the collection (protoFilePath or \
+fn companion_of(companion: &JsValue) -> Result<Option<Companion>, JsValue> {
+    if companion.is_null() || companion.is_undefined() {
+        Ok(None)
+    } else {
+        Ok(Some(from_js(companion, "companion")?))
+    }
+}
+
+/// The proto files, else server reflection through the companion.
+pub(crate) async fn descriptors(
+    snapshot: &grpc::GrpcSnapshot,
+    companion: Option<Companion>,
+) -> Result<grpc::Descriptors, AppError> {
+    if let Some(local) = snapshot.local_descriptors() {
+        return local;
+    }
+    match companion {
+        Some(c) => {
+            snapshot
+                .descriptors(&crate::streams_js::BrowserStreams::Companion(c))
+                .await
+        }
+        None => Err(AppError::Unsupported(
+            "gRPC server reflection in the browser needs the companion (`rt agent`); turn it on \
+             and pair it, or add the proto files to the collection (protoFilePath or \
              config.protobuf)"
                 .into(),
-        ))
-    })
+        )),
+    }
 }
 
 #[wasm_bindgen(js_class = Workspace)]
 impl WorkspaceJs {
     /// Services of the gRPC request at `path`; see the module documentation.
     #[wasm_bindgen(js_name = grpcServices)]
-    pub fn grpc_services(&self, path: String, input: JsValue) -> Result<Promise, JsValue> {
+    pub fn grpc_services(
+        &self,
+        path: String,
+        input: JsValue,
+        companion: JsValue,
+    ) -> Result<Promise, JsValue> {
         let input: SendInput = from_js(&input, "input")?;
+        let companion = companion_of(&companion)?;
         let snapshot = grpc::snapshot(&self.workspace(), &path, input).map_err(app_error)?;
         Ok(wasm_bindgen_futures::future_to_promise(async move {
-            let d = local_descriptors(&snapshot).map_err(app_error)?;
+            let d = descriptors(&snapshot, companion).await.map_err(app_error)?;
             to_js(&d.services())
         }))
     }
@@ -65,11 +91,13 @@ impl WorkspaceJs {
         path: String,
         method: String,
         input: JsValue,
+        companion: JsValue,
     ) -> Result<Promise, JsValue> {
         let input: SendInput = from_js(&input, "input")?;
+        let companion = companion_of(&companion)?;
         let snapshot = grpc::snapshot(&self.workspace(), &path, input).map_err(app_error)?;
         Ok(wasm_bindgen_futures::future_to_promise(async move {
-            let d = local_descriptors(&snapshot).map_err(app_error)?;
+            let d = descriptors(&snapshot, companion).await.map_err(app_error)?;
             let template = d.template(&method).map_err(|e| app_error(e.into()))?;
             Ok(JsValue::from_str(&template))
         }))
@@ -86,11 +114,7 @@ impl WorkspaceJs {
         services: JsValue,
     ) -> Result<Promise, JsValue> {
         let input: SendInput = from_js(&input, "input")?;
-        let companion: Option<Companion> = if companion.is_null() || companion.is_undefined() {
-            None
-        } else {
-            Some(from_js(&companion, "companion")?)
-        };
+        let companion = companion_of(&companion)?;
         let (key, snapshot) = {
             let ws = self.workspace();
             let key = graphql::cache_key(&ws, &path, &input).map_err(app_error)?;

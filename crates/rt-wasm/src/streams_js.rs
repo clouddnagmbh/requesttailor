@@ -25,6 +25,10 @@
 //! promise rejects with an `AppError` when the session could not be opened (request not
 //! found, auth, plugin, script, or the transport error's text with kind `shell`). `input`
 //! carries the secret values, as for a send; they never leave this module unmasked.
+//!
+//! gRPC (strand B): the descriptors come first (proto files, else reflection through the
+//! companion, `grpc_js`); sent JSON messages are encoded to protobuf, and every event is
+//! decoded back to JSON before it reaches the log and `onEvent`.
 
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
@@ -33,6 +37,7 @@ use std::rc::Rc;
 use std::task::{Poll, Waker};
 
 use js_sys::{Function, Promise, Reflect};
+use rt_app::grpc::SessionCodec;
 use rt_app::{AppError, SendInput};
 use rt_core::model::MessageVariant;
 use rt_core::send::{SendError, SendOptions};
@@ -68,6 +73,8 @@ struct HandleState {
     log: RefCell<StreamLog>,
     /// The session's variables, for `{{templates}}` in messages.
     scope: Scope,
+    /// gRPC sessions: encodes sent messages.
+    codec: Option<SessionCodec>,
 }
 
 impl HandleState {
@@ -111,7 +118,18 @@ impl StreamHandle {
         let message: MessageVariant = from_js(&message, "message")?;
         let frame = rt_core::stream::message_frame(&message, &self.state.scope)
             .map_err(|m| named_error("shell", &m))?;
-        self.state.push(Command::Send(frame))
+        let (frame, single) = match &self.state.codec {
+            Some(codec) => (
+                codec.encode(frame).map_err(app_error)?,
+                codec.ends_after_send(),
+            ),
+            None => (frame, false),
+        };
+        self.state.push(Command::Send(frame))?;
+        if single {
+            self.state.push(Command::Finish)?;
+        }
+        Ok(())
     }
 
     pub fn finish(&self) -> Result<(), JsValue> {
@@ -163,6 +181,11 @@ impl WorkspaceJs {
         } else {
             Some(from_js(&companion, "companion")?)
         };
+        let grpc = match rt_app::grpc::snapshot(&self.workspace(), path, input.clone()) {
+            Ok(g) => Some(g),
+            Err(AppError::Unsupported(_)) => None,
+            Err(e) => return Err(app_error(e)),
+        };
         let snapshot = self.workspace().snapshot(path, input).map_err(app_error)?;
         let parts = crate::services_js::SendServices::from_js(&services)?;
 
@@ -180,16 +203,32 @@ impl WorkspaceJs {
                 reject,
                 on_event,
             };
+            let codec = match &grpc {
+                Some(g) => match crate::grpc_js::descriptors(g, companion.clone()).await {
+                    Ok(d) => Some(SessionCodec::new(d, g)),
+                    Err(e) => {
+                        let _ = settle.reject.call1(&JsValue::NULL, &app_error(e));
+                        return;
+                    }
+                },
+                None => None,
+            };
             match companion {
                 Some(c) => {
                     let http = CompanionTransport::new(c.url.clone(), c.token.clone());
                     let streams = BrowserStreams::Companion(c);
-                    run(&snapshot, &http, &streams, &options, &services, settle).await
+                    run(
+                        &snapshot, &http, &streams, &options, &services, settle, codec,
+                    )
+                    .await
                 }
                 None => {
                     let http = FetchTransport::new();
                     let streams = BrowserStreams::Fetch(FetchTransport::new());
-                    run(&snapshot, &http, &streams, &options, &services, settle).await
+                    run(
+                        &snapshot, &http, &streams, &options, &services, settle, codec,
+                    )
+                    .await
                 }
             }
         });
@@ -211,6 +250,7 @@ async fn run<T: Transport>(
     options: &SendOptions,
     services: &rt_core::services::Services<'_>,
     settle: Settle,
+    codec: Option<SessionCodec>,
 ) {
     let mut session = match snapshot.open_stream(http, streams, options, services).await {
         Ok(session) => session,
@@ -221,6 +261,9 @@ async fn run<T: Transport>(
             return;
         }
     };
+    if let Some(codec) = codec.clone() {
+        session.decode = Some(Box::new(move |e| codec.decode(e)));
+    }
     let state = Rc::new(HandleState {
         commands: RefCell::new(VecDeque::new()),
         waker: RefCell::new(None),
@@ -228,6 +271,7 @@ async fn run<T: Transport>(
         ended: Cell::new(false),
         log: RefCell::new(session.log.clone()),
         scope: session.scope.clone(),
+        codec,
     });
     let handle = StreamHandle {
         state: Rc::clone(&state),
@@ -268,8 +312,9 @@ fn open_error(e: SendError) -> AppError {
 
 // ---- transports ----
 
-/// The browser's session transports: the companion relay, or `fetch` (SSE only).
-enum BrowserStreams {
+/// The browser's session transports: the companion relay, or `fetch` (SSE only). Also gRPC
+/// server reflection (`grpc_js`).
+pub(crate) enum BrowserStreams {
     Companion(Companion),
     Fetch(FetchTransport),
 }

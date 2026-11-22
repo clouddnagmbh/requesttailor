@@ -265,4 +265,83 @@ mod tests {
             Err(AppError::Shell(m)) if m.contains("/nope.X/Y")
         ));
     }
+
+    /// Acceptance (points 5 and 8): a gRPC session in the desktop app, descriptors by
+    /// reflection, JSON messages encoded and replies decoded before the webview sees them.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn grpc_sessions_encode_and_decode() {
+        use rt_core::model::{MessageKind, MessageVariant};
+        use rt_core::stream::{Direction, Frame, StreamEvent};
+
+        let http = rt_testserver::spawn_local().await;
+        let grpc_addr = rt_testserver::spawn_grpc(SocketAddr::from(([127, 0, 0, 1], 0)))
+            .await
+            .unwrap();
+        let tmp = TempDir::new("session");
+        let root = collection(&tmp.0, http, grpc_addr);
+        let core = Core::new(MemorySecrets::default()).unwrap();
+        core.open(&root).unwrap();
+        core.secret_set("Local", "token", "kc-secret").unwrap();
+
+        let streams = crate::streams::Streams::default();
+        let seen = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let sink = std::sync::Arc::clone(&seen);
+        let id = crate::streams::open(&core, &streams, "echo.yml", local(), move |e| {
+            sink.lock().unwrap().push(e)
+        })
+        .await
+        .unwrap();
+        let message = MessageVariant {
+            title: String::new(),
+            selected: true,
+            kind: MessageKind::Json,
+            data: r#"{"message": "hi {{token}}"}"#.into(),
+        };
+        streams.send(id, &message).unwrap();
+        // Unary: the shell half-closes after the one message.
+        let mut log = streams.log(id).unwrap();
+        for _ in 0..500 {
+            if matches!(log.events.last(), Some(StreamEvent::Closed { .. })) {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            log = streams.log(id).unwrap();
+        }
+        let messages: Vec<_> = log
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                StreamEvent::Message {
+                    direction,
+                    frame: Frame::Text(text),
+                    name,
+                    ..
+                } => Some((*direction, text.clone(), name.clone())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(messages.len(), 2, "{log:?}");
+        assert_eq!(messages[0].0, Direction::Sent);
+        assert_eq!(messages[1].0, Direction::Received);
+        // Decoded before masking: the secret in the message is masked as text.
+        assert!(messages[0].1.contains("\"message\": \"hi ***\""), "{log:?}");
+        assert!(messages[1].1.contains("\"message\": \"hi ***\""), "{log:?}");
+        assert!(!serde_json::to_string(&log).unwrap().contains("kc-secret"));
+        assert_eq!(messages[1].2.as_deref(), Some("rt.echo.v1.EchoReply"));
+        assert!(
+            matches!(
+                log.events.last(),
+                Some(StreamEvent::Closed { code: Some(0), .. })
+            ),
+            "{log:?}"
+        );
+        assert_eq!(seen.lock().unwrap().len(), log.events.len());
+
+        let bad = MessageVariant {
+            data: r#"{"nope": 1}"#.into(),
+            ..message
+        };
+        assert!(streams.send(id, &bad).is_err());
+        streams.release(id);
+    }
 }

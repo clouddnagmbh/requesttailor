@@ -181,6 +181,10 @@ pub struct Session<'a> {
     /// The variables of the session (as prepared), for `{{templates}}` in messages
     /// ([`Session::frame`]).
     pub scope: Scope,
+    /// Turns events into what the log shows, before they are masked (wave 8, strand B: gRPC
+    /// messages from protobuf to JSON, so secrets inside them are masked as text). `None`
+    /// keeps them as they are.
+    pub decode: Option<Box<dyn Fn(StreamEvent) -> StreamEvent + 'a>>,
 }
 
 /// What a shell asks of a running session ([`Session::drive`]).
@@ -195,13 +199,15 @@ pub enum Command {
 impl Session<'_> {
     /// Sends and records a message (masked in the log). The error is masked too.
     pub async fn send(&mut self, frame: Frame) -> Result<(), TransportError> {
-        let recorded = StreamEvent::Message {
-            at_ms: self.elapsed_ms(),
+        let at_ms = self.elapsed_ms();
+        let recorded = self.decoded(StreamEvent::Message {
+            at_ms,
             direction: Direction::Sent,
-            frame: mask_frame(&frame, &self.secrets),
+            frame: frame.clone(),
             name: None,
             id: None,
-        };
+        });
+        let recorded = mask_event(recorded, at_ms, &self.secrets);
         self.inner
             .send(frame)
             .await
@@ -215,6 +221,7 @@ impl Session<'_> {
     /// over.
     pub async fn next(&mut self) -> Option<StreamEvent> {
         let event = self.inner.next().await?;
+        let event = self.decoded(event);
         let event = mask_event(event, self.elapsed_ms(), &self.secrets);
         self.log.events.push(event.clone());
         Some(event)
@@ -222,6 +229,13 @@ impl Session<'_> {
 
     pub async fn close(&mut self) {
         self.inner.close().await;
+    }
+
+    fn decoded(&self, event: StreamEvent) -> StreamEvent {
+        match &self.decode {
+            Some(decode) => decode(event),
+            None => event,
+        }
     }
 
     /// The text of a saved message with its `{{variables}}` resolved from the session's
@@ -519,6 +533,7 @@ pub async fn open<'a, T: Transport, S: StreamTransport + ?Sized>(
         secrets,
         started,
         scope,
+        decode: None,
     })
 }
 
