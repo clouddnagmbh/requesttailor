@@ -331,6 +331,25 @@ impl<S: SecretStore> Core<S> {
         })
     }
 
+    /// What the AI assistant sends for `task` (wave 8, strand E, `ai.rs`): the masked context
+    /// (unsaved edits and kept responses included), every secret value in scope for the
+    /// masking (keychain, cached external secrets, session variables, as for a send) and the
+    /// collection id. No value leaves here except for masking.
+    pub fn ai_context(
+        &self,
+        task: &rt_app::ai::AiTask,
+        input: SendInput,
+    ) -> Result<(rt_app::ai::AiContext, Vec<String>, String), AppError> {
+        self.with_session(|s| {
+            let input = self.services.session.input_for(&s.id, input);
+            let input = self.with_secrets(s, input)?;
+            let context =
+                rt_app::ai::AiContext::new(&s.workspace, &lock(&self.responses), task, &input)?;
+            let secrets = rt_app::ai::secrets_in_scope(s.workspace.collection(), &input);
+            Ok((context, secrets, s.id.clone()))
+        })
+    }
+
     pub fn response_lines(&self, id: u64, start: u64, count: u32) -> Result<LineSlice, AppError> {
         lock(&self.responses).lines(id, start, count)
     }

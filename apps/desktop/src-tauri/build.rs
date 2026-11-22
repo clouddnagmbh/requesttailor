@@ -81,6 +81,12 @@ const COMMANDS: &[&str] = &[
     "runner_parse_data",
     "runner_run",
     "runner_cancel",
+    "ai_config",
+    "ai_set_config",
+    "ai_has_key",
+    "ai_set_key",
+    "ai_delete_key",
+    "ai_ask",
 ];
 
 fn main() {

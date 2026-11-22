@@ -101,6 +101,12 @@ describe("TauriBackend", () => {
     const plan = { requests: ["a.yml"], data: [], iterations: 1, delay_ms: 0, bail: false };
     await b.runner.run(plan, { environment: "Local", vars: [] }, () => {});
     await b.runner.cancel();
+    await b.ai.config();
+    await b.ai.setConfig({ provider: "anthropic", model: "claude-opus-5-5", base_url: null });
+    await b.ai.hasKey("anthropic");
+    await b.ai.setKey("anthropic", "sk-1");
+    await b.ai.deleteKey("anthropic");
+    await b.ai.ask({ task: "explain-error", path: "a.yml", response: 1 }, { environment: "Local", vars: [] });
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -176,6 +182,12 @@ describe("TauriBackend", () => {
       ["runner_parse_data", { name: "d.csv", data: [97] }],
       ["runner_run", { plan, input: { environment: "Local", vars: [] }, onEvent: "channel" }],
       ["runner_cancel", undefined],
+      ["ai_config", undefined],
+      ["ai_set_config", { config: { provider: "anthropic", model: "claude-opus-5-5", base_url: null } }],
+      ["ai_has_key", { provider: "anthropic" }],
+      ["ai_set_key", { provider: "anthropic", key: "sk-1" }],
+      ["ai_delete_key", { provider: "anthropic" }],
+      ["ai_ask", { task: { task: "explain-error", path: "a.yml", response: 1 }, input: { environment: "Local", vars: [] } }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });
