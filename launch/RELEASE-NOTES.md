@@ -9,10 +9,10 @@ plain files in your Git repository. No account, no cloud, no telemetry.
 - **Collections are files.** OpenCollection YAML, one file per request, environments as files.
   Bruno collections in OpenCollection YAML open unchanged; reading and writing gives
   byte-identical files.
-- **Desktop, web and command line on one Rust core.** Native apps for macOS, Windows and
-  Linux; the same interface in the browser through WebAssembly; `rt send` with a JSON report
-  for pipelines. A conformance suite runs the same cases against the native and the
-  WebAssembly core.
+- **Desktop, web and command line on one Rust core.** A native app for macOS; the same
+  interface in the browser through WebAssembly (on Windows and Linux too); `rt send` and
+  `rt run` with JSON and JUnit reports for pipelines, a GitHub Action and a Docker image. A
+  conformance suite runs the same cases against the native and the WebAssembly core.
 - **Secrets stay local.** OS keychain on the desktop, encrypted browser storage on the web,
   external secret managers (1Password, HashiCorp Vault, AWS Secrets Manager, Azure Key Vault,
   Google Secret Manager) through their own command lines, and a secret scanner that refuses
@@ -38,9 +38,10 @@ plain files in your Git repository. No account, no cloud, no telemetry.
 | System | File |
 | --- | --- |
 | macOS (Apple silicon and Intel) | `RequestTailor_<version>_macos_universal.dmg` (signed, notarized) |
-| Windows x64 | `RequestTailor_<version>_windows_x64-setup.exe` (signed) |
-| Linux x64 | `RequestTailor_<version>_linux_amd64.AppImage`, `RequestTailor_<version>_linux_amd64.deb` |
-| CLI | `rt_<version>_macos_universal.zip`, `rt_<version>_windows_x64.zip`, `rt_<version>_linux_x64.tar.gz` |
+| CLI, macOS | `rt_<version>_macos_universal.zip` (signed, notarized) |
+| CLI, Linux | `rt_<version>_linux_x86_64.tar.gz`, `rt_<version>_linux_aarch64.tar.gz` (static binaries) |
+
+Windows and Linux: use the web app or the CLI; there are no desktop installers for them.
 
 Verify with `SHA256SUMS` and its signature `SHA256SUMS.asc` (key `release-key.asc`; compare
 the fingerprint with the one on the website's download page).

@@ -11,9 +11,6 @@ yet; tick each box when it is.
 
 - [ ] **Apple**: Developer ID Application certificate and notarization access; add the
       `APPLE_*` secrets ([RELEASING.md](../RELEASING.md#apple-developer-id-and-notarization)).
-- [ ] **Windows**: Azure Artifact Signing account, identity validation, certificate profile and
-      app registration, then the `AZURE_*` secrets and variables; or a certificate with
-      `WINDOWS_SIGNING=pfx` ([RELEASING.md](../RELEASING.md#windows-option-a-default-azure-artifact-signing)).
 - [ ] **GPG release key**: create it, add `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE`, keep the
       backup and revocation certificate offline, put the fingerprint into
       `website/download/index.html` and `RELEASING.md`.
@@ -31,12 +28,17 @@ yet; tick each box when it is.
 ## Release
 
 - [ ] Tag `v<version>` (signed tag) and push it. The workflow creates a **draft** release.
-- [ ] Download every file from the draft on clean machines and check that the installers start
+- [ ] Download every file from the draft on clean machines and check that the app starts
       without a warning ([RELEASING.md](../RELEASING.md#verifying-installers-start-without-a-warning)):
-      macOS (`spctl`, `codesign`, `stapler`, double-click), Windows (`Get-AuthenticodeSignature`,
-      `signtool verify`, SmartScreen), Linux (`gpg --verify`, `sha256sum -c`, AppImage, `.deb`).
-      Record the results for the gate.
+      macOS (`spctl`, `codesign`, `stapler`, double-click), the Linux `rt` archives
+      (`gpg --verify`, `sha256sum -c`, `rt --version`). Record the results for the gate.
 - [ ] Publish the draft release.
+- [ ] Optional: push the Docker image: Actions > Release > Run workflow on the tag, with
+      `push-image` on; then make the package `rt` public under the owner's packages.
+- [ ] After the repository is public: point the tag `v1` at the release commit
+      (`git tag -s -f v1 <commit> && git push -f origin v1`), so
+      `uses: clouddnagmbh/requesttailor/github-action@v1` resolves; move it with every
+      compatible release ([github-action/README.md](../github-action/README.md#versions)).
 
 ## Going public
 
