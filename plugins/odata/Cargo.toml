@@ -17,6 +17,8 @@ serde_json = "1"
 
 [dev-dependencies]
 rt-format = { path = "../../crates/rt-format" }
+# Acceptance tests of the writes run the hooks against the OData test server (native only).
+rt-odata-testserver = { path = "testserver" }
 
 [lints]
 workspace = true

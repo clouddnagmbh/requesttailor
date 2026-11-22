@@ -598,3 +598,110 @@ fn drafts_rap_and_cap() {
     assert_eq!(r.json()["IsActiveEntity"], true);
     assert_eq!(r.json()["ID"], 272);
 }
+
+#[test]
+fn json_batch_with_atomicity_groups() {
+    let mut u = User::new();
+    u.fetch(CAP4);
+    let body = json!({ "requests": [
+        { "id": "r1", "method": "GET", "url": "Books?$filter=IsActiveEntity eq true&$select=ID,title&$top=2", "headers": { "accept": "application/json" } },
+        { "id": "c1", "atomicityGroup": "g1", "method": "POST", "url": "Books", "headers": { "content-type": "application/json" }, "body": { "ID": 902, "title": "First of a pair", "stock": 1 } },
+        { "id": "c2", "atomicityGroup": "g1", "method": "POST", "url": "Books", "headers": { "content-type": "application/json" }, "body": { "ID": 903, "title": "Second of a pair", "stock": 1 } },
+        { "id": "f1", "atomicityGroup": "g2", "method": "POST", "url": "Authors", "body": { "ID": 950, "name": "Undone" } },
+        { "id": "f2", "atomicityGroup": "g2", "method": "PATCH", "url": "Authors(9999)", "body": { "name": "x" } }
+    ]});
+    let r = u.write("POST", &format!("{CAP4}$batch"), &[], &body.to_string());
+    assert_eq!(r.status, 200, "{}", r.text());
+    let statuses: Vec<(String, u64)> = r.json()["responses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| {
+            (
+                x["id"].as_str().unwrap().to_owned(),
+                x["status"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    let expected = [
+        ("r1", 200),
+        ("c1", 201),
+        ("c2", 201),
+        ("f1", 424),
+        ("f2", 404),
+    ];
+    assert_eq!(statuses, expected.map(|(i, s)| (i.to_owned(), s)).to_vec());
+    assert_eq!(
+        r.json()["responses"][0]["body"]["value"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(
+        u.get(&format!("{CAP4}Books(ID=902,IsActiveEntity=false)"))
+            .status,
+        200
+    );
+    assert_eq!(u.get(&format!("{CAP4}Authors(950)")).status, 404);
+    // Not on V2.
+    u.fetch(CAP2);
+    let r = u.write("POST", &format!("{CAP2}$batch"), &[], &body.to_string());
+    assert_eq!(r.status, 400);
+}
+
+#[test]
+fn function_imports() {
+    let mut u = User::new();
+    let r = u.get(&format!("{GW}GetOpenOrderCount?CustomerID='0000100001'"));
+    assert_eq!(r.json()["d"]["GetOpenOrderCount"], 1);
+    u.fetch(GW);
+    let r = u.write(
+        "POST",
+        &format!("{GW}ConfirmSalesOrder?SalesOrderID='0500000001'"),
+        &[],
+        "",
+    );
+    assert_eq!(r.json()["d"]["LifecycleStatus"], "C");
+    let r = u.get(&format!("{GW}GetOpenOrderCount?CustomerID='0000100001'"));
+    assert_eq!(r.json()["d"]["GetOpenOrderCount"], 0);
+    let r = u.get(&format!("{CAP2}booksInStock?min=100"));
+    assert_eq!(r.json()["d"]["results"].as_array().unwrap().len(), 2);
+    let r = u.get(&format!("{CAP4}booksInStock(min=300)"));
+    assert_eq!(r.json()["value"].as_array().unwrap().len(), 2);
+}
+
+/// What the example collections of the launch kit (strand E) send: LF multipart bodies,
+/// `MERGE`, `$expand` with options.
+#[test]
+fn launch_kit_requests() {
+    let mut u = User::new();
+    u.fetch(GW);
+    let lf = "--batch_rt\nContent-Type: application/http\nContent-Transfer-Encoding: binary\n\nGET SalesOrderSet('0500000001')?$expand=ToItems HTTP/1.1\nAccept: application/json\n\n\n--batch_rt\nContent-Type: multipart/mixed; boundary=changeset_rt\n\n--changeset_rt\nContent-Type: application/http\nContent-Transfer-Encoding: binary\n\nPOST SalesOrderSet HTTP/1.1\nContent-Type: application/json\nAccept: application/json\n\n{\"CustomerID\": \"0000100001\", \"Currency\": \"EUR\", \"Note\": \"Created in a $batch changeset\"}\n--changeset_rt--\n\n--batch_rt--";
+    let r = u.write(
+        "POST",
+        &format!("{GW}$batch"),
+        &[("Content-Type", "multipart/mixed; boundary=batch_rt")],
+        lf,
+    );
+    let text = r.text();
+    assert!(
+        text.contains("HTTP/1.1 200 OK") && text.contains("HTTP/1.1 201 Created"),
+        "{text}"
+    );
+    let path = format!("{GW}SalesOrderSet('0500000001')");
+    let etag = u.get(&path).header("ETag").unwrap().to_owned();
+    let r = u.write(
+        "MERGE",
+        &path,
+        &[("If-Match", &etag)],
+        r#"{"Note":"Updated with RequestTailor"}"#,
+    );
+    assert_eq!(r.status, 204);
+    let r = u.get(&format!("{CAP4}Books?$filter=IsActiveEntity eq true and stock gt 10&$select=ID,title,stock,price&$expand=author($select=name)&$orderby=title&$count=true"));
+    let b = r.json();
+    assert_eq!(b["@odata.count"], 5);
+    assert!(b["value"][0]["author"]["name"].is_string());
+    let r = u.get(&format!("{GW}SalesOrderSet?$select=SalesOrderID,CustomerName&$orderby=SalesOrderID desc&$top=10&$inlinecount=allpages"));
+    assert_eq!(r.json()["d"]["results"][0]["SalesOrderID"], "0500000004");
+}

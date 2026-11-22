@@ -1156,6 +1156,9 @@ fn action(
 /// Runs one operation.
 pub fn execute(state: &mut ServiceState, ctx: &Ctx, op: &Op) -> Reply {
     let def = state.def;
+    if let Some(reply) = function(state, ctx, op) {
+        return reply;
+    }
     let target = match resolve(state, ctx, &op.path) {
         Ok(t) => t,
         Err(e) => return *e,
@@ -1209,6 +1212,113 @@ pub fn execute(state: &mut ServiceState, ctx: &Ctx, op: &Op) -> Reply {
             405,
             &format!("Method {m} is not allowed on this resource"),
         ),
+    }
+}
+
+/// A parameter of a function import: V2 from the query (`?CustomerID='1'`), V4 from the
+/// parentheses (`booksInStock(min=100)`).
+fn parameter(op: &Op, name: &str) -> Option<Lit> {
+    if let Some(v) = op.query(name) {
+        return Some(parse_lit(v));
+    }
+    let (_, args) = split_segment(&op.path);
+    split_outside_quotes(args?, ',').into_iter().find_map(|p| {
+        let (n, v) = p.split_once('=')?;
+        (n.trim() == name).then(|| parse_lit(v))
+    })
+}
+
+/// The function imports of the services: `GetOpenOrderCount` and `ConfirmSalesOrder`
+/// (Gateway), `booksInStock` (CAP V2 and V4). `None` for any other path.
+fn function(state: &mut ServiceState, ctx: &Ctx, op: &Op) -> Option<Reply> {
+    let def = state.def;
+    let (name, _) = split_segment(op.path.split('/').next().unwrap_or_default());
+    let method = op.method.as_str();
+    let missing = |p: &str| error(def, ctx.lang, 400, &format!("Parameter {p} is missing"));
+    match (def.namespace, name) {
+        ("ZRT_SALES_SRV", "GetOpenOrderCount") => {
+            if method != "GET" {
+                return Some(error(
+                    def,
+                    ctx.lang,
+                    405,
+                    "GetOpenOrderCount is called with GET",
+                ));
+            }
+            let Some(customer) = parameter(op, "CustomerID") else {
+                return Some(missing("CustomerID"));
+            };
+            let set = def.set("SalesOrderSet").expect("set exists");
+            let n = state
+                .rows(set)
+                .iter()
+                .filter(|o| {
+                    o.get("CustomerID").map(value_canon) == Some(customer.canon())
+                        && o.get("LifecycleStatus").and_then(Value::as_str) != Some("C")
+                })
+                .count();
+            Some(json_reply(
+                def,
+                200,
+                &json!({ "d": { "GetOpenOrderCount": n } }),
+            ))
+        }
+        ("ZRT_SALES_SRV", "ConfirmSalesOrder") => {
+            if method != "POST" {
+                return Some(error(
+                    def,
+                    ctx.lang,
+                    405,
+                    "ConfirmSalesOrder is called with POST",
+                ));
+            }
+            let Some(id) = parameter(op, "SalesOrderID") else {
+                return Some(missing("SalesOrderID"));
+            };
+            let set = def.set("SalesOrderSet").expect("set exists");
+            let Some(index) = find(state.rows(set), &[("SalesOrderID", id.canon())]) else {
+                return Some(error(
+                    def,
+                    ctx.lang,
+                    404,
+                    &format!("Sales order {} not found", id.canon()),
+                ));
+            };
+            state.rows_mut(set)[index].insert("LifecycleStatus".into(), Value::String("C".into()));
+            touch(state, set, index);
+            Some(json_reply(
+                def,
+                200,
+                &json!({ "d": {
+                    "__metadata": { "type": "ZRT_SALES_SRV.ConfirmationResult" },
+                    "SalesOrderID": id.canon(),
+                    "LifecycleStatus": "C"
+                } }),
+            ))
+        }
+        ("AdminService", "booksInStock") => {
+            if method != "GET" {
+                return Some(error(def, ctx.lang, 405, "booksInStock is called with GET"));
+            }
+            let min: f64 = parameter(op, "min")
+                .and_then(|m| m.canon().parse().ok())
+                .unwrap_or(0.0);
+            let set = def.set("Books").expect("set exists");
+            let rows = state
+                .rows(set)
+                .iter()
+                .enumerate()
+                .filter(|(_, b)| {
+                    !is_draft(b)
+                        && b.get("stock")
+                            .and_then(Value::as_f64)
+                            .is_some_and(|s| s >= min)
+                })
+                .map(|(i, _)| i)
+                .collect();
+            Some(list(state, ctx, op, set, rows))
+        }
+        _ => None,
     }
 }
 

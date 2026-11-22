@@ -21,7 +21,10 @@
 //!   session cookie (`SAP_SESSIONID_RT1_100` on S/4, `JSESSIONID` on CAP); a modifying request
 //!   without that token and cookie gets `403` with `X-CSRF-Token: Required`;
 //! - `$batch` as multipart/mixed (V2 and V4) with changesets, all-or-nothing, `Content-ID`
-//!   references (`$1`) inside a changeset (see [`batch`]);
+//!   references (`$1`) inside a changeset; JSON batch (`application/json`, atomicity groups)
+//!   on the V4 services (see [`batch`]); LF line endings are accepted as well as CRLF;
+//! - function imports `GetOpenOrderCount` (GET) and `ConfirmSalesOrder` (POST) on Gateway,
+//!   `booksInStock` on CAP (V2 `?min=`, V4 `(min=…)`);
 //! - drafts on the V4 services: RAP (`Edit`, `Prepare`, `Activate`, `Discard`) and CAP
 //!   (`draftEdit`, `draftPrepare`, `draftActivate`, `DELETE` on the draft discards). `POST`
 //!   to a draft root creates a draft unless the body says `"IsActiveEntity": true`. Active
@@ -32,7 +35,7 @@
 //! - SAP-style error bodies: V2 `{"error":{"code","message":{"lang","value"}}}`, V4
 //!   `{"error":{"code","message"}}`.
 //!
-//! Every spawned server has its own data. Not supported: function imports, V4 JSON batch,
+//! Every spawned server has its own data. Not supported: bound actions other than drafts,
 //! `$search`, nested `$expand`, deep insert, functions in `$filter`.
 
 pub mod batch;

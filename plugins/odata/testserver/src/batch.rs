@@ -11,6 +11,8 @@
 
 use std::collections::HashMap;
 
+use serde_json::{Value, json};
+
 use crate::odata::{self, Ctx, Op, Reply, ServiceState};
 use crate::services::Version;
 
@@ -62,7 +64,11 @@ fn parts<'a>(body: &'a str, boundary: &str) -> Option<Vec<Part<'a>>> {
     let mut from = 0;
     while let Some(i) = body[from..].find(&delimiter) {
         let at = from + i;
-        if at == 0 || body[..at].ends_with('\n') {
+        // A delimiter line: at a line start, followed by the line end, blanks or `--`.
+        let rest = &body[at + delimiter.len()..];
+        let ends =
+            rest.is_empty() || rest.starts_with("--") || rest.starts_with(['\r', '\n', ' ', '\t']);
+        if (at == 0 || body[..at].ends_with('\n')) && ends {
             starts.push(at);
         }
         from = at + delimiter.len();
@@ -99,7 +105,18 @@ fn parse_request(text: &str, root: &str) -> Option<Op> {
     let mut request_line = lines.next()?.split_whitespace();
     let method = request_line.next()?.to_ascii_uppercase();
     let url = request_line.next()?;
-    let headers = parse_headers(&lines.collect::<Vec<_>>().join("\n"));
+    let mut op = op_for(&method, url, root);
+    op.headers = parse_headers(&lines.collect::<Vec<_>>().join("\n"));
+    let body = body
+        .strip_suffix("\r\n")
+        .or_else(|| body.strip_suffix('\n'))
+        .unwrap_or(body);
+    op.body = body.as_bytes().to_vec();
+    Some(op)
+}
+
+/// An operation for `url` (absolute, absolute path or relative to the root), no headers.
+fn op_for(method: &str, url: &str, root: &str) -> Op {
     let mut path = url;
     if let Some(i) = path.find("://") {
         path = path[i + 3..].find('/').map_or("", |j| &path[i + 3 + j..]);
@@ -110,17 +127,13 @@ fn parse_request(text: &str, root: &str) -> Option<Op> {
         .unwrap_or(path)
         .trim_start_matches('/');
     let (path, query) = path.split_once('?').unwrap_or((path, ""));
-    let body = body
-        .strip_suffix("\r\n")
-        .or_else(|| body.strip_suffix('\n'))
-        .unwrap_or(body);
-    Some(Op {
-        method,
+    Op {
+        method: method.to_owned(),
         path: crate::percent_decode(path),
         query: crate::parse_query(query),
-        headers,
-        body: body.as_bytes().to_vec(),
-    })
+        headers: Vec::new(),
+        body: Vec::new(),
+    }
 }
 
 fn http_part(reply: &Reply, content_id: Option<&str>) -> String {
@@ -143,7 +156,7 @@ fn http_part(reply: &Reply, content_id: Option<&str>) -> String {
     s
 }
 
-/// Handles `POST <root>$batch`.
+/// Handles `POST <root>$batch`: multipart, or JSON on the V4 services.
 pub fn handle(
     state: &mut ServiceState,
     ctx: &Ctx,
@@ -153,6 +166,15 @@ pub fn handle(
 ) -> Reply {
     let def = state.def;
     let fail = |status, msg: &str| odata::error(def, ctx.lang, status, msg);
+    if content_type
+        .to_ascii_lowercase()
+        .starts_with("application/json")
+    {
+        if def.version == Version::V2 {
+            return fail(400, "JSON batch requests need OData V4");
+        }
+        return handle_json(state, ctx, body);
+    }
     let Some(outer) = boundary(content_type).filter(|_| {
         content_type
             .to_ascii_lowercase()
@@ -160,7 +182,7 @@ pub fn handle(
     }) else {
         return fail(
             400,
-            "A $batch request needs Content-Type multipart/mixed with a boundary (JSON batch is not supported by the test server)",
+            "A $batch request needs Content-Type multipart/mixed with a boundary (or application/json on V4)",
         );
     };
     let text = String::from_utf8_lossy(body);
@@ -274,6 +296,128 @@ fn changeset(state: &mut ServiceState, ctx: &Ctx, ops: &[OwnedPart], boundary: &
     }
     s.push_str(&format!("--{boundary}--\r\n"));
     s
+}
+
+/// A V4 JSON batch (OData 4.01 §19): `{"requests": [{id, method, url, headers, body,
+/// atomicityGroup}]}` → `{"responses": [{id, status, headers, body}]}`. The members of an
+/// atomicity group run together, all-or-nothing: when one fails, the group is rolled back,
+/// the failing request answers with its error and the others with `424 Failed Dependency`.
+/// `$<id>` at the start of a URL refers to what the request with that id created.
+fn handle_json(state: &mut ServiceState, ctx: &Ctx, body: &[u8]) -> Reply {
+    let def = state.def;
+    let fail = |status, msg: &str| odata::error(def, ctx.lang, status, msg);
+    let Ok(json) = serde_json::from_slice::<Value>(body) else {
+        return fail(400, "The JSON batch body is not valid JSON");
+    };
+    let Some(requests) = json.get("requests").and_then(Value::as_array) else {
+        return fail(400, "A JSON batch needs a \"requests\" array");
+    };
+    let text = |v: &Value| v.as_str().map_or_else(|| v.to_string(), str::to_owned);
+    let group_of = |r: &Value| {
+        r.get("atomicityGroup")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    };
+    // Batch order, the members of a group at the place of its first member.
+    let mut units: Vec<(Option<String>, Vec<&Value>)> = Vec::new();
+    for r in requests {
+        let group = group_of(r);
+        match units.iter_mut().find(|(g, _)| g.is_some() && *g == group) {
+            Some((_, members)) => members.push(r),
+            None => units.push((group, vec![r])),
+        }
+    }
+    let failed_dependency = || {
+        fail(
+            424,
+            "Failed dependency: another request of the atomicity group failed",
+        )
+    };
+    let mut created: HashMap<String, String> = HashMap::new();
+    let mut responses = Vec::new();
+    for (group, members) in units {
+        let snapshot = group.is_some().then(|| state.clone());
+        let mut results: Vec<(String, Reply)> = Vec::new();
+        let mut failed = None;
+        for r in members {
+            let id = r.get("id").map(text).unwrap_or_default();
+            let method = r
+                .get("method")
+                .and_then(Value::as_str)
+                .unwrap_or("GET")
+                .to_ascii_uppercase();
+            let url = r.get("url").and_then(Value::as_str).unwrap_or_default();
+            let mut op = op_for(&method, url, def.root);
+            op.headers = r
+                .get("headers")
+                .and_then(Value::as_object)
+                .map(|h| h.iter().map(|(k, v)| (k.clone(), text(v))).collect())
+                .unwrap_or_default();
+            op.body = match r.get("body") {
+                None | Some(Value::Null) => Vec::new(),
+                Some(Value::String(s)) => s.as_bytes().to_vec(),
+                Some(v) => v.to_string().into_bytes(),
+            };
+            if let Some(rest) = op.path.strip_prefix('$') {
+                let (rid, tail) = rest.split_once('/').unwrap_or((rest, ""));
+                if let Some(path) = created.get(rid) {
+                    op.path = if tail.is_empty() {
+                        path.clone()
+                    } else {
+                        format!("{path}/{tail}")
+                    };
+                }
+            }
+            let reply = if failed.is_some() {
+                failed_dependency()
+            } else {
+                odata::execute(state, ctx, &op)
+            };
+            if reply.status < 300 {
+                let path = reply
+                    .header("Location")
+                    .and_then(|l| l.strip_prefix(ctx.base))
+                    .map_or_else(|| op.path.clone(), str::to_owned);
+                created.insert(id.clone(), path);
+            } else if group.is_some() && failed.is_none() {
+                failed = Some(results.len());
+            }
+            results.push((id, reply));
+        }
+        if let (Some(at), Some(snapshot)) = (failed, snapshot) {
+            *state = snapshot;
+            for (i, (_, reply)) in results.iter_mut().enumerate() {
+                if i != at && reply.status < 300 {
+                    *reply = failed_dependency();
+                }
+            }
+        }
+        for (id, reply) in results {
+            let headers: serde_json::Map<String, Value> = reply
+                .headers
+                .iter()
+                .map(|(n, v)| (n.to_ascii_lowercase(), Value::String(v.clone())))
+                .collect();
+            let mut out = json!({ "id": id, "status": reply.status, "headers": headers });
+            if !reply.body.is_empty() {
+                out["body"] = serde_json::from_slice(&reply.body).unwrap_or_else(|_| {
+                    Value::String(String::from_utf8_lossy(&reply.body).into_owned())
+                });
+            }
+            if let Some(g) = &group {
+                out["atomicityGroup"] = Value::String(g.clone());
+            }
+            responses.push(out);
+        }
+    }
+    Reply {
+        status: 200,
+        headers: vec![
+            ("Content-Type".into(), "application/json".into()),
+            odata::version_header(def.version),
+        ],
+        body: json!({ "responses": responses }).to_string().into_bytes(),
+    }
 }
 
 #[cfg(test)]
