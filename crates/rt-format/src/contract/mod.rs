@@ -13,12 +13,23 @@
 //! relative to the collection root; a leading `/` is relative to the repository root, as in
 //! `GitApi.show`), else the first of [`SPEC_CANDIDATES`] that exists.
 //!
-//! Owner: wave 12 interface; implementation strand F.
+//! Owner: wave 12, strand F.
+//!
+//! Scope: requests against operations (method and path template, parameters, request body
+//! schema), changes between two versions of the spec, the changelog. Response schemas against
+//! real responses are not checked.
 
 use serde::{Deserialize, Serialize};
 
-use crate::FileSet;
 use crate::diff::CollectionDiff;
+use crate::{COLLECTION_FILE, FileSet};
+
+mod changelog;
+mod changes;
+mod check;
+mod matching;
+mod schema;
+mod spec;
 
 /// Looked for, in this order, when `opencollection.yml` names no spec.
 pub const SPEC_CANDIDATES: &[&str] = &[
@@ -36,7 +47,7 @@ pub enum ContractError {
     /// The spec is not readable OpenAPI 3.x (or Swagger 2.0).
     #[error("{0}")]
     Spec(String),
-    /// Not available yet (wave 12 interface; strand F replaces it).
+    /// Something else stops the check, e.g. the collection cannot be read.
     #[error("{0}")]
     Unsupported(String),
 }
@@ -139,27 +150,34 @@ impl SpecChanges {
     }
 }
 
-fn not_yet() -> ContractError {
-    ContractError::Unsupported("the contract check arrives in wave 12 (strand F)".into())
-}
-
 /// The spec configured in `opencollection.yml` of `files`, if any (path only; the shell reads
 /// the spec's bytes from the work tree or with `GitApi.show`).
 pub fn configured_spec(files: &FileSet) -> Option<String> {
-    let _ = files;
-    None
+    let bytes = files.files.get(COLLECTION_FILE)?;
+    let text = std::str::from_utf8(bytes).ok()?;
+    let doc = crate::yaml::parse(text).ok()?;
+    let path = doc
+        .root
+        .get("extensions")?
+        .get("requesttailor")?
+        .get("contract")?
+        .get("spec")?
+        .text()?
+        .trim()
+        .to_owned();
+    (!path.is_empty()).then_some(path)
 }
 
 /// `info.title` and `info.version` of a spec, for [`ContractSpec`].
 pub fn spec_info(spec: &[u8]) -> Result<(String, String), ContractError> {
-    let _ = spec;
-    Err(not_yet())
+    let spec = spec::Spec::parse(spec)?;
+    Ok((spec.title, spec.version))
 }
 
 /// Checks the requests of the collection in `files` against the spec.
 pub fn check(files: &FileSet, spec: &[u8]) -> Result<ContractReport, ContractError> {
-    let _ = (files, spec);
-    Err(not_yet())
+    let spec = spec::Spec::parse(spec)?;
+    check::check(files, &spec)
 }
 
 /// Changes from the spec `old` to `new` (`None`: the spec did not exist on that side), with
@@ -169,14 +187,14 @@ pub fn changes(
     new: Option<&[u8]>,
     files: &FileSet,
 ) -> Result<SpecChanges, ContractError> {
-    let _ = (old, new, files);
-    Err(not_yet())
+    let old = old.map(spec::Spec::parse).transpose()?;
+    let new = new.map(spec::Spec::parse).transpose()?;
+    changes::changes(old.as_ref(), new.as_ref(), files)
 }
 
 /// The API changelog (Markdown) for a range: spec changes (breaking first) and the
 /// collection's own changes (the semantic diff of the same range). `title`: the heading, e.g.
 /// `Orders API 1.2.0 → 1.3.0`.
 pub fn changelog(title: &str, spec: &SpecChanges, collection: &CollectionDiff) -> String {
-    let _ = (spec, collection);
-    format!("# {title}\n\nThe API changelog arrives in wave 12 (strand F).\n")
+    changelog::render(title, spec, collection)
 }

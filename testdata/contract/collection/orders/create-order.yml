@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Create order
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/orders"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {"customer": "acme", "items": [{"sku": "A-1", "qty": 2}]}
