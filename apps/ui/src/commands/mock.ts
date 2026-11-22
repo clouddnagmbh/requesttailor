@@ -173,7 +173,12 @@ export class MockBackend implements Backend {
   readonly auth: AuthApi = mockAuth();
   readonly cookies = mockCookies();
   readonly scripts = mockScripts();
-  readonly runner = mockRunner();
+  readonly runner = mockRunner({
+    tree: () => this.tree(),
+    getRequest: (path) => this.getRequest(path),
+    send: (path, input) => this.sendNow(path, input),
+    releaseResponse: (id) => this.releaseResponse(id),
+  });
 
   async openCollection(): Promise<CollectionInfo | null> {
     this.opened = true;

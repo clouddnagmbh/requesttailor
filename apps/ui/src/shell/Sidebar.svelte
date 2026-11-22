@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
 <!-- Sidebar: the collection's folder tree (ARIA tree, roving focus, type-ahead) and the inline
-     "new request" name prompt. `newIn` is the folder the prompt is open for (`""` = root). -->
+     "new request" name prompt. `newIn` is the folder the prompt is open for (`""` = root).
+     `onrun` (wave 7): a folder row's run button opens the collection runner for it. -->
 <script lang="ts">
   import { tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
@@ -10,7 +11,11 @@
   import MethodBadge from "./MethodBadge.svelte";
   import { rowKey, typeahead, visibleRows, type Row } from "./tree";
 
-  let { newIn = $bindable(null), hint }: { newIn?: string | null; hint: string } = $props();
+  let {
+    newIn = $bindable(null),
+    hint,
+    onrun,
+  }: { newIn?: string | null; hint: string; onrun?: (folder: string, name: string) => void } = $props();
 
   const app = getApp();
   const collapsed = new SvelteSet<string>();
@@ -186,6 +191,19 @@
           {#if node.kind === "folder"}
             <span class="chevron" aria-hidden="true">{collapsed.has(node.path) ? "▸" : "▾"}</span>
             <span class="name">{node.name}</span>
+            {#if onrun}
+              <button
+                class="icon add"
+                tabindex="-1"
+                data-testid="run-folder"
+                aria-label="Run {node.name}"
+                title="Run the requests in {node.name}"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  onrun(node.path, node.name);
+                }}>▶</button
+              >
+            {/if}
             <button
               class="icon add"
               tabindex="-1"

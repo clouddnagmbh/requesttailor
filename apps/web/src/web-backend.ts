@@ -177,7 +177,19 @@ export class WebBackend implements Backend {
     this.auth = webAuth(host);
     this.cookies = webCookies(host);
     this.scripts = { ...webScriptTrust(host), ...webSessionVars(host) };
-    this.runner = webRunner(host);
+    this.runner = webRunner({
+      session: host.session,
+      loadCore: deps.loadCore,
+      // Each request of a run goes out like `send`: secret values, companion, services.
+      sendContext: async (input) => {
+        const s = this.session();
+        return {
+          companion: this.companionOn ? await this.companionCredentials() : null,
+          services: await sendServices(this, s.id, input.environment),
+          input: await this.coreInput(s, input, true),
+        };
+      },
+    });
     this.recent = webRecent(host);
     const store = () => this.secretStore(this.session());
     this.secrets = {
