@@ -458,6 +458,39 @@ fn preview_of_an_unresolved_host_still_lists_variables() {
     assert_eq!(who.value.as_deref(), Some("collection"));
 }
 
+#[test]
+fn errors_never_carry_secret_values() {
+    // The secret ends up in the URL; the URL is invalid, so preview and send fail with a
+    // message that quotes it. The value must be masked there too.
+    let mut files = sample();
+    files.files.insert(
+        "bad.yml".into(),
+        b"info:\n  name: Bad\n  type: http\n  seq: 4\n\nhttp:\n  method: GET\n  url: \"ftp://example.test/{{token}}\"\n".to_vec(),
+    );
+    let ws = Workspace::open(files).unwrap();
+    let input = || SendInput {
+        environment: Some("Local".into()),
+        vars: vec![],
+        secrets: vec![("token".into(), SECRET.into())],
+    };
+    let preview = ws.preview("bad.yml", input()).unwrap();
+    assert!(!format!("{preview:?}").contains(SECRET), "{preview:?}");
+
+    let transport = rt_core::transport::native::NativeTransport::new().unwrap();
+    let report = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(
+            ws.snapshot("bad.yml", input())
+                .unwrap()
+                .send(&transport, &rt_core::send::SendOptions::default()),
+        );
+    let json = serde_json::to_string(&report).unwrap();
+    assert!(report.error.is_some(), "{json}");
+    assert!(!json.contains(SECRET), "{json}");
+}
+
 // ---------------------------------------------------------------------------------------------
 // Send, and the secret gate
 

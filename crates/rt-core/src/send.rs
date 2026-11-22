@@ -141,7 +141,8 @@ async fn finish<T: Transport>(
         Ok(p) => p,
         Err(e) => {
             report.unresolved = unresolved_fallback(context, input);
-            report.error = Some(SendError::Prepare(e.to_string()));
+            let secrets = declared_secret_values(context, input);
+            report.error = Some(SendError::Prepare(mask(&e.to_string(), &secrets)));
             return report;
         }
     };
@@ -157,9 +158,42 @@ async fn finish<T: Transport>(
     };
     match result {
         Ok(completed) => report.response = Some(received(completed)),
-        Err(e) => report.error = Some(SendError::Transport(e)),
+        // Transports quote the URL and header values in their messages; secrets must not
+        // reach the report (CLI JSON, UI, agents) through an error either.
+        Err(e) => report.error = Some(SendError::Transport(mask_transport_error(e, &secrets))),
     }
     report
+}
+
+/// `e` with every secret in its message replaced by [`MASK`].
+fn mask_transport_error(e: TransportError, secrets: &[String]) -> TransportError {
+    use TransportError::*;
+    let m = |s: String| mask(&s, secrets);
+    match e {
+        InvalidUrl(s) => InvalidUrl(m(s)),
+        Dns(s) => Dns(m(s)),
+        Connect(s) => Connect(m(s)),
+        Tls(s) => Tls(m(s)),
+        Blocked(s) => Blocked(m(s)),
+        Other(s) => Other(m(s)),
+        e @ (Timeout | TooManyRedirects(_)) => e,
+    }
+}
+
+/// Values of the secret variables that apply to this request, without a preparation (for
+/// masking preparation errors): declared values and runtime/global values of secret names.
+fn declared_secret_values(context: &RequestContext<'_>, input: &PrepareInput<'_>) -> Vec<String> {
+    let secret: Vec<&Variable> = declared_vars(context, input).filter(|v| v.secret).collect();
+    let mut values: Vec<String> = secret.iter().filter_map(|v| v.value.clone()).collect();
+    for (name, value) in input.globals.iter().chain(&input.runtime) {
+        if secret.iter().any(|v| &v.name == name) {
+            values.push(value.clone());
+        }
+    }
+    values.retain(|v| !v.is_empty());
+    values.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+    values.dedup();
+    values
 }
 
 /// The request as it goes on the wire, with secrets masked. The body's content type is listed
@@ -273,12 +307,14 @@ fn declared_vars<'a>(
         .chain(context.request.spec.vars.iter())
 }
 
-/// Replaces every secret, raw or percent-encoded, with [`MASK`].
+/// Replaces every secret, raw, percent-encoded or Debug-escaped (as in `{:?}` messages), with
+/// [`MASK`].
 fn mask(text: &str, secrets: &[String]) -> String {
     let mut out = text.to_owned();
     for secret in secrets {
         for form in [
             secret.clone(),
+            secret.escape_debug().to_string(),
             percent_encode(secret, false),
             percent_encode(secret, true),
         ] {
@@ -755,6 +791,44 @@ mod tests {
             .push(("other".into(), "zzz".into(), false));
         let s = secret_values(&ctx, &input(), &p);
         assert_eq!(s, ["s3cr3t value", "hunter2", "zzz"]);
+    }
+
+    #[test]
+    fn transport_errors_never_carry_secret_values() {
+        let c = collection();
+        let ctx = c.request("api/get.yml").unwrap();
+        let secret = "s3cr3t value";
+        for error in [
+            TransportError::InvalidUrl(format!("ftp://x/{secret}: only http")),
+            TransportError::Dns(format!("{secret}.example: not found")),
+            TransportError::Connect(format!("http://localhost/items?key={}", "s3cr3t%20value")),
+            TransportError::Tls(secret.into()),
+            TransportError::Blocked(secret.into()),
+            TransportError::Other(format!(
+                "invalid value for header X-Key: {:?}",
+                "s3cr3t value\nx"
+            )),
+        ] {
+            let t = MockTransport::new(Err(error));
+            let r = block_on(finish(
+                base_report(),
+                &ctx,
+                &input(),
+                Ok(prepared()),
+                &t,
+                &SendOptions::default(),
+            ));
+            let json = serde_json::to_string(&r.error).unwrap();
+            assert!(!json.contains("s3cr3t"), "{json}");
+            assert!(json.contains(MASK), "{json}");
+        }
+    }
+
+    #[test]
+    fn masking_debug_escaped_values() {
+        let secrets = vec!["a\nb\"q".to_owned()];
+        let quoted = format!("header X: {:?}", "a\nb\"q");
+        assert_eq!(mask(&quoted, &secrets), "header X: \"***\"");
     }
 
     #[test]

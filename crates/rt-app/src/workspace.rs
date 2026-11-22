@@ -242,6 +242,25 @@ impl Workspace {
     /// problem. Unresolved names are not listed in `variables` (they have no source).
     pub fn preview(&self, request_path: &str, input: SendInput) -> Result<Preview, AppError> {
         let collection = self.collection_for_send(request_path, &input)?;
+        // Preparation errors quote the substituted URL: mask secret values in them.
+        let known_secrets: Vec<String> = {
+            let mut v: Vec<String> = input
+                .secrets
+                .iter()
+                .chain(
+                    input
+                        .vars
+                        .iter()
+                        .filter(|(n, _)| input.secrets.iter().any(|(s, _)| s == n)),
+                )
+                .map(|(_, value)| value.clone())
+                .filter(|value| !value.is_empty())
+                .collect();
+            v.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+            v.dedup();
+            v
+        };
+        let masked = |e: &PrepareError| mask(&e.to_string(), &known_secrets);
         let files = MemFiles(&self.files);
         let mut prepare_input = PrepareInput {
             environment: input.environment.as_deref(),
@@ -290,7 +309,7 @@ impl Workspace {
                         &prepare_input,
                         &prepared,
                         false,
-                        Some((error.to_string(), only_url)),
+                        Some((masked(&error), only_url)),
                     ));
                 }
                 Err(e) => last = e,
@@ -301,7 +320,7 @@ impl Workspace {
             headers: Vec::new(),
             variables: Vec::new(),
             unresolved: Vec::new(),
-            error: Some(error.to_string()),
+            error: Some(masked(&error)),
         })
     }
 
@@ -607,12 +626,13 @@ fn secret_values(
     values
 }
 
-/// Replaces every secret, raw or percent-encoded, with [`MASK`].
+/// Replaces every secret, raw, percent-encoded or Debug-escaped, with [`MASK`].
 fn mask(text: &str, secrets: &[String]) -> String {
     let mut out = text.to_owned();
     for secret in secrets {
         for form in [
             secret.clone(),
+            secret.escape_debug().to_string(),
             percent_encode(secret, false),
             percent_encode(secret, true),
         ] {
