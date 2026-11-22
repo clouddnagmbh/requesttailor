@@ -61,7 +61,7 @@ export async function measureScroll(page: Page, viewport: Locator, framesPerPhas
         idle.push(t - last);
         last = t;
       }
-      const track = el.parentElement!.querySelector<HTMLElement>('[data-testid="response-scrollbar"]')!;
+      const track = el.parentElement!.querySelector('[data-testid="response-scrollbar"]') as HTMLElement;
       const lines = Number(track.getAttribute("aria-valuemax")) + 1;
       const rowPx = 18;
       // Deterministic "random" positions (no Math.random: runs are comparable).
@@ -96,7 +96,7 @@ export async function measureScroll(page: Page, viewport: Locator, framesPerPhas
       }
       return { idle, phases };
     },
-    { el: handle as unknown as HTMLElement, framesPerPhase, pxPerFrame },
+    { el: handle, framesPerPhase, pxPerFrame },
   );
 
   const sort = (a: number[]) => [...a].sort((x, y) => x - y);
