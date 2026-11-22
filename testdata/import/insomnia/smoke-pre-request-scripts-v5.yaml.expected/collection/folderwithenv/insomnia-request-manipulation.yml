@@ -13,3 +13,23 @@ http:
     type: json
     data: "{}"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const { Header } = require('insomnia-collection');
+        insomnia.request.method = 'GET';
+        insomnia.request.url.addQueryParams('k1=v1');
+        insomnia.request.headers.add(new Header({
+            key: 'Content-Type',
+            value: 'text/plain'
+        }));
+        insomnia.request.headers.add(new Header({
+            key: 'X-Hello',
+            value: 'hello'
+        }));
+        insomnia.request.body.update({
+            mode: 'raw',
+            raw: 'rawContent',
+        });

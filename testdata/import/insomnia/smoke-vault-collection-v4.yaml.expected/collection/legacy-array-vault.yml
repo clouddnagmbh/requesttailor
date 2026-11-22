@@ -21,3 +21,15 @@ http:
     key: ""
     value: ""
     placement: header
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        console.log('pre');
+        console.log(insomnia.variables.get('vault')[1]);
+        console.log(insomnia.vault.get('foo'));
+    - type: after-response
+      code: |-
+        console.log('after');
+        console.log(insomnia.vault.get('hello'));

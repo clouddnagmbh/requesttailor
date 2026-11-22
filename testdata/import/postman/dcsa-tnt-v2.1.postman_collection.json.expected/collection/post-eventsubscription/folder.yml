@@ -2,3 +2,46 @@ info:
   name: Post EventSubscription
   type: folder
   seq: 3
+
+request:
+  scripts:
+    - type: tests
+      code: |-
+        pm.test("API-Version is present", () => {
+            pm.response.to.have.header("API-Version");
+        });
+
+        pm.test("API-Version header is set correctly", () => {
+            pm.expect(pm.response.headers.get("API-Version")).to.eql(pm.collectionVariables.get("TNT_SPEC_VERSION"));
+        });
+        // Helper functions for removing empty/nulls from json - This function is used with deep equal comp as API does not return null keys
+        JSON.cleanObject = obj =>
+          _.transform(obj, (acc, v, k) => {
+            const val = _.isObject(v) ? cleanObject(v) : v // if current value is an object clean it
+            
+            if(_.isEmpty(val)) return // ignore null, undefined, or empty objects / arrays
+            
+            acc[k] = val // assign to key
+          })
+
+        function isObject(v) {
+            return '[object Object]' === Object.prototype.toString.call(v);
+        };
+
+        // Helper functions for sorting deep json for comparison - This function is used with deep equal comp as order of list fails comparison
+        JSON.sort = function(o) {
+        if (Array.isArray(o)) {
+                return o.sort().map(JSON.sort);
+            } else if (isObject(o)) {
+                return Object
+                    .keys(o)
+                .sort()
+                    .reduce(function(a, k) {
+                        a[k] = JSON.sort(o[k]);
+
+                        return a;
+                    }, {});
+            }
+
+            return o;
+        }

@@ -7,3 +7,8 @@ request:
   variables:
     - name: folderEnv
       value: fromFolder
+  scripts:
+    - type: before-request
+      code: insomnia.environment.set('onlySetByFolderPreScript', 888);
+    - type: after-response
+      code: insomnia.environment.unset('onlySetByFolderPreScript');

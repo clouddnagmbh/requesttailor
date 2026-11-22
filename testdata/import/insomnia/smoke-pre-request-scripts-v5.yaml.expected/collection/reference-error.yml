@@ -10,3 +10,8 @@ http:
     - name: User-Agent
       value: insomnia/8.6.1
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: console.log(foo); // Typo in variable name

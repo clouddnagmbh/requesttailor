@@ -17,3 +17,8 @@ http:
     type: json
     data: "{}"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: console.log('back to normal');

@@ -32,3 +32,19 @@ http:
         "valFoundByFolder2": {{valFoundByFolder2}}
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const folder1ValByReq = insomnia.parentFolders.get('folder1').environment.get('val');
+        const folder1ValByReqByName = insomnia.parentFolders.getByName('folder1').environment.get('val');
+        const folder2ValByReq = insomnia.parentFolders.get('folder2').environment.get('val');
+        const folder2ValByReqByName = insomnia.parentFolders.getByName('folder2').environment.get('val');
+        const valFound = insomnia.parentFolders.findValue('val');
+
+        insomnia.environment.set('folder1ValByReq', folder1ValByReq);
+        insomnia.environment.set('folder1ValByReqByName', folder1ValByReqByName);
+        insomnia.environment.set('folder2ValByReq', folder2ValByReq);
+        insomnia.environment.set('folder2ValByReqByName', folder2ValByReqByName);
+        insomnia.environment.set('valFound', valFound);

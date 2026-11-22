@@ -11,3 +11,26 @@ http:
       value: SHIPMENT
       type: query
   auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: "const schema = pm.collectionVariables.get(\"EVENTS_SCHEMA\");\r
+
+        const schemaObject = JSON.parse(schema); \r
+
+        const SHIPMENT_EVENT_PAYLOAD_SCHEMA = schemaObject.items.properties.payload.oneOf[0];\r
+
+        \r
+
+        pm.test(\"All requests match query parameters payload schema\", () => {\r
+
+        \  const jsonData = pm.response.json();\r
+
+        \  jsonData.map((item) =>\r
+
+        \  pm.expect(item.payload).to.have.jsonSchema(SHIPMENT_EVENT_PAYLOAD_SCHEMA)\r
+
+        \  );\r
+
+        });\r\n"

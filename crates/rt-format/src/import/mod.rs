@@ -32,6 +32,7 @@ mod insomnia;
 mod openapi;
 mod out;
 mod postman;
+mod shims;
 mod value;
 
 use value::Value;

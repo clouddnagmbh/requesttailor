@@ -10,3 +10,8 @@ http:
     - name: User-Agent
       value: insomnia/10.3.1-beta.3
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: console.log('test')

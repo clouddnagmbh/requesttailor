@@ -14,3 +14,22 @@ http:
       value: APZU4812090
       type: query
   auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: "const schema = pm.collectionVariables.get(\"EVENTS_SCHEMA\");\r
+
+        const schemaObject = JSON.parse(schema);\r
+
+        const TRANSPORT_EVENT_PAYLOAD_SCHEMA = schemaObject.items.properties.payload.oneOf[2];\r
+
+        \r
+
+        pm.test(\"Event list is empty \", () => {\r
+
+        \     var jsonData = pm.response.json();\r
+
+        \    pm.expect(jsonData.length).to.eql(0);\r
+
+        });"

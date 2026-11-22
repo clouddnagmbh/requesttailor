@@ -17,9 +17,10 @@ use std::collections::{BTreeMap, HashSet};
 
 use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, Item, KeyValue, MultipartPart, Param, ParamKind,
-    PartKind, RawKind, RequestSpec, Settings, Variable,
+    PartKind, RawKind, RequestSpec, Script, Settings, Variable,
 };
 
+use crate::runtime;
 use crate::yaml::{Document, Val, document_text, parse};
 use crate::{COLLECTION_FILE, FOLDER_FILE, FileSet, edit, read, write};
 
@@ -61,6 +62,8 @@ pub(crate) struct DefaultsOut {
     pub auth: AuthOut,
     pub vars: Vec<Variable>,
     pub var_docs: Vec<Option<String>>,
+    /// Scripts that run for every request below (wave 7).
+    pub scripts: Vec<Script>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -357,6 +360,9 @@ fn defaults_val(d: &DefaultsOut, absent: &Auth) -> Option<Val> {
     if !d.vars.is_empty() {
         e.push(("variables", var_list(&d.vars, &d.var_docs)));
     }
+    if let Some(s) = runtime::scripts_val(&d.scripts) {
+        e.push(("scripts", s));
+    }
     (!e.is_empty()).then_some(Val::Map(e))
 }
 
@@ -448,11 +454,21 @@ fn request_text(r: &RequestOut, spec: &RequestSpec) -> String {
         http.push(("auth", a));
     }
     let mut root = vec![("info", Val::Map(info)), ("http", Val::Map(http))];
+    let mut rt = Vec::new();
     if !spec.vars.is_empty() {
-        root.push((
-            "runtime",
-            Val::Map(vec![("variables", var_list(&spec.vars, &[]))]),
-        ));
+        rt.push(("variables", var_list(&spec.vars, &[])));
+    }
+    if let Some(s) = runtime::scripts_val(&spec.scripts) {
+        rt.push(("scripts", s));
+    }
+    if let Some(a) = runtime::assertions_val(&spec.assertions) {
+        rt.push(("assertions", a));
+    }
+    if let Some(a) = runtime::actions_val(&spec.actions) {
+        rt.push(("actions", a));
+    }
+    if !rt.is_empty() {
+        root.push(("runtime", Val::Map(rt)));
     }
     if let Some(s) = settings_val(&spec.settings) {
         root.push(("settings", s));
@@ -671,7 +687,36 @@ pub(crate) fn write_collection(c: &CollectionOut) -> Result<(FileSet, Counts), S
     {
         return Err("collection variables do not read back".into());
     }
+    if doc.model().defaults.scripts != c.defaults.scripts {
+        return Err("collection scripts do not read back".into());
+    }
+    let mut folders = Vec::new();
+    folder_scripts(&c.items, &mut folders);
+    let mut got_folders = Vec::new();
+    model_folder_scripts(&doc.model().items, &mut got_folders);
+    if folders != got_folders {
+        return Err("folder scripts do not read back".into());
+    }
     Ok((files, w.counts))
+}
+
+/// Folder scripts in the order the folders are written.
+fn folder_scripts<'a>(items: &'a [ItemOut], out: &mut Vec<&'a [Script]>) {
+    for item in items {
+        if let ItemOut::Folder(f) = item {
+            out.push(&f.defaults.scripts);
+            folder_scripts(&f.items, out);
+        }
+    }
+}
+
+fn model_folder_scripts<'a>(items: &'a [Item], out: &mut Vec<&'a [Script]>) {
+    for item in items {
+        if let Item::Folder(f) = item {
+            out.push(&f.defaults.scripts);
+            model_folder_scripts(&f.items, out);
+        }
+    }
 }
 
 fn collect<'a>(items: &'a [Item], out: &mut BTreeMap<&'a str, &'a RequestSpec>) {

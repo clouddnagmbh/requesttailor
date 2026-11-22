@@ -7,5 +7,10 @@ request:
   auth:
     type: bearer
     token: "{{token}}"
+  scripts:
+    - type: before-request
+      code: |-
+        // folder script
+        pm.variables.set('x', 1);
 
 docs: User endpoints.

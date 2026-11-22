@@ -24,18 +24,6 @@
         "location": "Feed"
       },
       {
-        "detail": "pre-request script (1 line) not imported",
-        "effect": "dropped",
-        "kind": "script",
-        "location": "Orders"
-      },
-      {
-        "detail": "after-response script (2 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "Orders"
-      },
-      {
         "detail": "OAuth 2.0 clientSecret stored in the request file as typed; consider secret variables (set their values in Environments)",
         "effect": "approximated",
         "kind": "auth",

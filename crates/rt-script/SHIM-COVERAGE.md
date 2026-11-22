@@ -119,15 +119,15 @@ Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 
 | insomnia | `insomnia.request.headers` | 2 | 1 | supported | HeaderList: get, has, add, upsert, remove, each, toObject, … |
 | insomnia | `insomnia.request.proxy` | 2 | 1 | unsupported |  |
 | insomnia | `require('chai')` | 2 | 1 | partial | expect and the common assert functions; no `should` or plugins |
-| insomnia | `require('cheerio')` | 2 | 1 | unsupported | not a built-in module of RequestTailor |
+| insomnia | `require('cheerio')` | 2 | 1 | unsupported | not a built-in module |
 | insomnia | `require('crypto-js')` | 2 | 1 | partial | hashes (MD5, SHA-1, SHA-2), HMAC, PBKDF2, encoders; no ciphers (AES, DES, …), SHA-3 or RIPEMD-160 |
-| insomnia | `require('csv-parse/lib/sync')` | 2 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('insomnia-collection')` | 2 | 1 | unsupported | not a built-in module of RequestTailor |
+| insomnia | `require('csv-parse/lib/sync')` | 2 | 1 | unsupported | not a built-in module |
+| insomnia | `require('insomnia-collection')` | 2 | 1 | unsupported | not a built-in module |
 | insomnia | `require('lodash')` | 2 | 1 | partial | about 130 common functions; no chaining (`_(x).map()`) or `_.template` |
 | insomnia | `require('moment')` | 2 | 1 | partial | English, local and UTC; no time zones, locales, durations or relative time |
 | insomnia | `require('tv4')` | 2 | 1 | partial | validate, validateResult, validateMultiple; no `format`, addSchema or remote `$ref` |
-| insomnia | `require('url')` | 2 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('xml2js')` | 2 | 1 | unsupported | not a built-in module of RequestTailor |
+| insomnia | `require('url')` | 2 | 1 | unsupported | not a built-in module |
+| insomnia | `require('xml2js')` | 2 | 1 | unsupported | not a built-in module |
 | postman | `expect().include` | 2 | 1 | supported |  |
 | postman | `expect().true` | 2 | 2 | supported |  |
 | postman | `pm.environment.get` | 2 | 1 | supported | environment scope; see "Variable types" |
@@ -139,8 +139,8 @@ Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 
 | bruno | `bru.sleep` | 1 | 1 | supported | counts against the time limit |
 | bruno | `expect().greaterThan` | 1 | 1 | supported |  |
 | bruno | `req.onFail` | 1 | 1 | unsupported |  |
-| bruno | `require('fs')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| bruno | `require('path')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
+| bruno | `require('fs')` | 1 | 1 | unsupported | not a built-in module |
+| bruno | `require('path')` | 1 | 1 | unsupported | not a built-in module |
 | insomnia | `expect().below` | 1 | 1 | supported |  |
 | insomnia | `expect().exist` | 1 | 1 | supported |  |
 | insomnia | `expect().include` | 1 | 1 | supported |  |
@@ -158,18 +158,18 @@ Scripts scanned: Bruno 66 (plus 28 gRPC scripts, not run), Postman 55, Insomnia 
 | insomnia | `insomnia.request.url` | 1 | 1 | supported | Url object: toString, getHost, getPath, getQueryString, query.add/upsert/remove, … |
 | insomnia | `insomnia.response.json` | 1 | 1 | supported |  |
 | insomnia | `require('ajv')` | 1 | 1 | partial | compile, validate, errorsText; errors are `{ message }`; no `format` or custom keywords |
-| insomnia | `require('assert')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
+| insomnia | `require('assert')` | 1 | 1 | unsupported | not a built-in module |
 | insomnia | `require('atob')` | 1 | 1 | supported |  |
 | insomnia | `require('btoa')` | 1 | 1 | supported |  |
-| insomnia | `require('buffer')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('events')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('path')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('punycode')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('querystring')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('stream')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('string_decoder')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('timers')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
-| insomnia | `require('util')` | 1 | 1 | unsupported | not a built-in module of RequestTailor |
+| insomnia | `require('buffer')` | 1 | 1 | unsupported | not a built-in module |
+| insomnia | `require('events')` | 1 | 1 | unsupported | not a built-in module |
+| insomnia | `require('path')` | 1 | 1 | unsupported | not a built-in module |
+| insomnia | `require('punycode')` | 1 | 1 | unsupported | not a built-in module |
+| insomnia | `require('querystring')` | 1 | 1 | unsupported | not a built-in module |
+| insomnia | `require('stream')` | 1 | 1 | unsupported | not a built-in module |
+| insomnia | `require('string_decoder')` | 1 | 1 | unsupported | not a built-in module |
+| insomnia | `require('timers')` | 1 | 1 | unsupported | not a built-in module |
+| insomnia | `require('util')` | 1 | 1 | unsupported | not a built-in module |
 | insomnia | `URL()` | 1 | 1 | unsupported | no URL class in the sandbox |
 | jetbrains | `request.variables` | 1 | 1 | unsupported | JetBrains handler scripts are not imported |
 | postman | `expect().gt` | 1 | 1 | supported |  |

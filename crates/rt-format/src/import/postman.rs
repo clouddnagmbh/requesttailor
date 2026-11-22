@@ -16,15 +16,19 @@
 //! - Collection variables become collection variables, environments environment files,
 //!   globals collection variables (Postman resolves globals below collection variables, so a
 //!   collection variable of the same name wins). Secret values are never written.
-//! - Scripts and tests are reported with their line count (scripting arrives later).
+//! - Scripts (`event`) of the collection, folders and requests are imported as they are:
+//!   `prerequest` → `before-request`, `test` → `tests` (the `exec` lines joined with `\n`).
+//!   The shims of `rt-script` run them; the report names each API they use that the shims
+//!   do not support (`shim-apis.txt`). Disabled scripts and other events are reported.
 
 use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
-    RawKind, RequestSpec, Settings, Variable,
+    RawKind, RequestSpec, Script, ScriptPhase, Settings, Variable,
 };
 
 use super::auth::{self, AwsV4, OAuth1, OAuth2};
 use super::common::{Losses, finish, invalid, location, raw_kind, url_params, utf8};
+use super::shims::Dialect;
 use super::out::{AuthOut, CollectionOut, DefaultsOut, ExampleOut, FolderOut, ItemOut, RequestOut};
 use super::value::{Value, parse_json};
 use super::{Import, ImportError, ImportFormat, LossKind, SourceFile, stem};
@@ -68,7 +72,7 @@ pub(super) fn import(
         here,
         &Behavior::default(),
     );
-    cx.events(root.get("event"), here);
+    let scripts = cx.events(root.get("event"), here);
     let auth = match root.field("auth") {
         Some(a) => cx.auth(a, here, true),
         None => AuthOut::Model(Auth::None),
@@ -81,6 +85,7 @@ pub(super) fn import(
             auth,
             vars,
             var_docs,
+            scripts,
             ..DefaultsOut::default()
         },
         ..CollectionOut::default()
@@ -280,7 +285,9 @@ impl Cx {
         b
     }
 
-    fn events(&mut self, v: Option<&Value>, here: &str) {
+    /// The scripts of an `event` list, in order.
+    fn events(&mut self, v: Option<&Value>, here: &str) -> Vec<Script> {
+        let mut scripts = Vec::new();
         for e in v.map(Value::items).unwrap_or_default() {
             let script = e.get("script");
             let code = match script.and_then(|s| s.get("exec")) {
@@ -292,13 +299,27 @@ impl Cx {
                 Some(v) => v.text().unwrap_or_default(),
                 None => String::new(),
             };
-            let what = match e.string("listen").as_str() {
-                "prerequest" => "pre-request script",
-                "test" => "test script",
-                _ => "script",
+            let listen = e.string("listen");
+            let (what, phase) = match listen.as_str() {
+                "prerequest" => ("pre-request script", Some(ScriptPhase::BeforeRequest)),
+                "test" => ("test script", Some(ScriptPhase::Tests)),
+                _ => ("script", None),
             };
-            self.losses.script(here, what, &code);
+            if code.trim().is_empty() {
+                continue;
+            }
+            match phase {
+                _ if e.flag("disabled") => self.losses.script(here, &format!("disabled {what}"), &code),
+                Some(phase) => {
+                    self.losses.script_kept(here, what, &code, Dialect::Postman);
+                    scripts.push(Script { phase, code });
+                }
+                None => self
+                    .losses
+                    .script(here, &format!("script for the `{listen}` event"), &code),
+            }
         }
+        scripts
     }
 
     fn variables(&mut self, v: Option<&Value>, here: &str) -> (Vec<Variable>, Vec<Option<String>>) {
@@ -373,7 +394,7 @@ impl Cx {
         parent: &Behavior,
     ) -> FolderOut {
         let behavior = self.behavior(item.get("protocolProfileBehavior"), here, parent);
-        self.events(item.get("event"), here);
+        let scripts = self.events(item.get("event"), here);
         let auth = match item.field("auth") {
             Some(a) => self.auth(a, here, false),
             None => AuthOut::Model(Auth::Inherit),
@@ -391,6 +412,7 @@ impl Cx {
                 auth,
                 vars,
                 var_docs,
+                scripts,
                 ..DefaultsOut::default()
             },
             items: self.items(Some(children), &sub, &behavior),
@@ -405,7 +427,7 @@ impl Cx {
         parent: &Behavior,
     ) -> RequestOut {
         let behavior = self.behavior(item.get("protocolProfileBehavior"), here, parent);
-        self.events(item.get("event"), here);
+        let scripts = self.events(item.get("event"), here);
         // v2.0 allows the request to be just its URL.
         let request = match request {
             Value::Str(url) => Value::Obj(vec![("url".into(), Value::Str(url.clone()))]),
@@ -443,7 +465,7 @@ impl Cx {
         let spec = RequestSpec {
             actions: Vec::new(),
             assertions: Vec::new(),
-            scripts: Vec::new(),
+            scripts,
             name: item.string("name"),
             seq: None,
             method,

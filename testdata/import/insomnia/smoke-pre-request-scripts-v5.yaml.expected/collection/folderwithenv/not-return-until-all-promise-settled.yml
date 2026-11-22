@@ -16,3 +16,14 @@ http:
         "asyncTaskDone": {{asyncTaskDone}}
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        new Promise(resolve => {
+          setTimeout(() => {
+            insomnia.environment.set("asyncTaskDone", true);
+            resolve();
+          }, 500)
+        });

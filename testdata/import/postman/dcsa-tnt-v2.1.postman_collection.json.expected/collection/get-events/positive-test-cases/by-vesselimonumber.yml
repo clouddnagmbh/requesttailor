@@ -11,3 +11,26 @@ http:
       value: "1234567"
       type: query
   auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: "const schema = pm.collectionVariables.get(\"TNT_ONE_OF_TRANPORT_EQUIPMENT_EVENTS_PAYLOAD_SCHEMA\");\r
+
+        const schemaObject = JSON.parse(schema);\r
+
+        \r
+
+        pm.test(\"All requests match query parameters payload schema\", () => {\r
+
+        \  const jsonData = pm.response.json();\r
+
+        \  jsonData.map((item) => {\r
+
+        \      pm.expect(item.payload).to.have.jsonSchema(schemaObject);\r
+
+        \      pm.expect(item.payload.transportCall.vessel.vesselIMONumber).to.equal(\"1234567\");\r
+
+        \  });\r
+
+        });"

@@ -4,14 +4,7 @@
     "environments": 0,
     "folders": 0,
     "format": "postman",
-    "losses": [
-      {
-        "detail": "test script (7 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "A simple GET request"
-      }
-    ],
+    "losses": [],
     "requests": 3
   }
 }

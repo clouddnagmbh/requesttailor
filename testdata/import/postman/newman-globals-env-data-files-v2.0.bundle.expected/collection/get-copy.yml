@@ -21,4 +21,20 @@ http:
     data: []
   auth: inherit
 
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        var data1 = pm.response.json();
+
+        pm.test("Read global var correctly", () => {
+            pm.expect(pm.globals.get("prsG")).equal('prsG');
+        })
+        pm.test("Read env var correctly", () => {
+            pm.expect(pm.environment.get("prsE")).equal('prsE');
+        })
+        pm.test("Read data var correctly", () => {
+            pm.expect(pm.variables.get("prsE")).equal('prsE');
+        })
+
 docs: Similar to postman-echo.com/get. Return GET data.

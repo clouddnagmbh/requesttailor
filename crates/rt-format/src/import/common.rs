@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 use rt_core::model::{Auth, KeyValue, Param, ParamKind};
 
 use super::out::{self, CollectionOut};
+use super::shims::{self, Dialect};
 use super::{Import, ImportError, ImportFormat, Loss, LossEffect, LossKind, LossReport};
 
 /// Losses of one import, in the order they were found.
@@ -39,13 +40,41 @@ impl Losses {
         self.add(location, kind, LossEffect::Approximated, detail);
     }
 
-    /// A script that is not imported (scripting arrives in a later version).
+    /// A script imported as it is: reports each API it uses that the shims do not support
+    /// (`what` is e.g. `pre-request script`). The script stays in the collection; such a call
+    /// fails when it runs.
+    pub fn script_kept(&mut self, location: &str, what: &str, code: &str, dialect: Dialect) {
+        // Post-response scripts usually hold the tests (`pm.test(...)`, `insomnia.test(...)`).
+        let kind = if what.contains("test") || code.contains(".test(") {
+            LossKind::Test
+        } else {
+            LossKind::Script
+        };
+        for gap in shims::gaps(code, dialect) {
+            let why = if gap.note.is_empty() {
+                String::new()
+            } else {
+                format!(" ({})", gap.note)
+            };
+            self.approximated(
+                location,
+                kind,
+                format!(
+                    "{what} kept, but it uses `{}`, which RequestTailor does not support{why}; \
+                     see SHIM-COVERAGE.md",
+                    gap.api
+                ),
+            );
+        }
+    }
+
+    /// A script that is not imported (the `.http` importer: JetBrains handler scripts use
+    /// another API).
     pub fn script(&mut self, location: &str, what: &str, code: &str) {
         let n = line_count(code);
         if n == 0 {
             return;
         }
-        // After-response scripts usually hold the tests (`pm.test(...)`, `insomnia.test(...)`).
         let kind = if what.contains("test") || code.contains(".test(") {
             LossKind::Test
         } else {

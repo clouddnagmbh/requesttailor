@@ -18,40 +18,10 @@
         "location": "followOriginalHttpMethod"
       },
       {
-        "detail": "test script (9 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "followOriginalHttpMethod / followOriginalHttpMethod: false"
-      },
-      {
         "detail": "request settings not imported: `followOriginalHttpMethod`",
         "effect": "dropped",
         "kind": "setting",
         "location": "followOriginalHttpMethod / followOriginalHttpMethod: false"
-      },
-      {
-        "detail": "test script (9 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "followOriginalHttpMethod / followOriginalHttpMethod: true"
-      },
-      {
-        "detail": "test script (6 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "followRedirects / followRedirects: false"
-      },
-      {
-        "detail": "test script (9 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "followRedirects / followRedirects: true"
-      },
-      {
-        "detail": "test script (9 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "maxRedirects"
       },
       {
         "detail": "request settings not imported: `removeRefererHeaderOnRedirect`",
@@ -60,28 +30,10 @@
         "location": "removeRefererHeaderOnRedirect"
       },
       {
-        "detail": "test script (10 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "removeRefererHeaderOnRedirect / removeRefererHeaderOnRedirect: false"
-      },
-      {
-        "detail": "test script (10 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "removeRefererHeaderOnRedirect / removeRefererHeaderOnRedirect: true"
-      },
-      {
         "detail": "request settings not imported: `removeRefererHeaderOnRedirect`",
         "effect": "dropped",
         "kind": "setting",
         "location": "removeRefererHeaderOnRedirect / removeRefererHeaderOnRedirect: true"
-      },
-      {
-        "detail": "test script (10 lines) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "removeRefererHeaderOnRedirect / removeRefererHeaderOnRedirect: true + initial referer"
       },
       {
         "detail": "request settings not imported: `removeRefererHeaderOnRedirect`",

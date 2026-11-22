@@ -2,3 +2,15 @@ info:
   name: GET events
   type: folder
   seq: 2
+
+request:
+  scripts:
+    - type: tests
+      code: |-
+        pm.test("API-Version is present", () => {
+            pm.response.to.have.header("API-Version");
+        });
+
+        pm.test("API-Version header is set correctly", () => {
+            pm.expect(pm.response.headers.get("API-Version")).to.eql(pm.collectionVariables.get("TNT_SPEC_VERSION"));
+        });

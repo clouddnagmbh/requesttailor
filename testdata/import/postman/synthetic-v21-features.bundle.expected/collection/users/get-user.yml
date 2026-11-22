@@ -31,6 +31,14 @@ http:
       disabled: true
   auth: inherit
 
+runtime:
+  scripts:
+    - type: tests
+      code: |
+        pm.test("status 200", function () {
+          pm.response.to.have.status(200);
+        });
+
 docs: Returns one user.
 
 examples:

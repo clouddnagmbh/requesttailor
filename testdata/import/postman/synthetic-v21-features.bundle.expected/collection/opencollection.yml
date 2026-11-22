@@ -17,6 +17,9 @@ request:
       disabled: true
     - name: region
       value: eu
+  scripts:
+    - type: tests
+      code: pm.test('ok', () => {});
 
 docs: |-
   Covers every construct the Postman importer knows.

@@ -13,3 +13,12 @@ http:
     type: json
     data: "{}"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        console.log('globals ' + insomnia.globals.get('__env_source'));
+        console.log('baseGlobals ' + insomnia.baseGlobals.get('__env_source'));
+        insomnia.globals.set('__fromGlobals', 'selectedGlobal');
+        insomnia.baseGlobals.set('__fromBaseGlobals', 'selectedBaseGlobal');

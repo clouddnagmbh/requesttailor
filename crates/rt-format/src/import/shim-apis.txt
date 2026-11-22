@@ -400,4 +400,4 @@ crypto unsupported JetBrains handler scripts are not imported
 $random unsupported JetBrains handler scripts are not imported
 jsonPath() unsupported JetBrains handler scripts are not imported
 xpath() unsupported JetBrains handler scripts are not imported
-require('*') unsupported not a built-in module of RequestTailor
+require('*') unsupported not a built-in module

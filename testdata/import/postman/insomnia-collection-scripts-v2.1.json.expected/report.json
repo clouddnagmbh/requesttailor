@@ -4,32 +4,7 @@
     "environments": 0,
     "folders": 0,
     "format": "postman",
-    "losses": [
-      {
-        "detail": "pre-request script (1 line) not imported",
-        "effect": "dropped",
-        "kind": "script",
-        "location": "collection"
-      },
-      {
-        "detail": "test script (1 line) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "collection"
-      },
-      {
-        "detail": "pre-request script (1 line) not imported",
-        "effect": "dropped",
-        "kind": "script",
-        "location": "New Request"
-      },
-      {
-        "detail": "test script (1 line) not imported",
-        "effect": "dropped",
-        "kind": "test",
-        "location": "New Request"
-      }
-    ],
+    "losses": [],
     "requests": 1
   }
 }

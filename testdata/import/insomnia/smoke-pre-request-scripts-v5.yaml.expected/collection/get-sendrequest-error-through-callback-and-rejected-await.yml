@@ -13,3 +13,24 @@ http:
     type: json
     data: "{}"
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        let errFromCallback;
+        await insomnia.sendRequest(
+                'http://127.0.0.1:1/unreachable',
+                (err, resp) => {
+                    errFromCallback = err;
+                }
+            );
+        console.log('errFromCallback: ' + String(errFromCallback));
+
+        let errFromAwait;
+        try {
+            await insomnia.sendRequest('http://127.0.0.1:1/unreachable');
+        } catch (e) {
+            errFromAwait = e;
+        }
+        console.log('errFromAwait: ' + String(errFromAwait));

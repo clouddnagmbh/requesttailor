@@ -27,4 +27,35 @@ http:
     data: []
   auth: inherit
 
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        pm.test("Content-Type is present", () => {
+            pm.expect(pm.response.headers.has("content-type")).true;
+        })
+        var data1 = pm.response.json();
+        pm.test("testGlobalSetFromPRScript", () => {
+            pm.expect(data1.args.prsG).equal('prsG');
+        })
+        pm.test("Read global var correctly", () => {
+            pm.expect(pm.globals.get("prsG")).equal('prsG');
+        })
+        pm.test("testEnvSetFromPRScript", () => {
+            pm.expect(data1.args.prsE).equal('prsE');
+        })
+        pm.test("Read env var correctly", () => {
+            pm.expect(pm.environment.get("prsE")).equal('prsE');
+        })
+        pm.test("Read data var correctly", () => {
+            pm.expect(pm.variables.get("prsE")).equal('prsE');
+        })
+        pm.globals.set("prsG", "prsG");
+        pm.environment.set("prsE", "prsE");
+    - type: before-request
+      code: |
+        pm.globals.set("prsG", "prsG");
+        pm.globals.set("prsE", "prsEaRDDDROR");
+        pm.environment.set("prsE", "prsE");
+
 docs: Similar to postman-echo.com/get. Return GET data.

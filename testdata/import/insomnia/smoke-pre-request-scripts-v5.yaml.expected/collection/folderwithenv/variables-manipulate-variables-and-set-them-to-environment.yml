@@ -18,3 +18,16 @@ http:
         "varBool": {{varBool}}
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // set local
+        insomnia.variables.set('varStr', 'varStr');
+        insomnia.variables.set('varNum', 777);
+        insomnia.variables.set('varBool', true);
+        // has
+        insomnia.environment.set('varStr', insomnia.variables.get('varStr'));
+        insomnia.environment.set('varNum', insomnia.variables.get('varNum'));
+        insomnia.environment.set('varBool', insomnia.variables.get('varBool'));

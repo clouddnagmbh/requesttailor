@@ -19,3 +19,18 @@ http:
         "folderEnv": "{{folderEnv}}"
       }
   auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // insomnia.globals.set('fallbackToGlobal', 'fallbackToGlobal');
+        insomnia.baseEnvironment.set('fallbackToBase', 'fallbackToBase');
+        insomnia.baseEnvironment.set('scriptValue', 'fromBase');
+        insomnia.environment.set('scriptValue', 'fromEnv');
+        // "preDefinedValue" is already defined in the base environment modal.
+        // but it is rewritten here
+        insomnia.baseEnvironment.set('preDefinedValue', 'fromScript');
+        // "folderEnv" is already defined in the folder environment.
+        // folder version will override the following one
+        insomnia.baseEnvironment.set('folderEnv', 'fromScript');
