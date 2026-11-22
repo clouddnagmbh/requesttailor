@@ -224,3 +224,19 @@ fn the_diff_follows_the_written_edit() {
     assert_eq!(text(&field(c, &["headers", "B"]).new), "2");
     assert!(d.files.iter().all(|f| f.covered));
 }
+
+#[test]
+fn a_value_written_for_a_secret_is_reported_without_the_value() {
+    let env =
+        |value: &str| format!("name: Dev\nvariables:\n  - name: token\n    secret: true\n{value}");
+    let old = set(&[("environments/Dev.yml", &env(""))]);
+    let new = set(&[("environments/Dev.yml", &env("    value: hunter2-secret\n"))]);
+    let d = diff(&old, &new).unwrap();
+    let c = &d.changes[0];
+    assert_eq!(c.target, ChangeTarget::Environment { name: "Dev".into() });
+    let f = field(c, &["variables", "token", "@file-value"]);
+    assert_eq!(f.old, None);
+    assert_eq!(f.new, Some(DiffValue::Secret));
+    assert!(!serde_json::to_string(&d).unwrap().contains("hunter2"));
+    assert!(d.files[0].covered);
+}

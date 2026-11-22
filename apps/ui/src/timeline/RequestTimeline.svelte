@@ -6,9 +6,9 @@
      sent, or restored; both go through the editor (`app.edit`), so nothing new is written
      until the user saves. `path` is the request's path today. -->
 <script lang="ts">
-  import { fieldLabel, isMultiline, valueText } from "../diff/format";
+  import { fieldLabel, fieldValueText, isMultiline } from "../diff/format";
   import { ago } from "../git/format";
-  import type { DiffValue, FieldBlame, RequestSpec, RequestTimeline, TestRecord, TimelineEntry } from "../commands/types";
+  import type { DiffValue, FieldBlame, FieldPath, RequestSpec, RequestTimeline, TestRecord, TimelineEntry } from "../commands/types";
   import { getApp } from "../state/app.svelte";
   import { headline, restoreNote, shortOid, testSummary } from "./format";
 
@@ -100,7 +100,7 @@
   }
 
   const latest = (entry: TimelineEntry): TestRecord | undefined => entry.tests[0];
-  const text = (v: DiffValue | null) => valueText(v) ?? "";
+  const text = (v: DiffValue | null, path: FieldPath) => fieldValueText(path, v) ?? "";
 </script>
 
 <div class="view" data-testid="request-timeline" data-path={path}>
@@ -129,7 +129,7 @@
           <tr data-testid="tl-blame-row" data-path={b.field.join("/")}>
             <td class="path" data-testid="tl-blame-field">{fieldLabel(b.field)}</td>
             <td class="value">
-              {#if b.value?.kind === "secret"}<span class="secret">secret value hidden</span>{:else}{text(b.value) || "(empty)"}{/if}
+              {#if b.value?.kind === "secret"}<span class="secret">secret value hidden</span>{:else}{text(b.value, b.field) || "(empty)"}{/if}
             </td>
             <td class="who" data-testid="tl-blame-commit" data-oid={b.commit.oid}>
               <span>{b.commit.summary}</span>
@@ -184,9 +184,9 @@
                   {:else if isMultiline(f.old, f.new)}
                     <span class="note">{f.old && f.new ? "changed" : f.new ? "added" : "removed"} (multi-line)</span>
                   {:else}
-                    {#if f.old}<del class="old">{text(f.old) || "(empty)"}</del>{/if}
+                    {#if f.old}<del class="old">{text(f.old, f.path) || "(empty)"}</del>{/if}
                     {#if f.old && f.new}<span class="arrow" aria-hidden="true">→</span>{/if}
-                    {#if f.new}<ins class="new">{text(f.new) || "(empty)"}</ins>{/if}
+                    {#if f.new}<ins class="new">{text(f.new, f.path) || "(empty)"}</ins>{/if}
                   {/if}
                 </li>
               {/each}

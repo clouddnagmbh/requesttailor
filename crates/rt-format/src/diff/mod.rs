@@ -40,7 +40,7 @@
 //!
 //! A value never appears in a diff when the variable is secret on either side
 //! ([`DiffValue::Secret`]); only the name is in the field path. Secret files hold no values
-//! anyway; this also hides an old plain value of a variable that became secret. Values that
+//! anyway (one written there by mistake is reported as `[..., "@file-value"]`, never shown); this also hides an old plain value of a variable that became secret. Values that
 //! *look* like credentials (the secret scanner's rules) are masked by the app layer
 //! (`rt_app::diffs`), which knows the scanner.
 //!
@@ -602,10 +602,20 @@ impl<'a> Run<'a> {
         for n in &new_envs {
             let file = self.env_file(self.new_doc, &n.name);
             match find(&old_envs, &n.name) {
-                Some(o) if o == *n => {}
                 Some(o) => {
-                    let fields = fields::compare(&fields::environment(o), &fields::environment(n));
-                    let exact = file != COLLECTION_FILE && self.roundtrip_env(&file, n);
+                    let mut fields = if o == *n {
+                        Vec::new()
+                    } else {
+                        fields::compare(&fields::environment(o), &fields::environment(n))
+                    };
+                    let written = self.secret_values_in_file(o, n, &file);
+                    let only_written = o == *n && !written.is_empty();
+                    fields.extend(written);
+                    if o == *n && fields.is_empty() {
+                        continue;
+                    }
+                    let exact = file != COLLECTION_FILE
+                        && (only_written || (o != *n && self.roundtrip_env(&file, n)));
                     self.covered.insert(file.clone(), exact);
                     if !fields.is_empty() {
                         self.push(
@@ -651,6 +661,49 @@ impl<'a> Run<'a> {
                 );
             }
         }
+    }
+
+    /// Secret variables that carry a value in the environment's file (typed in by mistake;
+    /// the reader drops it, so the model does not change). Only that a value is there and
+    /// that it changed is reported, never the value: `["variables", name, "@file-value"]`.
+    fn secret_values_in_file(
+        &self,
+        old: &Environment,
+        new: &Environment,
+        file: &str,
+    ) -> Vec<FieldChange> {
+        let values = |doc: Option<&CollectionDoc>, env: &Environment| {
+            let mut out = std::collections::BTreeMap::new();
+            if file == COLLECTION_FILE {
+                return out;
+            }
+            let file = self.env_file(doc, &env.name);
+            if let Some(Source::Yaml(d)) = doc.and_then(|d| d.files.get(&file)) {
+                for v in d.root.get("variables").into_iter().flat_map(|l| l.items()) {
+                    let secret = v.get("secret").and_then(|n| n.as_bool()) == Some(true);
+                    if let (true, Some(value), Some(name)) = (
+                        secret,
+                        v.get("value").and_then(|n| n.text()),
+                        v.get("name").and_then(|n| n.text()),
+                    ) {
+                        out.insert(name.to_owned(), value.to_owned());
+                    }
+                }
+            }
+            out
+        };
+        let (a, b) = (values(self.old_doc, old), values(self.new_doc, new));
+        let names: BTreeSet<&String> = a.keys().chain(b.keys()).collect();
+        names
+            .into_iter()
+            .filter(|n| a.get(*n) != b.get(*n))
+            .map(|n| FieldChange {
+                path: vec!["variables".into(), n.clone(), "@file-value".into()],
+                old: a.contains_key(n).then_some(DiffValue::Secret),
+                new: b.contains_key(n).then_some(DiffValue::Secret),
+                line: None,
+            })
+            .collect()
     }
 
     /// The file an environment is declared in.
