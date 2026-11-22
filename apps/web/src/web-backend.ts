@@ -25,6 +25,7 @@ import {
   type GitApi,
   type ImportApi,
   type LineSlice,
+  type McpClientApi,
   type Preview,
   type RecentCollection,
   type RequestSpec,
@@ -160,7 +161,7 @@ export class WebBackend implements Backend {
   readonly grpc = webGrpc();
   readonly graphql = webGraphQl();
   readonly agents = webAgents();
-  readonly mcp = webMcp();
+  readonly mcp: McpClientApi;
   readonly ai = webAi();
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
@@ -206,6 +207,20 @@ export class WebBackend implements Backend {
           services: await sendServices(this, s.id, input.environment),
           input: await this.coreInput(s, input, true),
         };
+      },
+    });
+    // Wave 8, strand D: MCP servers over HTTP, inputs and companion as for a send.
+    this.mcp = webMcp({
+      session: host.session,
+      companion: async () => (this.companionOn ? await this.companionCredentials() : null),
+      coreInput: (input) => this.coreInput(this.session(), input, true),
+      secretValues: async () => {
+        const s = this.session();
+        const values: string[] = [];
+        for (const env of s.ws.environments()) {
+          for (const [, value] of await this.secretValues(s, env.name)) values.push(value);
+        }
+        return values;
       },
     });
     this.recent = webRecent(host);

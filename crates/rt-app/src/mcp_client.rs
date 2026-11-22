@@ -504,6 +504,8 @@ impl McpClient {
             .await?;
         let result = client.vars.mask_value(result);
         let info = server_info(&result)?;
+        // stdio has no headers; only HTTP sends the version with every request.
+        #[cfg_attr(target_arch = "wasm32", allow(irrefutable_let_patterns))]
         if let Wire::Http(w) = &mut client.wire {
             w.protocol = Some(info.protocol_version.clone());
         }

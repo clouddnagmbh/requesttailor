@@ -326,6 +326,11 @@ mod workspace_js {
         pub(crate) fn workspace(&self) -> std::cell::Ref<'_, Workspace> {
             std::cell::Ref::map(self.inner.borrow(), |i| &i.workspace)
         }
+
+        /// The open workspace, mutable (wave 8: saved MCP tests are staged in it, `mcp_js`).
+        pub(crate) fn workspace_mut(&self) -> std::cell::RefMut<'_, Workspace> {
+            std::cell::RefMut::map(self.inner.borrow_mut(), |i| &mut i.workspace)
+        }
     }
 
     #[wasm_bindgen(js_class = Workspace)]
