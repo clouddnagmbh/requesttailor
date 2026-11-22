@@ -9,6 +9,8 @@ publish.workspace = true
 
 [dependencies]
 base64 = "0.22"
+# Request bodies of the AI providers (wave 8, `ai`); already in the tree via rt-core.
+bytes = "1"
 # Line index of large response bodies (SIMD newline search).
 memchr = "2"
 rt-core = { path = "../rt-core" }
