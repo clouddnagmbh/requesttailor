@@ -84,6 +84,18 @@ commit if it finds one.</p>
 <p>The same request runs on the command line with the same core:</p>
 <pre><code>rt send users/get-user.yml --env Staging --var token="$API_TOKEN" --pretty</code></pre>
 <p>See <a href="cli/">Command line: rt</a>.</p>
+
+<h2 id="ai">AI assistant</h2>
+<p>The app can write a request from a description, explain a failed response and suggest
+tests for a request. The assistant is off by default and RequestTailor has no AI service of
+its own: to turn it on, open <em>AI assistant: settings</em> from the command palette and
+choose a provider. Use your own Anthropic API key, or any OpenAI-compatible endpoint, such as
+a model running on your computer with Ollama (<code>http://localhost:11434/v1</code>, no key
+needed). The key is kept in the keychain (desktop) or encrypted in the browser (web app).</p>
+<p>Something is sent only when you ask: the task, the request and, to explain or suggest
+tests, its response. Secret values are replaced by <code>***</code> before anything leaves the
+app, and so are credentials typed into headers, URLs or bodies. What the assistant proposes is
+shown to you first and added as an unsaved change; it never saves anything itself.</p>
 </article>
 </div>
 </div>

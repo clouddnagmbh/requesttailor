@@ -55,8 +55,9 @@ collected or sent.</li>
 does not load content from the internet.</li>
 <li><strong>Connections you cause.</strong> The requests you send; Git remotes you pull from or
 push to; the OAuth 2.0 provider and browser sign-in of an auth configuration; the command lines
-of secret managers you configure; and hosts a plugin is permitted to reach, which you see
-before installing it.</li>
+of secret managers you configure; the AI provider you set up, only when you ask the
+assistant (secret values masked, see <a href="../../docs/#ai">AI assistant</a>); and hosts a
+plugin is permitted to reach, which you see before installing it.</li>
 </ul>
 
 <h2 id="data">What is stored, and where</h2>
@@ -68,6 +69,7 @@ before installing it.</li>
 <tr><td>History: request name, method, masked URL, status, time; no bodies and no header values</td><td>Data folder</td><td>Browser storage</td></tr>
 <tr><td>Cookies set by responses, per collection and environment</td><td>Data folder</td><td>Browser storage</td></tr>
 <tr><td>Installed plugins and their storage</td><td>Data folder</td><td>Browser storage</td></tr>
+<tr><td>AI assistant settings (provider, model, address); its API key</td><td>Data folder; key in the keychain</td><td>Browser storage; key encrypted</td></tr>
 </tbody>
 </table>
 <p><code>rt</code> keeps no history. It shares the keychain entries and the plugin folder with
