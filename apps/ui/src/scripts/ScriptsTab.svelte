@@ -4,6 +4,7 @@
      tests scripts of `RequestSpec.scripts`, one JavaScript editor each. The script API is
      `crates/rt-script/api.d.ts`; `bru.*` and `pm.*` work through shims. -->
 <script lang="ts">
+  import SuggestTestsButton from "../ai/SuggestTestsButton.svelte";
   import type { Script, ScriptPhase } from "../commands/types";
   import { PHASES, scriptCode, withScriptCode } from "./edit";
   import ScriptEditor from "./ScriptEditor.svelte";
@@ -23,6 +24,7 @@
 </script>
 
 <div class="scripts" data-testid="scripts-tab">
+  <SuggestTestsButton />
   {#each PHASES as p (p.phase)}
     <section aria-labelledby="rt-script-{p.phase}">
       <h3 id="rt-script-{p.phase}">{p.label}</h3>

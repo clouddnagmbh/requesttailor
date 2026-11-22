@@ -4,6 +4,7 @@
      headers, tests and console of scripts (wave 7), and timing. Created per response (keyed by its id), so all state here belongs to
      that response. The full body stays in the backend; the UI only fetches what it shows. -->
 <script lang="ts">
+  import ExplainButton from "../ai/ExplainButton.svelte";
   import type { Backend } from "../commands/backend";
   import type { ReceivedResponse, StoredResponse } from "../commands/types";
   import {
@@ -218,6 +219,7 @@
         {response.redirects.length} redirect{response.redirects.length === 1 ? "" : "s"}
       </span>
     {/if}
+    <ExplainButton {result} {backend} />
   </div>
 
   <SendNotes notes={result.report.notes ?? []} />
