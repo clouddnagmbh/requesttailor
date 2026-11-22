@@ -6,10 +6,11 @@
 
 import type { Page } from "@playwright/test";
 
-/** Vite dev server for these tests (strand E's port). */
-export const WEB_PORT = 5185;
-/** rt-testserver for these tests (47811 belongs to the conformance suite). */
-export const SERVER_PORT = 47815;
+/** Vite dev server for these tests; `RT_SHELLS_WEB_PORT` overrides it (parallel worktrees). */
+export const WEB_PORT = Number(process.env.RT_SHELLS_WEB_PORT ?? 5185);
+/** rt-testserver for these tests (47811 belongs to the conformance suite);
+ *  `RT_SHELLS_SERVER_PORT` overrides it. */
+export const SERVER_PORT = Number(process.env.RT_SHELLS_SERVER_PORT ?? 47815);
 export const SERVER = `http://127.0.0.1:${SERVER_PORT}`;
 
 /** A small collection: one request, one environment pointing at rt-testserver, plus files
