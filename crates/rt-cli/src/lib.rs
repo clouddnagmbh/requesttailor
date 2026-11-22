@@ -2,7 +2,8 @@
 // Copyright 2026 The RequestTailor Authors
 
 //! `rt-cli`: the `rt` command line: `rt send` (wave 2), the companion `rt agent` (wave 3),
-//! `rt import` (wave 4) and `rt scan` (wave 5).
+//! `rt import` (wave 4), `rt scan` (wave 5) and `rt run` (wave 7, `run.rs`, reporters in
+//! `report/`).
 //!
 //! Wave 5: `rt send` runs with the same services as the apps (`services`): plugins (strand A,
 //! `plugins.rs`), OAuth 2.0 token cache and terminal prompts (strand C, `oauth.rs`), cookie
@@ -18,6 +19,7 @@ pub mod cookies;
 pub mod import;
 pub mod oauth;
 pub mod plugins;
+pub mod report;
 pub mod run;
 pub mod scan;
 pub mod secrets;
@@ -51,6 +53,7 @@ rt {version}: send requests from OpenCollection (YAML) files
 
 Usage:
   rt send <request-file> [options]
+  rt run [<folder>] [options]
   rt agent [--port <PORT>] [--allow-origin <ORIGIN>]... [--allow-secrets]
   rt import <file>... --out <dir> [--format <FORMAT>] [--json]
   rt scan [<path>...] [--json]
@@ -67,6 +70,27 @@ Options for send:
       --no-prompt           Fail instead of asking for an OAuth 2.0 login
       --no-scripts          Do not run the collection's scripts
   -h, --help                Show this help
+
+rt run sends the requests of a collection, or of one folder of it, in order
+(by seq, then name), for pipelines. <folder> defaults to the current folder.
+Variables set by scripts carry over to the next requests. Options as for send
+(-e, --var, --body-limit, --plugin, --no-plugins, --cookie-jar, --no-prompt,
+--no-scripts), and:
+      --data <FILE>         CSV or JSON rows; one iteration per row, the row's
+                            values as variables
+      --iterations <N>      Run N times (with --data: N rows, cycling)
+      --delay <MS>          Wait MS milliseconds between requests
+      --bail                Stop at the first failed request, test or assertion
+      --reporter <NAME[=FILE]>
+                            text, json or junit; repeatable. Without FILE a
+                            report goes to stdout (one at most). Live text is
+                            always on stderr.
+      --out <FILE>          Write the reporter just before it to FILE
+  The JSON report is {{\"version\": 1, \"summary\": ..., \"steps\": [...]}} with
+  each step's send report; JUnit has one testsuite per request and iteration
+  and one testcase per test and assertion. Exit code {EXIT_OK} when everything
+  passed, {EXIT_TESTS} when a request, test or assertion failed, {EXIT_USAGE} for usage
+  errors, a folder without requests or a report that cannot be written.
 
 rt agent runs the companion for the web app on 127.0.0.1 until stopped:
       --port <PORT>           Listen on PORT (default {agent_port})

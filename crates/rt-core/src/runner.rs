@@ -118,6 +118,16 @@ pub async fn run<T: Transport>(
     summary
 }
 
+/// One data row: column or key, value (CSV cells as strings, JSON values as they are).
+pub type DataRow = Vec<(String, serde_json::Value)>;
+
+/// Reads a data file (`.csv` or `.json`, by `name`) into rows. Strand D implements it; this
+/// stub (added by strand E for `rt run --data`) refuses every file.
+pub fn parse_data(name: &str, bytes: &[u8]) -> Result<Vec<DataRow>, String> {
+    let _ = bytes;
+    Err(format!("{name}: data files are not supported yet"))
+}
+
 /// Helper for reporters: did this report pass?
 pub fn passed(report: &SendReport) -> bool {
     report.error.is_none()

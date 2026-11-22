@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Users &amp; Co" tests="10" failures="1" errors="2" skipped="2" time="1.234">
+  <testsuite name="users/get.yml [iteration 1]" tests="3" failures="0" errors="0" skipped="0" time="0.012">
+    <testcase name="status is 200" classname="users/get.yml [iteration 1]" time="0.000"/>
+    <testcase name="name is &lt;&quot;Ann&quot; &amp; &apos;Bob&apos;&gt;" classname="users/get.yml [iteration 1]" time="0.000"/>
+    <testcase name="res.status eq 200" classname="users/get.yml [iteration 1]" time="0.000"/>
+    <system-out>[log] request: token ***
+</system-out>
+  </testsuite>
+  <testsuite name="users/create.yml [iteration 1]" tests="1" failures="0" errors="1" skipped="0" time="0.000">
+    <testcase name="request" classname="users/create.yml [iteration 1]" time="0.000">
+      <error message="connection failed: connection refused" type="transport">connection failed: connection refused</error>
+    </testcase>
+  </testsuite>
+  <testsuite name="cleanup.yml [iteration 1]" tests="1" failures="0" errors="0" skipped="1" time="0.000">
+    <testcase name="request" classname="cleanup.yml [iteration 1]" time="0.000">
+      <skipped/>
+    </testcase>
+  </testsuite>
+  <testsuite name="users/get.yml [iteration 2]" tests="3" failures="1" errors="0" skipped="0" time="0.012">
+    <testcase name="status is 200" classname="users/get.yml [iteration 2]" time="0.000"/>
+    <testcase name="name is &lt;&quot;Ann&quot; &amp; &apos;Bob&apos;&gt;" classname="users/get.yml [iteration 2]" time="0.000">
+      <failure message="expected &apos;Bo\u001bb&apos; to equal &apos;Bob&apos;&#10;at line 2" type="test">expected 'Bo\u001bb' to equal 'Bob'
+at line 2</failure>
+    </testcase>
+    <testcase name="res.status eq 200" classname="users/get.yml [iteration 2]" time="0.000"/>
+    <system-out>[log] request: token ***
+</system-out>
+  </testsuite>
+  <testsuite name="users/create.yml [iteration 2]" tests="1" failures="0" errors="1" skipped="0" time="0.000">
+    <testcase name="request" classname="users/create.yml [iteration 2]" time="0.000">
+      <error message="connection failed: connection refused" type="transport">connection failed: connection refused</error>
+    </testcase>
+  </testsuite>
+  <testsuite name="cleanup.yml [iteration 2]" tests="1" failures="0" errors="0" skipped="1" time="0.000">
+    <testcase name="request" classname="cleanup.yml [iteration 2]" time="0.000">
+      <skipped/>
+    </testcase>
+  </testsuite>
+</testsuites>
