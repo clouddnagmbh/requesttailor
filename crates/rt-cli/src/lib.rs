@@ -480,8 +480,22 @@ where
         Ok(Command::Scan(args)) => return scan::run(args, stdout, stderr),
         Ok(Command::Run(args)) => return run::run(args, stdout, stderr),
         Ok(Command::Mcp(args)) => return mcp::run(args, stdout, stderr),
-        Ok(Command::Approvals(args) | Command::Approve(args) | Command::Deny(args)) => {
-            return approvals::run(args, stdout, stderr);
+        Ok(Command::Approvals(args)) => return approvals::run(args, stdout, stderr),
+        Ok(Command::Approve(args)) => {
+            return approvals::decide(
+                args,
+                rt_app::agents::ApprovalDecision::Approved,
+                stdout,
+                stderr,
+            );
+        }
+        Ok(Command::Deny(args)) => {
+            return approvals::decide(
+                args,
+                rt_app::agents::ApprovalDecision::Denied,
+                stdout,
+                stderr,
+            );
         }
         Ok(Command::McpTest(args)) => return mcp_test::run(args, stdout, stderr),
         Ok(Command::Mock(args)) => return mock::run(args, stdout, stderr),

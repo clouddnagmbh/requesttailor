@@ -23,6 +23,8 @@ use std::collections::BTreeMap;
 
 use rt_core::model::Collection;
 
+/// Wave 8, strand C: `extensions.requesttailor.agents`.
+mod agents;
 mod auth;
 mod edit;
 #[cfg(not(target_arch = "wasm32"))]

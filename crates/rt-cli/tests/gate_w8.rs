@@ -19,7 +19,7 @@
 //!   `--approval-timeout` seconds, then fails with `isError: true` and sends nothing.
 //! - `rt approvals --json` lists the pending approvals (`PendingApproval[]`).
 //!
-//! Run: `cargo test -p rt-cli --test gate_w8 -- --include-ignored`.
+//! Run: `cargo test -p rt-cli --test gate_w8`.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
@@ -205,7 +205,6 @@ fn tmp(name: &str) -> PathBuf {
 }
 
 #[test]
-#[ignore = "wave 8: needs strand C"]
 fn agent_runs_collection_over_mcp_and_production_writes_wait_for_approval() {
     let server = counting_server();
     let dir = tmp("approval");
@@ -316,7 +315,6 @@ fn agent_runs_collection_over_mcp_and_production_writes_wait_for_approval() {
 }
 
 #[test]
-#[ignore = "wave 8: needs strand C"]
 fn production_write_without_a_decision_times_out_and_sends_nothing() {
     let server = counting_server();
     let dir = tmp("timeout");
@@ -369,7 +367,6 @@ fn production_write_without_a_decision_times_out_and_sends_nothing() {
 }
 
 #[test]
-#[ignore = "wave 8: needs strand C"]
 fn read_only_environment_refuses_writes() {
     let server = counting_server();
     let dir = tmp("readonly");
