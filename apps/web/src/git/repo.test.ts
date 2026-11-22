@@ -100,6 +100,14 @@ describe("status", () => {
     expect((await repoOps.status(r)).branch).toBe("main");
   });
 
+  it("initializes a folder that has a stray .git/config", async () => {
+    const r = newRepo({ ".git/config": "[core]\n", "a.yml": "a\n" });
+    expect((await repoOps.status(r)).repo).toBe(false);
+    await repoOps.init(r);
+    await repoOps.commit(r, "first", ["a.yml"], me);
+    expect(await repoOps.status(r)).toMatchObject({ repo: true, branch: "main", files: [] });
+  });
+
   it("respects .gitignore", async () => {
     const r = newRepo({ ".gitignore": "secret.yml\n", "secret.yml": "x\n", "a.yml": "a\n" });
     await repoOps.init(r);

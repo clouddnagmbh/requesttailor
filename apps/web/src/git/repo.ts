@@ -436,6 +436,18 @@ export async function createBranch(repo: Repo, name: string, checkoutNow: boolea
 export async function init(repo: Repo): Promise<void> {
   if (await isRepo(repo)) throw gitErr("The collection is already a Git repository.");
   await git.init({ fs: repo.fs, dir: repo.dir, defaultBranch: "main" });
+  if (!(await isRepo(repo))) {
+    // isomorphic-git skips a `.git` that already has a config (e.g. a stray `.git/config`):
+    // add what makes it a repository.
+    for (const d of ["objects", "objects/info", "objects/pack", "refs", "refs/heads", "refs/tags"]) {
+      try {
+        await repo.fs.promises.mkdir(path(repo, `.git/${d}`));
+      } catch (e) {
+        if ((e as { code?: string }).code !== "EEXIST") throw e;
+      }
+    }
+    await repo.fs.promises.writeFile(path(repo, ".git/HEAD"), "ref: refs/heads/main\n");
+  }
 }
 
 async function remoteUrl(repo: Repo, remote: string): Promise<string> {
