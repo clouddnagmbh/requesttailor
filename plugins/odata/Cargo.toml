@@ -10,6 +10,14 @@ publish.workspace = true
 # A plain library, built into `target/plugins/odata.wasm` by `scripts/build-plugins.mjs` (see
 # plugins/example/Cargo.toml). Uses only the public plugin API through rt-plugin-sdk.
 
+[features]
+default = ["plugin"]
+# The plugin's `rt_call` export and manifest section on wasm32 (`rt_plugin_sdk::plugin!`). A
+# crate that uses the model and parser as a library in its own wasm module turns it off
+# (`default-features = false`), so the module neither exports `rt_call` nor imports the
+# plugin host's `rt` functions.
+plugin = []
+
 [dependencies]
 rt-plugin-sdk = { path = "../../crates/rt-plugin-sdk" }
 serde = { version = "1", features = ["derive"] }

@@ -38,6 +38,8 @@ pub const MANIFEST: &[u8] = include_bytes!("../plugin.json");
 
 pub struct OData;
 
+// Library users (feature `plugin` off) get the model and parser without the plugin's exports.
+#[cfg(feature = "plugin")]
 rt_plugin_sdk::plugin!(OData, manifest = MANIFEST);
 
 impl Plugin for OData {
