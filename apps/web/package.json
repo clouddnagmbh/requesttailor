@@ -7,7 +7,8 @@
   "type": "module",
   "scripts": {
     "dev": "node ../../scripts/build-wasm.mjs --optional && vite",
-    "build": "node ../../scripts/build-wasm.mjs && vite build",
+    "build": "node ../../scripts/build-wasm.mjs && vite build && npm run bundle-plugins",
+    "bundle-plugins": "node ../../scripts/build-plugins.mjs --optional --out dist/plugins odata",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "e2e": "playwright test && npm run e2e:shells",

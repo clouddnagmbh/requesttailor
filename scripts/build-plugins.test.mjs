@@ -120,7 +120,8 @@ test("plugin crates are the packages directly in plugins/ with a plugin.json", (
 });
 
 test("arguments", () => {
-  assert.deepEqual(parseArgs(["example", "--out", "dist"]), { outDir: "dist", names: ["example"] });
+  assert.deepEqual(parseArgs(["example", "--out", "dist"]), { outDir: "dist", names: ["example"], optional: false });
+  assert.equal(parseArgs(["--optional", "odata"]).optional, true);
   assert.throws(() => parseArgs(["--out"]));
   assert.throws(() => parseArgs(["--release"]));
 });

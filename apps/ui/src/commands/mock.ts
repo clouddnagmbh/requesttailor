@@ -141,8 +141,13 @@ export class MockBackend implements Backend {
   /** Every file "written" by `save`, for tests (`window.__rt.backend.files`). */
   readonly files = new Map<string, string>();
 
-  constructor() {
+  /** `welcome`: ship a bundled plugin and ask the first-start question (wave 6). */
+  constructor(options: { welcome?: boolean } = {}) {
     for (const [p, s] of this.requests) this.saved.set(p, structuredClone(s));
+    this.plugins = Object.assign(mockPlugins({ welcome: options.welcome }), {
+      requestOf: (path: string) => this.getRequest(path),
+      newRequest: (name: string) => emptyRequest(name),
+    });
   }
 
   // Wave 4 parts, one file per strand (./mock-*.ts).
@@ -159,9 +164,7 @@ export class MockBackend implements Backend {
   readonly history = new MockHistory();
   readonly recent = new MockRecent();
   // Wave 5 parts, one file per strand.
-  readonly plugins: MockPlugins = Object.assign(mockPlugins(), {
-    requestOf: (path: string) => this.getRequest(path),
-  });
+  readonly plugins: MockPlugins;
   readonly auth: AuthApi = mockAuth();
   readonly cookies = mockCookies();
 
@@ -227,6 +230,14 @@ export class MockBackend implements Backend {
     for (let n = 2; this.requests.has(path); n++) path = `${folder ? folder + "/" : ""}${slug}-${n}.yml`;
     this.requests.set(path, emptyRequest(name));
     return path;
+  }
+
+  /** Folders exist through their requests in the mock: segments keep their names. */
+  async createFolder(path: string): Promise<string> {
+    this.ensureOpen();
+    const parts = path.split("/").filter((p) => p !== "");
+    if (parts.some((p) => p === "." || p === ".." || p.includes("\\"))) throw new BackendError("folder-not-found", path);
+    return parts.join("/");
   }
 
   async updateRequest(path: string, spec: RequestSpec): Promise<void> {

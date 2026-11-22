@@ -186,7 +186,9 @@
                   <button data-testid="plugin-remove" disabled={busy} onclick={() => (removing = p.manifest.id)}>Remove</button>
                 {/if}
               </div>
-              {#if p.manifest.description}<p class="muted">{p.manifest.description}</p>{/if}
+              <!-- Disabled plugins say nothing about their domain (wave 6: a bundled plugin the
+                   user did not choose stays out of sight). -->
+              {#if p.enabled && p.manifest.description}<p class="muted" data-testid="plugin-description">{p.manifest.description}</p>{/if}
               <p class="muted perms">
                 {perms.length === 0 ? "No permissions" : perms.join(" · ")}
                 {#if !p.granted}<span class="warn"> (not granted; reinstall to grant)</span>{/if}

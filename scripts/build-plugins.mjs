@@ -5,9 +5,11 @@
 // WebAssembly modules, target/plugins/<id>.wasm, and checks each against the binary
 // interface of crates/rt-plugin/API.md.
 //
-// Usage: node scripts/build-plugins.mjs [--out DIR] [NAME ...]
-//   NAME   a plugin folder name (e.g. `example`); default: all plugins.
-//   --out  output folder instead of target/plugins.
+// Usage: node scripts/build-plugins.mjs [--out DIR] [--optional] [NAME ...]
+//   NAME        a plugin folder name (e.g. `example`); default: all plugins.
+//   --out       output folder instead of target/plugins.
+//   --optional  a missing wasm32 target only warns (exit 0, nothing built): app builds that
+//               bundle plugins (wave 6) still build without them.
 //
 // Why not `cargo build` with crate type cdylib: a cdylib exports every `#[no_mangle]` symbol
 // of every dependency. The API types depend on rt-core, whose wasm32 build carries the
@@ -21,7 +23,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -135,9 +137,11 @@ export function pluginPackages(metadata, root = ROOT) {
 }
 
 export function parseArgs(argv) {
-  const out = { outDir: DEFAULT_OUT, names: [] };
+  const out = { outDir: DEFAULT_OUT, names: [], optional: false };
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--out") {
+    if (argv[i] === "--optional") {
+      out.optional = true;
+    } else if (argv[i] === "--out") {
       if (!argv[i + 1]) throw new Error("--out needs a folder");
       out.outDir = argv[++i];
     } else if (argv[i].startsWith("-")) {
@@ -181,6 +185,10 @@ function main() {
     const libdir = run("rustc", ["--print", "target-libdir", "--target", TARGET]);
     if (!existsSync(libdir)) throw new Error();
   } catch {
+    if (args.optional) {
+      console.warn(`build-plugins: the ${TARGET} target is missing, no plugins built (rustup target add ${TARGET})`);
+      return;
+    }
     fail(`the ${TARGET} target is missing: rustup target add ${TARGET}`);
   }
   const metadata = JSON.parse(run("cargo", ["metadata", "--format-version", "1", "--no-deps", "--locked"]));
@@ -192,6 +200,9 @@ function main() {
   }
   if (plugins.length === 0) fail("no plugin crates found in plugins/");
   const lld = rustLld();
+  // Relative to where the script was started (npm runs it in the package folder); the
+  // linker runs in the repository root.
+  args.outDir = resolve(args.outDir);
   mkdirSync(args.outDir, { recursive: true });
 
   for (const plugin of plugins) {

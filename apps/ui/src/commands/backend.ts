@@ -252,6 +252,10 @@ export interface Backend {
   getRequest(path: string): Promise<RequestSpec>;
   /** New GET request named `name` in `folder` (`""` = root). Returns its path. Unsaved. */
   createRequest(folder: string, name: string): Promise<string>;
+  /** Makes sure folder `path` exists (`/`-separated; each segment matches a folder by
+   *  directory or display name, or is created). Returns the folder's path for
+   *  `createRequest`. Unsaved. Wave 6 (plugin `create_requests`). */
+  createFolder(path: string): Promise<string>;
   /** Replaces a request in memory. Unsaved until `save`. */
   updateRequest(path: string, spec: RequestSpec): Promise<void>;
   /** Request paths with unsaved changes. */

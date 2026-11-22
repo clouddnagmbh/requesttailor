@@ -256,7 +256,12 @@ impl PluginsJs {
         } else {
             from_js(&scope, "scope")?
         };
-        let spec: RequestSpec = from_js(&spec, "spec")?;
+        // Collection tabs (wave 6) have no request: `null` is the empty one.
+        let spec: RequestSpec = if spec.is_null() || spec.is_undefined() {
+            RequestSpec::default()
+        } else {
+            from_js(&spec, "spec")?
+        };
         let input: Vec<(String, String)> = if input.is_undefined() || input.is_null() {
             Vec::new()
         } else {

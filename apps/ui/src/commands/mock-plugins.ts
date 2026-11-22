@@ -11,6 +11,12 @@
 //   submit (echoes the input), `add-header` (request tabs: an `update_request` that adds
 //   `X-Mock-Plugin`), tree items (`item:<label>`);
 // - import with every importer: one request per file.
+// - collection tabs (wave 6) also offer `add-to-collection`: a reply with `create_requests`
+//   and `add_environments` (see `MOCK_ADDITIONS`).
+//
+// Bundled plugins (wave 6, strand F): `mockPlugins({ welcome: true })` (the web shell's
+// `?backend=mock&welcome=1`) ships `MOCK_BUNDLED`, installed disabled, and asks the
+// first-start question once.
 
 import { BackendError, type ImportSource, type PluginApi } from "./backend";
 import type { Manifest, Note, PluginInfo, RequestSpec, TabTarget, View, ViewReply } from "./types";
@@ -60,9 +66,51 @@ export interface MockPlugins extends PluginApi {
   notes(): Note[];
   /** `spec` → `RequestSpec` of the request for tabs (set by the mock backend). */
   requestOf?: (path: string) => Promise<RequestSpec>;
+  /** A new empty request (set by the mock backend). */
+  newRequest?: (name: string) => RequestSpec;
 }
 
+/** The mock's bundled plugin: a stand-in for the OData plugin with collection tabs. */
+export const MOCK_BUNDLED: Manifest = mockManifest({
+  id: "odata",
+  name: "OData",
+  version: "0.1.0",
+  description: "OData V2 and V4 from $metadata; SAP system landscapes (mock).",
+  license: "Apache-2.0",
+  permissions: { network: ["{request}"], storage: true, variables: true },
+  contributes: {
+    prepare: true,
+    response: false,
+    tabs: [
+      { id: "entities", title: "OData", place: "collection", content_types: [] },
+      { id: "query", title: "Query", place: "request", content_types: [] },
+    ],
+    importers: [],
+    welcome: { label: "SAP and OData", description: "OData V2 and V4 services, S/4HANA: metadata browser, query builder, landscapes." },
+  },
+});
+
+/** What `add-to-collection` adds: a request in a new folder, one whose name exists in
+ *  `users/` (gets " 2"), a new environment with a secret, and one variable for `Local`. */
+export const MOCK_ADDITIONS = {
+  requests: [
+    { folder: "Sales Orders", name: "List sales orders", url: "{{baseUrl}}/sap/opu/odata/sap/API_SALES_ORDER_SRV/A_SalesOrder" },
+    { folder: "users", name: "List users", url: "{{baseUrl}}/users" },
+  ],
+  environments: [
+    {
+      name: "S4 DEV",
+      variables: [
+        { name: "baseUrl", value: "https://s4-dev.example.com", secret: false },
+        { name: "password", value: "", secret: true },
+      ],
+    },
+    { name: "Local", variables: [{ name: "baseUrl", value: "http://ignored", secret: false }, { name: "sapClient", value: "100", secret: false }] },
+  ],
+};
+
 function view(manifest: Manifest, tab: string, target: TabTarget, calls: number): View {
+  const collection = manifest.contributes.tabs.find((t) => t.id === tab)?.place === "collection";
   return {
     blocks: [
       { type: "heading", text: `${manifest.name}: ${tab}` },
@@ -84,13 +132,21 @@ function view(manifest: Manifest, tab: string, target: TabTarget, calls: number)
           { name: "verbose", label: "Verbose", kind: "checkbox", value: "false", options: [] },
         ],
       },
-      { type: "actions", actions: [{ id: "hello", label: "Say hello" }, { id: "add-header", label: "Add header" }] },
+      {
+        type: "actions",
+        actions: collection
+          ? [{ id: "hello", label: "Say hello" }, { id: "add-to-collection", label: "Add to collection" }]
+          : [{ id: "hello", label: "Say hello" }, { id: "add-header", label: "Add header" }],
+      },
     ],
   };
 }
 
-export function mockPlugins(): MockPlugins {
+export function mockPlugins(options: { welcome?: boolean } = {}): MockPlugins {
   const installed: PluginInfo[] = [];
+  const bundled = options.welcome ? [MOCK_BUNDLED] : [];
+  for (const manifest of bundled) installed.push({ manifest: structuredClone(manifest), granted: true, enabled: false });
+  let answered = bundled.length === 0;
   const find = (id: string) => {
     const p = installed.find((x) => x.manifest.id === id);
     if (!p) throw new BackendError("plugin", `plugin ${id} is not installed`);
@@ -127,10 +183,19 @@ export function mockPlugins(): MockPlugins {
     setEnabled: async (id, enabled) => {
       find(id).enabled = enabled;
     },
-    // Wave 6, strand F: bundled plugins and the first-start question. Interface commit:
-    // answered already, so no dialog shows.
-    welcome: async () => ({ done: true, choices: [] }),
-    chooseWelcome: async () => {},
+    welcome: async () => ({
+      done: answered,
+      choices: bundled
+        .filter((m) => m.contributes.welcome && installed.some((p) => p.manifest.id === m.id))
+        .map((m) => ({ plugin: m.id, choice: m.contributes.welcome! })),
+    }),
+    chooseWelcome: async (ids) => {
+      for (const id of ids) {
+        if (!bundled.some((m) => m.id === id)) throw new BackendError("plugin", `${id} is not a bundled plugin`);
+      }
+      for (const id of ids) find(id).enabled = true;
+      answered = true;
+    },
     renderTab: async (plugin, tab, target, state): Promise<ViewReply> => {
       const m = tabOf(plugin, tab);
       const n = count(state);
@@ -150,6 +215,17 @@ export function mockPlugins(): MockPlugins {
       if (action === "hello") say(`Hello from ${m.name}`);
       else if (action === "form") say(`Form: ${input.map(([k, v]) => `${k}=${v}`).join(", ")}`);
       else if (action.startsWith("item:")) say(`Clicked ${action.slice(5)}`);
+      else if (action === "add-to-collection") {
+        const blank = api.newRequest;
+        if (!blank) throw new BackendError("plugin", "no request");
+        reply.create_requests = MOCK_ADDITIONS.requests.map((r) => ({
+          folder: r.folder,
+          name: r.name,
+          spec: { ...blank(r.name), url: r.url },
+        }));
+        reply.add_environments = structuredClone(MOCK_ADDITIONS.environments);
+        say("Proposed additions");
+      }
       else if (action === "add-header") {
         if (!api.requestOf) throw new BackendError("plugin", "no request");
         const spec = await api.requestOf(target.request_path);
