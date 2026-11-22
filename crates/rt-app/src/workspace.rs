@@ -142,6 +142,11 @@ impl Workspace {
         self.doc.model()
     }
 
+    /// The files of the opened folder (wave 8, strand B: proto files of gRPC requests).
+    pub fn files(&self) -> &FileSet {
+        &self.files
+    }
+
     pub fn tree(&self) -> TreeNode {
         let model = self.doc.model();
         TreeNode::Folder {
