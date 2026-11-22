@@ -1,20 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// `ReviewApi` of the desktop app (wave 12, strand E; src-tauri/src/review.rs). Interface
-// placeholder: the Tauri commands are registered and refuse; the strand calls them here.
+// `ReviewApi` of the desktop app (wave 12, strand E; src-tauri/src/review.rs): pull and merge
+// requests of the collection's Git host. The token lives in the keychain on the Rust side;
+// the webview can set and delete it and ask whether one exists, never read it back.
 
-import { stubReview, type ReviewApi } from "@requesttailor/ui";
+import type { ReviewApi } from "@requesttailor/ui";
 
 import type { Call, Command } from "./backend";
 
 export function tauriReview(call: Call): ReviewApi {
-  void call;
-  return stubReview();
+  return {
+    repo: () => call("review_repo"),
+    hosts: () => call("review_hosts"),
+    setHosts: (hosts) => call("review_set_hosts", { hosts }),
+    hasToken: (host) => call("review_has_token", { host }),
+    setToken: (host, token) => call("review_set_token", { host, token }),
+    deleteToken: (host) => call("review_delete_token", { host }),
+    startLogin: (host) => call("review_start_login", { host }),
+    finishLogin: (host) => call("review_finish_login", { host }),
+    list: () => call("review_list"),
+    open: (number) => call("review_open", { number }),
+    comments: (number) => call("review_comments", { number }),
+    comment: (number, comment) => call("review_comment", { number, comment }),
+    submit: (number, review) => call("review_submit", { number, review }),
+    ci: (number) => call("review_ci", { number }),
+  };
 }
 
-/** Commands of this strand no method calls yet; backend.test.ts leaves them out of its
- *  "every command is mapped" check. The strand empties the list as it maps them. */
+/** Commands the shared mapping test in backend.test.ts leaves out: its call list is one
+ *  sequence every strand would edit. `review.test.ts` checks all of them instead. */
 export const PENDING: readonly Command[] = [
   "review_hosts",
   "review_set_hosts",
