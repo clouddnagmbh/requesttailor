@@ -16,10 +16,12 @@
 //!   `PluginInfo` (replaces a plugin with the same id); `unload(id)`, `setEnabled(id, on)`,
 //!   `list()` → `PluginInfo[]`.
 //! - `Plugins.renderTab(plugin, tab, action | null, input, target, spec, body | null, state,
-//!   services)` → `Promise<ViewReply>`: `spec` and `body` come from the workspace.
+//!   services, scope?)` → `Promise<ViewReply>`: `spec` and `body` come from the workspace,
+//!   `scope` (wave 6) from `Workspace.pluginScope(requestPath, environment)`.
 //! - `Plugins.importFiles(plugin, importer, files, services)` → `Promise<ImportReply>`, for
 //!   `Importer.addPluginImport`.
 
+use std::rc::Rc;
 use std::sync::{LazyLock, Mutex, MutexGuard};
 
 use js_sys::{Array, Function, Promise, Reflect, Uint8Array};
@@ -29,11 +31,12 @@ use rt_app::plugins::{
 };
 use rt_app::{AppError, import::SourceFile};
 use rt_core::model::RequestSpec;
-use rt_core::services::{HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
+use rt_core::services::{CookieJar, HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
 use rt_core::transport::companion::CompanionTransport;
 use rt_core::transport::fetch::FetchTransport;
 use rt_core::transport::{HttpRequest, Response, ResponseHead, Transport, TransportError};
 use rt_plugin::host::services::{PluginStorage, TransportServices};
+use rt_plugin::host::{SessionHooks, TabScope};
 use serde_json::Value;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
@@ -230,7 +233,9 @@ impl PluginsJs {
     }
 
     /// Renders a tab (`action: null`) or runs one of its actions. `spec` is the request as in
-    /// the editor, `body` the response body for response tabs.
+    /// the editor, `body` the response body for response tabs. `scope` (wave 6): the tab's
+    /// context and the URLs `{request}` covers, from `Workspace.pluginScope` (`undefined`:
+    /// none).
     #[wasm_bindgen(js_name = renderTab)]
     #[allow(clippy::too_many_arguments)]
     pub fn render_tab(
@@ -243,9 +248,20 @@ impl PluginsJs {
         body: Option<Vec<u8>>,
         state: JsValue,
         services: JsValue,
+        scope: JsValue,
     ) -> Result<Promise, JsValue> {
         let target: TabTarget = from_js(&target, "target")?;
-        let spec: RequestSpec = from_js(&spec, "spec")?;
+        let scope: TabScope = if scope.is_undefined() || scope.is_null() {
+            TabScope::default()
+        } else {
+            from_js(&scope, "scope")?
+        };
+        // Collection tabs (wave 6) have no request: `null` is the empty one.
+        let spec: RequestSpec = if spec.is_null() || spec.is_undefined() {
+            RequestSpec::default()
+        } else {
+            from_js(&spec, "spec")?
+        };
         let input: Vec<(String, String)> = if input.is_undefined() || input.is_null() {
             Vec::new()
         } else {
@@ -263,7 +279,7 @@ impl PluginsJs {
         Ok(wasm_bindgen_futures::future_to_promise(async move {
             let action = action.as_deref().map(|a| (a, input));
             let reply = host
-                .tab(&plugin, &tab, action, target, spec, response, state)
+                .tab_with(&plugin, &tab, action, target, spec, response, state, scope)
                 .await
                 .map_err(plugin_error)?;
             to_js(&reply)
@@ -319,19 +335,25 @@ impl PluginsJs {
 }
 
 /// The plugin part of one send, from the `plugins` field of the services object the web
-/// shell passes to `Workspace.send`.
+/// shell passes to `Workspace.send`. `cookies`: the send's jar, for `http` with
+/// `session: true` (wave 6).
 pub struct PluginSend {
     host: Option<PluginHost>,
     collection: String,
+    cookies: Option<Rc<dyn CookieJar>>,
 }
 
 impl PluginSend {
-    pub fn from_js(services: &JsValue) -> Result<Self, JsValue> {
+    pub fn from_js(
+        services: &JsValue,
+        cookies: Option<Rc<dyn CookieJar>>,
+    ) -> Result<Self, JsValue> {
         let value = field(services, "plugins");
         if !value.is_object() {
             return Ok(Self {
                 host: None,
                 collection: String::new(),
+                cookies,
             });
         }
         let parts = Parts::from_js(&value)?;
@@ -340,6 +362,7 @@ impl PluginSend {
         Ok(Self {
             host: host.has_hooks().then_some(host),
             collection,
+            cookies,
         })
     }
 
@@ -347,12 +370,18 @@ impl PluginSend {
         Some(self)
     }
 
-    fn recording(&self) -> Recording<'_> {
+    fn recording<'s>(&'s self, session: Option<&'s dyn RequestHooks>) -> Recording<'s> {
         Recording {
-            hooks: self.host.as_ref().map(|h| h as &dyn RequestHooks),
+            hooks: session,
             heads: &HEADS,
             collection: &self.collection,
         }
+    }
+
+    fn session(&self) -> Option<SessionHooks<'_>> {
+        self.host
+            .as_ref()
+            .map(|h| h.in_session(self.cookies.as_deref()))
     }
 }
 
@@ -364,7 +393,9 @@ impl RequestHooks for PluginSend {
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Result<(HttpRequest, Vec<Note>), String>> {
         Box::pin(async move {
-            self.recording()
+            let session = self.session();
+            let hooks = session.as_ref().map(|s| s as &dyn RequestHooks);
+            self.recording(hooks)
                 .before_send(request, secrets, context)
                 .await
         })
@@ -376,6 +407,12 @@ impl RequestHooks for PluginSend {
         body: &'a [u8],
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Vec<Note>> {
-        Box::pin(async move { self.recording().after_response(head, body, context).await })
+        Box::pin(async move {
+            let session = self.session();
+            let hooks = session.as_ref().map(|s| s as &dyn RequestHooks);
+            self.recording(hooks)
+                .after_response(head, body, context)
+                .await
+        })
     }
 }

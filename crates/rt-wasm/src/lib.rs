@@ -352,6 +352,32 @@ mod workspace_js {
                 .map_err(app_error)
         }
 
+        /// Makes sure folder `path` exists (segments by directory or display name), as an
+        /// unsaved change; returns its path (wave 6).
+        #[wasm_bindgen(js_name = createFolder)]
+        pub fn create_folder(&self, path: &str) -> Result<String, JsValue> {
+            self.inner
+                .borrow_mut()
+                .workspace
+                .create_folder(path)
+                .map_err(app_error)
+        }
+
+        /// What a plugin tab runs with (wave 6): its context and the URLs `{request}` covers,
+        /// for `Plugins.renderTab`. `requestPath` `""`: a collection tab.
+        #[wasm_bindgen(js_name = pluginScope)]
+        pub fn plugin_scope(
+            &self,
+            #[wasm_bindgen(js_name = requestPath)] request_path: &str,
+            environment: Option<String>,
+        ) -> Result<JsValue, JsValue> {
+            to_js(&rt_app::plugins::tab_scope(
+                self.inner.borrow().workspace.collection(),
+                request_path,
+                environment.as_deref(),
+            ))
+        }
+
         #[wasm_bindgen(js_name = updateRequest)]
         pub fn update_request(&self, path: &str, spec: JsValue) -> Result<(), JsValue> {
             let spec = from_js(&spec, "request")?;

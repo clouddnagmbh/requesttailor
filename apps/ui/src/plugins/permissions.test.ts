@@ -87,6 +87,8 @@ describe("plugin tabs", () => {
           tabs: [
             { id: "req", title: "Req", place: "request", content_types: [] },
             { id: "json", title: "JSON", place: "response", content_types: ["application/json"] },
+            // Collection tabs (wave 6) ignore content types.
+            { id: "all", title: "All", place: "collection", content_types: ["application/json"] },
           ],
           importers: [{ id: "imp", label: "Thing", extensions: [] }],
         },
@@ -96,6 +98,7 @@ describe("plugin tabs", () => {
     expect(tabsFor(list, "request").map((t) => t.key)).toEqual(["a/req", "c/req"]);
     expect(tabsFor(list, "response", "application/json").map((t) => t.key)).toEqual(["a/json", "c/json"]);
     expect(tabsFor(list, "response", "text/html")).toEqual([]);
+    expect(tabsFor(list, "collection").map((t) => t.key)).toEqual(["a/all", "c/all"]);
     expect(pluginImporters(list).map((i) => i.value)).toEqual(["a/imp", "c/imp"]);
   });
 });

@@ -25,7 +25,7 @@ pub mod services;
 
 use std::cell::RefCell;
 
-use rt_core::services::{HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
+use rt_core::services::{CookieJar, HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
 use rt_core::transport::{HttpRequest, ResponseHead};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -140,6 +140,70 @@ struct Current {
     masker: Masker,
 }
 
+/// The cookie jar of the send in progress, for `http` with `session: true` (wave 6): the jar
+/// and its scope (the environment, `""` for none), as `send_with` uses them.
+#[derive(Clone, Copy)]
+struct Session<'a> {
+    jar: &'a dyn CookieJar,
+    scope: &'a str,
+}
+
+/// The hooks of a [`PluginHost`] for one send whose cookie jar `session: true` host calls
+/// share (wave 6). Pass it to `send_with` as `RequestHooks` together with the same jar as
+/// `Services::cookies`. Without a jar it behaves like the host itself: `session: true` is
+/// then `credentials: true`.
+pub struct SessionHooks<'a> {
+    host: &'a PluginHost,
+    jar: Option<&'a dyn CookieJar>,
+}
+
+impl RequestHooks for SessionHooks<'_> {
+    fn before_send<'a>(
+        &'a self,
+        request: HttpRequest,
+        secrets: &'a [String],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, Result<(HttpRequest, Vec<Note>), String>> {
+        Box::pin(
+            self.host
+                .prepare(request, secrets, context, session(self.jar, context)),
+        )
+    }
+
+    fn after_response<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, Vec<Note>> {
+        Box::pin(
+            self.host
+                .response(head, body, context, session(self.jar, context)),
+        )
+    }
+}
+
+fn session<'a>(jar: Option<&'a dyn CookieJar>, context: &'a HookContext) -> Option<Session<'a>> {
+    jar.map(|jar| Session {
+        jar,
+        scope: context.environment.as_deref().unwrap_or(""),
+    })
+}
+
+/// What a tab call runs with besides the request (wave 6). Built by the shell from the open
+/// collection and the selected environment (`rt_app::plugins::tab_scope`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct TabScope {
+    /// The tab's `context`.
+    pub context: Option<PluginContext>,
+    /// URLs whose hosts the `{request}` network entry covers in this call, as no request is
+    /// being sent: for a request tab its URL resolved with the selected environment; for a
+    /// collection tab the selected environment's variables that resolve to absolute http(s)
+    /// URLs. `credentials` and `session` stay refused in tabs.
+    pub request_urls: Vec<String>,
+}
+
 /// The plugins of one shell session (or one send).
 pub struct PluginHost {
     services: Box<dyn HostServices>,
@@ -251,6 +315,11 @@ impl PluginHost {
         })
     }
 
+    /// The hooks of this host for a send with cookie jar `jar` (see [`SessionHooks`]).
+    pub fn in_session<'a>(&'a self, jar: Option<&'a dyn CookieJar>) -> SessionHooks<'a> {
+        SessionHooks { host: self, jar }
+    }
+
     fn position(&self, id: &str) -> Option<usize> {
         self.plugins.iter().position(|p| p.manifest.id == id)
     }
@@ -273,6 +342,21 @@ impl PluginHost {
         call: &Call,
         request: Option<&HttpRequest>,
         masker: &Masker,
+        session: Option<Session<'_>>,
+    ) -> Result<Reply<Value>, PluginError> {
+        self.run_in(i, call, request, masker, session, &[]).await
+    }
+
+    /// [`PluginHost::run`]; `request_urls`: what `{request}` covers besides the hook's request
+    /// (tabs, see [`TabScope::request_urls`]).
+    async fn run_in(
+        &self,
+        i: usize,
+        call: &Call,
+        request: Option<&HttpRequest>,
+        masker: &Masker,
+        session: Option<Session<'_>>,
+        request_urls: &[String],
     ) -> Result<Reply<Value>, PluginError> {
         let plugin = &self.plugins[i];
         let id = &plugin.manifest.id;
@@ -286,6 +370,8 @@ impl PluginHost {
             plugin,
             request,
             masker,
+            session,
+            request_urls,
         };
         let outcome = runtime::call(&self.modules[i], self.limits, &input, &scope)
             .await
@@ -326,9 +412,21 @@ impl PluginHost {
     }
 
     fn context(&self, i: usize, context: &HookContext, masker: &Masker) -> PluginContext {
+        self.plugin_context(
+            i,
+            PluginContext {
+                request_path: context.request_path.clone(),
+                environment: context.environment.clone(),
+                variables: context.variables.clone(),
+            },
+            masker,
+        )
+    }
+
+    /// `context` as plugin `i` may see it: variables only with the `variables` permission,
+    /// masked. The same rule for hooks and tabs.
+    fn plugin_context(&self, i: usize, context: PluginContext, masker: &Masker) -> PluginContext {
         PluginContext {
-            request_path: context.request_path.clone(),
-            environment: context.environment.clone(),
             variables: if self.plugins[i].granted.variables {
                 context
                     .variables
@@ -338,6 +436,7 @@ impl PluginHost {
             } else {
                 Vec::new()
             },
+            ..context
         }
     }
 
@@ -355,6 +454,7 @@ impl PluginHost {
         mut request: HttpRequest,
         secrets: &[String],
         context: &HookContext,
+        session: Option<Session<'_>>,
     ) -> Result<(HttpRequest, Vec<Note>), String> {
         let masker = Masker::new(secrets);
         let mut notes = Vec::new();
@@ -369,7 +469,7 @@ impl PluginHost {
                 context: self.context(i, context, &masker),
             };
             let reply = self
-                .run(i, &call, Some(&request), &masker)
+                .run(i, &call, Some(&request), &masker, session)
                 .await
                 .map_err(|e| e.to_string())?;
             if let Some(error) = reply.error {
@@ -387,7 +487,13 @@ impl PluginHost {
         Ok((request, notes))
     }
 
-    async fn response(&self, head: &ResponseHead, body: &[u8], context: &HookContext) -> Vec<Note> {
+    async fn response(
+        &self,
+        head: &ResponseHead,
+        body: &[u8],
+        context: &HookContext,
+        session: Option<Session<'_>>,
+    ) -> Vec<Note> {
         let (request, masker) = match self.current.borrow().as_ref() {
             Some(c) => (Some(c.request.clone()), c.masker.clone()),
             None => (None, Masker::default()),
@@ -417,7 +523,7 @@ impl PluginHost {
                 level: NoteLevel::Error,
                 text,
             };
-            match self.run(i, &call, request.as_ref(), &masker).await {
+            match self.run(i, &call, request.as_ref(), &masker, session).await {
                 Ok(Reply {
                     error: Some(message),
                     ..
@@ -432,7 +538,7 @@ impl PluginHost {
         notes
     }
 
-    /// Renders a tab, or runs one of its actions (`action: Some`).
+    /// Renders a tab, or runs one of its actions (`action: Some`), without a context.
     #[allow(clippy::too_many_arguments)]
     pub async fn tab(
         &self,
@@ -444,7 +550,39 @@ impl PluginHost {
         response: Option<PluginResponse>,
         state: Option<serde_json::Value>,
     ) -> Result<ViewReply, PluginError> {
+        self.tab_with(
+            plugin,
+            tab,
+            action,
+            target,
+            spec,
+            response,
+            state,
+            TabScope::default(),
+        )
+        .await
+    }
+
+    /// [`PluginHost::tab`] in a [`TabScope`] (wave 6): the tab's `context`, with variables
+    /// only for plugins with the `variables` permission (as for hooks), and the URLs whose
+    /// hosts the `{request}` network entry covers in this call. Collection tabs have
+    /// `target.request_path` `""`; only request tabs may `update_request`.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn tab_with(
+        &self,
+        plugin: &str,
+        tab: &str,
+        action: Option<(&str, Vec<(String, String)>)>,
+        target: TabTarget,
+        spec: rt_core::model::RequestSpec,
+        response: Option<PluginResponse>,
+        state: Option<serde_json::Value>,
+        scope: TabScope,
+    ) -> Result<ViewReply, PluginError> {
         let i = self.enabled(plugin)?;
+        let context = scope
+            .context
+            .map(|c| self.plugin_context(i, c, &Masker::default()));
         let place = self.plugins[i]
             .manifest
             .contributes
@@ -454,14 +592,13 @@ impl PluginHost {
             .map(|t| t.place)
             .ok_or_else(|| PluginError::NotFound(format!("{plugin}/{tab}")))?;
         let call = match action {
-            // `context` (wave 6, strand F): the shells pass none yet.
             None => Call::RenderTab {
                 tab: tab.to_owned(),
                 target,
                 spec,
                 response,
                 state,
-                context: None,
+                context,
             },
             Some((action, input)) => Call::Action {
                 tab: tab.to_owned(),
@@ -471,15 +608,24 @@ impl PluginHost {
                 response,
                 state,
                 input,
-                context: None,
+                context,
             },
         };
-        let reply = self.run(i, &call, None, &Masker::default()).await?;
+        let reply = self
+            .run_in(
+                i,
+                &call,
+                None,
+                &Masker::default(),
+                None,
+                &scope.request_urls,
+            )
+            .await?;
         if let Some(error) = reply.error {
             return Err(PluginError::Refused(error));
         }
         let mut view: ViewReply = self.decode_required(i, reply.ok)?;
-        if place == TabPlace::Response {
+        if place != TabPlace::Request {
             view.update_request = None;
         }
         Ok(view)
@@ -510,7 +656,7 @@ impl PluginHost {
             importer: importer.to_owned(),
             files,
         };
-        let reply = self.run(i, &call, None, &Masker::default()).await?;
+        let reply = self.run(i, &call, None, &Masker::default(), None).await?;
         if let Some(error) = reply.error {
             return Err(PluginError::Refused(error));
         }
@@ -529,7 +675,7 @@ impl PluginHost {
             importer: importer.to_owned(),
             files,
         };
-        let reply = self.run(i, &call, None, &Masker::default()).await?;
+        let reply = self.run(i, &call, None, &Masker::default(), None).await?;
         if let Some(error) = reply.error {
             return Err(PluginError::Refused(error));
         }
@@ -544,7 +690,7 @@ impl RequestHooks for PluginHost {
         secrets: &'a [String],
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Result<(HttpRequest, Vec<Note>), String>> {
-        Box::pin(self.prepare(request, secrets, context))
+        Box::pin(self.prepare(request, secrets, context, None))
     }
 
     fn after_response<'a>(
@@ -553,7 +699,7 @@ impl RequestHooks for PluginHost {
         body: &'a [u8],
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Vec<Note>> {
-        Box::pin(self.response(head, body, context))
+        Box::pin(self.response(head, body, context, None))
     }
 }
 
@@ -564,6 +710,10 @@ struct Scope<'a> {
     /// The real request of the hook (`prepare`, `response`), else `None`.
     request: Option<&'a HttpRequest>,
     masker: &'a Masker,
+    /// The send's cookie jar (hooks run through [`SessionHooks`] with a jar only).
+    session: Option<Session<'a>>,
+    /// Tabs: the URLs whose hosts `{request}` covers (no request is being sent).
+    request_urls: &'a [String],
 }
 
 fn ok(value: Value) -> Vec<u8> {
@@ -594,13 +744,11 @@ impl Scope<'_> {
                     .map_or(0, |d| d.as_millis() as u64);
                 ok(json!(ms))
             }
-            // `session` (wave 6, strand F): the cookie jar is not wired yet; until then the
-            // call runs without the session's cookies.
             HostCall::Http {
                 request,
                 credentials,
-                session: _,
-            } => match self.http(&request, credentials).await {
+                session,
+            } => match self.http(&request, credentials, session).await {
                 Ok(response) => ok(serde_json::to_value(response).expect("JSON")),
                 Err(e) => error(self.masker.text(&e)),
             },
@@ -639,22 +787,36 @@ impl Scope<'_> {
         }
     }
 
+    /// `session` implies `credentials` (same rules); with a jar its cookies go along and the
+    /// reply's `Set-Cookie` is stored there (the plugin sees those values masked).
     async fn http(
         &self,
         request: &PluginRequest,
         credentials: bool,
+        session: bool,
     ) -> Result<PluginResponse, String> {
         let mut outgoing = convert::request_from_plugin(request)?;
         let hook_url = self.request.map(|r| r.url.as_str());
-        if !permissions::network_allows(&self.plugin.granted.network, &outgoing.url, hook_url) {
+        let network = &self.plugin.granted.network;
+        let allowed = permissions::network_allows(network, &outgoing.url, hook_url)
+            || self
+                .request_urls
+                .iter()
+                .any(|u| permissions::network_allows(network, &outgoing.url, Some(u)));
+        if !allowed {
             return Err("permission denied: network".into());
         }
-        if credentials {
-            let current = self
-                .request
-                .ok_or("credentials are only available in the prepare and response hooks")?;
+        if credentials || session {
+            let what = if session {
+                "the session"
+            } else {
+                "credentials"
+            };
+            let current = self.request.ok_or_else(|| {
+                format!("{what}: only available in the prepare and response hooks")
+            })?;
             if !permissions::same_origin(&current.url, &outgoing.url) {
-                return Err("credentials are only sent to the origin of the request".into());
+                return Err(format!("{what}: only for the origin of the request"));
             }
             for (name, value) in &current.headers {
                 if self.masker.hits(value) {
@@ -665,7 +827,20 @@ impl Scope<'_> {
                 }
             }
         }
-        let (head, body, truncated) = self.host.services.http(outgoing).await?;
+        let jar = self.session.filter(|_| session);
+        if let Some(s) = jar
+            && let Some(cookie) = s.jar.cookie_header(s.scope, &outgoing.url).await
+        {
+            rt_core::cookies::add_cookie_header(&mut outgoing.headers, &cookie);
+        }
+        let (mut head, body, truncated) = self.host.services.http(outgoing).await?;
+        if let Some(s) = jar {
+            let set_cookie = rt_core::cookies::set_cookie_values(&head);
+            if !set_cookie.is_empty() {
+                s.jar.store(s.scope, &head.url, &set_cookie).await;
+                mask_set_cookies(&mut head);
+            }
+        }
         Ok(response_to_plugin(
             &head,
             &body,
@@ -673,6 +848,16 @@ impl Scope<'_> {
             PLUGIN_BODY_LIMIT,
             self.masker,
         ))
+    }
+}
+
+/// Cookies the jar keeps are session state: the plugin sees `Set-Cookie` with masked values,
+/// as the report shows them.
+fn mask_set_cookies(head: &mut ResponseHead) {
+    for (name, value) in &mut head.headers {
+        if name.eq_ignore_ascii_case("set-cookie") {
+            *value = rt_core::cookies::mask_set_cookie(value);
+        }
     }
 }
 
@@ -698,5 +883,23 @@ mod tests {
     #[test]
     fn compiled_plugins_move_between_threads() {
         assert_send_sync::<Plugin>();
+    }
+
+    #[test]
+    fn cookies_kept_by_the_jar_are_masked_for_the_plugin() {
+        let mut head = ResponseHead {
+            status: 200,
+            version: rt_core::transport::HttpVersion::Http11,
+            headers: vec![
+                ("Set-Cookie".into(), "SAP_SESSIONID=abc; Path=/".into()),
+                ("x-csrf-token".into(), "tok".into()),
+            ],
+            url: "https://a.test/".into(),
+            redirects: Vec::new(),
+            timing: Default::default(),
+        };
+        mask_set_cookies(&mut head);
+        assert_eq!(head.headers[0].1, "SAP_SESSIONID=***; Path=/");
+        assert_eq!(head.headers[1].1, "tok");
     }
 }

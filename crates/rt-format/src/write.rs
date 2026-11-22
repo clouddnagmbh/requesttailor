@@ -557,6 +557,21 @@ fn strip_secret_values(map: &mut Map, key: &str) {
 // ---------------------------------------------------------------------------------------------
 // Requests
 
+/// Text of a new `folder.yml` (wave 6), as Bruno 3 writes one: name, type, seq.
+pub(crate) fn new_folder_text(name: &str, seq: f64) -> String {
+    document_text(
+        &[(
+            "info",
+            Val::Map(vec![
+                ("name", Val::str(name)),
+                ("type", Val::str("folder")),
+                ("seq", Val::Plain(number(seq))),
+            ]),
+        )],
+        false,
+    )
+}
+
 /// Text of a new request file with name, type, seq, method and URL; the rest is added by
 /// [`apply_request`].
 pub(crate) fn new_request_text(spec: &RequestSpec) -> String {

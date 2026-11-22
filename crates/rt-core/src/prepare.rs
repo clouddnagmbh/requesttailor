@@ -134,6 +134,15 @@ pub fn prepare(
     })
 }
 
+/// The variable layers that apply to a request, as [`prepare`] builds them (wave 6: plugin
+/// tabs get the non-secret variables of this scope as their context).
+pub fn scope(
+    context: &RequestContext<'_>,
+    input: &PrepareInput<'_>,
+) -> Result<Scope, PrepareError> {
+    build_scope(context, input)
+}
+
 /// Interpolates templates against one scope and collects what was used and missing.
 struct Interp<'s> {
     scope: &'s Scope,

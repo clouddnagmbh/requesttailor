@@ -125,7 +125,18 @@ request. Otherwise the call is refused with an `error` reply and nothing is sent
 the session of the send: cookies of the collection's cookie jar for the selected
 environment go along, and `Set-Cookie` of the reply is stored there. That way a token the
 plugin fetches (for example a CSRF token bound to a session cookie) is valid for the request
-itself. Hosts without a cookie jar treat it like `credentials: true`.
+itself. Hosts without a cookie jar treat it like `credentials: true`. Cookie values the jar
+keeps are masked in the `Set-Cookie` headers the plugin gets.
+
+In `render-tab` and `action` (wave 6) no request is being sent, so `{request}` covers:
+- in a request tab, the host of the tab's request URL, resolved with the selected
+  environment as for sending (a URL with unresolved placeholders or one that needs a secret
+  value covers no host);
+- in a collection tab, the hosts of the selected environment's non-secret variables whose
+  resolved values are absolute `http(s)` URLs (for example `baseUrl`).
+
+`credentials` and `session` stay refused in tabs: there is no send whose auth or cookies they
+could use.
 
 `http` does not follow redirects; the plugin gets the 3xx response and decides itself. It
 times out after 30 seconds. Request and response bodies are cut at 8 MiB, and the response

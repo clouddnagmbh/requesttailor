@@ -73,6 +73,51 @@ impl CollectionDoc {
         Ok(path)
     }
 
+    pub(crate) fn new_folder(&mut self, parent: &str, name: &str) -> Result<String, FormatError> {
+        if !parent.is_empty() && !has_folder(&self.model.items, parent) {
+            return Err(invalid(parent, "folder not found"));
+        }
+        if name.trim().is_empty() || name.chars().any(char::is_control) {
+            return Err(invalid(parent, format!("invalid folder name {name:?}")));
+        }
+        let prefix = if parent.is_empty() {
+            String::new()
+        } else {
+            format!("{parent}/")
+        };
+        let stem = file_name(name);
+        let dir = (1..)
+            .map(|n| match n {
+                1 => format!("{prefix}{stem}"),
+                n => format!("{prefix}{stem}-{n}"),
+            })
+            .find(|d| {
+                let reserved = parent.is_empty() && d.eq_ignore_ascii_case(read::ENVIRONMENTS_DIR);
+                !reserved && !self.dir_taken(d)
+            })
+            .expect("some suffix is free");
+        let path = format!("{dir}/{FOLDER_FILE}");
+        let text = write::new_folder_text(name, self.next_seq(parent));
+        let doc = yaml::parse(&text).map_err(|e| invalid(&path, format!("internal error: {e}")))?;
+        self.files.insert(path.clone(), Source::Yaml(doc));
+        self.rebuild();
+        let read_back = find_folder(&self.model.items, &dir).map(|f| f.name.clone());
+        if read_back.as_deref() != Some(name) {
+            self.files.remove(&path);
+            self.rebuild();
+            return Err(invalid(&path, "the new folder does not read back"));
+        }
+        Ok(dir)
+    }
+
+    /// Whether a file lies in the folder `dir` already, ignoring case.
+    fn dir_taken(&self, dir: &str) -> bool {
+        let prefix = format!("{}/", dir.to_lowercase());
+        self.files
+            .keys()
+            .any(|k| k.to_lowercase().starts_with(&prefix))
+    }
+
     pub(crate) fn edit_environment(&mut self, env: &Environment) -> Result<String, FormatError> {
         if env.name.trim().is_empty() || env.name.chars().any(char::is_control) {
             return Err(invalid(
@@ -276,6 +321,14 @@ fn inline_environments(doc: &mut yaml::Document) -> Option<&mut yaml::Seq> {
         .block_map_mut()?
         .get_mut("environments")?
         .block_seq_mut()
+}
+
+fn find_folder<'a>(items: &'a [Item], path: &str) -> Option<&'a rt_core::model::Folder> {
+    items.iter().find_map(|i| match i {
+        Item::Folder(f) if f.path == path => Some(f),
+        Item::Folder(f) => find_folder(&f.items, path),
+        Item::Request(_) => None,
+    })
 }
 
 fn has_folder(items: &[Item], path: &str) -> bool {

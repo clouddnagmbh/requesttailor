@@ -27,6 +27,7 @@ describe("TauriBackend", () => {
     await b.tree();
     await b.getRequest("a.yml");
     await b.createRequest("users", "New");
+    await b.createFolder("Sales/Items");
     await b.updateRequest("a.yml", spec);
     await b.dirty();
     await b.save();
@@ -95,6 +96,7 @@ describe("TauriBackend", () => {
       ["tree", undefined],
       ["get_request", { path: "a.yml" }],
       ["create_request", { folder: "users", name: "New" }],
+      ["create_folder", { path: "Sales/Items" }],
       ["update_request", { path: "a.yml", spec }],
       ["dirty", undefined],
       ["save", undefined],

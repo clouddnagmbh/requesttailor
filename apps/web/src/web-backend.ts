@@ -295,6 +295,9 @@ export class WebBackend implements Backend {
   createRequest(folder: string, name: string): Promise<string> {
     return guard(async () => this.session().ws.createRequest(folder, name));
   }
+  createFolder(path: string): Promise<string> {
+    return guard(async () => this.session().ws.createFolder(path));
+  }
   updateRequest(path: string, spec: RequestSpec): Promise<void> {
     return guard(async () => this.session().ws.updateRequest(path, spec));
   }

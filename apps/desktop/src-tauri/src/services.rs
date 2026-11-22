@@ -29,10 +29,13 @@ impl ServiceParts {
         }
     }
 
-    /// The services for one send from collection `collection` with `environment`.
-    pub fn for_send(&self, collection: &str, environment: Option<&str>) -> SendServices<'_> {
+    /// The services for one send from collection `collection` (the environment is in the
+    /// hook context and the cookie scope of `send_with`).
+    pub fn for_send(&self, collection: &str) -> SendServices<'_> {
         SendServices {
-            plugins: self.plugins.for_send(collection, environment),
+            plugins: self
+                .plugins
+                .for_send(collection, self.cookies.for_send(collection)),
             auth: self.auth.for_send(collection),
             cookies: self.cookies.for_send(collection),
         }

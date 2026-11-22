@@ -14,13 +14,16 @@
 //!
 //! `undefined` or `null`: no jar for this send.
 
+use std::rc::Rc;
+
 use rt_core::cookies::{CookieJars, SharedJars, now_ms};
 use rt_core::services::{CookieJar, LocalBoxFuture};
 use wasm_bindgen::{JsCast, JsValue};
 
 /// The jar of one send, from the `cookies` field of the services object.
 pub struct CookieSend {
-    jar: Option<JsJar>,
+    /// Shared with the plugins of the send (`http` with `session: true`, wave 6).
+    jar: Option<Rc<JsJar>>,
 }
 
 struct JsJar {
@@ -52,15 +55,20 @@ impl CookieSend {
             .dyn_into::<js_sys::Function>()
             .map_err(|_| type_error("services.cookies.save must be a function"))?;
         Ok(Self {
-            jar: Some(JsJar {
+            jar: Some(Rc::new(JsJar {
                 jars: SharedJars::new(CookieJars::from_json(jars.as_bytes())),
                 save,
-            }),
+            })),
         })
     }
 
     pub fn jar(&self) -> Option<&dyn rt_core::services::CookieJar> {
-        self.jar.as_ref().map(|j| j as &dyn CookieJar)
+        self.jar.as_deref().map(|j| j as &dyn CookieJar)
+    }
+
+    /// The same jar, for the plugins of the send.
+    pub fn shared(&self) -> Option<Rc<dyn CookieJar>> {
+        self.jar.clone().map(|j| j as Rc<dyn CookieJar>)
     }
 }
 

@@ -45,4 +45,33 @@ describe("mock plugins", () => {
     await b.plugins.remove("demo");
     expect(await b.plugins.list()).toEqual([]);
   });
+
+  it("asks the first-start question only with a bundled plugin, once", async () => {
+    expect(await new MockBackend().plugins.welcome()).toEqual({ done: true, choices: [] });
+
+    const b = new MockBackend({ welcome: true });
+    const w = await b.plugins.welcome();
+    expect(w.done).toBe(false);
+    expect(w.choices.map((c) => [c.plugin, c.choice.label])).toEqual([["odata", "SAP and OData"]]);
+    expect((await b.plugins.list()).map((p) => [p.manifest.id, p.enabled])).toEqual([["odata", false]]);
+    await expect(b.plugins.chooseWelcome(["demo"])).rejects.toMatchObject({ kind: "plugin" });
+    await b.plugins.chooseWelcome(["odata"]);
+    expect((await b.plugins.welcome()).done).toBe(true);
+    expect((await b.plugins.list())[0]!.enabled).toBe(true);
+  });
+
+  it("collection tabs propose additions", async () => {
+    const b = new MockBackend({ welcome: true });
+    await b.openCollection();
+    await b.plugins.chooseWelcome(["odata"]);
+    const target = { request_path: "", response_id: null };
+    const first = await b.plugins.renderTab("odata", "entities", target, null, "Local");
+    expect(first.create_requests).toEqual([]);
+    const reply = await b.plugins.action("odata", "entities", "add-to-collection", target, first.state, [], "Local");
+    expect(reply.create_requests.map((r) => [r.folder, r.name])).toEqual([
+      ["Sales Orders", "List sales orders"],
+      ["users", "List users"],
+    ]);
+    expect(reply.add_environments.map((e) => e.name)).toEqual(["S4 DEV", "Local"]);
+  });
 });

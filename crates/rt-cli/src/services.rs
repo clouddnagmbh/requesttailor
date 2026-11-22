@@ -5,6 +5,7 @@
 //! arguments. Each part lives in its strand's module; this file only puts them together.
 
 use std::path::Path;
+use std::rc::Rc;
 
 use rt_core::send::{REPORT_VERSION, SendError, SendReport};
 use rt_core::services::Services;
@@ -18,17 +19,19 @@ use crate::plugins::CliPlugins;
 pub struct CliServices {
     plugins: Option<CliPlugins>,
     auth: CliAuth,
-    cookies: Option<CliCookies>,
+    /// Shared with the plugins: `http` with `session: true` uses the same jar (wave 6).
+    cookies: Option<Rc<CliCookies>>,
 }
 
 impl CliServices {
     /// `root` is the collection root. `Err` is a message for the report (e.g. a plugin that
     /// does not load).
     pub fn new(args: &SendArgs, root: &Path) -> Result<Self, String> {
+        let cookies = CliCookies::new(args)?.map(Rc::new);
         Ok(Self {
-            plugins: CliPlugins::new(args, root)?,
+            plugins: CliPlugins::new(args, root, cookies.clone())?,
             auth: CliAuth::new(args, root),
-            cookies: CliCookies::new(args)?,
+            cookies,
         })
     }
 
@@ -36,7 +39,7 @@ impl CliServices {
         Services {
             tokens: self.auth.tokens(),
             prompt: self.auth.prompt(),
-            cookies: self.cookies.as_ref().map(CliCookies::jar),
+            cookies: self.cookies.as_deref().map(CliCookies::jar),
             hooks: self.plugins.as_ref().map(CliPlugins::hooks),
         }
     }

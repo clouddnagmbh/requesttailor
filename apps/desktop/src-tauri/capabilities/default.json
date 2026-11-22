@@ -8,6 +8,7 @@
     "allow-tree",
     "allow-get-request",
     "allow-create-request",
+    "allow-create-folder",
     "allow-update-request",
     "allow-dirty",
     "allow-save",

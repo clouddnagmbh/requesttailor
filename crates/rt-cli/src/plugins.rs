@@ -13,20 +13,26 @@
 //! - An installed plugin that does not load is reported on stderr and skipped; a `--plugin`
 //!   file that does not load fails the send.
 //! - Plugin log lines (`log` host call, stdout and stderr of the module) go to stderr.
+//! - `http` with `session: true` (wave 6) uses the `--cookie-jar` jar of the send; without
+//!   one it is `credentials: true`.
 
 use std::path::Path;
+use std::rc::Rc;
 
-use rt_core::services::{LocalBoxFuture, NoteLevel, RequestHooks};
+use rt_core::services::{HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
 use rt_core::transport::native::NativeTransport;
+use rt_core::transport::{HttpRequest, ResponseHead};
 use rt_plugin::host::dir::{FileStorage, PluginDir};
 use rt_plugin::host::services::{MemoryStorage, PluginStorage, TransportServices};
-use rt_plugin::host::{Plugin, PluginHost};
+use rt_plugin::host::{Plugin, PluginHost, SessionHooks};
 use serde_json::Value;
 
 use crate::SendArgs;
+use crate::cookies::CliCookies;
 
 pub struct CliPlugins {
     host: PluginHost,
+    cookies: Option<Rc<CliCookies>>,
 }
 
 /// Storage of the shared plugin folder, or memory when there is no data folder.
@@ -66,7 +72,13 @@ fn level(level: NoteLevel) -> &'static str {
 
 impl CliPlugins {
     /// `None` when there is nothing to run.
-    pub fn new(args: &SendArgs, root: &Path) -> Result<Option<Self>, String> {
+    /// `cookies`: the send's cookie jar (`--cookie-jar`), shared with plugin `http` calls in
+    /// the session (wave 6).
+    pub fn new(
+        args: &SendArgs,
+        root: &Path,
+        cookies: Option<Rc<CliCookies>>,
+    ) -> Result<Option<Self>, String> {
         // Plugins come from the data folder and the arguments, not from the collection.
         let _ = root;
         let dir = PluginDir::shared();
@@ -105,10 +117,35 @@ impl CliPlugins {
         if !host.has_hooks() {
             return Ok(None);
         }
-        Ok(Some(Self { host }))
+        Ok(Some(Self { host, cookies }))
     }
 
     pub fn hooks(&self) -> &dyn RequestHooks {
-        &self.host
+        self
+    }
+
+    fn session(&self) -> SessionHooks<'_> {
+        self.host
+            .in_session(self.cookies.as_deref().map(CliCookies::jar))
+    }
+}
+
+impl RequestHooks for CliPlugins {
+    fn before_send<'a>(
+        &'a self,
+        request: HttpRequest,
+        secrets: &'a [String],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, Result<(HttpRequest, Vec<Note>), String>> {
+        Box::pin(async move { self.session().before_send(request, secrets, context).await })
+    }
+
+    fn after_response<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, Vec<Note>> {
+        Box::pin(async move { self.session().after_response(head, body, context).await })
     }
 }

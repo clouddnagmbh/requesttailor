@@ -11,6 +11,7 @@ const COMMANDS: &[&str] = &[
     "tree",
     "get_request",
     "create_request",
+    "create_folder",
     "update_request",
     "dirty",
     "save",

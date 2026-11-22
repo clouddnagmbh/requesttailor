@@ -154,6 +154,53 @@ fn tree_lists_folders_and_requests_in_display_order() {
     );
 }
 
+/// Wave 6, strand F: plugin views add requests in folders that may not exist yet.
+#[test]
+fn folders_are_found_by_directory_or_name_and_created_when_missing() {
+    let mut ws = Workspace::open(sample()).unwrap();
+    assert_eq!(ws.create_folder("").unwrap(), "");
+    assert_eq!(ws.create_folder("users").unwrap(), "users");
+    assert_eq!(
+        ws.create_folder("Users").unwrap(),
+        "users",
+        "by display name"
+    );
+    assert!(ws.dirty().is_empty());
+
+    let path = ws.create_folder("Sales Orders/Items").unwrap();
+    assert_eq!(path, "Sales Orders/Items");
+    assert_eq!(ws.create_folder("Sales Orders/Items").unwrap(), path);
+    let request = ws.create_request(&path, "List items").unwrap();
+    assert_eq!(request, "Sales Orders/Items/list-items.yml");
+    assert_eq!(
+        ws.dirty(),
+        [
+            "Sales Orders/Items/folder.yml",
+            "Sales Orders/Items/list-items.yml",
+            "Sales Orders/folder.yml",
+        ]
+    );
+    let mut on_disk = sample();
+    apply(&mut on_disk, &ws.save().unwrap());
+    let folder = String::from_utf8(on_disk.files["Sales Orders/folder.yml"].clone()).unwrap();
+    assert_eq!(
+        folder,
+        "info:\n  name: Sales Orders\n  type: folder\n  seq: 3\n"
+    );
+    // Read back: the same tree, byte for byte the same files.
+    let again = read_collection(&on_disk).unwrap();
+    assert_eq!(again.write().files, on_disk.files);
+    assert_eq!(Workspace::open(on_disk).unwrap().tree(), ws.tree());
+
+    for bad in ["../x", "a//b", "a/./b", "a\\b"] {
+        assert_eq!(
+            ws.create_folder(bad),
+            Err(AppError::FolderNotFound(bad.into())),
+            "{bad}"
+        );
+    }
+}
+
 #[test]
 fn unknown_paths_are_reported() {
     let mut ws = Workspace::open(sample()).unwrap();

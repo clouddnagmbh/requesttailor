@@ -47,6 +47,10 @@ export interface CoreWorkspace {
   tree(): TreeNode;
   request(path: string): RequestSpec;
   createRequest(folder: string, name: string): string;
+  /** Wave 6: makes sure a folder exists (by directory or display name); returns its path. */
+  createFolder(path: string): string;
+  /** Wave 6: the context of a plugin tab and the URLs `{request}` covers (`TabScope`). */
+  pluginScope(requestPath: string, environment?: string): unknown;
   updateRequest(path: string, spec: RequestSpec): void;
   dirty(): string[];
   prepareSave(): PreparedSave;

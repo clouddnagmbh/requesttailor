@@ -5,9 +5,12 @@
      Owner: wave 3, strand A. Composes the other strands' components through their props only.
      Wave 4 mount points: GitPanel (A2), ImportDialog (B), RecentCollections and
      reopenOnStart (C), SearchPanel and HistoryPanel (E).
-     Wave 5 mount points: PluginsDialog (A), AuthPromptDialog (C), CookiesDialog (D). -->
+     Wave 5 mount points: PluginsDialog (A), AuthPromptDialog (C), CookiesDialog (D).
+     Wave 6 mount points (strand F): WelcomeDialog; the collection tabs of plugins (header
+     button "Collection", palette entries, CollectionPanel in the main area), shown only
+     while an enabled plugin has one. -->
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
 
   import AuthPromptDialog from "../auth/AuthPromptDialog.svelte";
   import type { Backend, CollectionInfo } from "../commands/backend";
@@ -18,7 +21,11 @@
   import GitPanel from "../git/GitPanel.svelte";
   import HistoryPanel from "../history/HistoryPanel.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
+  import CollectionPanel from "../plugins/CollectionPanel.svelte";
+  import { tabsFor } from "../plugins/permissions";
   import PluginsDialog from "../plugins/PluginsDialog.svelte";
+  import { pluginsState } from "../plugins/store.svelte";
+  import WelcomeDialog from "../plugins/WelcomeDialog.svelte";
   import RecentCollections from "../recent/RecentCollections.svelte";
   import { reopenOnStart } from "../recent/startup";
   import SearchPanel from "../search/SearchPanel.svelte";
@@ -171,7 +178,35 @@
       if (app.collection) showingCookies = true;
     },
   };
-  const commands = $derived(buildCommands(app, actions, mac));
+  // ---- collection tabs of plugins (wave 6) ----
+  // The list is read once a collection is open (listing loads the web core).
+  const plugins = pluginsState(app.backend, false);
+  $effect(() => {
+    if (app.collection) void plugins.ensure();
+  });
+  const collectionTabs = $derived(app.collection ? tabsFor(plugins.list, "collection") : []);
+  /** Key of the shown collection tab, `null`: the request editor. */
+  let collectionTab = $state<string | null>(null);
+  const showingCollection = $derived(collectionTab !== null && collectionTabs.some((t) => t.key === collectionTab));
+  // Opening a request (sidebar, tabs, palette) shows the editor again.
+  $effect(() => {
+    void app.active;
+    untrack(() => (collectionTab = null));
+  });
+  async function openCollectionTab(key: string) {
+    // Set after the effect above has seen the current request.
+    await tick();
+    collectionTab = key;
+  }
+
+  const commands = $derived([
+    ...buildCommands(app, actions, mac),
+    ...collectionTabs.map((t) => ({
+      id: `collection-tab:${t.key}`,
+      label: `Collection: ${t.tab.title} (${t.pluginName})`,
+      run: () => openCollectionTab(t.key),
+    })),
+  ]);
 
   // Capture phase: runs before inputs and code editors handle the key, so Mod+Enter and Mod+S
   // work wherever focus is.
@@ -205,6 +240,15 @@
       <span data-testid="collection-name">{app.collection?.name ?? ""}</span>
     </span>
     <span class="spacer"></span>
+    {#if collectionTabs.length > 0}
+      <button
+        class="button"
+        data-testid="collection-tabs"
+        aria-pressed={showingCollection}
+        title="Collection tabs of plugins"
+        onclick={() => (showingCollection ? (collectionTab = null) : openCollectionTab(collectionTabs[0]!.key))}>Collection</button
+      >
+    {/if}
     {#if app.collection}
       <EnvironmentSwitcher />
       <button class="button" onclick={() => (managing = true)}>Environments</button>
@@ -274,7 +318,9 @@
 
     <main>
       <TabBar panelId="rt-request-panel" />
-      {#if app.active}
+      {#if showingCollection && collectionTab}
+        <CollectionPanel tabs={collectionTabs} active={collectionTab} onselect={(k) => (collectionTab = k)} onclose={() => (collectionTab = null)} />
+      {:else if app.active}
         <div class="panel" id="rt-request-panel" role="tabpanel" aria-labelledby={activeTabId} bind:clientHeight={panelHeight}>
           <div class="pane editor" style:height="{editorHeight}px">
             <div class="toolbar">
@@ -329,6 +375,7 @@
 <PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />
 <CookiesDialog open={showingCookies} onclose={() => (showingCookies = false)} />
 <AuthPromptDialog />
+<WelcomeDialog />
 
 <svelte:window bind:innerWidth />
 

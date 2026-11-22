@@ -75,13 +75,13 @@ export interface PluginTabRef {
 }
 
 /** Tabs of enabled plugins for `place`, in installation order; response tabs filtered by
- *  the response's content type (`null` for request tabs: no filter). */
+ *  the response's content type (`null` for request and collection tabs: no filter). */
 export function tabsFor(plugins: PluginInfo[], place: TabPlace, contentType: string | null = null): PluginTabRef[] {
   return plugins
     .filter((p) => p.enabled)
     .flatMap((p) =>
       p.manifest.contributes.tabs
-        .filter((t) => t.place === place && (place === "request" || matchesContentType(t.content_types, contentType)))
+        .filter((t) => t.place === place && (place !== "response" || matchesContentType(t.content_types, contentType)))
         .map((tab) => ({ key: `${p.manifest.id}/${tab.id}`, plugin: p.manifest.id, pluginName: p.manifest.name, tab })),
     );
 }

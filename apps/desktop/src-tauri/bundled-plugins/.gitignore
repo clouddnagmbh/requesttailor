@@ -1,0 +1,4 @@
+# Bundled plugins (wave 6): `npm run bundle-plugins -w apps/desktop` builds them here; they
+# ship as Tauri resources and are never committed.
+*
+!.gitignore
