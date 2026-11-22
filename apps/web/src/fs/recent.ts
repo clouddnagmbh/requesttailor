@@ -2,17 +2,33 @@
 // Copyright 2026 The RequestTailor Authors
 
 // Remembers the last opened folder: its directory handle and the collection id we gave it
-// (random, stable per folder on this browser profile; used as `SecretKey.collection`).
-// Directory handles can only be stored in IndexedDB. Storage may be unavailable (private
-// windows, blocked site data): then nothing is remembered and every open shows the picker.
+// (random, stable per folder on this browser profile; used as `SecretKey.collection`), and
+// the list of recently opened collections (`../recent.ts`). Directory handles can only be
+// stored in IndexedDB. Storage may be unavailable (private windows, blocked site data): then
+// nothing is remembered and every open shows the picker.
+//
+// Keys in the store: `last` and `folder:<id>` (a `RememberedFolder`), `recent` (the list,
+// `RecentEntry[]`, most recent first).
 
 const DB = "requesttailor-web";
 const STORE = "folders";
 const LAST = "last";
+const RECENT = "recent";
+/** Entries kept in the recent list. */
+export const MAX_RECENT = 10;
 
 export interface RememberedFolder {
   id: string;
   handle: FileSystemDirectoryHandle;
+}
+
+/** One recently opened collection (`RecentCollection` of the UI). */
+export interface RecentEntry {
+  id: string;
+  name: string;
+  location: string;
+  /** Unix milliseconds. */
+  openedAt: number;
 }
 
 function request<T>(r: IDBRequest<T>): Promise<T> {
@@ -76,4 +92,56 @@ export async function rememberFolder(handle: FileSystemDirectoryHandle): Promise
     // Not remembered; the folder still opens.
   }
   return id;
+}
+
+/** The folder we gave `id`, or `null`. */
+export async function folderById(id: string): Promise<RememberedFolder | null> {
+  try {
+    const v = (await withStore("readonly", (s) => s.get(`folder:${id}`))) as RememberedFolder | undefined;
+    return v && v.id === id && v.handle ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function isEntry(v: unknown): v is RecentEntry {
+  const e = v as RecentEntry;
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof e.id === "string" &&
+    typeof e.name === "string" &&
+    typeof e.location === "string" &&
+    typeof e.openedAt === "number"
+  );
+}
+
+/** Recently opened collections, most recent first (empty if storage is unavailable). */
+export async function recentEntries(): Promise<RecentEntry[]> {
+  try {
+    const v: unknown = await withStore("readonly", (s) => s.get(RECENT));
+    return Array.isArray(v) ? v.filter(isEntry).slice(0, MAX_RECENT) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Puts `entry` at the top of the recent list. */
+export async function recordRecent(entry: RecentEntry): Promise<void> {
+  const list = [entry, ...(await recentEntries()).filter((e) => e.id !== entry.id)].slice(0, MAX_RECENT);
+  try {
+    await withStore("readwrite", (s) => s.put(list, RECENT));
+  } catch {
+    // Not remembered.
+  }
+}
+
+/** Drops `id` from the recent list (its folder is gone). The folder keeps its id. */
+export async function forgetRecent(id: string): Promise<void> {
+  const list = (await recentEntries()).filter((e) => e.id !== id);
+  try {
+    await withStore("readwrite", (s) => s.put(list, RECENT));
+  } catch {
+    // Nothing to forget.
+  }
 }
