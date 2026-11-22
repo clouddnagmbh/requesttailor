@@ -17,6 +17,7 @@
 
 import {
   BackendError,
+  type AiApi,
   type Backend,
   type CollectionInfo,
   type CompanionStatus,
@@ -161,7 +162,7 @@ export class WebBackend implements Backend {
   readonly graphql = webGraphQl();
   readonly agents = webAgents();
   readonly mcp = webMcp();
-  readonly ai = webAi();
+  readonly ai: AiApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;
@@ -209,6 +210,15 @@ export class WebBackend implements Backend {
       },
     });
     this.recent = webRecent(host);
+    this.ai = webAi({
+      session: host.session,
+      openSecrets: deps.openSecrets,
+      // Secret values and session variables as for a send, only for masking (wave 8).
+      sendContext: async (input) => ({
+        input: await this.coreInput(this.session(), input, true),
+        companion: this.companionOn ? await this.companionCredentials() : null,
+      }),
+    });
     const store = () => this.secretStore(this.session());
     this.secrets = {
       has: (env, name) => guard(async () => (await store()).has(env, name)),
