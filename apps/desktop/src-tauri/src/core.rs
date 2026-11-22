@@ -13,6 +13,10 @@
 //!   E, recorded on every send), `recent` (strand C, told on every open), `imports` (strand
 //!   B). Git (strand A1) works on [`Core::root`] and calls [`Core::reload`] afterwards.
 //!   `data_dir` is the app's data folder (`None` in tests: nothing is persisted).
+//! - External secrets (wave 5, strand E): before a send, the selected environment's
+//!   `external_secrets` are read with the managers' CLIs (`external_secrets`, cached in memory
+//!   for the session) and join the keychain values; a keychain value of the same name wins.
+//!   Preview uses only what is cached, so it never runs a CLI.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
@@ -61,6 +65,8 @@ pub struct Core<S> {
     pub imports: Mutex<Imports>,
     /// Plugins, tokens and cookie jars for sends (wave 5, `services.rs`).
     pub services: std::sync::Arc<crate::services::ServiceParts>,
+    /// Reads external secrets with the managers' CLIs; values cached per session (wave 5).
+    pub external_secrets: std::sync::Arc<rt_app::secret_sources::SecretResolver>,
 }
 
 fn shell(e: impl std::fmt::Display) -> AppError {
@@ -88,6 +94,9 @@ impl<S: SecretStore> Core<S> {
             recent: Recent::new(data_dir.as_deref()),
             imports: Mutex::new(Imports::new()),
             services: std::sync::Arc::new(crate::services::ServiceParts::new(data_dir.as_deref())),
+            external_secrets: std::sync::Arc::new(rt_app::secret_sources::SecretResolver::new(
+                std::sync::Arc::new(rt_app::secret_sources::ProcessRunner::default()),
+            )),
             secrets,
             data_dir,
         })
@@ -219,6 +228,17 @@ impl<S: SecretStore> Core<S> {
 
     /// Sends the current (possibly unsaved) state of the request.
     pub async fn send(&self, path: &str, input: SendInput) -> Result<StoredResponse, AppError> {
+        // External secrets first, on a blocking thread (a CLI may take seconds, e.g. for a
+        // biometric prompt); the values land in the resolver's cache, which `with_secrets`
+        // reads. A secret that cannot be read stops the send with the reason.
+        let pending = self.with_session(|s| self.external_pending(s, &input))?;
+        if let Some((external, skip)) = pending {
+            let resolver = std::sync::Arc::clone(&self.external_secrets);
+            tokio::task::spawn_blocking(move || resolver.resolve(&external, &skip))
+                .await
+                .map_err(|e| AppError::Shell(format!("reading secrets failed: {e}")))?
+                .map_err(AppError::Shell)?;
+        }
         let (snapshot, collection, spec) = self.with_session(|s| {
             let input = self.with_secrets(s, input)?;
             let spec = s.workspace.request(path)?;
@@ -305,16 +325,57 @@ impl<S: SecretStore> Core<S> {
     }
 
     /// Replaces `input.secrets` (never trusted from the webview) with the stored values of
-    /// the selected environment's secret variables.
+    /// the selected environment's secret variables, plus its external secrets already read
+    /// (keychain values win).
     fn with_secrets(&self, s: &Session, mut input: SendInput) -> Result<SendInput, AppError> {
-        input.secrets = secret_values(
+        let environments = s.workspace.environments();
+        let mut values = secret_values(
             &self.secrets,
             &s.id,
-            &s.workspace.environments(),
+            &environments,
             input.environment.as_deref(),
         )?;
+        if let Some(external) = selected(&environments, input.environment.as_deref())
+            .and_then(|e| e.external_secrets.as_ref())
+        {
+            for (name, value) in self.external_secrets.cached(external) {
+                if !values.iter().any(|(n, _)| *n == name) {
+                    values.push((name, value));
+                }
+            }
+        }
+        input.secrets = values;
         Ok(input)
     }
+
+    /// The selected environment's external secrets and the names to skip (those with a
+    /// keychain value); `None` when there is nothing to read.
+    fn external_pending(
+        &self,
+        s: &Session,
+        input: &SendInput,
+    ) -> Result<Option<(rt_core::model::ExternalSecrets, Vec<String>)>, AppError> {
+        let environments = s.workspace.environments();
+        let Some(external) = selected(&environments, input.environment.as_deref())
+            .and_then(|e| e.external_secrets.clone())
+        else {
+            return Ok(None);
+        };
+        let skip = secret_values(
+            &self.secrets,
+            &s.id,
+            &environments,
+            input.environment.as_deref(),
+        )?
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+        Ok(Some((external, skip)))
+    }
+}
+
+fn selected<'a>(environments: &'a [Environment], name: Option<&str>) -> Option<&'a Environment> {
+    name.and_then(|name| environments.iter().find(|e| e.name == name))
 }
 
 /// Values of the enabled secret variables of `environment`, from `store`. Variables without a
