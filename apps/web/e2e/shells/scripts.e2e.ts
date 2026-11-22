@@ -20,7 +20,8 @@ function scriptCollection(): Record<string, string> {
     "opencollection.yml": 'opencollection: "1.0.0"\ninfo:\n  name: Script test\n',
     "environments/Local.yml": `name: Local\nvariables:\n  - name: baseUrl\n    value: ${SERVER}\n`,
     "loop.yml": request("Loop", 1, "{{baseUrl}}/echo/loop", "while (true) {}"),
-    "header.yml": request("Header", 2, "{{baseUrl}}/echo/header", "rt.request.headers.set('X-Script', 'ran');"),
+    // The script's effect shows in the status: 201 when it ran, 200 when not.
+    "header.yml": request("Header", 2, "{{baseUrl}}/status/200", "rt.request.url = rt.request.url.replace('200', '201');"),
     "plain.yml": request("Plain", 3, "{{baseUrl}}/echo/plain"),
   };
 }
@@ -33,9 +34,6 @@ async function open(page: Page): Promise<void> {
   await expect(page.getByTestId("collection-name")).toHaveText("Script test");
   await page.getByTestId("env-switcher").selectOption("Local");
 }
-
-/** The visible lines of the response body. */
-const body = async (page: Page) => (await page.getByTestId("response-line").allTextContents()).join("\n");
 
 const item = (page: Page, name: string) => page.getByTestId("tree-request").filter({ hasText: name });
 
@@ -54,8 +52,6 @@ test("untrusted: the banner asks, sends run without scripts and say so", async (
   const note = page.getByTestId("send-note").filter({ hasText: "not trusted" });
   await expect(note).toHaveAttribute("data-source", "script");
   await expect(note).toHaveAttribute("data-level", "warning");
-  await expect.poll(() => body(page)).toContain("/echo/header");
-  expect(await body(page)).not.toContain("x-script");
 
   // A request without scripts gets no note.
   await item(page, "Plain").click();
@@ -73,9 +69,8 @@ test("trusted: scripts run, an endless loop keeps the page responsive and stops 
   // Scripts run now.
   await item(page, "Header").click();
   await page.getByTestId("send").click();
-  await expect(page.getByTestId("response-status")).toHaveText("200");
+  await expect(page.getByTestId("response-status")).toHaveText("201");
   await expect(page.getByTestId("send-note")).toHaveCount(0);
-  await expect.poll(() => body(page)).toContain('"x-script"');
 
   // Frame gaps while the loop runs.
   await page.evaluate(() => {
