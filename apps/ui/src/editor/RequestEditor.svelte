@@ -241,7 +241,7 @@
     clearTimeout(formatTimer);
     formatTimer = setTimeout(() => (formatStatus = null), 3000);
   }
-  onMount(() => onFormatRequest(() => void formatNow()));
+  onMount(() => onFormatRequest({ available: () => spec !== undefined && canFormat(spec.body), format: () => void formatNow() }));
   $effect(() => () => clearTimeout(formatTimer));
 </script>
 

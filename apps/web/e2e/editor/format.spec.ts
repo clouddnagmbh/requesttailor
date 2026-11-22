@@ -92,6 +92,38 @@ test("Shift+Alt+F formats from another tab; malformed bodies stay as they are", 
   await expectData(page, '{"a": ');
 });
 
+/** Shift+Alt+F as macOS sends it (Alt turns `key` into "Ï") to the focused element; true if the app took it. */
+const shiftAltF = (page: Page) =>
+  page.evaluate(() => {
+    const target = document.activeElement ?? document.body;
+    const e = new KeyboardEvent("keydown", { key: "Ï", code: "KeyF", shiftKey: true, altKey: true, bubbles: true, cancelable: true });
+    return !target.dispatchEvent(e);
+  });
+
+test("Shift+Alt+F is only taken when the active request has a JSON or XML body", async ({ page }) => {
+  // No body: the key is left alone (it types its character as usual).
+  await page.goto("/?backend=mock");
+  await page.getByTestId("open-collection").click();
+  await page.getByTestId("tree-request").filter({ hasText: "List users" }).click();
+  await cm(page.getByTestId("url-input")).click();
+  expect(await shiftAltF(page)).toBe(false);
+
+  // A text body: left alone too, also with focus in the body editor.
+  await page.getByTestId("tree-request").filter({ hasText: "Create user" }).click();
+  await page.getByTestId("tab-body").click();
+  await page.getByTestId("body-type").selectOption("text");
+  await setText(page.getByTestId("body-editor"), '{"a":1}');
+  await expectData(page, '{"a":1}');
+  expect(await shiftAltF(page)).toBe(false);
+  await expectData(page, '{"a":1}');
+
+  // A JSON body: taken (also from the URL field) and formatted.
+  await page.getByTestId("body-type").selectOption("json");
+  await cm(page.getByTestId("url-input")).click();
+  expect(await shiftAltF(page)).toBe(true);
+  await expectData(page, '{\n  "a": 1\n}');
+});
+
 test("Format pretty-prints an XML body", async ({ page }) => {
   await openCreateBody(page);
   await page.getByTestId("body-type").selectOption("xml");

@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Body } from "../commands/types";
-import { canFormat, describeFormat, formatBody, onFormatRequest, requestFormat } from "./format-body";
+import { canFormat, describeFormat, formatAvailable, formatBody, onFormatRequest, requestFormat } from "./format-body";
 
 const raw = (kind: "json" | "xml" | "text" | "sparql", data: string): Body => ({ type: "raw", kind, data });
 
@@ -38,12 +38,18 @@ describe("format body", () => {
     expect(describeFormat(bad)).toBe("Not well-formed XML: nothing changed");
   });
 
-  it("hands format requests to the listening editor until it unsubscribes", () => {
+  it("hands format requests to an editor that can format, until it unsubscribes", () => {
     let calls = 0;
-    const off = onFormatRequest(() => calls++);
-    requestFormat();
+    let body: Body = raw("text", "{}");
+    const off = onFormatRequest({ available: () => canFormat(body), format: () => calls++ });
+    expect(formatAvailable()).toBe(false);
+    expect(requestFormat()).toBe(false);
+    body = raw("json", "{}");
+    expect(formatAvailable()).toBe(true);
+    expect(requestFormat()).toBe(true);
     off();
-    requestFormat();
+    expect(formatAvailable()).toBe(false);
+    expect(requestFormat()).toBe(false);
     expect(calls).toBe(1);
   });
 });

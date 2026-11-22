@@ -35,14 +35,34 @@ export function describeFormat(result: FormatResult): string | null {
   }
 }
 
-const listeners = new Set<() => void>();
-
-/** The open request editor formats its body when the shell asks (shortcut, palette). */
-export function onFormatRequest(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+/** An open request editor, as the shell sees it. */
+export interface FormatTarget {
+  /** Its body is raw JSON or XML right now. */
+  available(): boolean;
+  format(): void;
 }
 
-export function requestFormat(): void {
-  for (const l of listeners) l();
+const targets = new Set<FormatTarget>();
+
+/** The open request editor formats its body when the shell asks (shortcut, palette). */
+export function onFormatRequest(target: FormatTarget): () => void {
+  targets.add(target);
+  return () => targets.delete(target);
+}
+
+/** An open editor can format now. Otherwise the shortcut is not taken (the key types as usual). */
+export function formatAvailable(): boolean {
+  for (const t of targets) if (t.available()) return true;
+  return false;
+}
+
+/** Formats the body of every open editor that can; false if none could. */
+export function requestFormat(): boolean {
+  let done = false;
+  for (const t of targets) {
+    if (!t.available()) continue;
+    t.format();
+    done = true;
+  }
+  return done;
 }

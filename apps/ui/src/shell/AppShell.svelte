@@ -17,7 +17,7 @@
   import AuthPromptDialog from "../auth/AuthPromptDialog.svelte";
   import type { Backend, CollectionInfo } from "../commands/backend";
   import CookiesDialog from "../cookies/CookiesDialog.svelte";
-  import { requestFormat } from "../editor/format-body";
+  import { formatAvailable, requestFormat } from "../editor/format-body";
   import RequestEditor from "../editor/RequestEditor.svelte";
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
@@ -240,6 +240,8 @@
     const onkeydown = (e: KeyboardEvent) => {
       const s = matchShortcut(e, mac);
       if (!s) return;
+      // Shift+Alt+F types a character (e.g. "Ï" on macOS): only taken when a body can be formatted.
+      if (s.command === "format-body" && !formatAvailable()) return;
       e.preventDefault();
       e.stopPropagation();
       if (e.repeat) return;
