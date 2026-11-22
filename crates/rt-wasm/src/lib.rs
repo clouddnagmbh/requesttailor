@@ -332,7 +332,7 @@ mod workspace_js {
             std::cell::Ref::map(self.inner.borrow(), |i| &i.responses)
         }
 
-        /// The open workspace for edits (wave 8: `agents_js`).
+        /// The open workspace for edits (wave 8: `agents_js`; saved MCP tests are staged in it, `mcp_js`).
         pub(crate) fn workspace_mut(&self) -> std::cell::RefMut<'_, Workspace> {
             std::cell::RefMut::map(self.inner.borrow_mut(), |i| &mut i.workspace)
         }

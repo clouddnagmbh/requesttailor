@@ -23,6 +23,7 @@
 //! | `GET /ws/headers` | WebSocket (wave 8): sends the handshake headers as JSON `[[name, value], ...]` (lowercased names, in order), then closes (1000) |
 //! | `GET /sse/count/{n}` | `text/event-stream` (wave 8): `n` events (`id: i`, `data: i`, i = 1..n), then the stream ends; `?interval=<ms>` between events (default 10) |
 //! | `GET /sse/named` | `text/event-stream` (wave 8): a comment, then named events with ids (`greeting`, `update` with multi-line data) and one of the default type, then the end |
+//! | `POST/DELETE /mcp` | an MCP server over Streamable HTTP (wave 8, module [`mcp`]) |
 //! | `OPTIONS *` | CORS preflight, 204 |
 //!
 //! [`spawn_mtls`] serves the same routes over HTTPS and requires a client certificate signed
@@ -53,6 +54,9 @@ use tokio::net::TcpListener;
 /// WebSocket and SSE routes (wave 8, strand A).
 mod sse;
 mod ws;
+/// Wave 8, strand D: an MCP server (Streamable HTTP and stdio) for the MCP client's tests.
+pub mod mcp;
+pub use mcp::spawn_mcp;
 
 type Body = BoxBody<Bytes, Infallible>;
 
@@ -322,6 +326,7 @@ async fn route(req: Request<Incoming>) -> Response<Body> {
         ["ws", "headers"] => ws::headers(req),
         ["sse", "count", n] => sse::count(n, &query),
         ["sse", "named"] => sse::named(&query),
+        ["mcp"] => mcp::route(req).await,
         ["status", code] => match code
             .parse::<u16>()
             .ok()

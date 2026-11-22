@@ -32,6 +32,9 @@
   import SessionVarsButton from "../scripts/SessionVarsButton.svelte";
   import GitPanel from "../git/GitPanel.svelte";
   import HistoryPanel from "../history/HistoryPanel.svelte";
+  import { McpState } from "../mcp/mcp.svelte";
+  import McpPanel from "../mcp/McpPanel.svelte";
+  import McpSidebar from "../mcp/McpSidebar.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
   import CollectionPanel from "../plugins/CollectionPanel.svelte";
   import { tabsFor } from "../plugins/permissions";
@@ -90,12 +93,13 @@
   let searchPanel = $state<ReturnType<typeof SearchPanel>>();
 
   // ---- sidebar views (per device) ----
-  type SideView = "requests" | "search" | "history" | "git";
+  type SideView = "requests" | "search" | "history" | "git" | "mcp";
   const SIDE_VIEWS: { id: SideView; label: string }[] = [
     { id: "requests", label: "Requests" },
     { id: "search", label: "Search" },
     { id: "history", label: "History" },
     { id: "git", label: "Git" },
+    { id: "mcp", label: "MCP" },
   ];
   const isSideView = (v: unknown): v is SideView => SIDE_VIEWS.some((s) => s.id === v);
   let sideView = $state<SideView>(load("sideView", "requests", isSideView));
@@ -244,6 +248,28 @@
     untrack(() => runner.close());
   });
 
+  // ---- MCP client (wave 8) ----
+  const mcp = new McpState(app);
+  async function openMcp() {
+    await tick();
+    runner.close();
+    collectionTab = null;
+    mcp.show();
+    if (sideView !== "mcp") await showView("mcp");
+  }
+  // Opening a request, the runner or a collection tab shows that instead.
+  $effect(() => {
+    void app.active;
+    untrack(() => mcp.close());
+  });
+  $effect(() => {
+    if (runner.target || showingCollection) untrack(() => mcp.close());
+  });
+  $effect(() => {
+    void app.collection?.id;
+    untrack(() => mcp.reset());
+  });
+
   const commands = $derived([
     ...buildCommands(app, actions, mac),
     ...collectionTabs.map((t) => ({
@@ -254,6 +280,7 @@
     ...(app.collection ? [{ id: "run-collection", label: "Run collection…", run: () => openRunner(null) }] : []),
     ...aiCommands(app, ai),
     ...agentCommands(app),
+    ...(app.collection ? [{ id: "mcp", label: "Test an MCP server", run: () => openMcp() }] : []),
   ]);
 
   // Capture phase: runs before inputs and code editors handle the key, so Mod+Enter and Mod+S
@@ -360,6 +387,8 @@
           <SearchPanel bind:this={searchPanel} />
         {:else if sideView === "history"}
           <HistoryPanel />
+        {:else if sideView === "mcp"}
+          <McpSidebar {mcp} />
         {:else}
           <GitPanel onopen={adoptCollection} />
         {/if}
@@ -379,7 +408,9 @@
       <TabBar panelId="rt-request-panel" />
       <TrustPrompt />
       <AgentsHost />
-      {#if runner.target}
+      {#if mcp.open}
+        <McpPanel {mcp} />
+      {:else if runner.target}
         <RunnerPanel {runner} />
       {:else if showingCollection && collectionTab}
         <CollectionPanel tabs={collectionTabs} active={collectionTab} onselect={(k) => (collectionTab = k)} onclose={() => (collectionTab = null)} />

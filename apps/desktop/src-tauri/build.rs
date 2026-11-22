@@ -104,6 +104,14 @@ const COMMANDS: &[&str] = &[
     "stream_close",
     "stream_log",
     "stream_release",
+    "mcp_connect",
+    "mcp_tools",
+    "mcp_call",
+    "mcp_disconnect",
+    "mcp_tests",
+    "mcp_get_test",
+    "mcp_save_test",
+    "mcp_run_test",
 ];
 
 fn main() {

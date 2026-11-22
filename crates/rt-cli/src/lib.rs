@@ -67,6 +67,7 @@ Usage:
   rt agent [--port <PORT>] [--allow-origin <ORIGIN>]... [--allow-secrets]
   rt import <file>... --out <dir> [--format <FORMAT>] [--json]
   rt scan [<path>...] [--json]
+  rt mcp-test [<path>...] [-e <NAME>] [--var <NAME=VALUE>]...
   rt --help | --version
 
 Options for send:
@@ -124,6 +125,13 @@ in auth, headers, URLs and bodies), for pipelines and as a pre-commit hook:
   only {{{{variables}}}} are fine; a line containing `rt-scan:allow` (e.g. as a
   `# rt-scan:allow` comment) is skipped. Exit code {EXIT_OK} when clean, {scan_found} with
   findings, {EXIT_USAGE} if a path cannot be read. See crates/rt-cli/README.md for a hook.
+
+rt mcp-test runs saved MCP tests (*.mcp.yaml, saved in the app) against their
+servers: connect (stdio or Streamable HTTP), call the tool, check the assertions.
+  Paths are test files or folders (default: the collection of the current
+  folder). -e and --var as for send. Prints {{\"tests\": [...], \"passed\": N,
+  \"failed\": M}} as JSON, secret values as ***. Exit code {EXIT_OK} when all passed,
+  {EXIT_TESTS} when a test failed, {EXIT_TRANSPORT} when a server could not be reached or started.
 
 External secrets: when the environment of rt send reads secrets from a manager
 (externalSecrets), rt runs its CLI (op, vault, aws, az, gcloud) with your login.

@@ -98,6 +98,14 @@
     "allow-stream-close",
     "allow-stream-log",
     "allow-stream-release",
+    "allow-mcp-connect",
+    "allow-mcp-tools",
+    "allow-mcp-call",
+    "allow-mcp-disconnect",
+    "allow-mcp-tests",
+    "allow-mcp-get-test",
+    "allow-mcp-save-test",
+    "allow-mcp-run-test",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

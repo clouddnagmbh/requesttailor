@@ -26,6 +26,7 @@ import {
   type GitApi,
   type ImportApi,
   type LineSlice,
+  type McpClientApi,
   type Preview,
   type RecentCollection,
   type RequestSpec,
@@ -162,7 +163,7 @@ export class WebBackend implements Backend {
   readonly grpc = webGrpc({ session: () => this.session(), sendContext: (i) => this.sendContext(i) });
   readonly graphql = webGraphQl({ session: () => this.session(), sendContext: (i) => this.sendContext(i) });
   readonly agents = webAgents(() => this.session());
-  readonly mcp = webMcp();
+  readonly mcp: McpClientApi;
   readonly ai: AiApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
@@ -213,6 +214,20 @@ export class WebBackend implements Backend {
       sendContext,
     });
     this.streams = webStreams({ session: host.session, sendContext });
+    // Wave 8, strand D: MCP servers over HTTP, inputs and companion as for a send.
+    this.mcp = webMcp({
+      session: host.session,
+      companion: async () => (this.companionOn ? await this.companionCredentials() : null),
+      coreInput: (input) => this.coreInput(this.session(), input, true),
+      secretValues: async () => {
+        const s = this.session();
+        const values: string[] = [];
+        for (const env of s.ws.environments()) {
+          for (const [, value] of await this.secretValues(s, env.name)) values.push(value);
+        }
+        return values;
+      },
+    });
     this.recent = webRecent(host);
     this.ai = webAi({
       session: host.session,

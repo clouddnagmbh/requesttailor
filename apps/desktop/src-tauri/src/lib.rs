@@ -161,6 +161,14 @@ pub fn run() {
             streams::stream_close,
             streams::stream_log,
             streams::stream_release,
+            mcp_client::mcp_connect,
+            mcp_client::mcp_tools,
+            mcp_client::mcp_call,
+            mcp_client::mcp_disconnect,
+            mcp_client::mcp_tests,
+            mcp_client::mcp_get_test,
+            mcp_client::mcp_save_test,
+            mcp_client::mcp_run_test,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the RequestTailor desktop app");
