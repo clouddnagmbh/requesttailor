@@ -123,6 +123,9 @@ pub struct Workspace {
     files: FileSet,
     /// Paths whose bytes differ from `saved_files`, sorted.
     dirty: Vec<String>,
+    /// Companion files staged for the next save (wave 8: saved MCP tests): files of the
+    /// collection folder that are not part of the OpenCollection document.
+    staged: std::collections::BTreeMap<String, Vec<u8>>,
 }
 
 impl Workspace {
@@ -135,6 +138,7 @@ impl Workspace {
             saved_files,
             files,
             dirty: Vec::new(),
+            staged: Default::default(),
         })
     }
 
@@ -239,7 +243,58 @@ impl Workspace {
     /// Also new and deleted files, sorted by path. An environment declared inside
     /// `opencollection.yml` shows up as that file.
     pub fn dirty(&self) -> Vec<String> {
-        self.dirty.clone()
+        let mut dirty = self.dirty.clone();
+        dirty.extend(
+            self.staged
+                .iter()
+                .filter(|(path, bytes)| self.files.files.get(*path) != Some(*bytes))
+                .map(|(path, _)| path.clone()),
+        );
+        dirty.sort();
+        dirty.dedup();
+        dirty
+    }
+
+    /// Paths of the companion files (wave 8) for which `wanted` is true: files of the
+    /// collection folder outside the OpenCollection document, with staged ones, sorted.
+    pub fn companion_paths(&self, wanted: impl Fn(&str) -> bool) -> Vec<String> {
+        let mut paths: Vec<String> = self
+            .files
+            .files
+            .keys()
+            .chain(self.staged.keys())
+            .filter(|p| wanted(p))
+            .cloned()
+            .collect();
+        paths.sort();
+        paths.dedup();
+        paths
+    }
+
+    /// A companion file's bytes, staged ones first.
+    pub fn companion_file(&self, path: &str) -> Option<&[u8]> {
+        self.staged
+            .get(path)
+            .or_else(|| self.files.files.get(path))
+            .map(Vec::as_slice)
+    }
+
+    /// Stages a companion file for the next [`save`](Self::save), like a request edit: it is
+    /// `dirty` until saved (unless it has the bytes on disk). Refuses collection files
+    /// (`*.yml`, which the document owns) and paths that could leave the collection folder.
+    pub fn stage_companion(&mut self, path: &str, bytes: Vec<u8>) -> Result<(), AppError> {
+        let bad = path.is_empty()
+            || path.ends_with(".yml")
+            || path.starts_with('/')
+            || path.contains(['\\', ':', '\0'])
+            || path
+                .split('/')
+                .any(|p| p.is_empty() || p == "." || p == ".." || p.starts_with('.'));
+        if bad {
+            return Err(AppError::Shell(format!("cannot write {path:?} here")));
+        }
+        self.staged.insert(path.to_owned(), bytes);
+        Ok(())
     }
 
     /// Files that changed since open or the last save; the shell writes them. Clears `dirty`.
@@ -264,7 +319,25 @@ impl Workspace {
                 },
             })
             .collect();
+        let mut changes = changes;
+        let mut written = Vec::new();
+        for (path, bytes) in std::mem::take(&mut self.staged) {
+            if self.files.files.get(&path) != Some(&bytes) {
+                changes.push(FileChange {
+                    path: path.clone(),
+                    text: String::from_utf8_lossy(&bytes).into_owned(),
+                    deleted: false,
+                });
+                written.push((path, bytes));
+            }
+        }
+        changes.sort_by(|a, b| a.path.cmp(&b.path));
         for change in &changes {
+            if let Some(i) = written.iter().position(|(p, _)| *p == change.path) {
+                let (path, bytes) = written.swap_remove(i);
+                self.files.files.insert(path, bytes);
+                continue;
+            }
             match now.files.get(&change.path) {
                 Some(bytes) => {
                     self.files.files.insert(change.path.clone(), bytes.clone());
