@@ -80,7 +80,9 @@
 
   function open(entry: HistoryEntry, i: number) {
     focusIndex = i;
-    void app.select(entry.request_path);
+    // Wave 14: in the collection it was sent from (the active one, as the list is per
+    // collection; the id makes it right if that changed meanwhile).
+    void app.selectRef({ collection: entry.collection || app.activeCollection || "", path: entry.request_path });
   }
 
   function onRowKeydown(e: KeyboardEvent, entry: HistoryEntry, i: number) {

@@ -73,6 +73,7 @@
   import { buildCommands, LABELS, type Actions } from "./commands";
   import Resizer from "./Resizer.svelte";
   import { formatShortcut, isMacPlatform, matchShortcut, shortcutFor, SHORTCUTS, type CommandId } from "./shortcuts";
+  import { IconButton } from "../ui";
   import Sidebar from "./Sidebar.svelte";
   import { isNumber, load, store } from "./storage";
   import TabBar from "./TabBar.svelte";
@@ -115,14 +116,29 @@
   let searchPanel = $state<ReturnType<typeof SearchPanel>>();
 
   // ---- sidebar views (per device) ----
+  // Wave 14: icons with their name as tooltip, so the bar fits a narrow sidebar without
+  // scrolling; each view names itself in its own header. The id "requests" stays (stored
+  // per device, test ids).
   type SideView = "requests" | "search" | "history" | "git" | "mcp";
-  const SIDE_VIEWS: { id: SideView; label: string }[] = [
-    { id: "requests", label: "Requests" },
-    { id: "search", label: "Search" },
-    { id: "history", label: "History" },
-    { id: "git", label: "Git" },
-    { id: "mcp", label: "MCP" },
+  const SIDE_VIEWS: { id: SideView; label: string; icon: string }[] = [
+    { id: "requests", label: "Collections", icon: "collection" },
+    { id: "search", label: "Search", icon: "search" },
+    { id: "history", label: "History", icon: "history" },
+    { id: "git", label: "Git", icon: "branch" },
+    { id: "mcp", label: "MCP: Test MCP servers", icon: "mcp" },
   ];
+  function onViewsKeydown(e: KeyboardEvent) {
+    const i = SIDE_VIEWS.findIndex((v) => v.id === sideView);
+    const n = SIDE_VIEWS.length;
+    const next =
+      e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i - 1 + n) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    if (next < 0) return;
+    e.preventDefault();
+    const id = SIDE_VIEWS[next].id;
+    sideView = id;
+    store("sideView", id);
+    void tick().then(() => document.querySelector<HTMLElement>(`[data-testid="view-${id}"]`)?.focus());
+  }
   const isSideView = (v: unknown): v is SideView => SIDE_VIEWS.some((s) => s.id === v);
   let sideView = $state<SideView>(load("sideView", "requests", isSideView));
   async function showView(view: SideView) {
@@ -213,9 +229,8 @@
   // ---- commands and shortcuts ----
   const actions: Actions = {
     "open-folder": openFolder,
-    "new-request": () => {
-      if (app.collection) app.openNew();
-    },
+    // Also without an open collection: the dialog can make the first one.
+    "new-request": () => app.openNew(),
     send: () => (app.active && sessions.kindOf(app.active) ? sessions.primary(app.active) : app.send()),
     save: () => app.save(),
     "close-tab": () => {
@@ -297,19 +312,38 @@
 
   // ---- collection runner (wave 7) ----
   const runner = new RunnerState(app);
-  async function openRunner(folder: string | null, name?: string) {
+  /** Opens the runner for `folder` (`null`: the collection) of `collection` (default: the
+   *  active one), which becomes active (wave 14). */
+  async function openRunner(folder: string | null, name?: string, collection?: string) {
+    if (collection && app.activeCollection !== collection) await app.activate(collection);
     if (!app.collection) return;
     // Set after the effect below has seen the current request.
     await tick();
     collectionTab = null;
-    runner.open({ folder, name: name ?? app.collection.name });
+    runner.open({ collection: app.collection.id, folder, name: name ?? app.collection.name });
   }
-  // Opening a request or another collection shows the editor again; a run goes on.
+  // Opening a request or another collection shows the editor again; a run goes on. The
+  // runner's own collection becoming active (a run starting in it) keeps it open.
+  let runnerSeen: string | undefined = undefined;
   $effect(() => {
     void app.active;
-    void app.collection?.id;
-    untrack(() => runner.close());
+    const id = app.collection?.id;
+    untrack(() => {
+      const switched = id !== runnerSeen;
+      runnerSeen = id;
+      if (switched && runner.target && runner.target.collection === id) return;
+      runner.close();
+    });
   });
+  /** Wave 14 (sidebar menu): collection tab `key` of `collection`, made active first. */
+  async function openCollectionTabOf(collection: string, key: string) {
+    if (app.activeCollection !== collection) await app.activate(collection);
+    await openCollectionTab(key);
+  }
+  async function manageEnvironmentsOf(collection: string) {
+    if (app.activeCollection !== collection) await app.activate(collection);
+    managing = true;
+  }
 
   // ---- MCP client (wave 8) ----
   const mcp = new McpState(app);
@@ -394,7 +428,10 @@
   const themeIcon = { system: "◐", light: "☀", dark: "☾" } as const;
   const sending = $derived(app.active ? (app.sending[app.active] ?? false) : false);
   const sessionKind = $derived(sessions.kindOf(app.active));
-  const activeTabId = $derived(app.active ? tabElementId(app.tabs.indexOf(app.active)) : undefined);
+  const activeTabId = $derived.by(() => {
+    const i = app.openTabs.findIndex((t) => t.collection === app.activeCollection && t.path === app.active);
+    return i >= 0 ? tabElementId(i) : undefined;
+  });
 </script>
 
 <div class="shell">
@@ -431,9 +468,9 @@
     <button
       class="button primary"
       data-testid="save"
-      title="Save all ({keys('save')})"
+      title="Save all collections ({keys('save')})"
       onclick={() => app.save()}
-      disabled={app.dirty.length === 0}>Save</button
+      disabled={app.dirty.length === 0 && !app.collections.some((c) => c.dirty > 0)}>Save</button
     >
     {#each extensions as x (x.id)}
       {#if x.header}
@@ -462,24 +499,34 @@
   <div class="body">
     <div class="side" style:width="{sidebarWidth}px">
       {#if app.collection}
-        <div class="views" role="tablist" aria-label="Sidebar">
+        <div class="views" role="tablist" aria-label="Sidebar" tabindex="-1" onkeydown={onViewsKeydown}>
           {#each SIDE_VIEWS as v (v.id)}
-            <button
-              role="tab"
-              class="view"
-              data-testid="view-{v.id}"
-              aria-selected={sideView === v.id}
-              onclick={(e) => {
-                e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
-                void showView(v.id);
-              }}>{v.label}</button
-            >
+            <span class="view" class:selected={sideView === v.id} role="none">
+              <IconButton
+                role="tab"
+                icon={v.icon}
+                label={v.label}
+                tooltipPlacement="bottom"
+                data-testid="view-{v.id}"
+                aria-selected={sideView === v.id}
+                tabindex={sideView === v.id ? 0 : -1}
+                onclick={() => void showView(v.id)}
+              />
+            </span>
           {/each}
         </div>
       {/if}
       <div class="view-body">
         {#if sideView === "requests" || !app.collection}
-          <Sidebar bind:this={sidebar} bind:newIn hint={keys("new-request")} onrun={(folder, name) => openRunner(folder, name)} />
+          <Sidebar
+            bind:this={sidebar}
+            bind:newIn
+            hint={keys("new-request")}
+            onrun={(collection, folder, name) => openRunner(folder, name, collection)}
+            panelTabs={collectionTabs}
+            onpanel={openCollectionTabOf}
+            onenvironments={manageEnvironmentsOf}
+          />
         {:else if sideView === "search"}
           <SearchPanel bind:this={searchPanel} />
         {:else if sideView === "history"}
@@ -662,41 +709,27 @@
   .views {
     flex: none;
     display: flex;
-    align-items: stretch;
-    gap: 2px;
+    align-items: center;
+    justify-content: space-between;
     height: var(--rt-bar-height);
-    /* The first label lines up with the sidebar content, the last one keeps the same inset to the
-       edge; a narrow sidebar scrolls the views instead of clipping the last one. */
-    padding: 0 0 0 calc(var(--rt-side-inset) - 8px);
-    overflow-x: auto;
-    scroll-padding-inline: var(--rt-side-inset);
-    scrollbar-width: none;
+    padding: 0 var(--rt-side-inset);
     border-bottom: 1px solid var(--rt-border);
   }
-  .views::-webkit-scrollbar {
-    display: none;
-  }
-  .views::after {
-    /* Keeps the end inset when the row scrolls (padding-right alone is dropped in some engines). */
-    content: "";
-    flex: none;
-    width: calc(var(--rt-side-inset) - 2px);
-  }
   .view {
-    flex: none;
-    white-space: nowrap;
-    padding: 0 8px;
-    border: none;
-    border-bottom: 2px solid transparent;
-    background: none;
+    position: relative;
+    display: inline-flex;
     color: var(--rt-fg-muted);
-    font: inherit;
-    font-size: var(--rt-size-small);
-    cursor: pointer;
   }
-  .view[aria-selected="true"] {
-    border-bottom-color: var(--rt-accent);
-    color: var(--rt-fg);
+  /* The chosen view: an accent bar on the bar's bottom edge, as tabs elsewhere. */
+  .view.selected::after {
+    content: "";
+    position: absolute;
+    left: var(--rt-space-2);
+    right: var(--rt-space-2);
+    bottom: calc((var(--rt-bar-height) - var(--rt-control-md)) / -2 - 1px);
+    height: 2px;
+    border-radius: var(--rt-radius-pill);
+    background: var(--rt-accent-solid);
   }
   .view-body {
     flex: 1;

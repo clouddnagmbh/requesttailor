@@ -29,6 +29,8 @@ export interface MockCollection {
   dir: string;
   repo: string | null;
   requests: Map<string, RequestSpec>;
+  /** Folders created on their own (`createFolder`); others exist through their requests. */
+  folders: Set<string>;
   saved: Map<string, RequestSpec>;
   envs: Environment[];
   envDirty: Set<string>;
@@ -71,15 +73,14 @@ const env = (name: string, baseUrl: string): Environment => ({
   ],
 });
 
-/** The tree of a mock collection (folders exist through their requests). */
-export function mockTree(name: string, requests: ReadonlyMap<string, RequestSpec>): TreeNode {
+/** The tree of a mock collection: folders of `empty` (created on their own) and those of
+ *  the requests' paths. */
+export function mockTree(name: string, requests: ReadonlyMap<string, RequestSpec>, empty: Iterable<string> = []): TreeNode {
   const root: TreeNode = { kind: "folder", name, path: "", children: [] };
   const folders = new Map<string, TreeNode & { kind: "folder" }>();
-  for (const path of [...requests.keys()].sort()) {
-    const spec = requests.get(path)!;
-    const parts = path.split("/");
+  const folderOf = (parts: string[]) => {
     let parent = root as TreeNode & { kind: "folder" };
-    for (let i = 0; i < parts.length - 1; i++) {
+    for (let i = 0; i < parts.length; i++) {
       const fp = parts.slice(0, i + 1).join("/");
       let f = folders.get(fp);
       if (!f) {
@@ -89,7 +90,16 @@ export function mockTree(name: string, requests: ReadonlyMap<string, RequestSpec
       }
       parent = f;
     }
-    parent.children.push({ kind: "request", name: spec.name, path, method: spec.method });
+    return parent;
+  };
+  const entries: [string, RequestSpec | null][] = [
+    ...[...requests].map(([p, s]): [string, RequestSpec | null] => [p, s]),
+    ...[...empty].map((p): [string, RequestSpec | null] => [`${p}/`, null]),
+  ];
+  for (const [path, spec] of entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const parts = path.split("/");
+    const parent = folderOf(parts.slice(0, -1));
+    if (spec) parent.children.push({ kind: "request", name: spec.name, path, method: spec.method });
   }
   return root;
 }
@@ -126,7 +136,7 @@ export class MockCollections implements CollectionSetApi {
   private make(info: CollectionInfo, root: string, dir: string, requests: Map<string, RequestSpec>, envs: Environment[]): MockCollection {
     const saved = new Map<string, RequestSpec>();
     for (const [p, s] of requests) saved.set(p, structuredClone(s));
-    return { info, root, dir, repo: "mock://demo", requests, saved, envs, envDirty: new Set(), secretValues: new Map(), created: false };
+    return { info, root, dir, repo: "mock://demo", requests, folders: new Set(), saved, envs, envDirty: new Set(), secretValues: new Map(), created: false };
   }
 
   /** "Open folder": the demo root with its two collections, Demo API active. Opening it
@@ -274,7 +284,7 @@ export class MockCollections implements CollectionSetApi {
 
   async tree(id: string): Promise<TreeNode> {
     const c = this.collection(id);
-    return mockTree(c.info.name, c.requests);
+    return mockTree(c.info.name, c.requests, c.folders);
   }
 
   async dirty(id: string): Promise<string[]> {

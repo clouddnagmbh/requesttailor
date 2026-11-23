@@ -336,7 +336,7 @@ export class MockBackend implements Backend {
   async tree(): Promise<TreeNode> {
     this.ensureOpen();
     const c = this.collections.current_();
-    return mockTree(c.info.name, c.requests);
+    return mockTree(c.info.name, c.requests, c.folders);
   }
 
   async getRequest(path: string): Promise<RequestSpec> {
@@ -355,12 +355,14 @@ export class MockBackend implements Backend {
     return path;
   }
 
-  /** Folders exist through their requests in the mock: segments keep their names. */
+  /** Segments keep their names; the folder shows in the tree before it has requests. */
   async createFolder(path: string): Promise<string> {
     this.ensureOpen();
     const parts = path.split("/").filter((p) => p !== "");
     if (parts.some((p) => p === "." || p === ".." || p.includes("\\"))) throw new BackendError("folder-not-found", path);
-    return parts.join("/");
+    const folder = parts.join("/");
+    if (folder) this.collections.current_().folders.add(folder);
+    return folder;
   }
 
   async updateRequest(path: string, spec: RequestSpec): Promise<void> {

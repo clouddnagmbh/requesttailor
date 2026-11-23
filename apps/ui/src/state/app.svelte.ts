@@ -288,6 +288,16 @@ export class AppState {
     if (this.collection?.id === ref.collection) await this.select(ref.path);
   }
 
+  /** Wave 14: the draft of a request of any collection that was shown (tab labels). */
+  draftOf(ref: RequestRef): RequestSpec | undefined {
+    return this.views[ref.collection]?.drafts[ref.path];
+  }
+
+  /** Wave 14: whether a request of any collection has unsaved changes. */
+  isDirty(ref: RequestRef): boolean {
+    return this.views[ref.collection]?.dirty.includes(ref.path) ?? false;
+  }
+
   /** Wave 14: closes a tab of any collection. Closing the active tab shows its neighbour in the
    *  tab bar, which may belong to another collection (that one becomes active). */
   async closeRef(ref: RequestRef): Promise<void> {

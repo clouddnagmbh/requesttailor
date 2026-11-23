@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- Sidebar view "Search": full-text search over the open collection (`backend.search`),
-     unsaved changes included. Owner: wave 4, strand E. `focus()` is called when the view is
+<!-- Sidebar view "Search": full-text search over every collection in the sidebar
+     (`backend.collections.search`, wave 14), unsaved changes included; a hit opens its request
+     in its own collection. Owner: wave 4, strand E. `focus()` is called when the view is
      opened from the palette.
      Keyboard (focus stays in the field, combobox pattern): ArrowDown/ArrowUp move through the
      hits, Enter opens the request of the active hit in a tab, Escape clears the query. Hits
@@ -9,7 +10,7 @@
 <script lang="ts">
   import { tick } from "svelte";
 
-  import type { SearchHit } from "../commands/types";
+  import type { CollectionSearchHit } from "../commands/types";
   import MethodBadge from "../shell/MethodBadge.svelte";
   import { getApp } from "../state/app.svelte";
   import { FIELD_LABELS, groupHits, segments } from "./highlight";
@@ -24,7 +25,7 @@
   let listEl = $state<HTMLElement>();
   let value = $state("");
   let query = $state("");
-  let hits = $state<SearchHit[]>([]);
+  let hits = $state<CollectionSearchHit[]>([]);
   let searched = $state(false);
   let error = $state<string | null>(null);
   let active = $state(-1);
@@ -48,6 +49,7 @@
   let generation = 0;
   $effect(() => {
     void app.tree;
+    void app.trees;
     void app.loadCount;
     const q = query.trim();
     const mine = ++generation;
@@ -57,7 +59,7 @@
       active = -1;
       return;
     }
-    app.backend.search(q, LIMIT).then(
+    app.backend.collections.search(q, LIMIT).then(
       (result) => {
         if (mine !== generation) return;
         hits = result;
@@ -83,7 +85,7 @@
     const hit = shown[i];
     if (!hit) return;
     active = i;
-    void app.select(hit.path);
+    void app.selectRef({ collection: hit.collection, path: hit.path });
   }
 
   function onkeydown(e: KeyboardEvent) {
@@ -153,11 +155,20 @@
   </div>
   <p class="summary" role="status" data-testid="search-summary">{error ?? summary}</p>
   <div class="results" id={LIST_ID} role="listbox" aria-label="Search results" bind:this={listEl}>
-    {#each groups as group (group.path)}
-      <div class="group" role="group" aria-label={group.name} data-testid="search-group" data-path={group.path}>
+    {#each groups as group (`${group.collection}\u0000${group.path}`)}
+      {@const where = app.collections.length > 1 ? (app.collections.find((c) => c.id === group.collection)?.name ?? "") : ""}
+      <div
+        class="group"
+        role="group"
+        aria-label={where ? `${group.name} (${where})` : group.name}
+        data-testid="search-group"
+        data-path={group.path}
+        data-collection={group.collection}
+      >
         <div class="request" aria-hidden="true">
           <MethodBadge method={group.method} />
           <span class="name">{group.name}</span>
+          {#if where}<span class="where">{where}</span>{/if}
         </div>
         {#each group.hits as { hit, index } (index)}
           <!-- Focus stays in the search field (aria-activedescendant); the mouse may click. -->
@@ -187,6 +198,14 @@
 </section>
 
 <style>
+  .where {
+    flex: none;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--rt-font-small);
+    color: var(--rt-fg-subtle);
+  }
   .search {
     display: flex;
     flex-direction: column;
