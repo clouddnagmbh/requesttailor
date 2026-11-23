@@ -56,7 +56,7 @@
     return () => cancelAnimationFrame(frame);
   });
 
-  onMount(suggestionOpened);
+  onMount(() => suggestionOpened(mode === "inline"));
 
   // On the window, so the keys work wherever the focus is (a menu that just closed leaves it on
   // the page). An inline proposal steps back while a dialog is open.

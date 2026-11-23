@@ -75,7 +75,7 @@
   import { createExtensionContext } from "./extension-context";
   import { extensionAssistant } from "./extension-actions";
   import SuggestHost from "../suggest/SuggestHost.svelte";
-  import { suggestionOwnsEnter } from "../suggest/keys.svelte";
+  import { inlineProposalOpen, suggestionOwnsEnter } from "../suggest/keys.svelte";
   import { suggestUndoFor } from "../suggest/undo.svelte";
   import { extensionTabsFor, provideExtensions } from "./extension-tabs";
   import { buildCommands, LABELS, type Actions } from "./commands";
@@ -162,7 +162,11 @@
   let sidebarWidth = $state(load("sidebarWidth", 260, isNumber));
   let split = $state(load("split", 0.5, isNumber));
   let panelHeight = $state(0);
-  const editorHeight = $derived(Math.round(panelHeight * split));
+  // A proposal inside an editor (wave 16) needs room to be read: the editor pane takes most of
+  // the panel while it is open, and goes back to the chosen split when it closes.
+  const editorHeight = $derived(
+    inlineProposalOpen() ? Math.max(Math.round(panelHeight * split), Math.round(panelHeight * 0.75)) : Math.round(panelHeight * split),
+  );
   function resizeSidebar(px: number) {
     sidebarWidth = px;
     store("sidebarWidth", px);

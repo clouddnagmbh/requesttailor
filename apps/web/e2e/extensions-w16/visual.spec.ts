@@ -50,6 +50,10 @@ for (const scheme of ["light", "dark"] as const) {
       await expectNoOverflow(page);
       const box = await view.boundingBox();
       expect(box!.x + box!.width).toBeLessThanOrEqual(size.width);
+      // The diff is readable: the editor pane grew, so the changed block shows at least a few lines.
+      const diff = await view.getByTestId("suggest-block").boundingBox();
+      const pane = await page.locator(".pane.editor").boundingBox();
+      expect(pane!.y + pane!.height).toBeGreaterThanOrEqual(diff!.y + Math.min(diff!.height, 120));
       await shot(page, "suggest-inline", scheme, size.width);
       await view.getByTestId("suggest-discard").click();
 
