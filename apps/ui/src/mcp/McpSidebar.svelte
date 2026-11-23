@@ -121,9 +121,13 @@
         </p>
       {/if}
       {#if mcp.tests.length === 0}
-        <div data-testid="mcp-tests" data-count="0">
-          <EmptyState size="sm" title="No saved tests yet" text="Call a tool and choose “Save as test…”. Tests are files next to your collection." />
-        </div>
+        <EmptyState
+          size="sm"
+          data-testid="mcp-tests"
+          data-count="0"
+          title="No saved tests yet"
+          text="Call a tool and choose “Save as test…”. Tests are files next to your collection."
+        />
       {:else}
         <ul class="tests" data-testid="mcp-tests" data-count={mcp.tests.length}>
           {#each mcp.tests as path (path)}

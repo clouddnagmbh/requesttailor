@@ -7,7 +7,7 @@
 <script lang="ts">
   import type { McpCallResult } from "../commands/types";
   import { formatDuration } from "../response/format";
-  import { Badge, Section } from "../ui";
+  import { Badge, Progress, Section } from "../ui";
   import { notificationLine, pretty } from "./model";
 
   let { result }: { result: McpCallResult } = $props();
@@ -30,7 +30,7 @@
           <li data-testid="mcp-result-notification" data-kind={n.kind}>
             <span class="kind">{n.label}</span>
             {#if n.progress !== null}
-              <span class="bar" aria-hidden="true"><span style:width="{n.progress * 100}%"></span></span>
+              <span class="bar"><Progress size="sm" value={n.progress} max={1} label="Progress" /></span>
             {/if}
             <span class="text">{n.text}</span>
           </li>
@@ -137,15 +137,6 @@
   .bar {
     flex: none;
     width: 64px;
-    height: 4px;
-    border-radius: var(--rt-radius-pill);
-    background: var(--rt-surface-sunken);
-    overflow: hidden;
-  }
-  .bar span {
-    display: block;
-    height: 100%;
-    background: var(--rt-accent-solid);
   }
   .text {
     min-width: 0;

@@ -4,7 +4,7 @@
      from connecting to the demo server to a green "Run all". Dismissed per device; hidden by
      itself once finished. -->
 <script lang="ts">
-  import { Card, Icon, IconButton } from "../ui";
+  import { Card, Icon, IconButton, Progress } from "../ui";
   import { doneCount, GUIDE_STEPS } from "./guide";
   import type { McpState } from "./mcp.svelte";
 
@@ -33,9 +33,7 @@
       </li>
     {/each}
   </ol>
-  <div class="meter" role="progressbar" aria-label="Guide progress" aria-valuemin={0} aria-valuemax={GUIDE_STEPS.length} aria-valuenow={done}>
-    <span style:width="{(done / GUIDE_STEPS.length) * 100}%"></span>
-  </div>
+  <Progress size="sm" value={done} max={GUIDE_STEPS.length} tone={next === null ? "ok" : "accent"} label="Guide progress" />
 </Card>
 
 <style>
@@ -84,18 +82,5 @@
     border-color: var(--rt-accent-solid);
     background: var(--rt-accent-solid);
     color: var(--rt-accent-solid-fg);
-  }
-  .meter {
-    height: 4px;
-    border-radius: var(--rt-radius-pill);
-    background: var(--rt-surface-sunken);
-    overflow: hidden;
-  }
-  .meter span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: var(--rt-accent-solid);
-    transition: width var(--rt-dur-normal) var(--rt-ease-out);
   }
 </style>
