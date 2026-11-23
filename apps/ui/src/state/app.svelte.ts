@@ -320,6 +320,36 @@ export class AppState {
     if (next) await this.selectRef(next);
   }
 
+  /** Tab bar: the list of all open tabs ("Go to tab…") is open. */
+  tabList = $state(false);
+
+  /** Index of the shown tab in `openTabs`, `-1` for none. */
+  get activeTabIndex(): number {
+    return this.openTabs.findIndex((t) => t.collection === this.activeCollection && t.path === this.active);
+  }
+
+  /** Tab bar: the next (`1`) or previous (`-1`) tab, wrapping. */
+  async stepTab(delta: 1 | -1): Promise<void> {
+    const n = this.openTabs.length;
+    if (n === 0) return;
+    const i = this.activeTabIndex;
+    await this.selectRef(this.openTabs[i < 0 ? 0 : (i + delta + n) % n]);
+  }
+
+  /** Tab bar: tab `n` (1-based); `last` jumps to the final tab (Mod+9). */
+  async gotoTab(n: number, last = false): Promise<void> {
+    const ref = last ? this.openTabs.at(-1) : this.openTabs[n - 1];
+    if (ref) await this.selectRef(ref);
+  }
+
+  /** Tab bar: closes several tabs. Unsaved changes stay in their drafts, as with `closeRef`
+   *  (reopening the request shows them). The shown tab goes last, so its neighbour that
+   *  stays is shown afterwards. */
+  async closeRefs(refs: readonly RequestRef[]): Promise<void> {
+    const shown = (r: RequestRef) => r.collection === this.activeCollection && r.path === this.active;
+    for (const r of [...refs].sort((a, b) => Number(shown(a)) - Number(shown(b)))) await this.closeRef(r);
+  }
+
   /** Wave 14: reads the tree of collection `id` if it was not yet (its sidebar node opens). */
   async ensureTree(id: string): Promise<void> {
     if (this.trees[id]) return;
