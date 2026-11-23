@@ -156,8 +156,8 @@ pub fn pull<S: SecretStore>(core: &Core<S>) -> Result<GitPullResult> {
 }
 
 /// After Git changed files of the repository at `workdir` (wave 14: the wizards' actions and
-/// undo), reopens every open collection in it. The desktop holds one open collection: it is
-/// reopened when it lies in that repository. `conflicts`: files may hold conflict markers and
+/// undo), reopens every open collection in it (`Core::reload` reads the collections of the
+/// active collection's repository again). `conflicts`: files may hold conflict markers and
 /// not parse; then what is open stays until the conflicts are resolved.
 pub fn reload_repository<S: SecretStore>(
     core: &Core<S>,
