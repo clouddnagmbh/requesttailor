@@ -24,14 +24,14 @@ export { dateOrder, graphPage, reachable, sortChanges, sortRefs, type GraphSourc
 export * from "./commands/openapi-stub";
 /** Wave 14: branch and tag names as `rt_app::git::actions::check_ref_name` checks them (the web Git uses it too). */
 export { refNameProblem, suggestRefName } from "./git/wizards/refname";
-// Wave 16 interface: placeholders for the AI profiles, preview and generic calls (strand A) and
-// the changelog facts (strand D).
-
 export type * from "./extensions";
 export { AI_PROVIDERS, providerInfo } from "./ai/providers";
 // Wave 16: the diff of a suggested change, for assistants that show their own suggestions.
 export { default as SuggestedEditView } from "./suggest/SuggestedEditView.svelte";
 export { requestBlocks, scriptBlocks, textBlock, type PreviewBlock } from "./suggest/model";
+// Wave 16: a model's Markdown answer rendered as text nodes only (never HTML).
+export { default as Markdown } from "./ai/Markdown.svelte";
+export { parseMarkdown, type Block as MarkdownBlock, type Span as MarkdownSpan } from "./ai/markdown";
 
 // Wave 14 design foundation: UI primitives and the semantic icon set (guide: ui/README.md).
 export * from "./ui";
