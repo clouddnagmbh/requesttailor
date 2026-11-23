@@ -61,7 +61,7 @@ import { webGrpc } from "./grpc";
 import { webGraphQl } from "./graphql";
 import { webAgents } from "./agents";
 import { webMcp } from "./mcp-client";
-import { webAi } from "./ai";
+import { webAi, type AiCore } from "./ai";
 // Wave 12: one file per strand (./wave12.ts).
 import { webCompare } from "./compare";
 import { webContract } from "./contract";
@@ -324,6 +324,7 @@ export class WebBackend implements Backend {
         input: await this.coreInput(this.session(), input, true),
         companion: this.companionOn ? await this.companionCredentials() : null,
       }),
+      core: async () => (await deps.loadCore()) as unknown as AiCore,
     });
     const store = () => this.secretStore(this.session());
     this.secrets = {

@@ -6,7 +6,7 @@
 // shell); the buttons in the response panel and the scripts tab only open them.
 
 import type { Backend } from "../commands/backend";
-import type { AiConfig } from "../commands/types";
+import type { AiConfig, AiSettings } from "../commands/types";
 import { usable } from "./apply";
 
 export type AiView =
@@ -17,6 +17,8 @@ export type AiView =
 
 export class AiState {
   config = $state<AiConfig | null>(null);
+  /** Wave 16: profiles, roles and the preview mode; `null` until set up. */
+  settings = $state<AiSettings | null>(null);
   hasKey = $state(false);
   loaded = $state(false);
   view = $state<AiView | null>(null);
@@ -35,11 +37,18 @@ export class AiState {
   async reload(): Promise<void> {
     try {
       const config = await this.backend.ai.config();
-      this.hasKey = config ? await this.backend.ai.hasKey(config.provider) : false;
+      const settings = await this.backend.ai.settings();
+      // The default profile's own key, else its provider's (what a call uses).
+      const profile = settings?.profiles.find((p) => p.id === settings.default_profile) ?? settings?.profiles[0];
+      this.hasKey = config
+        ? ((profile ? await this.backend.ai.hasProfileKey(profile.id) : false) || (await this.backend.ai.hasKey(config.provider)))
+        : false;
+      this.settings = settings;
       this.config = config;
     } catch (e) {
       console.warn("RequestTailor: reading the AI settings failed:", e);
       this.config = null;
+      this.settings = null;
       this.hasKey = false;
     }
     this.loaded = true;

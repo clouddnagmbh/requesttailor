@@ -63,6 +63,7 @@ mod mask;
 mod profiles;
 mod prompt;
 mod providers;
+mod runtime;
 
 pub use call::{
     AiDelta, AiEvent, AiPreview, AiReply, AiRequest, AiScope, AiStop, AiTool, AiToolCall,
@@ -74,7 +75,12 @@ pub use profiles::{
     LEGACY_PROFILE, ROLE_FAST, ROLE_SMART, profile_key_slot,
 };
 pub use providers::{
-    ANTHROPIC_BASE_URL, ANTHROPIC_VERSION, AnthropicProvider, OpenAiCompatibleProvider, provider,
+    ANTHROPIC_BASE_URL, ANTHROPIC_VERSION, AnthropicProvider, ChatProvider, GEMINI_BASE_URL,
+    GeminiProvider, OpenAiCompatibleProvider, endpoint_of, provider, request_url,
+};
+pub use runtime::{
+    AiWhat, CallGuard, Calls, CancelToken, DEFAULT_MAX_TOKENS, Prepared, ask_with, ensure_allowed,
+    execute, policy, prepare_what, preview, request_call, resolve, scope_tasks, task_call,
 };
 
 /// The model suggested when the user picks `anthropic` (they can change it).
@@ -433,6 +439,11 @@ pub fn token_values(tokens: &crate::auth::SecretTokens) -> Result<Vec<String>, A
 
 /// The model call for `task`, built from `context` and masked with `secrets`: every string
 /// of the call, then the whole serialized payload. What [`run`] sends.
+/// The unmasked call of `task` (the prompt of wave 8), for [`runtime::preview`] to mask.
+pub(crate) fn prompt_call(task: &AiTask, context: &AiContext) -> AiCall {
+    prompt::build(task, context)
+}
+
 pub fn prepare(task: &AiTask, context: &AiContext, secrets: &[String]) -> Result<AiCall, AiError> {
     if task.is_pending() {
         return Err(AiError::Unsupported(

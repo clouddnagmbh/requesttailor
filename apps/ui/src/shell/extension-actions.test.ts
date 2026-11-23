@@ -60,11 +60,11 @@ describe("extension actions and the assistant panel (wave 16 interface)", () => 
     expect(extensionAssistant(provided([one, { id: "a", assistant: panel }, { id: "b", assistant: panel }]))?.extension).toBe("a");
   });
 
-  it("gives extensions the AI provider; the placeholders refuse to call until strand A", async () => {
+  it("gives extensions the AI provider: off until set up; suggest is still the placeholder of strand C", async () => {
     const p = provided([]);
     const status = await p.ctx.ai.status();
     expect(status).toMatchObject({ configured: false, allowed: true, profiles: [] });
-    await expect(p.ctx.ai.complete({ purpose: "x", system: "", messages: [] })).rejects.toMatchObject({ kind: "unsupported" });
+    await expect(p.ctx.ai.complete({ purpose: "x", system: "", messages: [] })).rejects.toMatchObject({ kind: "not-configured" });
     await expect(p.ctx.suggest({ kind: "file", path: "CHANGELOG.md", text: "" })).rejects.toMatchObject({ kind: "unsupported" });
   });
 });

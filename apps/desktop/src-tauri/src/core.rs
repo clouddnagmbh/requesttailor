@@ -1012,6 +1012,21 @@ impl<S: SecretStore> Core<S> {
         })
     }
 
+    /// Wave 16: `f` on the active workspace and the kept responses with the input of a send
+    /// (session variables, keychain secrets: only for masking) and the collection id. The
+    /// AI calls build their context in `f`; no value leaves here except for masking.
+    pub fn with_ai_scope<T>(
+        &self,
+        input: SendInput,
+        f: impl FnOnce(&Workspace, &ResponseStore, &SendInput, &str) -> T,
+    ) -> Result<T, AppError> {
+        self.with_session(|s| {
+            let input = self.services.session.input_for(&s.id, input);
+            let input = self.with_secrets(s, input)?;
+            Ok(f(&s.workspace, &lock(&self.responses), &input, &s.id))
+        })
+    }
+
     pub fn response_lines(&self, id: u64, start: u64, count: u32) -> Result<LineSlice, AppError> {
         lock(&self.responses).lines(id, start, count)
     }

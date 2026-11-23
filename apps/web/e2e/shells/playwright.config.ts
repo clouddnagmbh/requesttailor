@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "@playwright/test";
 
-import { SERVER_PORT, WEB_PORT } from "./env";
+import { AI_PORT, SERVER_PORT, WEB_PORT } from "./env";
 
 const repoRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 const webRoot = fileURLToPath(new URL("../..", import.meta.url));
@@ -27,6 +27,14 @@ export default defineConfig({
       url: `http://127.0.0.1:${SERVER_PORT}/status/200`,
       reuseExistingServer: !process.env.CI,
       timeout: 300_000,
+    },
+    {
+      // The fake AI provider (testdata/ai/fake-provider.mjs): never a real call.
+      command: `node testdata/ai/fake-provider.mjs ${AI_PORT}`,
+      cwd: repoRoot,
+      url: `http://127.0.0.1:${AI_PORT}/__calls`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
     },
     {
       // Vite directly: the core is built by `npm run e2e:shells` before Playwright starts.

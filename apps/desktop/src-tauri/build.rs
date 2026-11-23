@@ -107,6 +107,18 @@ const COMMANDS: &[&str] = &[
     "ai_set_key",
     "ai_delete_key",
     "ai_ask",
+    // Wave 16, strand A.
+    "ai_settings",
+    "ai_set_settings",
+    "ai_has_profile_key",
+    "ai_set_profile_key",
+    "ai_delete_profile_key",
+    "ai_policy",
+    "ai_set_device_opt_out",
+    "ai_preview",
+    "ai_confirm_preview",
+    "ai_complete",
+    "ai_cancel",
     // Wave 8, strand C.
     "agents_policy",
     "agents_set_policy",

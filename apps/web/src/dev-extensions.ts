@@ -41,5 +41,21 @@ export const demoExtension: AppExtension = {
         (window as unknown as { __demoResult?: unknown }).__demoResult = result;
       },
     },
+    {
+      id: "ask-ai",
+      label: "Demo: ask the AI",
+      run: async () => {
+        const w = window as unknown as { __demoAi?: unknown };
+        try {
+          w.__demoAi = await ctx.ai.complete({
+            purpose: "Demo",
+            system: "You are a demo.",
+            messages: [{ role: "user", content: `Say hi. token=${(window as unknown as { __demoToken?: string }).__demoToken ?? "sk-demo-secret"}` }],
+          });
+        } catch (e) {
+          w.__demoAi = { error: (e as { kind?: string }).kind ?? String(e) };
+        }
+      },
+    },
   ],
 };

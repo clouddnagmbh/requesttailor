@@ -32,8 +32,21 @@ export function nextCallId(): string {
 
 /** The preview in the shell's dialog place. */
 export function dialogConfirm(app: AppState): ConfirmPreview {
-  return async (preview) =>
-    (await app.showDialog({ title: "What will be sent", component: PreviewDialog, props: { preview }, width: 720 })) === true;
+  return async (preview) => {
+    const answer = (await app.showDialog({
+      title: "What will be sent",
+      component: PreviewDialog,
+      props: { preview },
+      width: 720,
+    })) as { send?: boolean; remember?: boolean } | undefined;
+    if (answer?.send !== true) return false;
+    if (answer.remember) {
+      // "Don't show this automatically": previews only on request from now on.
+      const settings = await app.backend.ai.settings();
+      if (settings) await app.backend.ai.setSettings({ ...settings, preview: "on-request" });
+    }
+    return true;
+  };
 }
 
 export function createExtensionAi(
