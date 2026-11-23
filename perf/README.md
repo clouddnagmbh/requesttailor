@@ -12,6 +12,8 @@ and how.
 | `send_keystrokes` | ≤ 2 | keystrokes from app start to a sent request, Chrome |
 | `semantic_diff` | ≤ 200 ms | semantic diff of 1000 requests (100 changed), release build, median of 9 |
 | `compare_view` | ≤ 1000 ms | comparison view of 1000 requests (100 changed) with both runs' answers, mock backend, Chrome, median of 5 |
+| `git_graph` | ≤ 1500 ms | commit graph of 10 000 commits: first rows visible after opening, mock backend, Chrome, median of 5 |
+| `git_graph_frame` | ≤ 20 ms | p95 frame interval while scrolling that commit graph, Chrome |
 
 ```sh
 npm run build -w apps/desktop          # the release binary the desktop part starts
@@ -159,3 +161,22 @@ then the median of five. The list is virtualized: the measurement also checks th
 rows are in the DOM while all 1005 are listed. The mock measures the view, not a network or the
 Rust core (the semantic diff in Rust has its own budget, `semantic_diff`).
 
+## Commit graph (`git_graph`, `git_graph_frame`, wave 14)
+
+`node scripts/perf/run.mjs --only graph` runs `apps/web/e2e/perf/graph.measure.ts` (config
+`graph.perf.config.ts`, Vite on `RT_PERF_GRAPH_PORT`, default 48256) against the mock backend
+with a synthetic repository of 10 000 commits (`?graph=10000`, `apps/ui/src/git/graph/synthetic.ts`:
+feature branches, merges, an octopus merge now and then, a second root, tags).
+
+- `git_graph`: one sample is the time from the click on "Git: History" in the palette until at
+  least ten rows are on screen (the frame after they were inserted). The view loads the first
+  page (2000 commits), lays out its lanes and renders the rows in view. One warm-up, then the
+  median of five openings.
+- `git_graph_frame`: the frame-interval method of `large_response_frame`, in three phases of 240
+  frames each: 900 px of scrolling per frame through the whole history (the remaining pages load
+  on the way), a jump to a random place every frame, and PageDown on the list every frame. The
+  p95 over all intervals is the result. The measurement also checks that the list stays
+  virtualised (fewer than 120 rows in the DOM) and that all 10 000 commits were loaded.
+
+The mock measures the view, not Git: reading the graph natively is timed by
+`crates/rt-git/tests/graph.rs` (`ten_thousand_commits_page_quickly`).

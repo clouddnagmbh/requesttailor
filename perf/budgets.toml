@@ -34,10 +34,17 @@ unit = "ms"
 # Wave 12: comparing two revisions must feel instant, also in a PR review of a large collection.
 max = 200
 
-# Wave 14, strand F (commit graph, scripts/perf/graph.mjs) adds here, together with its
-# measurement:
-#   [metrics.git_graph]        first rows of a 10 000-commit graph visible, ms, max 1500
-#   [metrics.git_graph_frame]  p95 frame time while scrolling that graph, ms, max 20
+# Wave 14, strand F (scripts/perf/graph.mjs, apps/web/e2e/perf/graph.measure.ts).
+[metrics.git_graph]
+description = "Commit graph of a repository with 10 000 commits: first rows visible after opening the history (median of 5, mock backend)"
+unit = "ms"
+max = 1500
+
+[metrics.git_graph_frame]
+description = "p95 frame time while scrolling that commit graph (wheel, jumps, PageDown; all pages load on the way)"
+unit = "ms"
+# Same reasoning as large_response_frame: 20 ms separates on-time frames from dropped ones.
+max = 20
 
 # Wave 14, strand H (scripts/perf/compare.mjs, apps/web/e2e/perf/compare.measure.ts).
 [metrics.compare_view]
