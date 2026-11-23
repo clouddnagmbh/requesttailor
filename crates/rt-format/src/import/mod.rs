@@ -30,12 +30,18 @@ mod har;
 mod http;
 mod insomnia;
 mod openapi;
+mod openapi_types;
 mod out;
 mod postman;
 mod shims;
 mod value;
 
 use value::Value;
+
+pub use openapi_types::{
+    OpenApiExamples, OpenApiGrouping, OpenApiNaming, OpenApiOptions, OpenApiServerChoice,
+    SpecOperation, SpecOverview, SpecSecurityScheme, SpecServer, SpecServerVariable, SpecTag,
+};
 
 /// The formats RequestTailor imports.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -507,6 +513,47 @@ pub fn import_files(
             message: "plugin importers run in the plugin host, not here".to_owned(),
         }),
     }
+}
+
+// ---- OpenAPI import wizard (interface; see `openapi_types`) ----
+
+/// Reads an OpenAPI 3.x or Swagger 2.0 spec without converting it, for the wizard: `files` is
+/// the main file, or a multi-file spec (the main file and the files its `$ref`s name, with
+/// their relative paths as names), or a `.zip` of one. Rejects like [`import`] does.
+pub fn inspect_openapi(files: &[SourceFile<'_>]) -> Result<SpecOverview, ImportError> {
+    let _ = files;
+    Err(ImportError::Files {
+        message: "the OpenAPI wizard is not built yet".into(),
+    })
+}
+
+/// Converts an OpenAPI 3.x or Swagger 2.0 spec (`files` as for [`inspect_openapi`]) with the
+/// wizard's choices. `OpenApiOptions::default()` gives the same files as [`import`].
+pub fn import_openapi(
+    files: &[SourceFile<'_>],
+    options: &OpenApiOptions,
+) -> Result<Import, ImportError> {
+    let _ = (files, options);
+    Err(ImportError::Files {
+        message: "the OpenAPI wizard is not built yet".into(),
+    })
+}
+
+/// The files a spec document references through `$ref` (relative paths or URLs as written,
+/// without `#fragment`, deduplicated, in order of appearance), for fetching a multi-file spec
+/// from a URL. Not a spec, or unreadable: empty.
+pub fn openapi_references(file: &SourceFile<'_>) -> Vec<String> {
+    let _ = file;
+    Vec::new()
+}
+
+/// The files of a `.zip` archive (stored or deflated entries; directories, hidden files and
+/// `__MACOSX` skipped), bounded by [`MAX_INPUT_BYTES`] in total.
+pub fn unzip(data: &[u8]) -> Result<Vec<(String, Vec<u8>)>, ImportError> {
+    let _ = data;
+    Err(ImportError::Files {
+        message: "zip archives are not supported yet".into(),
+    })
 }
 
 /// The file name without directories and without the first of `extensions` it ends with

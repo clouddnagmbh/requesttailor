@@ -18,6 +18,7 @@
 import {
   BackendError,
   stubCollections,
+  stubOpenApi,
   type AiApi,
   type Backend,
   type CollectionInfo,
@@ -29,6 +30,7 @@ import {
   type FileChange,
   type GitApi,
   type ImportApi,
+  type OpenApiApi,
   type LineSlice,
   type McpClientApi,
   type MergeApi,
@@ -173,6 +175,7 @@ export class WebBackend implements Backend {
 
   readonly git: GitApi;
   readonly imports: ImportApi;
+  readonly openapi: OpenApiApi = stubOpenApi();
   readonly history: WebHistory;
   readonly plugins: WebPluginApi;
   readonly auth: WebAuthApi;

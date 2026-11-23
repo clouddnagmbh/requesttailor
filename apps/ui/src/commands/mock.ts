@@ -29,7 +29,8 @@ import type {
   TransportApi,
   TransportMode,
 } from "./backend";
-import { BackendError } from "./backend";
+import { BackendError, type OpenApiApi } from "./backend";
+import { stubOpenApi } from "./openapi-stub";
 import { mockAuth } from "./mock-auth";
 import { maskCookieHeader, maskSetCookie, mockCookies, setCookiesFor } from "./mock-cookies";
 import { mockRunner } from "./mock-runner";
@@ -217,6 +218,7 @@ export class MockBackend implements Backend {
     dirty: () => this.dirty(),
     openCollection: () => this.openCollection(),
   });
+  readonly openapi: OpenApiApi = stubOpenApi();
   readonly imports: ImportApi = mockImports(
     () => this.openCollection(),
     () => this.plugins,

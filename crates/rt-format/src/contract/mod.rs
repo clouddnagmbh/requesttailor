@@ -198,3 +198,209 @@ pub fn changes(
 pub fn changelog(title: &str, spec: &SpecChanges, collection: &CollectionDiff) -> String {
     changelog::render(title, spec, collection)
 }
+
+// ---- the run wizard ("Ready to send?") and the response check (interface) ----
+
+/// A spec parsed once, for many [`requirements`] and [`validate_response`] calls (the shells
+/// cache it per collection; parsing a large spec takes far longer than a check).
+#[derive(Debug, Clone)]
+pub struct ParsedSpec {
+    spec: spec::Spec,
+}
+
+impl ParsedSpec {
+    pub fn parse(bytes: &[u8]) -> Result<Self, ContractError> {
+        Ok(Self {
+            spec: spec::Spec::parse(bytes)?,
+        })
+    }
+
+    pub fn title(&self) -> &str {
+        &self.spec.title
+    }
+
+    pub fn version(&self) -> &str {
+        &self.spec.version
+    }
+
+    /// Number of operations.
+    pub fn operations(&self) -> usize {
+        self.spec.ops.len()
+    }
+}
+
+/// Whether a variable the request uses has a value when it is sent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VarState {
+    /// No layer defines it (or a secret without a stored value).
+    Unresolved,
+    /// Defined, but the value is empty.
+    Empty,
+    Set,
+}
+
+/// A variable the request uses, as the app resolves it for the chosen environment.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VarFact {
+    pub name: String,
+    pub state: VarState,
+    /// Declared secret somewhere, or a credential of the auth (token, password, API key,
+    /// client secret).
+    pub secret: bool,
+    /// Used by the request's effective auth (its own or inherited).
+    pub auth: bool,
+    /// The resolved value; `None` for secrets and unresolved ones.
+    pub value: Option<String>,
+}
+
+/// What the check needs to know about a request besides its spec: the variables it uses.
+#[derive(Debug, Clone, Copy)]
+pub struct RequestFacts<'a> {
+    /// The request as edited (unsaved changes included).
+    pub request: &'a rt_core::model::RequestSpec,
+    pub variables: &'a [VarFact],
+}
+
+/// Where an input of the run wizard goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum InputPlace {
+    /// A `{{variable}}` (`baseUrl`, server variables, auth credentials).
+    Variable,
+    Path,
+    Query,
+    Header,
+    /// The whole request body (`name` is `body`).
+    Body,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProblemKind {
+    Missing,
+    Invalid,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InputProblem {
+    pub kind: ProblemKind,
+    /// One plain sentence, e.g. `petId is required` or `must be one of available, sold`.
+    pub message: String,
+    /// More, for the body: `$.name: required property is missing`, at most a few.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub details: Vec<String>,
+}
+
+/// One input of the operation, with the spec's schema for the form.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputField {
+    /// Unique within the requirements: `variable:baseUrl`, `path:petId`, `query:limit`,
+    /// `header:X-Request-Id`, `body`.
+    pub id: String,
+    pub place: InputPlace,
+    pub name: String,
+    pub required: bool,
+    /// Its value belongs in the keychain (or secret store), never in a file.
+    pub secret: bool,
+    /// A credential or setting of the auth.
+    pub auth: bool,
+    /// The current value as written in the request (path, query, header; the body text), or
+    /// the resolved one of a variable; `None` for secrets and when absent.
+    pub value: Option<String>,
+    /// `None`: fine as it is.
+    pub problem: Option<InputProblem>,
+    /// The JSON Schema of the value, local `$ref`s inlined (bounded depth, cycles as `{}`);
+    /// `None` if the spec gives none.
+    pub schema: Option<serde_json::Value>,
+    pub description: Option<String>,
+    /// An example value from the spec (text; JSON for the body), for "fill".
+    pub example: Option<String>,
+}
+
+/// A server of the spec, for choosing `baseUrl`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ServerOption {
+    /// With `{{var}}` templates, as the import writes it.
+    pub url: String,
+    pub description: Option<String>,
+}
+
+/// What the run wizard asks before a request is sent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SendRequirements {
+    /// e.g. `GET /pets/{petId}`.
+    pub operation: String,
+    pub summary: Option<String>,
+    pub deprecated: bool,
+    /// The spec's path as configured or found (`openapi.yaml`, `/api/openapi.json`).
+    pub spec: String,
+    /// `true` when no field has a problem: send without asking.
+    pub ready: bool,
+    /// Problem fields first (variables, path, query, header, body), then the others.
+    pub fields: Vec<InputField>,
+    pub servers: Vec<ServerOption>,
+}
+
+/// Where a response differs from the spec.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DifferencePlace {
+    Status,
+    Header,
+    /// Content type of the body.
+    ContentType,
+    Body,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResponseDifference {
+    pub place: DifferencePlace,
+    /// `$.items[0].id` for the body, the header name, `status`.
+    pub path: String,
+    pub expected: String,
+    pub got: String,
+}
+
+/// A response against the operation's responses.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResponseCheck {
+    pub operation: String,
+    pub status: u16,
+    /// The response entry it was checked against (`200`, `2XX`, `default`); `None` if the
+    /// spec declares none for this status.
+    pub matched: Option<String>,
+    /// Empty: matches the spec.
+    pub differences: Vec<ResponseDifference>,
+    /// The body was not checked (too large, not JSON, truncated), and why.
+    pub body_skipped: Option<String>,
+}
+
+/// A response as received.
+#[derive(Debug, Clone, Copy)]
+pub struct ResponseFacts<'a> {
+    pub status: u16,
+    pub headers: &'a [(String, String)],
+    /// `None`: not available (truncated, too large).
+    pub body: Option<&'a [u8]>,
+}
+
+/// Largest body [`validate_response`] parses.
+pub const MAX_CHECKED_BODY: usize = 8 * 1024 * 1024;
+
+/// What the request still needs before it can be sent, per the operation it matches; `None`
+/// if no operation of the spec matches it (or it is not HTTP).
+pub fn requirements(spec: &ParsedSpec, facts: &RequestFacts<'_>) -> Option<SendRequirements> {
+    let _ = (&spec.spec, facts);
+    None
+}
+
+/// `request`'s response against the operation it matches; `None` if none matches.
+pub fn validate_response(
+    spec: &ParsedSpec,
+    request: &rt_core::model::RequestSpec,
+    response: &ResponseFacts<'_>,
+) -> Option<ResponseCheck> {
+    let _ = (&spec.spec, request, response);
+    None
+}

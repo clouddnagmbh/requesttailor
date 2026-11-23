@@ -651,6 +651,9 @@ export interface FolderImport {
   files: string[];
   /** Collection-level settings the requests carry instead (in addition to the plan's report). */
   losses: Loss[];
+  /** The kept OpenAPI spec, now named in the collection's `contract.spec`; `null` if none was
+   *  kept or the collection already names one. Absent from older shells. */
+  contract_spec?: string | null;
 }
 
 // ---- history and search (rt_app::history, rt_app::search) ----
@@ -1767,4 +1770,155 @@ export interface GitStash {
   time: number;
   branch?: string;
   files: string[];
+}
+
+// ---- OpenAPI import wizard (rt_format::import::openapi_types, rt_app::openapi) ----
+
+export interface SpecOverview {
+  title: string;
+  version: string;
+  description: string | null;
+  /** `3.0.3`, `3.1.0`, `2.0` (Swagger). */
+  spec_version: string;
+  main_file: string;
+  files: number;
+  servers: SpecServer[];
+  tags: SpecTag[];
+  operations: SpecOperation[];
+  security: SpecSecurityScheme[];
+  losses: Loss[];
+}
+
+export interface SpecServer {
+  url: string;
+  description: string | null;
+  suggested_name: string;
+  variables: SpecServerVariable[];
+}
+
+export interface SpecServerVariable {
+  name: string;
+  default: string;
+  values: string[];
+  description: string | null;
+}
+
+export interface SpecTag {
+  name: string;
+  description: string | null;
+  operations: number;
+}
+
+export interface SpecOperation {
+  /** `GET /pets/{petId}`. */
+  key: string;
+  method: string;
+  path: string;
+  tags: string[];
+  summary: string | null;
+  operation_id: string | null;
+  deprecated: boolean;
+}
+
+export interface SpecSecurityScheme {
+  name: string;
+  /** `basic`, `bearer`, `digest`, `api-key`, `oauth2`, `openid-connect`, `mutual-tls`, `other`. */
+  kind: string;
+  detail: string;
+  /** What the requests get, e.g. `Bearer token {{token}}`; `null`: not imported. */
+  maps_to: string | null;
+  variables: string[];
+}
+
+export type OpenApiGrouping = "tag" | "path" | "flat";
+export type OpenApiNaming = "summary" | "operation-id";
+export type OpenApiExamples = "spec" | "schema";
+
+export interface OpenApiServerChoice {
+  index: number;
+  /** `null`: no environment for this server. */
+  environment: string | null;
+}
+
+export interface OpenApiOptions {
+  /** `null`: all operations. */
+  operations: string[] | null;
+  grouping: OpenApiGrouping;
+  naming: OpenApiNaming;
+  examples: OpenApiExamples;
+  /** `null`: every server, named as suggested. */
+  servers: OpenApiServerChoice[] | null;
+  default_server: number | null;
+  collection_name: string | null;
+  keep_spec: boolean;
+}
+
+export interface FetchedSpec {
+  url: string;
+  files: FetchedFile[];
+  losses: Loss[];
+}
+
+export interface FetchedFile {
+  name: string;
+  text: string;
+}
+
+// ---- run wizard and response check (rt_format::contract, rt_app::contract) ----
+
+export type InputPlace = "variable" | "path" | "query" | "header" | "body";
+export type ProblemKind = "missing" | "invalid";
+
+export interface InputProblem {
+  kind: ProblemKind;
+  message: string;
+  details?: string[];
+}
+
+export interface InputField {
+  /** `variable:baseUrl`, `path:petId`, `query:limit`, `header:X-Id`, `body`. */
+  id: string;
+  place: InputPlace;
+  name: string;
+  required: boolean;
+  secret: boolean;
+  auth: boolean;
+  value: string | null;
+  problem: InputProblem | null;
+  /** JSON Schema, local `$ref`s inlined. */
+  schema: unknown;
+  description: string | null;
+  example: string | null;
+}
+
+export interface ServerOption {
+  url: string;
+  description: string | null;
+}
+
+export interface SendRequirements {
+  operation: string;
+  summary: string | null;
+  deprecated: boolean;
+  spec: string;
+  ready: boolean;
+  fields: InputField[];
+  servers: ServerOption[];
+}
+
+export type DifferencePlace = "status" | "header" | "content-type" | "body";
+
+export interface ResponseDifference {
+  place: DifferencePlace;
+  path: string;
+  expected: string;
+  got: string;
+}
+
+export interface ResponseCheck {
+  operation: string;
+  status: number;
+  matched: string | null;
+  differences: ResponseDifference[];
+  body_skipped: string | null;
 }

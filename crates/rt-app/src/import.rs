@@ -169,6 +169,11 @@ pub struct FolderImport {
     /// What the folder could not take over as it was, in addition to the import's report:
     /// collection-level headers, auth and variables are carried by the requests instead.
     pub losses: Vec<Loss>,
+    /// The spec kept with an OpenAPI import, now named in the open collection's
+    /// `extensions.requesttailor.contract.spec` (e.g. `Petstore/openapi.yaml`); `None` if the
+    /// import kept none, or the collection already names a spec (it stays).
+    #[serde(default)]
+    pub contract_spec: Option<String>,
 }
 
 impl Imports {
@@ -230,6 +235,7 @@ pub fn add_to_workspace(
         environments_extended: Vec::new(),
         files: Vec::new(),
         losses: Vec::new(),
+        contract_spec: None,
     };
     let mut work = workspace.clone();
     let doc = work.doc_mut();

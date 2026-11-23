@@ -205,3 +205,86 @@ pub fn changelog(old: &Side<'_>, new: &Side<'_>, from: &str, to: &str) -> Result
     let title = changelog_title(name, &spec, from, to);
     Ok(rt_format::contract::changelog(&title, &spec, &collection))
 }
+
+// ---- the run wizard and the response check (interface) ----
+
+pub use rt_format::contract::{
+    DifferencePlace, InputField, InputPlace, InputProblem, ParsedSpec, ProblemKind, ResponseCheck,
+    ResponseDifference, SendRequirements, ServerOption, VarFact, VarState,
+};
+
+/// The parsed spec of one collection, kept between sends: parsed again only when the path or
+/// the bytes change (compared with the bytes parsed last; a memory compare is far cheaper than
+/// any hash over a large spec).
+#[derive(Debug, Default)]
+pub struct SpecCache {
+    entry: Option<CachedSpec>,
+}
+
+#[derive(Debug)]
+struct CachedSpec {
+    path: String,
+    bytes: Vec<u8>,
+    parsed: std::sync::Arc<ParsedSpec>,
+}
+
+impl SpecCache {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The spec of `files` (as [`load`] finds it), parsed or from the cache; `None` if the
+    /// collection has none.
+    pub fn get(
+        &mut self,
+        files: &FileSet,
+        read: ReadFile<'_>,
+    ) -> Result<Option<(String, std::sync::Arc<ParsedSpec>)>> {
+        let Some(loaded) = load(files, read)? else {
+            self.entry = None;
+            return Ok(None);
+        };
+        if let Some(c) = &self.entry
+            && c.path == loaded.spec.path
+            && c.bytes == loaded.bytes
+        {
+            return Ok(Some((c.path.clone(), std::sync::Arc::clone(&c.parsed))));
+        }
+        let parsed = std::sync::Arc::new(ParsedSpec::parse(&loaded.bytes)?);
+        self.entry = Some(CachedSpec {
+            path: loaded.spec.path.clone(),
+            bytes: loaded.bytes,
+            parsed: std::sync::Arc::clone(&parsed),
+        });
+        Ok(Some((loaded.spec.path, parsed)))
+    }
+}
+
+/// What the request at `path` still needs before sending, per its spec operation (`None`: the
+/// collection has no spec, or no operation matches). `input` as for sending (the shell has
+/// added the secrets it holds), so unresolved variables are those `send` would leave
+/// unresolved.
+pub fn requirements(
+    workspace: &crate::Workspace,
+    path: &str,
+    input: &crate::SendInput,
+    cache: &mut SpecCache,
+    read: ReadFile<'_>,
+) -> Result<Option<SendRequirements>> {
+    let _ = (workspace, path, input, cache, read);
+    Ok(None)
+}
+
+/// The stored response `response_id` of the request at `path` against its spec operation
+/// (`None`: no spec, no matching operation, or no response).
+pub fn validate_response(
+    workspace: &crate::Workspace,
+    path: &str,
+    responses: &crate::ResponseStore,
+    response_id: u64,
+    cache: &mut SpecCache,
+    read: ReadFile<'_>,
+) -> Result<Option<ResponseCheck>> {
+    let _ = (workspace, path, responses, response_id, cache, read);
+    Ok(None)
+}

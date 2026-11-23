@@ -8,6 +8,7 @@
 import {
   BackendError,
   stubCollections,
+  stubOpenApi,
   type AuthApi,
   type Backend,
   type CollectionInfo,
@@ -23,6 +24,7 @@ import {
   type GitApi,
   type HistoryApi,
   type ImportApi,
+  type OpenApiApi,
   type LineSlice,
   type PluginApi,
   type Preview,
@@ -267,6 +269,7 @@ export class TauriBackend implements Backend {
   readonly transport: TransportApi;
   readonly git: GitApi;
   readonly imports: ImportApi;
+  readonly openapi: OpenApiApi = stubOpenApi();
   readonly history: HistoryApi;
   readonly plugins: PluginApi;
   readonly auth: AuthApi;

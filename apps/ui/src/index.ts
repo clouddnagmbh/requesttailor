@@ -19,6 +19,7 @@ export { MockBackend } from "./commands/mock";
 export * from "./commands/wave12-stubs";
 // Wave 14 interface: the collection set over the single open collection (strand A replaces it).
 export * from "./commands/wave14-stubs";
+export * from "./commands/openapi-stub";
 
 export type * from "./extensions";
 
