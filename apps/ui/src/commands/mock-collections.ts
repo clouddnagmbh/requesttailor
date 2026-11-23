@@ -11,7 +11,7 @@
 import type { CollectionInfo, CollectionSetApi } from "./backend";
 import { BackendError } from "./backend";
 import { mockSearch } from "./mock-history";
-import { withRepositories } from "./wave15-stubs";
+import { repositoryName, withRepositories } from "./repositories";
 import type {
   CollectionChanges,
   CollectionEntry,
@@ -45,6 +45,14 @@ interface MockRoot {
   name: string;
   location: string;
   collections: string[];
+}
+
+/** A repository root of the mock set (wave 15): a folder in Git without a collection. Its id is
+ *  also the repository's id. `summary` is what the sidebar shows next to it. */
+export interface MockRepoRoot {
+  id: string;
+  name: string;
+  summary: { branch: string | null; upstream: string | null; ahead: number; behind: number; changes: number };
 }
 
 /** What the set needs from `MockBackend`. */
@@ -107,6 +115,10 @@ export function mockTree(name: string, requests: ReadonlyMap<string, RequestSpec
 
 export class MockCollections implements CollectionSetApi {
   private roots: MockRoot[] = [];
+  /** Wave 15: repository roots, kept apart from the collection roots (they survive "Open
+   *  folder"), and the repository chosen in the sidebar. */
+  repoRoots: MockRepoRoot[] = [];
+  chosenRepo: string | null = null;
   private readonly data = new Map<string, MockCollection>();
   private active: string | null = null;
 
@@ -227,12 +239,25 @@ export class MockCollections implements CollectionSetApi {
     };
   }
 
-  private set(): CollectionSet {
-    return withRepositories({
-      roots: this.roots.map((r) => ({ ...r, collections: [...r.collections], truncated: false })),
-      collections: this.roots.flatMap((r) => r.collections.map((id) => this.entry(this.collection(id)))),
-      active: this.active,
-    });
+  set(): CollectionSet {
+    if (this.chosenRepo && !this.repoRoots.some((r) => r.id === this.chosenRepo) && !this.roots.some((r) => r.id === this.chosenRepo)) {
+      this.chosenRepo = null;
+    }
+    return withRepositories(
+      {
+        roots: [
+          ...this.roots.map((r) => ({ ...r, collections: [...r.collections], truncated: false })),
+          ...this.repoRoots.map((r) => ({ id: r.id, name: r.name, location: r.id, collections: [], truncated: false })),
+        ],
+        collections: this.roots.flatMap((r) => r.collections.map((id) => this.entry(this.collection(id)))),
+        active: this.active,
+      },
+      {
+        repoRoots: this.repoRoots.map((r) => ({ root: r.id, repo: r.id })),
+        chosen: this.chosenRepo,
+        describe: (id) => ({ name: repositoryName(id), location: id, linked: false }),
+      },
+    );
   }
 
   async current(): Promise<CollectionSet> {
@@ -265,6 +290,10 @@ export class MockCollections implements CollectionSetApi {
   }
 
   async removeRoot(root: string): Promise<CollectionSet> {
+    if (this.repoRoots.some((x) => x.id === root)) {
+      this.repoRoots = this.repoRoots.filter((x) => x.id !== root);
+      return this.set();
+    }
     const r = this.roots.find((x) => x.id === root);
     if (!r) return this.set();
     const dirty = r.collections.find((id) => this.dirtyOf(this.collection(id), id === this.active).length > 0);
@@ -280,6 +309,8 @@ export class MockCollections implements CollectionSetApi {
   async activate(id: string): Promise<CollectionInfo> {
     const c = this.collection(id);
     this.active = id;
+    // Git follows the active collection again.
+    this.chosenRepo = null;
     return c.info;
   }
 

@@ -378,6 +378,52 @@ export class AppState {
     });
   }
 
+  // ---- wave 15: repositories in the set ----
+
+  /** Wave 15: makes repository `id` the one every Git view acts on (a choice in the sidebar;
+   *  activating a collection brings Git back to that collection's repository). */
+  async activateRepository(id: string): Promise<void> {
+    if (id === this.activeRepository) return;
+    await this.guard(() =>
+      this.enqueue(async () => {
+        await this.backend.repositories.activate(id);
+        await this.refreshSet();
+      }),
+    );
+  }
+
+  /** Wave 15: "Open repository": a folder picker; the folder joins the sidebar with its
+   *  collections, or as a repository root if it holds none. */
+  async openRepository(): Promise<void> {
+    await this.guard(async () => {
+      const set = await this.backend.repositories.open();
+      if (!set) return;
+      this.applySet(set);
+      if (set.active && set.active !== this.collection?.id) await this.activate(set.active);
+    });
+  }
+
+  /** Wave 15: "Init repository": a folder picker, `git init`, and the folder joins the
+   *  sidebar as a repository root. */
+  async initRepository(): Promise<void> {
+    const entry = await this.guard(() => this.backend.repositories.init());
+    if (entry) await this.adoptRepository(entry);
+  }
+
+  /** Wave 15: shows a repository the backend has just added (clone, init): its first
+   *  collection becomes active (the other collections and their tabs stay), or, without any,
+   *  the sidebar lists it as a repository root. */
+  async adoptRepository(entry: RepositoryEntry): Promise<void> {
+    const set = await this.guard(() => this.backend.collections.current());
+    if (!set) return;
+    const first = set.collections.find((c) => entry.collections.includes(c.id));
+    if (first && first.id !== this.collection?.id) {
+      await this.adoptAdded({ id: first.id, name: first.name, location: first.location });
+      return;
+    }
+    await this.guard(() => this.enqueue(() => this.refreshSet()));
+  }
+
   /** Wave 14: takes a folder and its collections out of the sidebar (files stay); refused
    *  while one of them has unsaved changes. */
   async removeRoot(root: string): Promise<void> {

@@ -4,7 +4,7 @@
 // The sidebar shows the tree as a flat list of visible rows (ARIA tree with `aria-level`),
 // which keeps focus handling and keyboard navigation simple.
 
-import type { CollectionEntry, TreeNode } from "../commands/types";
+import type { CollectionEntry, GitOperation, GitRepoSummary, TreeNode } from "../commands/types";
 
 export interface Row {
   /** Unique across folders and requests (a folder and a request may share a path). */
@@ -122,3 +122,43 @@ export function typeahead(rows: readonly { node: { name: string } }[], from: num
 
 /** DOM id of the tab at `index` (the panel is labelled by the active one). */
 export const tabElementId = (index: number) => `rt-tab-${index}`;
+
+/** What the sidebar shows next to a repository (wave 15): from its summary, `null` while the
+ *  summary is not loaded (or the repository cannot be read). */
+export interface RepoStatusParts {
+  /** Branch name, or "detached" / "no commits" when there is none. */
+  branch: string;
+  /** `↑2 ↓1`; empty when in sync or without an upstream. */
+  sync: string;
+  /** Changed, new and conflicted files. */
+  changes: number;
+  /** A half-done operation, as words ("Merging"). */
+  operation?: string;
+  /** One line for the tooltip and screen readers. */
+  text: string;
+}
+
+const OPERATIONS: Record<GitOperation, string> = {
+  merge: "Merging",
+  "cherry-pick": "Cherry-picking",
+  revert: "Reverting",
+  rebase: "Rebasing",
+};
+
+export function repoStatusParts(summary: GitRepoSummary | null | undefined): RepoStatusParts | null {
+  if (!summary) return null;
+  const branch = summary.branch ?? "detached";
+  const sync = [summary.ahead > 0 ? `↑${summary.ahead}` : "", summary.behind > 0 ? `↓${summary.behind}` : ""].filter(Boolean).join(" ");
+  const operation = summary.operation ? OPERATIONS[summary.operation] : undefined;
+  const changes = summary.changes;
+  const text = [
+    `Branch ${branch}`,
+    summary.ahead > 0 ? `${summary.ahead} ahead` : "",
+    summary.behind > 0 ? `${summary.behind} behind` : "",
+    changes > 0 ? `${changes} changed ${changes === 1 ? "file" : "files"}` : "no changes",
+    operation ?? "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return { branch, sync, changes, ...(operation ? { operation } : {}), text };
+}

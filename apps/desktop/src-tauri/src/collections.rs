@@ -347,7 +347,10 @@ pub async fn collections_create(
 /// A new collection that was not saved yet has no folder: refused with a clear message.
 #[tauri::command]
 pub fn collections_reveal(core: State<'_, AppCore>, id: String) -> CmdResult<()> {
-    let path = core.path_of(&id)?;
+    // Wave 15: also a repository of the set (its id is its folder).
+    let path = core
+        .path_of(&id)
+        .or_else(|e| core.repository(&id).map(|r| PathBuf::from(r.id)).map_err(|_| e))?;
     if !path.is_dir() {
         return Err(AppError::Shell(
             "save the new collection first; its folder does not exist yet".into(),

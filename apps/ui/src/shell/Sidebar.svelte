@@ -19,6 +19,7 @@
   import { asKind, NEW_REQUEST_KINDS, type NewRequestKind } from "../stream/kind";
   import { Badge, Button, Chip, EmptyState, Icon, IconButton, Menu, Skeleton, type MenuEntry } from "../ui";
   import ExtensionHints from "./ExtensionHints.svelte";
+  import RepositoryList from "./RepositoryList.svelte";
   import { extensionNodeActions } from "./extension-hints";
   import { getExtensions } from "./extension-tabs";
   import { collectionKey, folderKey, sideKey, sideRows, typeahead, type SideRow } from "./tree";
@@ -386,6 +387,7 @@
       />
     </span>
   </div>
+  <div class="scroll">
   {#if app.collections.length > 0}
     <div class="tree" role="tree" aria-label="Collections" bind:this={treeEl}>
       {#each rows as row, i (row.key)}
@@ -485,7 +487,7 @@
         {#if node.kind === "folder" && row.collection === app.activeCollection && newIn === node.path}{@render prompt(row.level + 1)}{/if}
       {/each}
     </div>
-  {:else}
+  {:else if app.repositories.length === 0}
     <div class="empty">
       <EmptyState icon="collection" size="sm" title="No collections yet" text="Open a folder with collections, or make one with New….">
         {#snippet actions()}
@@ -495,6 +497,9 @@
       </EmptyState>
     </div>
   {/if}
+  <!-- Wave 15: every Git repository of the set, also those without a collection. -->
+  <RepositoryList {reveal} />
+  </div>
 </nav>
 
 {#if menu}
@@ -527,9 +532,13 @@
     display: flex;
     gap: var(--rt-space-1);
   }
-  .tree {
+  /* Collections, then repositories: one scroll area. */
+  .scroll {
     flex: 1;
+    min-height: 0;
     overflow: auto;
+  }
+  .tree {
     padding: 0 var(--rt-space-3) var(--rt-space-4);
   }
   /* Indent per level: one twisty (16px) plus the gap, so a child's twisty sits under its

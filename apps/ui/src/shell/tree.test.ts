@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CollectionEntry, TreeNode } from "../commands/types";
-import { collectionKey, folderKey, sideKey, sideRows, typeahead } from "./tree";
+import { collectionKey, folderKey, repoStatusParts, sideKey, sideRows, typeahead } from "./tree";
 
 const entry = (id: string, name: string): CollectionEntry => ({ id, name, location: id, root: "r", dir: "", repo: null, dirty: 0 });
 const tree = (name: string): TreeNode => ({
@@ -67,5 +67,19 @@ describe("sideRows", () => {
     const rows = sideRows(collections, { a: tree("Alpha") }, new Set(["a"]), new Set());
     expect(typeahead(rows, 0, "h")).toBe(3);
     expect(typeahead(rows, 3, "b")).toBe(4);
+  });
+});
+
+describe("repository status (wave 15)", () => {
+  const base = { id: "/r", branch: "main", upstream: "origin/main", ahead: 0, behind: 0, changes: 0 };
+
+  it("shows branch, sync, changes and a half-done operation", () => {
+    expect(repoStatusParts(null)).toBeNull();
+    expect(repoStatusParts({ ...base })).toMatchObject({ branch: "main", sync: "", changes: 0, text: "Branch main, no changes" });
+    const busy = repoStatusParts({ ...base, ahead: 2, behind: 1, changes: 3, operation: "merge" })!;
+    expect(busy.sync).toBe("↑2 ↓1");
+    expect(busy.operation).toBe("Merging");
+    expect(busy.text).toBe("Branch main, 2 ahead, 1 behind, 3 changed files, Merging");
+    expect(repoStatusParts({ ...base, branch: null, changes: 1 })!.text).toBe("Branch detached, 1 changed file");
   });
 });
