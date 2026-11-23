@@ -174,14 +174,24 @@ mod tests {
 
     #[test]
     fn files_belong_to_the_deepest_collection_that_holds_them() {
-        let set = [at("root", ""), at("api", "apis/billing"), at("inner", "apis/billing/v2")];
+        let set = [
+            at("root", ""),
+            at("api", "apis/billing"),
+            at("inner", "apis/billing/v2"),
+        ];
         assert_eq!(collection_of("/users/get.yml", &set), Some("root"));
         assert_eq!(collection_of("/apis/billing/pay.yml", &set), Some("api"));
-        assert_eq!(collection_of("apis/billing/v2/x/a.yml", &set), Some("inner"));
+        assert_eq!(
+            collection_of("apis/billing/v2/x/a.yml", &set),
+            Some("inner")
+        );
         // Not collection files: line diffs.
         assert_eq!(collection_of("/README.md", &set), None);
         assert_eq!(collection_of("/apis/billing/.github/ci.yml", &set), None);
-        assert_eq!(collection_of("/apis/billing/node_modules/x.yml", &set), None);
+        assert_eq!(
+            collection_of("/apis/billing/node_modules/x.yml", &set),
+            None
+        );
         // `apis/billingx` is not inside `apis/billing`.
         let only = [at("api", "apis/billing")];
         assert_eq!(collection_of("/apis/billingx/a.yml", &only), None);

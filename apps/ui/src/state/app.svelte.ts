@@ -461,6 +461,19 @@ export class AppState {
     await this.guard(() => this.load(info));
   }
 
+  /** Wave 14: shows a collection the backend has just added to the set (an import as a new
+   *  collection) and makes it active; the other collections and their tabs stay. */
+  async adoptAdded(info: CollectionInfo): Promise<void> {
+    await this.guard(() =>
+      this.enqueue(async () => {
+        if (this.collections.length === 0) return this.load(info);
+        this.backendActive = info.id;
+        await this.show_(info);
+        await this.refreshSet();
+      }),
+    );
+  }
+
   /** A collection set the backend has just opened (open, recent, import, clone): everything
    *  shown before is replaced. */
   private async load(info: CollectionInfo): Promise<void> {

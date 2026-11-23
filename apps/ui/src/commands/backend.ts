@@ -390,7 +390,9 @@ export interface ImportApi {
   /** Converts with an installed plugin's importer (`ImporterContribution`); the plan's
    *  `format` is `plugin`. Owner in wave 5: strand A. */
   analyzeWithPlugin(files: ImportSource[], plugin: string, importer: string): Promise<ImportPlan>;
-  /** `null` if the user cancelled the folder picker (the plan stays available). */
+  /** Asks for a folder, writes the plan there as a new collection and adds it to the
+   *  collection set as another root, active (wave 14; the only root if the set is empty).
+   *  `null` if the user cancelled the folder picker (the plan stays available). */
   write(id: number): Promise<CollectionInfo | null>;
   discard(id: number): Promise<void>;
   /** Wave 13: adds plan `id` to the open collection as a new top-level folder named `name`

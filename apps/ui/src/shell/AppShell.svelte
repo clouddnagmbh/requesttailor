@@ -128,7 +128,7 @@
     { id: "search", label: "Search", icon: "search" },
     { id: "history", label: "History", icon: "history" },
     { id: "git", label: "Git", icon: "branch" },
-    { id: "mcp", label: "MCP: Test MCP servers", icon: "mcp" },
+    { id: "mcp", label: "MCP: Test MCP servers and see what AI agents see", icon: "mcp" },
   ];
   function onViewsKeydown(e: KeyboardEvent) {
     const i = SIDE_VIEWS.findIndex((v) => v.id === sideView);
@@ -212,8 +212,10 @@
     }
   }
   const openFolder = () => openWith(() => app.open());
-  /** For collections the backend opened itself (recent list, import, clone). */
+  /** For collections the backend opened itself (recent list, clone). */
   const adoptCollection = (info: CollectionInfo) => openWith(() => app.adopt(info));
+  /** For a collection the backend added to the set (import as a new collection). */
+  const adoptAdded = (info: CollectionInfo) => openWith(() => app.adoptAdded(info));
 
   onMount(() => {
     for (const x of extensions) {
@@ -641,8 +643,8 @@
 <DialogHost />
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
 <CloneDialog open={cloning} onclose={() => (cloning = false)} onopen={adoptCollection} />
-<ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
-<OpenApiHost onopen={adoptCollection} />
+<ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptAdded} />
+<OpenApiHost onopen={adoptAdded} />
 <PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />
 <CookiesDialog open={showingCookies} onclose={() => (showingCookies = false)} />
 <AuthPromptDialog />

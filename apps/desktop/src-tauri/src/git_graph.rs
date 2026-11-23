@@ -171,8 +171,7 @@ mod tests {
     }
 
     const COLLECTION: &str = "opencollection: 1.0.0\ninfo:\n  name: {name}\n";
-    const REQUEST: &str =
-        "info:\n  name: Get\n  type: http\nhttp:\n  method: GET\n  url: {url}\n";
+    const REQUEST: &str = "info:\n  name: Get\n  type: http\nhttp:\n  method: GET\n  url: {url}\n";
 
     /// A repository with two collections (`billing/`, `users/`) and a README, two commits.
     #[test]
@@ -217,7 +216,8 @@ mod tests {
         write(&work, "README.md", "# APIs\n\nTwo of them.\n");
         let second = git.commit("Version 2", &paths, None).unwrap();
 
-        let data = std::env::temp_dir().join(format!("rt-desktop-graph-data-{}", std::process::id()));
+        let data =
+            std::env::temp_dir().join(format!("rt-desktop-graph-data-{}", std::process::id()));
         let _data = Temp(data.clone());
         let core = Core::with_data_dir(Memory::default(), Some(data)).unwrap();
         let set = core.add_root(&work).unwrap();
