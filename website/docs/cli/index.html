@@ -50,6 +50,7 @@ green in the pipeline.</p>
 <pre><code>rt send &lt;request-file&gt; [--env NAME] [--var NAME=VALUE]... [--plugin FILE]... [--pretty]
 rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAME[=FILE]]...
 rt import &lt;file&gt;... --out DIR [--format FORMAT] [--json]
+rt import openapi &lt;file|url&gt;... --out DIR [--names operation-id] [--group tag|path|flat] [--keep-spec] [--json]
 rt scan [PATH]... [--json]
 rt diff [REV | REV..REV] [--json] [COLLECTION]
 rt merge-driver BASE OURS THEIRS [PATH]
@@ -121,6 +122,14 @@ set up.</p>
 rt import api.yaml --format openapi --out ./api --json</code></pre>
 <p>Prints the loss report. Exit code 0 once the collection is written, 2 if the input cannot
 be read or <code>--out</code> is not empty.</p>
+<p><code>rt import openapi</code> takes the same choices as the app's OpenAPI wizard: one spec
+file (OpenAPI 3.x or Swagger 2.0), the files of a multi-file spec, a <code>.zip</code>, or a
+URL (the files its relative references name are fetched too, from the same server).
+<code>--names operation-id</code> names requests after the <code>operationId</code>,
+<code>--group</code> chooses the folders, and <code>--keep-spec</code> keeps the spec in the
+collection as its contract spec.</p>
+<pre><code>rt import openapi petstore.yaml --out ./petstore --names operation-id --keep-spec
+rt import openapi https://api.example.com/v1/openapi.yaml --out ./api --json</code></pre>
 
 <h2 id="scan">rt scan</h2>
 <p>Finds credentials in collection files (see <a href="../environments/#scanner">secret

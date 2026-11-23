@@ -78,7 +78,7 @@
       invalid && `${invalid} ${invalid === 1 ? "value does" : "values do"} not match the spec`,
     ].filter(Boolean);
     const text = parts.join(", and ");
-    return text.charAt(0).toUpperCase() + text.slice(1) + ". Fill them in here, or send as is.";
+    return text.charAt(0).toUpperCase() + text.slice(1) + (problems.length === 1 ? ". Fill it in here, or send as is." : ". Fill them in here, or send as is.");
   });
 
   function bodyText(): string {

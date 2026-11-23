@@ -396,7 +396,7 @@
             <p class="muted">No server: set <code>baseUrl</code> after the import.</p>
           {:else}
             <ul class="servers-list">
-              {#each spec.servers as s (s.url)}<li><code>{s.url}</code>{#if s.description}<span class="muted"> {s.description}</span>{/if}</li>{/each}
+              {#each spec.servers as s (s.url)}<li>{#if s.description}<span class="server-name">{s.description}</span>{/if}<code>{s.url}</code></li>{/each}
             </ul>
           {/if}
         </div>
@@ -603,6 +603,10 @@
     flex-direction: column;
     gap: var(--rt-space-6);
     min-height: 420px;
+  }
+  /* The footer stays at the bottom edge while a short step leaves room above it. */
+  .wizard > :global(.rt-dialog-footer) {
+    margin-top: auto;
   }
   .steps {
     display: flex;
@@ -876,7 +880,13 @@
     color: var(--rt-fg-muted);
   }
   .servers-list li {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-1);
     overflow-wrap: anywhere;
+  }
+  .server-name {
+    font-weight: 600;
   }
 
   /* Choose */
