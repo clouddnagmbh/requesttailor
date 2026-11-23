@@ -309,6 +309,18 @@ where
     I: IntoIterator,
     I::Item: Into<OsString>,
 {
+    parse_args_with(args, &[])
+}
+
+/// [`parse_args`] with the changelog writers of a distribution.
+pub fn parse_args_with<I>(
+    args: I,
+    changelog_writers: &[&dyn rt_app::contract::ChangelogWriter],
+) -> Result<Command, String>
+where
+    I: IntoIterator,
+    I::Item: Into<OsString>,
+{
     use lexopt::prelude::*;
 
     let mut parser = lexopt::Parser::from_args(args);
@@ -364,7 +376,8 @@ where
             Ok(bisect::parse(&mut parser)?.map_or(Command::Help, Command::Bisect))
         }
         Some(Value(cmd)) if cmd == "changelog" => {
-            Ok(changelog::parse(&mut parser)?.map_or(Command::Help, Command::Changelog))
+            Ok(changelog::parse(&mut parser, changelog_writers)?
+                .map_or(Command::Help, Command::Changelog))
         }
         Some(Value(cmd)) => Err(format!("unknown command {:?}", cmd.to_string_lossy())),
         Some(other) => Err(other.unexpected().to_string()),
@@ -616,8 +629,8 @@ pub struct Distribution<'a> {
     /// 13), in this order.
     pub changelog: &'a [&'a dyn rt_app::contract::ChangelogSection],
     /// Other ways to write the changelog, each chosen with its own flag of `rt changelog`
-    /// (since wave 16, `rt_app::contract::ChangelogWriter`). Routing the flags arrives with
-    /// wave 16, strand D; until then they are rejected like any unknown flag.
+    /// (since wave 16, `rt_app::contract::ChangelogWriter`). Without writers every
+    /// such flag is an unknown flag.
     pub changelog_writers: &'a [&'a dyn rt_app::contract::ChangelogWriter],
 }
 
@@ -656,7 +669,7 @@ where
         stdout,
         stderr,
         &distribution.guard,
-        distribution.changelog,
+        (distribution.changelog, distribution.changelog_writers),
     )
 }
 
@@ -665,7 +678,7 @@ where
     I: IntoIterator,
     I::Item: Into<OsString>,
 {
-    run_guarded(args, stdout, stderr, &GuardHandle::none(), &[])
+    run_guarded(args, stdout, stderr, &GuardHandle::none(), (&[], &[]))
 }
 
 /// The parsed command with the distribution's guard on every command that sends.
@@ -692,7 +705,10 @@ fn run_guarded<I>(
     stdout: &mut dyn Write,
     stderr: &mut dyn Write,
     guard: &GuardHandle,
-    changelog_sections: &[&dyn rt_app::contract::ChangelogSection],
+    (changelog_sections, changelog_writers): (
+        &[&dyn rt_app::contract::ChangelogSection],
+        &[&dyn rt_app::contract::ChangelogWriter],
+    ),
 ) -> i32
 where
     I: IntoIterator,
@@ -702,9 +718,14 @@ where
         let _ = writeln!(stderr, "rt: {msg}");
         code
     };
-    let args = match parse_args(args).map(|c| with_guard(c, guard)) {
+    let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
+    let for_changelog = args.first().is_some_and(|a| a == "changelog");
+    let args = match parse_args_with(args, changelog_writers).map(|c| with_guard(c, guard)) {
         Ok(Command::Help) => {
             let _ = stdout.write_all(help().as_bytes());
+            if for_changelog {
+                let _ = stdout.write_all(changelog::writers_help(changelog_writers).as_bytes());
+            }
             return EXIT_OK;
         }
         Ok(Command::Version) => {
@@ -742,7 +763,7 @@ where
         Ok(Command::MergeDriver(args)) => return merge_driver::run(args, stdout, stderr),
         Ok(Command::Bisect(args)) => return bisect::run(args, stdout, stderr),
         Ok(Command::Changelog(args)) => {
-            return changelog::run(args, stdout, stderr, changelog_sections);
+            return changelog::run(args, stdout, stderr, changelog_sections, changelog_writers);
         }
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };

@@ -240,6 +240,8 @@ export const COMMANDS = [
   "contract_check",
   "contract_changes",
   "contract_changelog",
+  // Wave 16, strand D.
+  "contract_changelog_facts",
   // OpenAPI wizard (src-tauri/src/openapi.rs).
   "openapi_fetch",
   "openapi_inspect",

@@ -53,7 +53,7 @@ function collectionFiles(): Record<string, string> {
   return out;
 }
 
-async function repoWith(specs: string[]): Promise<Repo> {
+async function repoWith(specs: string[], messages: string[] = []): Promise<Repo> {
   const dir = nodeFs.mkdtempSync(join(tmpdir(), "rt-contract-"));
   dirs.push(dir);
   const r: Repo = { fs: nodeFs as unknown as FsClient, dir, cache: {} };
@@ -66,7 +66,7 @@ async function repoWith(specs: string[]): Promise<Repo> {
   for (const [i, spec] of specs.entries()) {
     nodeFs.writeFileSync(join(dir, "openapi.yaml"), nodeFs.readFileSync(join(FIXTURES, "specs", spec)));
     const paths = i === 0 ? [...Object.keys(files), "openapi.yaml"] : ["openapi.yaml"];
-    await repoOps.commit(r, `spec ${i + 1}`, paths, me);
+    await repoOps.commit(r, messages[i] ?? `spec ${i + 1}`, paths, me);
   }
   return r;
 }
@@ -75,6 +75,8 @@ function api(r: Repo, loaded: Awaited<ReturnType<typeof core>>) {
   const git = {
     treeAt: (rv: string) => rev.treeAt(r, rv),
     show: (rv: string, p: string) => rev.show(r, rv, p),
+    commits: (from: string | null, to: string, limit: number) => rev.commits(r, from, to, limit),
+    changelogCommits: (from: string, to: string) => rev.changelogCommits(r, from, to),
   } as unknown as GitApi;
   const host = { deps: { loadCore: async () => loaded } } as unknown as Wave12Host["host"];
   return webContract({ host, git, sendContext: async () => Promise.reject(new Error("unused")) });
@@ -107,6 +109,25 @@ describe.skipIf(!built)("web contract API over the real core", () => {
     expect(text).toContain("## Breaking changes");
     expect(text).toContain("`DELETE /orders/{id}`");
     expect(text).toContain("`orders/delete-order.yml`");
+  });
+
+  it("hands writers the same facts as rt changelog: the changelog, its parts and the commits", async () => {
+    const r = await repoWith(["v1.yaml", "v3.yaml"], ["v1", "Merge pull request #12 from acme/x\n\nDrops delete"]);
+    const c = api(r, await core());
+    const facts = await c.changelogFacts("HEAD~1", "HEAD");
+    expect([facts.from, facts.to]).toEqual(["HEAD~1", "HEAD"]);
+    expect(facts.markdown).toBe(await c.changelog("HEAD~1", "HEAD"));
+    expect(facts.title).toBe("Orders API 1.0.0 → 2.0.0");
+    expect(facts.spec.changes.filter((x) => x.breaking).length).toBeGreaterThanOrEqual(5);
+    expect(facts.commits).toEqual([
+      expect.objectContaining({
+        summary: "Merge pull request #12 from acme/x",
+        body: "Drops delete",
+        author: "Test User",
+        pull: 12,
+      }),
+    ]);
+    expect(facts.commits?.[0].oid).toMatch(/^[0-9a-f]{40}$/);
   });
 
   it("refuses to check without a spec", async () => {

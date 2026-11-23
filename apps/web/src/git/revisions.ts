@@ -198,3 +198,25 @@ export async function commits(repo: Repo, from: string | null, to: string, limit
   }
   return out;
 }
+
+/** A commit of a changelog's range with its full message (wave 16, strand D). */
+export interface RawCommit {
+  oid: string;
+  message: string;
+  author: string;
+}
+
+/** Like [`commits`] (first parents of `to` not reachable from `from`, newest first), with the
+ *  whole message, for the facts of a changelog. */
+export async function changelogCommits(repo: Repo, from: string, to: string): Promise<RawCommit[]> {
+  const hidden = new Set<string>();
+  for (const e of await git.log({ ...base(repo), ref: await revParse(repo, from) })) hidden.add(e.oid);
+  const out: RawCommit[] = [];
+  let oid: string | null = await revParse(repo, to);
+  while (oid && !hidden.has(oid)) {
+    const { commit } = await git.readCommit({ ...base(repo), oid });
+    out.push({ oid, message: commit.message, author: commit.author.name });
+    oid = commit.parent[0] ?? null;
+  }
+  return out;
+}

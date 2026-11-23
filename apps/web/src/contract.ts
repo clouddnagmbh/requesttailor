@@ -10,7 +10,7 @@
 
 import {
   BackendError,
-  stubChangelogFacts,
+  type ChangelogFacts,
   type ContractApi,
   type ContractReport,
   type ContractSpec,
@@ -36,7 +36,22 @@ export interface CoreContractModule {
     from: string,
     to: string,
   ): string;
+  contractChangelogFacts(
+    oldFiles: [string, string][],
+    oldSpec: Uint8Array | null,
+    newFiles: [string, string][],
+    newSpec: Uint8Array | null,
+    from: string,
+    to: string,
+    commits: { oid: string; message: string; author: string }[],
+  ): ChangelogFacts;
 }
+
+/** The commits of a range with their messages: the web Git adds this to `GitApi`
+ *  (`ChangelogCommitSource`). Without it (a Git that cannot) only the summaries are known. */
+type WithMessages = {
+  changelogCommits?(from: string, to: string): Promise<{ oid: string; message: string; author: string }[]>;
+};
 
 /** Looked for, in this order, when `opencollection.yml` names no spec (`SPEC_CANDIDATES`). */
 const CANDIDATES = ["openapi.yaml", "openapi.yml", "openapi.json"];
@@ -151,7 +166,24 @@ export function webContract(w: Wave12Host): ContractApi {
         return c.contractChangelog(old.files, old.spec?.bytes ?? null, next.files, next.spec?.bytes ?? null, from, to);
       }),
 
-    // Wave 16, strand D.
-    changelogFacts: stubChangelogFacts(),
+    // Wave 16, strand D: the same facts as `rt changelog` hands to a writer.
+    changelogFacts: (from, to) =>
+      guard(async () => {
+        const c = await core();
+        const [old, next] = [await at(c, from), await at(c, to)];
+        const source = w.git as WithMessages;
+        const commits = source.changelogCommits
+          ? await source.changelogCommits(from, to)
+          : (await w.git.commits(from, to, 10000)).map((x) => ({ oid: x.oid, message: x.summary, author: x.author }));
+        return c.contractChangelogFacts(
+          old.files,
+          old.spec?.bytes ?? null,
+          next.files,
+          next.spec?.bytes ?? null,
+          from,
+          to,
+          commits,
+        );
+      }),
   };
 }

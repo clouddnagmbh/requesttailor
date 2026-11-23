@@ -169,6 +169,7 @@
     "allow-contract-check",
     "allow-contract-changes",
     "allow-contract-changelog",
+    "allow-contract-changelog-facts",
     "allow-openapi-fetch",
     "allow-openapi-inspect",
     "allow-openapi-plan",

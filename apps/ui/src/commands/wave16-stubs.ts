@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// Wave 16 interface: placeholders for the new `AiApi` methods and `ContractApi.changelogFacts`
+// Wave 16 interface: placeholders for the new `AiApi` methods
 // until the strands fill them in each shell's own file (desktop `src/ai.ts` and
 // `src/contract.ts`, web `src/ai.ts` and `src/contract.ts`, mock `mock-ai.ts` and
 // `mock-contract.ts`). Settings read the wave-8 config as one profile; everything that would
 // call a provider rejects with `unsupported`; the policy allows everything.
 
-import type { AiApi, ContractApi } from "./backend";
+import type { AiApi } from "./backend";
 import { BackendError } from "./backend";
 import type { AiConfig, AiSettings } from "./types";
 
@@ -52,9 +52,4 @@ export function withAiWave16<T extends AiWave8Api>(base: T): T & AiApi {
     cancel: async () => {},
   };
   return Object.assign(base, extra);
-}
-
-/** Placeholder for `ContractApi.changelogFacts` (strand D). */
-export function stubChangelogFacts(): ContractApi["changelogFacts"] {
-  return later("D");
 }

@@ -284,6 +284,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             contract::contract_check,
             contract::contract_changes,
             contract::contract_changelog,
+            contract::contract_changelog_facts,
             openapi::openapi_fetch,
             openapi::openapi_inspect,
             openapi::openapi_plan,

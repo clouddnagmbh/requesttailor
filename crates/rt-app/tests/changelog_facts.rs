@@ -5,7 +5,9 @@
 //! and its parts, nothing else.
 
 use rt_app::AppError;
-use rt_app::contract::{ChangelogCommit, ChangelogSection, Side, changelog_facts, changelog_with};
+use rt_app::contract::{
+    ChangelogCommit, ChangelogSection, Side, changelog_facts, changelog_with, pull_number,
+};
 use rt_format::FileSet;
 
 fn files(requests: &[(&str, &str)]) -> FileSet {
@@ -68,4 +70,50 @@ fn facts_carry_the_changelog_its_parts_sections_and_commits() {
     assert_eq!(facts.commits, [commit]);
     assert!(!facts.collection.changes.is_empty(), "{facts:?}");
     assert_eq!((facts.from.as_str(), facts.to.as_str()), ("v1", "v2"));
+}
+
+#[test]
+fn pull_request_numbers_are_read_from_github_and_gitlab_messages() {
+    for (message, want) in [
+        (
+            "Merge pull request #12 from acme/notes\n\nOrders get a note",
+            Some(12),
+        ),
+        ("Add region filter (#7)", Some(7)),
+        (
+            "Merge branch 'x' into 'main'\n\nSee merge request group/repo!31",
+            Some(31),
+        ),
+        (
+            "Merge branch 'x' into 'main'\n\nSee merge request g/sub/repo!9\n\nMore",
+            Some(9),
+        ),
+        ("Fix typo", None),
+        ("Mention #12 in passing", None),
+        ("Revert (#x)", None),
+        ("Merge pull request #", None),
+        ("", None),
+    ] {
+        assert_eq!(pull_number(message), want, "{message:?}");
+    }
+}
+
+#[test]
+fn a_commit_is_split_into_summary_and_body() {
+    let c = ChangelogCommit::from_message(
+        "abc",
+        "Merge pull request #12 from a/b\n\nOrders get a note\n",
+        "Ada",
+    );
+    assert_eq!(
+        c,
+        ChangelogCommit {
+            oid: "abc".into(),
+            summary: "Merge pull request #12 from a/b".into(),
+            body: "Orders get a note".into(),
+            author: "Ada".into(),
+            pull: Some(12),
+        }
+    );
+    assert_eq!(ChangelogCommit::from_message("a", "Only", "x").body, "");
 }

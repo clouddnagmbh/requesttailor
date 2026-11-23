@@ -91,6 +91,7 @@ describe("TauriBackend", () => {
     await b.contract.check("HEAD~1");
     await b.contract.changes("v1", "v2");
     await b.contract.changelog("v1", "v2");
+    await b.contract.changelogFacts("v1", "v2");
     // OpenAPI wizard.
     const specFiles = [{ name: "openapi.json", data: new Uint8Array([123, 125]) }];
     const options: OpenApiOptions = {
@@ -301,6 +302,7 @@ describe("TauriBackend", () => {
       ["contract_check", { rev: "HEAD~1" }],
       ["contract_changes", { from: "v1", to: "v2" }],
       ["contract_changelog", { from: "v1", to: "v2" }],
+      ["contract_changelog_facts", { from: "v1", to: "v2" }],
       ["openapi_fetch", { url: "https://api.example.com/openapi.json" }],
       ["openapi_inspect", packSpec(specFiles, null)],
       ["openapi_plan", packSpec(specFiles, options)],

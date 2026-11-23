@@ -111,7 +111,13 @@ function isAbort(e: unknown): boolean {
   return e instanceof DOMException && e.name === "AbortError";
 }
 
-export function webGit(host: WebHost): GitApi {
+/** What the web Git adds to [`GitApi`] for the facts of a changelog (`../contract.ts` looks for
+ *  it, so the shared interface stays as it is). */
+export interface ChangelogCommitSource {
+  changelogCommits(from: string, to: string): Promise<import("./revisions").RawCommit[]>;
+}
+
+export function webGit(host: WebHost): GitApi & ChangelogCommitSource {
   const identity = identityStore();
   let secrets: Promise<SecretsApi> | null = null;
   const store = () =>
@@ -301,6 +307,8 @@ export function webGit(host: WebHost): GitApi {
     fileLog: (path, limit) => run(async () => (await revisions()).fileLog(repo(), path, limit)),
     mergeBase: (a, b) => run(async () => (await revisions()).mergeBase(repo(), a, b)),
     commits: (from, to, limit) => run(async () => (await revisions()).commits(repo(), from, to, limit)),
+    // Wave 16, strand D: commits with their messages for `ContractApi.changelogFacts`.
+    changelogCommits: (from, to) => run(async () => (await revisions()).changelogCommits(repo(), from, to)),
 
     // Wave 14 (interface): graph (strand F, ./graph.ts) and wizards (strand G, ./actions.ts).
     ...webGitGraph(wave14),
