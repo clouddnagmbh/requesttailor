@@ -14,6 +14,8 @@ mod agents;
 /// Wave 8, strand E.
 mod ai;
 mod auth;
+/// Wave 14, strand A: several collections in the sidebar.
+pub mod collections;
 mod commands;
 /// Wave 13: companion files for extensions.
 mod companions;
@@ -125,6 +127,15 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::secret_get,
             commands::secret_set,
             commands::secret_delete,
+            collections::collections_current,
+            collections::collections_add,
+            collections::collections_remove_root,
+            collections::collections_activate,
+            collections::collections_tree,
+            collections::collections_dirty,
+            collections::collections_save_all,
+            collections::collections_search,
+            collections::collections_create,
             git::git_status,
             git::git_diff,
             git::git_commit,

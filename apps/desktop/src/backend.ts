@@ -7,7 +7,6 @@
 
 import {
   BackendError,
-  stubCollections,
   type AuthApi,
   type Backend,
   type CollectionInfo,
@@ -57,6 +56,7 @@ import { tauriReview } from "./review";
 import { tauriTimeline } from "./timeline";
 import { tauriScripts } from "./scripts";
 import { tauriGit } from "./git";
+import { tauriCollections } from "./collections";
 import { tauriHistory } from "./history";
 import { tauriImports } from "./import";
 import { tauriPlugins } from "./plugins";
@@ -84,6 +84,15 @@ export const COMMANDS = [
   "secret_get",
   "secret_set",
   "secret_delete",
+  "collections_current",
+  "collections_add",
+  "collections_remove_root",
+  "collections_activate",
+  "collections_tree",
+  "collections_dirty",
+  "collections_save_all",
+  "collections_search",
+  "collections_create",
   "git_status",
   "git_diff",
   "git_commit",
@@ -261,8 +270,8 @@ const NO_COMPANION: CompanionStatus = {
 
 export class TauriBackend implements Backend {
   readonly kind = "tauri" as const;
-  /** Wave 14 interface: one collection until strand A (`collections.ts`). */
-  readonly collections = stubCollections(this);
+  /** Wave 14: the collections in the sidebar (`collections.ts`). */
+  readonly collections = tauriCollections((cmd, args) => this.call(cmd, args));
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
   readonly git: GitApi;
