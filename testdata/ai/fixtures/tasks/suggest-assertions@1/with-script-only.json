@@ -1,0 +1,11 @@
+{
+  "task": {
+    "task": "suggest-assertions",
+    "path": "orders/list.yml",
+    "response": 1
+  },
+  "answer": "Here you go:\n```json\n{\n  \"text\": \"x\",\n  \"tests\": \"test('a', () => {})\"\n}\n```",
+  "expect": {
+    "error": "no usable assertion"
+  }
+}

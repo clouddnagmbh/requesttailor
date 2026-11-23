@@ -1,0 +1,13 @@
+{
+  "task": {
+    "task": "explain-error",
+    "path": "orders/list.yml",
+    "response": 1
+  },
+  "answer": "Here you go:\n```json\n{\n  \"text\": \"**401**: the token expired.\"\n}\n```",
+  "expect": {
+    "answer": {
+      "text": "**401**: the token expired."
+    }
+  }
+}

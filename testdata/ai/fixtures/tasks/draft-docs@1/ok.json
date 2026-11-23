@@ -1,0 +1,13 @@
+{
+  "task": {
+    "task": "draft-docs",
+    "path": "orders/list.yml"
+  },
+  "answer": "Here you go:\n```json\n{\n  \"docs\": \"Lists the **open orders**.\\n\\n- `status`: filter.\"\n}\n```",
+  "expect": {
+    "answer": {
+      "text": "",
+      "docs": "Lists the **open orders**.\n\n- `status`: filter."
+    }
+  }
+}

@@ -8,6 +8,7 @@
 import { fuzzyScore } from "../shell/fuzzy";
 import type { ExtensionNewItemRef } from "./items";
 import { NEW_ITEMS, type NewItemKind } from "./kinds";
+import { aiFor } from "../ai/ai.svelte";
 import { openOpenApiWizard } from "../openapi/store.svelte";
 
 /** "From OpenAPI": opens the OpenAPI import wizard (it asks for the target itself). */
@@ -21,6 +22,30 @@ const OPENAPI_TILE: Tile = {
     key: "openapi",
     extension: "core",
     item: { id: "openapi", title: "From OpenAPI", description: "", run: () => openOpenApiWizard() },
+  },
+};
+
+/** "From description or snippet": a request from a sentence, or from pasted cURL, code or API
+ *  documentation text. Only offered once the assistant is set up and allowed here (the cURL
+ *  part works without a model, but the tile is an assistant entry). */
+const AI_TILE: Tile = {
+  key: "ai-request",
+  title: "From description or snippet",
+  description: "Describe a request, or paste cURL, code or API docs, and review the proposal.",
+  group: "Requests",
+  icon: "spark",
+  extension: {
+    key: "ai-request",
+    extension: "core",
+    item: {
+      id: "ai-request",
+      title: "From description or snippet",
+      description: "",
+      run: async (ctx, target) => {
+        if (target.collection && target.collection !== ctx.app.activeCollection) await ctx.app.activate(target.collection);
+        aiFor(ctx.backend).open({ kind: "create", folder: target.folder });
+      },
+    },
   },
 };
 
@@ -56,7 +81,7 @@ export const BUILTIN_GROUPS = ["Requests", "Organise", "Testing"] as const;
 export const MORE_GROUP = "More";
 
 /** Every tile: the built-in ones first, then the extensions' in their order. */
-export function allTiles(extensions: readonly ExtensionNewItemRef[], hasCollection: boolean): Tile[] {
+export function allTiles(extensions: readonly ExtensionNewItemRef[], hasCollection: boolean, aiReady = false): Tile[] {
   const builtin = NEW_ITEMS.map(
     (i): Tile => ({
       key: i.kind,
@@ -79,7 +104,8 @@ export function allTiles(extensions: readonly ExtensionNewItemRef[], hasCollecti
       extension: ref,
     }),
   );
-  return [...builtin, OPENAPI_TILE, ...more];
+  const ai: Tile[] = aiReady ? [hasCollection ? AI_TILE : { ...AI_TILE, disabled: "Open or create a collection first." }] : [];
+  return [...builtin, OPENAPI_TILE, ...ai, ...more];
 }
 
 export interface TileGroup {

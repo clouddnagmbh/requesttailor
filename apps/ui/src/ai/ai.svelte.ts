@@ -6,12 +6,12 @@
 // shell); the buttons in the response panel and the scripts tab only open them.
 
 import type { Backend } from "../commands/backend";
-import type { AiConfig, AiSettings } from "../commands/types";
+import type { AiCollectionPolicy, AiConfig, AiSettings } from "../commands/types";
 import { usable } from "./apply";
 
 export type AiView =
   | { kind: "settings" }
-  | { kind: "create"; folder: string }
+  | { kind: "create"; folder: string; /** Wave 16: what was typed, when the dialog opens again after a failed try. */ text?: string; mode?: "describe" | "snippet" }
   | { kind: "explain"; path: string; response: number }
   | { kind: "tests"; path: string; response: number };
 
@@ -22,8 +22,18 @@ export class AiState {
   hasKey = $state(false);
   loaded = $state(false);
   view = $state<AiView | null>(null);
+  /** Wave 16: whether the active collection allows the assistant; `null` until read. */
+  policy = $state<AiCollectionPolicy | null>(null);
+  /** Wave 16: what a running task of the app's own is doing ("Asking the model…"), or `null`. */
+  working = $state<string | null>(null);
   /** Set up and ready: everything else of the assistant is hidden until then. */
   readonly configured = $derived(usable(this.config, this.hasKey));
+  /** Wave 16: set up, and not turned off for this collection (file or device). */
+  readonly allowed = $derived(!this.policy || (!this.policy.file_off && !this.policy.device_off));
+  /** Wave 16: set up and usable: the entries of the new tasks show only then. */
+  readonly ready = $derived(this.configured && this.allowed);
+  /** Wave 16: set up but off for this collection: the entries show disabled, with the reason. */
+  readonly off = $derived(this.configured && !this.allowed);
   private loading: Promise<void> | null = null;
 
   constructor(readonly backend: Backend) {}
@@ -54,12 +64,25 @@ export class AiState {
     this.loaded = true;
   }
 
+  /** Wave 16: reads the policy of the active collection (it changes with the collection and
+   *  with the device switch). A failure counts as allowed: the call itself refuses. */
+  async refreshPolicy(): Promise<void> {
+    try {
+      this.policy = await this.backend.ai.policy();
+    } catch {
+      this.policy = null;
+    }
+  }
+
   open(view: AiView): void {
     this.view = view;
   }
 
   close(): void {
+    const settings = this.view?.kind === "settings";
     this.view = null;
+    // The settings dialog may have turned the assistant off or on for this collection.
+    if (settings) void this.refreshPolicy();
   }
 }
 

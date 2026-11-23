@@ -1,0 +1,28 @@
+{
+  "task": {
+    "task": "suggest-tests",
+    "path": "orders/list.yml",
+    "response": 1
+  },
+  "answer": "Here you go:\n```json\n{\n  \"text\": \"Checks status.\",\n  \"tests\": \"test(\\\"ok\\\", () => expect(rt.response.status).to.equal(200));\",\n  \"assertions\": [\n    {\n      \"expression\": \"res.status\",\n      \"operator\": \"eq\",\n      \"value\": \"200\",\n      \"description\": \"OK\"\n    },\n    {\n      \"expression\": \"res.body\",\n      \"operator\": \"looksGood\"\n    }\n  ]\n}\n```",
+  "expect": {
+    "answer": {
+      "text": "Checks status.",
+      "scripts": [
+        {
+          "phase": "tests",
+          "code": "test(\"ok\", () => expect(rt.response.status).to.equal(200));"
+        }
+      ],
+      "assertions": [
+        {
+          "expression": "res.status",
+          "operator": "eq",
+          "value": "200",
+          "description": "OK",
+          "enabled": true
+        }
+      ]
+    }
+  }
+}

@@ -93,19 +93,23 @@ test("off until configured: no buttons, only the settings entry in the palette",
 test("create with AI: the proposal is confirmed and appears unsaved in the chosen folder", async ({ page }) => {
   await openCollection(page);
   await configure(page);
-  await runCommand(page, "AI: create request from a description");
+  await runCommand(page, "AI: new request from a description or snippet");
   const dialog = page.getByTestId("ai-create");
   await expect(dialog).toBeVisible();
   await page.getByTestId("ai-create-description").fill("Create an order");
   await page.getByTestId("ai-create-folder").selectOption("users");
   await page.getByTestId("ai-create-propose").click();
-  await expect(page.getByTestId("ai-proposal-line")).toHaveText("POST {{baseUrl}}/order");
-  await expect(page.getByTestId("ai-proposal-name")).toHaveText("Create an order");
-  // Nothing exists before confirming.
+  // Wave 16: what will be sent first (first use of the profile), then the proposal as a
+  // suggestion to apply or discard.
+  await page.getByTestId("ai-preview-send").click();
+  await expect(dialog).toBeHidden();
+  const view = page.getByTestId("suggested-edit");
+  await expect(view).toContainText("POST");
+  await expect(view).toContainText("{{baseUrl}}/order");
+  // Nothing exists before applying.
   const before = await page.evaluate(() => (window as unknown as W).__rt.backend.dirty());
   expect(before).toEqual([]);
-  await page.getByTestId("ai-create-confirm").click();
-  await expect(dialog).toBeHidden();
+  await view.getByTestId("suggest-apply").click();
 
   const path = "users/create-an-order.yml";
   await expect(page.getByTestId("tree-request").filter({ hasText: "Create an order" })).toBeVisible();
@@ -123,8 +127,8 @@ test("explain a failed response", async ({ page }) => {
   await page.getByTestId("tree-request").filter({ hasText: "Health" }).click();
   await page.getByTestId("send").click();
   await expect(page.getByTestId("response-status")).toHaveText("200");
-  // A successful response has nothing to explain.
-  await expect(page.getByTestId("ai-explain-button")).toHaveCount(0);
+  // Wave 16: a response that worked can be summarised (its own task and test in e2e/ai-free).
+  await expect(page.getByTestId("ai-explain-button")).toBeVisible();
 
   await failWith(page, "health.yml", 401);
   await page.getByTestId("send").click();

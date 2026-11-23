@@ -1,0 +1,11 @@
+{
+  "task": {
+    "task": "request-from-snippet",
+    "snippet": "fetch('https://api.example.com/orders?status=open', {headers: {Accept: 'application/json'}})",
+    "folder": "orders"
+  },
+  "answer": "Sure! It is a GET request to /orders.",
+  "expect": {
+    "error": "no JSON block"
+  }
+}

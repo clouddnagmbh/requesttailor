@@ -5,6 +5,7 @@
      into a variable" (`RequestSpec.actions`, OpenCollection `set-variable`). Both run in the
      core without JavaScript, so they need no trust and behave the same everywhere. -->
 <script lang="ts">
+  import SuggestAssertionsButton from "../ai/SuggestAssertionsButton.svelte";
   import type { Assertion, VarAction } from "../commands/types";
   import { isUnary, METHODS, newAction, newAssertion, OPERATORS, SCOPES, valueHint } from "./edit";
 
@@ -115,6 +116,7 @@
     <button type="button" data-testid="assertion-add" onclick={() => onassertions([...assertions, newAssertion()], false)}>
       Add assertion
     </button>
+    <SuggestAssertionsButton />
     <span class="hint">
       <code>res.status</code>, <code>res.headers.name</code>, <code>res.body.path[0].to</code>, <code>res.responseTime</code> or a
       variable; values may use <code>{"{{variables}}"}</code>.

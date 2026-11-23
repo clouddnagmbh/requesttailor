@@ -9,7 +9,7 @@ use rt_core::model::{
 };
 use serde_json::{Map, Value};
 
-use super::{AiAnswer, AiError, AiTask};
+use super::{AiAnswer, AiError, AiNameTarget, AiTask};
 
 const METHODS: &[&str] = &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
@@ -47,6 +47,13 @@ const OPERATORS: &[&str] = &[
 
 /// Longest explanation kept (characters).
 const MAX_TEXT: usize = 20_000;
+/// Longest description draft kept (characters).
+const MAX_DOCS: usize = 8_000;
+/// Longest name of a request, folder or variable (characters).
+const MAX_NAME: usize = 80;
+/// Names and assertions kept from one answer.
+const MAX_NAMES: usize = 5;
+const MAX_ASSERTIONS: usize = 20;
 
 fn bad(reason: impl Into<String>) -> AiError {
     AiError::Answer(reason.into())
@@ -183,44 +190,120 @@ fn request(map: &Map<String, Value>) -> Result<RequestSpec, AiError> {
     })
 }
 
-fn assertions(value: Option<&Value>) -> Vec<Assertion> {
+/// Whether `expression` reads something of the response that `rt_core::assert` knows:
+/// `res.status`, `res.statusText`, `res.responseTime`, `res.headers…` or `res.body…`.
+fn response_expression(expression: &str) -> bool {
+    if expression.chars().any(char::is_control) {
+        return false;
+    }
+    let Some(rest) = expression.strip_prefix("res") else {
+        return false;
+    };
+    if !(rest.starts_with('.') || rest.starts_with('[')) {
+        return false;
+    }
+    let rest = rest.trim_start_matches('.');
+    let head: String = rest
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+        .collect();
+    matches!(
+        head.as_str(),
+        "status" | "statusText" | "responseTime" | "headers" | "body"
+    )
+}
+
+/// `strict`: only expressions that read the response (wave 16); wave 8's tests keep any
+/// non-empty expression.
+fn assertions(value: Option<&Value>, strict: bool) -> Vec<Assertion> {
     let Some(Value::Array(items)) = value else {
         return Vec::new();
     };
-    items
-        .iter()
-        .filter_map(|i| i.as_object())
-        .filter_map(|o| {
-            let expression = string(o, "expression").trim().to_owned();
-            let operator = string(o, "operator").trim().to_owned();
-            if expression.is_empty() || !OPERATORS.contains(&operator.as_str()) {
-                return None;
-            }
-            let description = string(o, "description");
-            Some(Assertion {
-                expression,
-                operator,
-                value: string(o, "value"),
-                description: (!description.trim().is_empty()).then_some(description),
-                enabled: true,
-            })
-        })
-        .collect()
+    let mut out: Vec<Assertion> = Vec::new();
+    for o in items.iter().filter_map(|i| i.as_object()) {
+        let expression = string(o, "expression").trim().to_owned();
+        let operator = string(o, "operator").trim().to_owned();
+        // Not repaired: an assertion the evaluator cannot read is dropped.
+        if expression.is_empty()
+            || (strict && !response_expression(&expression))
+            || !OPERATORS.contains(&operator.as_str())
+        {
+            continue;
+        }
+        let description = string(o, "description");
+        let assertion = Assertion {
+            expression,
+            operator,
+            value: string(o, "value"),
+            description: (!description.trim().is_empty()).then_some(description),
+            enabled: true,
+        };
+        let same = |a: &Assertion| {
+            a.expression == assertion.expression
+                && a.operator == assertion.operator
+                && a.value == assertion.value
+        };
+        if !out.iter().any(same) {
+            out.push(assertion);
+        }
+        if out.len() == MAX_ASSERTIONS {
+            break;
+        }
+    }
+    out
+}
+
+/// A name for a request or folder: one line, no path separators (it may become a file name).
+fn item_name(name: &str) -> Option<String> {
+    let name = name.trim();
+    let ok = !name.is_empty()
+        && name.chars().count() <= MAX_NAME
+        && !name
+            .chars()
+            .any(|c| c.is_control() || c == '/' || c == '\\');
+    ok.then(|| name.to_owned())
+}
+
+/// A name for a variable: what `{{name}}` can hold.
+fn variable_name(name: &str) -> Option<String> {
+    let name = name.trim();
+    let mut chars = name.chars();
+    let first_ok = chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
+    let ok =
+        first_ok && name.len() <= MAX_NAME && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
+    ok.then(|| name.to_owned())
+}
+
+fn names(target: AiNameTarget, value: Option<&Value>) -> Vec<String> {
+    let Some(Value::Array(items)) = value else {
+        return Vec::new();
+    };
+    let mut out: Vec<String> = Vec::new();
+    for item in items {
+        let Value::String(raw) = item else { continue };
+        let name = match target {
+            AiNameTarget::Variable => variable_name(raw),
+            _ => item_name(raw),
+        };
+        if let Some(name) = name
+            && !out.iter().any(|n| n.eq_ignore_ascii_case(&name))
+        {
+            out.push(name);
+        }
+        if out.len() == MAX_NAMES {
+            break;
+        }
+    }
+    out
 }
 
 /// The answer to `task` in the model's `text`.
 pub fn parse(task: &AiTask, text: &str) -> Result<AiAnswer, AiError> {
     let block = json_block(text);
     match task {
-        // Wave 16, strand B: their parsers. `prepare` refuses these tasks until then.
-        AiTask::RequestFromSnippet { .. }
-        | AiTask::ExplainResponse { .. }
-        | AiTask::SuggestAssertions { .. }
-        | AiTask::SuggestNames { .. }
-        | AiTask::DraftDocs { .. } => Err(AiError::Unsupported(
-            "this assistant task arrives with wave 16".to_owned(),
-        )),
-        AiTask::CreateRequest { .. } => {
+        AiTask::CreateRequest { .. } | AiTask::RequestFromSnippet { .. } => {
             let map = block.ok_or_else(|| bad("no JSON block with a request in the answer"))?;
             Ok(AiAnswer {
                 text: text_of(&map),
@@ -228,7 +311,7 @@ pub fn parse(task: &AiTask, text: &str) -> Result<AiAnswer, AiError> {
                 ..Default::default()
             })
         }
-        AiTask::ExplainError { .. } => {
+        AiTask::ExplainError { .. } | AiTask::ExplainResponse { .. } => {
             // A model that forgets the block still explains: take its text.
             let text = match block {
                 Some(map) => text_of(&map),
@@ -239,6 +322,40 @@ pub fn parse(task: &AiTask, text: &str) -> Result<AiAnswer, AiError> {
             }
             Ok(AiAnswer {
                 text,
+                ..Default::default()
+            })
+        }
+        AiTask::SuggestAssertions { .. } => {
+            let map = block.ok_or_else(|| bad("no JSON block with assertions in the answer"))?;
+            let assertions = assertions(map.get("assertions"), true);
+            if assertions.is_empty() {
+                return Err(bad("no usable assertion in the answer"));
+            }
+            Ok(AiAnswer {
+                text: text_of(&map),
+                assertions,
+                ..Default::default()
+            })
+        }
+        AiTask::SuggestNames { target, .. } => {
+            let map = block.ok_or_else(|| bad("no JSON block with names in the answer"))?;
+            let names = names(*target, map.get("names"));
+            if names.is_empty() {
+                return Err(bad("no usable name in the answer"));
+            }
+            Ok(AiAnswer {
+                names,
+                ..Default::default()
+            })
+        }
+        AiTask::DraftDocs { .. } => {
+            let map = block.ok_or_else(|| bad("no JSON block with a description in the answer"))?;
+            let docs: String = string(&map, "docs").trim().chars().take(MAX_DOCS).collect();
+            if docs.is_empty() {
+                return Err(bad("the description was empty"));
+            }
+            Ok(AiAnswer {
+                docs: Some(docs),
                 ..Default::default()
             })
         }
@@ -253,7 +370,7 @@ pub fn parse(task: &AiTask, text: &str) -> Result<AiAnswer, AiError> {
                     code,
                 }]
             };
-            let assertions = assertions(map.get("assertions"));
+            let assertions = assertions(map.get("assertions"), false);
             if scripts.is_empty() && assertions.is_empty() {
                 return Err(bad("no tests or assertions in the answer"));
             }

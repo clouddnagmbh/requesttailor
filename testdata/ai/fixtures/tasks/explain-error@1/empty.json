@@ -1,0 +1,11 @@
+{
+  "task": {
+    "task": "explain-error",
+    "path": "orders/list.yml",
+    "response": 1
+  },
+  "answer": "   ",
+  "expect": {
+    "error": "empty"
+  }
+}

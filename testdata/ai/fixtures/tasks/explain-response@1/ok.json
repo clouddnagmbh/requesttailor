@@ -1,0 +1,13 @@
+{
+  "task": {
+    "task": "explain-response",
+    "path": "orders/list.yml",
+    "response": 1
+  },
+  "answer": "Here you go:\n```json\n{\n  \"text\": \"Returns **3 open orders** as a JSON array.\"\n}\n```",
+  "expect": {
+    "answer": {
+      "text": "Returns **3 open orders** as a JSON array."
+    }
+  }
+}

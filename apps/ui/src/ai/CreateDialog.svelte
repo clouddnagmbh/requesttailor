@@ -1,142 +1,98 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- "Create with AI" (wave 8, strand E): a description and a folder, then the proposed
-     request to confirm. Confirming creates it unsaved in that folder and opens it; nothing is
-     saved until the user saves. -->
+<!-- "From description or snippet" (wave 8, strand E; wave 16, strand B): a sentence, or pasted
+     code or API documentation text, and a folder. A cURL command is read directly, without a
+     model. The proposal comes back as a "new request" suggestion (a diff to apply or discard),
+     unsaved; if nothing comes of it this dialog opens again with what was typed. -->
 <script lang="ts">
-  import type { AiAnswer, RequestSpec } from "../commands/types";
   import type { AppState } from "../state/app.svelte";
   import type { AiState } from "./ai.svelte";
   import AiDialog from "./AiDialog.svelte";
-  import { askError, folders, withProposal } from "./apply";
-  import Markdown from "./Markdown.svelte";
+  import { folders } from "./apply";
+  import { createFromText } from "./flows";
+  import { looksLikeCurl } from "./task";
 
-  let { ai, app, folder: initialFolder }: { ai: AiState; app: AppState; folder: string } = $props();
+  let {
+    ai,
+    app,
+    folder: initialFolder,
+    text: initialText = "",
+    mode: initialMode,
+  }: { ai: AiState; app: AppState; folder: string; text?: string; mode?: "describe" | "snippet" } = $props();
 
   const choices = $derived(folders(app.tree));
-  let description = $state("");
+  // svelte-ignore state_referenced_locally
+  let text = $state(initialText);
+  // svelte-ignore state_referenced_locally
+  let mode = $state<"describe" | "snippet">(initialMode ?? "describe");
+  // svelte-ignore state_referenced_locally
+  let chosen = $state(initialMode !== undefined);
   // svelte-ignore state_referenced_locally
   let folder = $state(initialFolder);
-  let busy = $state(false);
-  let error = $state<string | null>(null);
-  let answer = $state.raw<(AiAnswer & { request: RequestSpec }) | null>(null);
+  const curl = $derived(mode === "snippet" && looksLikeCurl(text));
+
+  function typed() {
+    // Pasting a cURL command switches to "snippet" unless the user picked a mode.
+    if (!chosen && looksLikeCurl(text)) mode = "snippet";
+  }
 
   async function propose() {
-    if (description.trim() === "") return;
-    busy = true;
-    error = null;
-    try {
-      const a = await ai.backend.ai.ask(
-        { task: "create-request", description: description.trim(), folder },
-        { environment: app.environment, vars: [] },
-      );
-      if (!a.request) throw new Error("The answer had no request.");
-      answer = { ...a, request: a.request };
-    } catch (e) {
-      error = askError(e);
-    } finally {
-      busy = false;
-    }
+    const input = { mode, text, folder };
+    if (text.trim() === "") return;
+    ai.close();
+    const done = await createFromText(app, ai, input);
+    if (!done) ai.open({ kind: "create", folder, text, mode });
   }
-
-  async function confirm() {
-    if (!answer) return;
-    busy = true;
-    error = null;
-    try {
-      const path = await app.backend.createRequest(folder, answer.request.name || "New request");
-      const base = await app.backend.getRequest(path);
-      await app.edit(path, withProposal(base, answer.request));
-      await app.select(path);
-      ai.close();
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-    } finally {
-      busy = false;
-    }
-  }
-
-  const bodyText = (r: RequestSpec) =>
-    r.body.type === "raw"
-      ? r.body.data
-      : r.body.type === "form-url-encoded"
-        ? r.body.fields.map((f) => `${f.name}=${f.value}`).join("\n")
-        : "";
 </script>
 
-<AiDialog title="Create a request with AI" testid="ai-create" {busy} onclose={() => ai.close()}>
-  {#if !answer}
-    <label class="field"
-      >What should the request do?
-      <textarea
-        data-testid="ai-create-description"
-        bind:value={description}
-        placeholder="e.g. Create an order for customer 42 with two items"
-        onkeydown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void propose();
-        }}
-      ></textarea>
-    </label>
-    <label class="field"
-      >Folder
-      <select data-testid="ai-create-folder" bind:value={folder}>
-        {#each choices as f (f.path)}<option value={f.path}>{f.label}</option>{/each}
-      </select>
-    </label>
-    <p class="muted">The model sees this folder's requests with secret values masked, and the names of your variables.</p>
-    {#if error}<p class="error" role="alert" data-testid="ai-create-error">{error}</p>{/if}
-    <div class="row">
-      <button class="primary" data-testid="ai-create-propose" disabled={busy || description.trim() === ""} onclick={propose}
-        >{busy ? "Asking…" : "Propose"}</button
-      >
-      <button data-testid="ai-create-cancel" disabled={busy} onclick={() => ai.close()}>Cancel</button>
-    </div>
+<AiDialog title="New request from a description or snippet" testid="ai-create" onclose={() => ai.close()}>
+  <div class="row" role="radiogroup" aria-label="What you give it">
+    <label
+      ><input
+        type="radio"
+        name="ai-create-mode"
+        data-testid="ai-create-mode-describe"
+        checked={mode === "describe"}
+        onchange={() => ((mode = "describe"), (chosen = true))}
+      /> Describe it</label
+    >
+    <label
+      ><input
+        type="radio"
+        name="ai-create-mode"
+        data-testid="ai-create-mode-snippet"
+        checked={mode === "snippet"}
+        onchange={() => ((mode = "snippet"), (chosen = true))}
+      /> Paste a snippet</label
+    >
+  </div>
+  <label class="field"
+    >{mode === "describe" ? "What should the request do?" : "cURL command, code or API documentation text"}
+    <textarea
+      data-testid="ai-create-description"
+      bind:value={text}
+      oninput={typed}
+      placeholder={mode === "describe" ? "e.g. Create an order for customer 42 with two items" : "e.g. curl -X POST https://api.example.com/orders -d '{\"sku\": \"a-1\"}'"}
+      onkeydown={(e) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void propose();
+      }}
+    ></textarea>
+  </label>
+  <label class="field"
+    >Folder
+    <select data-testid="ai-create-folder" bind:value={folder}>
+      {#each choices as f (f.path)}<option value={f.path}>{f.label}</option>{/each}
+    </select>
+  </label>
+  {#if curl}
+    <p class="muted" data-testid="ai-create-local">A cURL command is read directly. No model is called and nothing leaves your computer.</p>
   {:else}
-    {@const r = answer.request}
-    <p>Create this request in <strong>{choices.find((f) => f.path === folder)?.label ?? folder}</strong>? It stays unsaved until you save.</p>
-    {#if answer.text}<Markdown text={answer.text} testid="ai-create-text" />{/if}
-    <dl class="proposal" data-testid="ai-proposal">
-      <dt>Name</dt>
-      <dd data-testid="ai-proposal-name">{r.name}</dd>
-      <dt>Request</dt>
-      <dd><code data-testid="ai-proposal-line">{r.method} {r.url}</code></dd>
-      {#if r.headers.length > 0}
-        <dt>Headers</dt>
-        <dd><pre>{r.headers.map((h) => `${h.name}: ${h.value}`).join("\n")}</pre></dd>
-      {/if}
-      {#if bodyText(r)}
-        <dt>Body</dt>
-        <dd><pre>{bodyText(r)}</pre></dd>
-      {/if}
-      <dt>Auth</dt>
-      <dd>inherited from the folder or collection</dd>
-    </dl>
-    {#if error}<p class="error" role="alert" data-testid="ai-create-error">{error}</p>{/if}
-    <div class="row">
-      <button class="primary" data-testid="ai-create-confirm" disabled={busy} onclick={confirm}>Create request</button>
-      <button data-testid="ai-create-back" disabled={busy} onclick={() => (answer = null)}>Back</button>
-      <button data-testid="ai-create-cancel" disabled={busy} onclick={() => ai.close()}>Cancel</button>
-    </div>
+    <p class="muted">
+      The model sees this folder's requests with secret values masked, and the names of your variables. You see exactly what is sent before it is.
+    </p>
   {/if}
+  <div class="row">
+    <button class="primary" data-testid="ai-create-propose" disabled={text.trim() === ""} onclick={propose}>{curl ? "Read command" : "Propose"}</button>
+    <button data-testid="ai-create-cancel" onclick={() => ai.close()}>Cancel</button>
+  </div>
 </AiDialog>
-
-<style>
-  .proposal {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 4px 12px;
-    margin: 0;
-  }
-  dt {
-    color: var(--rt-fg-muted);
-    font-size: var(--rt-size-small);
-  }
-  dd {
-    margin: 0;
-    min-width: 0;
-  }
-  code {
-    font-family: var(--rt-font-mono);
-    word-break: break-all;
-  }
-</style>

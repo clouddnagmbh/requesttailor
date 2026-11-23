@@ -85,6 +85,8 @@ export function askError(e: unknown): string {
       return "The AI assistant is not set up. Open its settings first.";
     case "no-key":
       return "No API key is set for this provider. Add one in the AI assistant settings.";
+    case "opted-out":
+      return "AI is off for this collection.";
     default:
       return message;
   }
