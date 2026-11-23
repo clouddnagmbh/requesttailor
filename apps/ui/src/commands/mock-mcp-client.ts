@@ -9,10 +9,20 @@
 // variables (`host.lookup`). Saved tests are staged like request edits: `dirty()` lists
 // them and `save()` writes them (`MockBackend` includes both). The real client and file
 // format live in Rust (rt_app::mcp_client, rt_format::mcp_test) and are tested there.
+//
+// Wave 14: the demo server (`rt-demo://mcp`, and the "local port" URL once `localDemo.start()`
+// ran) answers with `mock-mcp-demo.ts`; `selfServer()` offers the command `rt mcp`, which the
+// mock answers with the five agent tools.
 
-import { BackendError, type McpClientApi, type SendInput } from "./backend";
+import { BackendError, MCP_DEMO_URL, type McpClientApi, type SendInput } from "./backend";
 import { mockEvaluate } from "./mock-assert";
-import type { FileChange, McpCallResult, McpServerConfig, McpTest, McpTestResult, McpTool } from "./types";
+import { DEMO_PROMPTS, DEMO_RESOURCES, DEMO_TOOLS, DemoSession, SELF_TOOLS, selfCall } from "./mock-mcp-demo";
+import type { FileChange, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool } from "./types";
+
+type Kind = "plain" | "demo" | "self";
+
+/** The mock's "local port" of the demo server. */
+export const MOCK_LOCAL_DEMO_URL = "http://127.0.0.1:48409/mcp";
 
 export interface MockMcpHost {
   /** Value of a variable for `input` (environment, then runtime), `undefined` if unknown. */
@@ -84,13 +94,16 @@ function resolveValue(value: unknown, resolve: (s: string) => string): unknown {
   return value;
 }
 
-function connectCheck(server: McpServerConfig, resolve: (s: string) => string): void {
+function connectCheck(server: McpServerConfig, resolve: (s: string) => string, localDemo: string | null): Kind {
   if (server.transport === "stdio") {
     const command = resolve(server.command);
+    if (command === "rt" && server.args[0] === "mcp") return "self";
     if (command !== "demo-mcp") throw new BackendError("shell", `${command}: command not found`);
-    return;
+    return "plain";
   }
-  const url = resolve(server.url);
+  const url = resolve(server.url).trim().replace(/\/$/, "");
+  if (url === MCP_DEMO_URL || (localDemo !== null && url === localDemo)) return "demo";
+  if (url === MOCK_LOCAL_DEMO_URL) throw new BackendError("shell", `cannot connect to ${url}: connection refused`);
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -101,6 +114,39 @@ function connectCheck(server: McpServerConfig, resolve: (s: string) => string): 
   if (parsed.hostname === "unreachable") {
     throw new BackendError("shell", `cannot connect to ${url}: connection refused`);
   }
+  return "plain";
+}
+
+const INFO: Record<Kind, McpServerInfo> = {
+  plain: {
+    name: "demo-mcp",
+    version: "1.0.0",
+    protocol_version: "2025-11-25",
+    capabilities: ["tools"],
+    instructions: "A demo server of the mock backend.",
+  },
+  demo: {
+    name: "requesttailor-demo",
+    version: "0.0.0",
+    protocol_version: "2025-11-25",
+    capabilities: ["logging", "prompts", "resources", "tools"],
+    instructions: "A demo MCP server with fake data, built into RequestTailor. Try fake_weather, keep a to-do list with todo_add, todo_list and todo_done, or watch countdown send progress. Nothing leaves your computer.",
+  },
+  self: {
+    name: "requesttailor",
+    version: "0.0.0",
+    protocol_version: "2025-11-25",
+    capabilities: ["tools"],
+    instructions: "Requests of the collection Demo API as tools.",
+  },
+};
+
+function callKind(kind: Kind, session: DemoSession, tool: string, args: unknown): McpCallResult {
+  const result =
+    kind === "demo" ? session.call(tool, (args ?? {}) as Record<string, unknown>) : kind === "self" ? selfCall(tool) : null;
+  if (kind === "plain") return callTool(tool, args);
+  if (!result) throw new BackendError("shell", `Unknown tool: ${tool}. tools/list lists the tools. (JSON-RPC error -32602)`);
+  return result;
 }
 
 function callTool(tool: string, args: unknown): McpCallResult {
@@ -143,7 +189,8 @@ function slug(name: string): string {
 }
 
 export function mockMcp(host: MockMcpHost): MockMcp {
-  const open = new Map<number, { resolve: (s: string) => string }>();
+  const open = new Map<number, { resolve: (s: string) => string; kind: Kind; session: DemoSession }>();
+  let localDemo: string | null = null;
   let nextId = 1;
   const staged = new Map<string, McpTest>();
   const saved = new Map<string, McpTest>();
@@ -164,27 +211,56 @@ export function mockMcp(host: MockMcpHost): MockMcp {
   return {
     async connect(server, input) {
       const resolve = resolver(input);
-      connectCheck(server, resolve);
+      const kind = connectCheck(server, resolve, localDemo);
       const id = nextId++;
-      open.set(id, { resolve });
-      return {
-        id,
-        info: {
-          name: "demo-mcp",
-          version: "1.0.0",
-          protocol_version: "2025-11-25",
-          capabilities: ["tools"],
-          instructions: "A demo server of the mock backend.",
-        },
-      };
+      open.set(id, { resolve, kind, session: new DemoSession() });
+      return { id, info: structuredClone(INFO[kind]) };
     },
     async tools(id) {
-      connection(id);
-      return structuredClone(MOCK_MCP_TOOLS);
+      const { kind } = connection(id);
+      return structuredClone(kind === "demo" ? DEMO_TOOLS : kind === "self" ? SELF_TOOLS : MOCK_MCP_TOOLS);
     },
     async call(id, tool, args) {
-      const { resolve } = connection(id);
-      return callTool(tool, resolveValue(args, resolve));
+      const { resolve, kind, session } = connection(id);
+      return callKind(kind, session, tool, resolveValue(args, resolve));
+    },
+    async resources(id) {
+      return connection(id).kind === "demo" ? structuredClone(DEMO_RESOURCES) : [];
+    },
+    async readResource(id, uri) {
+      const c = connection(id);
+      const contents = c.kind === "demo" ? c.session.read(c.resolve(uri)) : null;
+      if (!contents) throw new BackendError("shell", `Resource not found: ${uri} (JSON-RPC error -32002)`);
+      return contents;
+    },
+    async prompts(id) {
+      return connection(id).kind === "demo" ? structuredClone(DEMO_PROMPTS) : [];
+    },
+    async getPrompt(id, name, args) {
+      const c = connection(id);
+      const missing = DEMO_PROMPTS.find((p) => p.name === name)?.arguments.find((a) => a.required && !args.some(([n, v]) => n === a.name && v.trim() !== ""));
+      if (missing) throw new BackendError("shell", `${name} needs the argument ${missing.name} (JSON-RPC error -32602)`);
+      const result = c.kind === "demo" ? c.session.prompt(name, Object.fromEntries(args.map(([n, v]) => [n, c.resolve(v)]))) : null;
+      if (!result) throw new BackendError("shell", `Unknown prompt: ${name} (JSON-RPC error -32602)`);
+      return result;
+    },
+    async selfServer() {
+      return {
+        server: { transport: "stdio", command: "rt", args: ["mcp", "--agent-name", "RequestTailor app"], env: [], cwd: null },
+        hint: "Starts rt mcp on this collection, as an AI assistant would: its tools are your requests, under the collection's agent rules, and every call goes to the audit log.",
+      };
+    },
+    localDemo: {
+      async status() {
+        return localDemo;
+      },
+      async start() {
+        localDemo = MOCK_LOCAL_DEMO_URL;
+        return localDemo;
+      },
+      async stop() {
+        localDemo = null;
+      },
     },
     async disconnect(id) {
       open.delete(id);
@@ -210,8 +286,8 @@ export function mockMcp(host: MockMcpHost): MockMcp {
       const test = testOf(path);
       const resolve = resolver(input);
       try {
-        connectCheck(test.server, resolve);
-        const result = callTool(test.tool, resolveValue(test.arguments, resolve));
+        const kind = connectCheck(test.server, resolve, localDemo);
+        const result = callKind(kind, new DemoSession(), test.tool, resolveValue(test.arguments, resolve));
         const lookup = (name: string) => host.lookup(input, name);
         const enabled = test.assertions.filter((a) => a.enabled);
         const assertions = mockEvaluate(enabled, testResponse(result), lookup);

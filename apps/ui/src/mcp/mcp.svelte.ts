@@ -4,12 +4,33 @@
 // State of the MCP client view (wave 8, strand D): one connection at a time, its tools, the
 // selected tool's arguments, the last result, and the saved tests (`*.mcp.yaml`) with their
 // last run. Everything goes through `Backend.mcp`; values come back masked.
+//
+// Wave 14: resources and prompts of the connection, the demo server (`tryDemo`), `rt mcp` on
+// the open collection (`trySelf`), the demo on a local port (`localDemo`), the guided first
+// run (`guide`, ./guide.ts) and the explanation's open state, both remembered per device.
 
-import { BackendError, type SendInput } from "../commands/backend";
-import type { Assertion, McpCallResult, McpServerInfo, McpTestResult, McpTool } from "../commands/types";
+import { BackendError, MCP_DEMO_URL, type SendInput } from "../commands/backend";
+import type {
+  Assertion,
+  McpCallResult,
+  McpPrompt,
+  McpPromptResult,
+  McpResource,
+  McpResourceContents,
+  McpServerConfig,
+  McpServerInfo,
+  McpTestResult,
+  McpTool,
+} from "../commands/types";
+import { load, store } from "../shell/storage";
 import type { AppState } from "../state/app.svelte";
+import { advance, GUIDE_TOOL, isDemo, nextStep, noProgress, type GuideProgress, type GuideStep } from "./guide";
 import { configOf, draftOf, draftProblem, emptyDraft, serverLabel, suggestedAssertions, suggestedName, type ServerDraft } from "./model";
 import { fieldsOf, initialArgs } from "./schema";
+
+export type McpTab = "tools" | "resources" | "prompts";
+
+const isBool = (v: unknown): v is boolean => typeof v === "boolean";
 
 export interface SaveDraft {
   name: string;
@@ -43,10 +64,162 @@ export class McpState {
   /** stdio tests of this collection may start commands: asked once per collection and session. */
   stdioAllowed = $state<Record<string, boolean>>({});
 
+  // ---- wave 14 ----
+  tab = $state<McpTab>("tools");
+  resources = $state<McpResource[]>([]);
+  prompts = $state<McpPrompt[]>([]);
+  resourceUri = $state<string | null>(null);
+  resourceContents = $state<McpResourceContents[] | null>(null);
+  promptName = $state<string | null>(null);
+  promptArgs = $state<Record<string, string>>({});
+  promptResult = $state<McpPromptResult | null>(null);
+  browsing = $state(false);
+  /** Why "Connect to RequestTailor itself" cannot connect here, or what it does. */
+  selfHint = $state<string | null>(null);
+  /** The demo server's URL on a local port while it runs (desktop). */
+  localDemoUrl = $state<string | null>(null);
+  guide = $state<GuideProgress>(noProgress());
+  /** The guide was dismissed or finished on this device. */
+  guideHidden = $state(load("mcpGuideHidden", false, isBool));
+  /** Bumped by "Connect to a server…": the panel focuses the URL or command field. */
+  focusForm = $state(0);
+  /** The explanation in the sidebar is open (per device; open until the user closes it). */
+  introOpen = $state(load("mcpIntroOpen", true, isBool));
+
   constructor(private readonly app: AppState) {}
 
-  private get api() {
+  get api() {
     return this.app.backend.mcp;
+  }
+
+  /** Whether the current or drafted server is the built-in demo. */
+  get demo(): boolean {
+    return isDemo(configOf(this.draft));
+  }
+
+  /** The step the guide waits for, or `null` (finished or hidden). */
+  get guideStep(): GuideStep | null {
+    return this.guideHidden ? null : nextStep(this.guide);
+  }
+
+  private step(step: GuideStep): void {
+    this.guide = advance(this.guide, step);
+    if (nextStep(this.guide) === null) store("mcpGuideHidden", true);
+  }
+
+  hideGuide(): void {
+    this.guideHidden = true;
+    store("mcpGuideHidden", true);
+  }
+
+  showGuide(): void {
+    this.guide = noProgress();
+    this.guideHidden = false;
+    store("mcpGuideHidden", false);
+  }
+
+  setIntroOpen(open: boolean): void {
+    this.introOpen = open;
+    store("mcpIntroOpen", open);
+  }
+
+  /** "Try the demo server": the built-in demo, connected, with fake_weather selected. */
+  async tryDemo(): Promise<void> {
+    this.draft = { ...emptyDraft(), transport: "http", url: MCP_DEMO_URL };
+    this.testPath = null;
+    this.saving = null;
+    this.open = true;
+    await this.connect();
+    if (this.connection && this.tools.some((t) => t.name === GUIDE_TOOL)) {
+      this.tab = "tools";
+      this.select(GUIDE_TOOL);
+    }
+  }
+
+  /** "Connect to RequestTailor itself": `rt mcp` on the open collection, where the shell can. */
+  async trySelf(): Promise<void> {
+    this.open = true;
+    this.error = null;
+    try {
+      const offer = await this.api.selfServer();
+      this.selfHint = offer.hint;
+      if (!offer.server) {
+        await this.disconnect();
+        return;
+      }
+      await this.connectTo(offer.server);
+    } catch (e) {
+      this.error = message(e);
+    }
+  }
+
+  /** Connects to `server` (replacing the draft). */
+  async connectTo(server: McpServerConfig): Promise<void> {
+    this.draft = draftOf(server);
+    this.testPath = null;
+    this.saving = null;
+    await this.connect();
+  }
+
+  async refreshLocalDemo(): Promise<void> {
+    this.localDemoUrl = (await this.api.localDemo?.status().catch(() => null)) ?? null;
+  }
+
+  async startLocalDemo(): Promise<void> {
+    const local = this.api.localDemo;
+    if (!local) return;
+    this.error = null;
+    try {
+      this.localDemoUrl = await local.start();
+    } catch (e) {
+      this.error = message(e);
+    }
+  }
+
+  async stopLocalDemo(): Promise<void> {
+    const url = this.localDemoUrl;
+    if (this.connection && url && configOf(this.draft).transport === "http" && this.draft.url.trim() === url) await this.disconnect();
+    await this.api.localDemo?.stop().catch(() => {});
+    this.localDemoUrl = null;
+  }
+
+  async openResource(uri: string): Promise<void> {
+    const c = this.connection;
+    if (!c) return;
+    this.resourceUri = uri;
+    this.resourceContents = null;
+    this.browsing = true;
+    this.error = null;
+    try {
+      this.resourceContents = await this.api.readResource(c.id, uri);
+    } catch (e) {
+      this.error = message(e);
+    } finally {
+      this.browsing = false;
+    }
+  }
+
+  selectPrompt(name: string): void {
+    this.promptName = name;
+    this.promptResult = null;
+    const p = this.prompts.find((x) => x.name === name);
+    this.promptArgs = Object.fromEntries((p?.arguments ?? []).map((a) => [a.name, ""]));
+  }
+
+  async getPrompt(): Promise<void> {
+    const c = this.connection;
+    if (!c || !this.promptName) return;
+    this.browsing = true;
+    this.error = null;
+    try {
+      const args = Object.entries($state.snapshot(this.promptArgs)).filter(([, v]) => v.trim() !== "") as [string, string][];
+      this.promptResult = await this.api.getPrompt(c.id, this.promptName, args);
+    } catch (e) {
+      this.promptResult = null;
+      this.error = message(e);
+    } finally {
+      this.browsing = false;
+    }
   }
 
   input(): SendInput {
@@ -80,9 +253,26 @@ export class McpState {
     try {
       const connection = await this.api.connect(configOf(this.draft), this.input());
       this.connection = connection;
+      const demo = this.demo;
+      if (demo) this.step("connect");
       this.tools = await this.api.tools(connection.id);
+      if (demo && this.tools.length > 0) this.step("list");
       const keep = this.selected && this.tools.some((t) => t.name === this.selected) ? this.selected : null;
       this.select(keep ?? this.tools[0]?.name ?? null, keep !== null);
+      // Resources and prompts are extras: a server that fails them still has its tools.
+      const [resources, prompts] = await Promise.all([
+        this.api.resources(connection.id).catch(() => []),
+        this.api.prompts(connection.id).catch(() => []),
+      ]);
+      this.resources = resources;
+      this.prompts = prompts;
+      this.resourceUri = null;
+      this.resourceContents = null;
+      if (this.promptName === null || !prompts.some((p) => p.name === this.promptName)) {
+        if (prompts[0]) this.selectPrompt(prompts[0].name);
+        else this.promptName = null;
+      }
+      if (this.tab !== "tools" && (this.tab === "resources" ? resources : prompts).length === 0) this.tab = "tools";
     } catch (e) {
       this.error = message(e);
     } finally {
@@ -94,6 +284,10 @@ export class McpState {
     const c = this.connection;
     this.connection = null;
     this.tools = [];
+    this.resources = [];
+    this.prompts = [];
+    this.resourceContents = null;
+    this.promptResult = null;
     if (c) await this.api.disconnect(c.id).catch(() => {});
   }
 
@@ -126,6 +320,7 @@ export class McpState {
     this.error = null;
     try {
       this.result = await this.api.call(c.id, this.selected, $state.snapshot(this.args));
+      if (this.demo && this.selected === GUIDE_TOOL && !this.result.is_error) this.step("call");
     } catch (e) {
       this.result = null;
       this.error = message(e);
@@ -167,6 +362,7 @@ export class McpState {
       });
       this.testPath = path;
       this.saving = null;
+      if (this.demo && this.selected === GUIDE_TOOL) this.step("save");
       this.app.dirty = await this.app.backend.dirty();
       await this.loadTests();
       return path;
@@ -207,12 +403,14 @@ export class McpState {
 
   newConnection(): void {
     void this.disconnect();
+    this.selfHint = null;
     this.testPath = null;
     this.saving = null;
     this.result = null;
     this.error = null;
     this.selected = null;
     this.open = true;
+    this.focusForm += 1;
   }
 
   /** Commands of stdio tests, by path, that need the user's go-ahead before they run. */
@@ -244,6 +442,8 @@ export class McpState {
 
   async runAll(): Promise<void> {
     for (const path of this.tests) await this.runTest(path);
+    const { passed, failed } = this.counts;
+    if (passed > 0 && failed === 0) this.step("run");
   }
 
   get counts(): { passed: number; failed: number } {

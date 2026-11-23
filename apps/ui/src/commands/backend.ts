@@ -75,6 +75,11 @@ import type {
   AuditEntry,
   GrpcService,
   McpCallResult,
+  McpPrompt,
+  McpPromptResult,
+  McpResource,
+  McpResourceContents,
+  McpSelfServer,
   McpServerConfig,
   McpServerInfo,
   McpTest,
@@ -584,6 +589,31 @@ export interface McpClientApi {
    *  `mcp/` named after the test. Returns the path. */
   saveTest(path: string | null, test: McpTest): Promise<string>;
   runTest(path: string, input: SendInput): Promise<McpTestResult>;
+  /** Wave 14: resources of the server (empty without the `resources` capability). */
+  resources(id: number): Promise<McpResource[]>;
+  readResource(id: number, uri: string): Promise<McpResourceContents[]>;
+  /** Wave 14: prompts of the server (empty without the `prompts` capability). */
+  prompts(id: number): Promise<McpPrompt[]>;
+  getPrompt(id: number, name: string, args: [string, string][]): Promise<McpPromptResult>;
+  /** Wave 14, "Connect to RequestTailor itself": how this shell reaches `rt mcp` on the open
+   *  collection. `server` is a stdio config when the shell can start it (desktop with `rt`
+   *  found), else `null`; `hint` says in a sentence what happens or what to do instead. */
+  selfServer(): Promise<McpSelfServer>;
+  /** Wave 14: the demo server on a real loopback port, for other MCP clients (desktop);
+   *  `null` in shells that cannot listen. The built-in demo (`MCP_DEMO_URL`) works everywhere. */
+  readonly localDemo: McpLocalDemoApi | null;
+}
+
+/** The built-in demo server (rt_app::mcp_demo::DEMO_URL): answered in memory, never sent. */
+export const MCP_DEMO_URL = "rt-demo://mcp";
+
+/** The demo server on `127.0.0.1` with a random port, until stopped or the app ends. */
+export interface McpLocalDemoApi {
+  /** Its URL while running, else `null`. */
+  status(): Promise<string | null>;
+  /** Starts it (or returns the running one's URL). */
+  start(): Promise<string>;
+  stop(): Promise<void>;
 }
 
 /**

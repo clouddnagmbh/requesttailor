@@ -20,9 +20,15 @@
 //! [`McpClient::connect`] starts the server (stdio) or posts to it (HTTP), sends `initialize`
 //! (protocol version [`PROTOCOL_VERSION`], accepting the [`SUPPORTED_VERSIONS`]) and
 //! `notifications/initialized`. [`McpClient::tools`] follows `nextCursor`;
-//! [`McpClient::call`] times `tools/call`. Every value the client returns, errors included,
-//! is masked with the secret values of its [`McpVars`]. The transport is passed per call, so
-//! one client works with the native stack, `fetch` or the companion.
+//! [`McpClient::call`] times `tools/call` (with a `progressToken`; the progress and log
+//! notifications that arrive before the result are in [`McpCallResult::notifications`]).
+//! [`McpClient::resources`], [`McpClient::read_resource`], [`McpClient::prompts`] and
+//! [`McpClient::get_prompt`] browse the rest (wave 14). Every value the client returns,
+//! errors included, is masked with the secret values of its [`McpVars`]. The transport is
+//! passed per call, so one client works with the native stack, `fetch` or the companion.
+//!
+//! - **The demo server** (`http` with the URL [`crate::mcp_demo::DEMO_URL`], every shell):
+//!   answered by a [`crate::mcp_demo::Session`] in memory; nothing is sent.
 //!
 //! - **Streamable HTTP** (`http`): every message is a `POST` with
 //!   `Accept: application/json, text/event-stream`; the answer is JSON or an SSE stream, read
@@ -60,6 +66,16 @@ use crate::{AppError, Workspace};
 mod http;
 #[cfg(not(target_arch = "wasm32"))]
 mod stdio;
+
+/// Notifications kept per call (a server that floods is cut off here, not refused).
+const MAX_NOTIFICATIONS: usize = 1000;
+
+/// Keeps a notification from the server for the current call (up to the limit).
+fn keep_notification(pending: &mut Vec<Value>, message: Value) {
+    if pending.len() < MAX_NOTIFICATIONS {
+        pending.push(message);
+    }
+}
 
 /// File extension of saved MCP tests.
 pub const TEST_EXTENSION: &str = "mcp.yaml";
@@ -134,6 +150,78 @@ pub struct McpCallResult {
     pub structured: Option<serde_json::Value>,
     pub is_error: bool,
     pub time_ms: u64,
+    /// Notifications the server sent while the call ran (`notifications/progress`,
+    /// `notifications/message`, …), in order (wave 14). Left out when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notifications: Vec<McpNotification>,
+}
+
+/// A notification from the server, as sent (masked).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct McpNotification {
+    pub method: String,
+    /// `params` as sent, `null` without.
+    pub params: serde_json::Value,
+}
+
+/// An entry of `resources/list` (wave 14).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct McpResource {
+    pub uri: String,
+    pub name: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub mime_type: Option<String>,
+    pub size: Option<u64>,
+}
+
+/// One item of `resources/read`: text, or binary data as base64 (`blob`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct McpResourceContents {
+    pub uri: String,
+    pub mime_type: Option<String>,
+    pub text: Option<String>,
+    pub blob: Option<String>,
+}
+
+/// An entry of `prompts/list` (wave 14).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct McpPrompt {
+    pub name: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub arguments: Vec<McpPromptArgument>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct McpPromptArgument {
+    pub name: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub required: bool,
+}
+
+/// How a shell reaches `rt mcp` on the open collection ("Connect to RequestTailor itself",
+/// wave 14): a stdio config when it can start it, else `None`; `hint` says in a sentence what
+/// happens or what to do instead.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct McpSelfServer {
+    pub server: Option<McpServerConfig>,
+    pub hint: String,
+}
+
+/// What `prompts/get` returned: the messages the prompt would put in front of a model.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct McpPromptResult {
+    pub description: Option<String>,
+    pub messages: Vec<McpPromptMessage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct McpPromptMessage {
+    /// `user` or `assistant`.
+    pub role: String,
+    pub content: McpContent,
 }
 
 /// A saved call: one `<name>.mcp.yaml`.
@@ -416,6 +504,8 @@ enum Wire {
     Http(http::HttpWire),
     #[cfg(not(target_arch = "wasm32"))]
     Stdio(stdio::StdioWire),
+    /// The built-in demo server: a session in memory.
+    Demo(Box<crate::mcp_demo::Session>),
 }
 
 /// One connection to an MCP server. HTTP calls take the transport per call.
@@ -427,6 +517,8 @@ pub struct McpClient {
     timeout: Duration,
     /// What the server is (URL or command, masked), for test responses.
     target: String,
+    /// Notifications received since the last request started (unmasked).
+    pending: Vec<Value>,
 }
 
 impl std::fmt::Debug for McpClient {
@@ -459,6 +551,10 @@ impl McpClient {
     ) -> Result<Self, McpError> {
         let resolved = vars.resolve_server(server);
         let (wire, target) = match &resolved {
+            McpServerConfig::Http { url, .. } if crate::mcp_demo::is_demo_url(url) => (
+                Wire::Demo(Box::default()),
+                crate::mcp_demo::DEMO_URL.to_owned(),
+            ),
             McpServerConfig::Http { url, headers } => (
                 Wire::Http(http::HttpWire::new(url.clone(), headers.clone())),
                 url.clone(),
@@ -490,6 +586,7 @@ impl McpClient {
             next_id: 1,
             timeout,
             target,
+            pending: Vec::new(),
         };
         let result = client
             .request(
@@ -528,22 +625,141 @@ impl McpClient {
 
     /// Every tool, following `nextCursor` (at most 100 pages). Masked.
     pub async fn tools<T: Transport>(&mut self, transport: &T) -> Result<Vec<McpTool>, McpError> {
-        let mut tools = Vec::new();
+        self.list_all(transport, "tools/list", "tools")
+            .await?
+            .iter()
+            .map(tool_of)
+            .collect()
+    }
+
+    /// Every resource, following `nextCursor` (at most 100 pages). Masked. A server without
+    /// the `resources` capability has none (no request is sent).
+    pub async fn resources<T: Transport>(
+        &mut self,
+        transport: &T,
+    ) -> Result<Vec<McpResource>, McpError> {
+        if !self.offers("resources") {
+            return Ok(Vec::new());
+        }
+        self.list_all(transport, "resources/list", "resources")
+            .await?
+            .iter()
+            .map(resource_of)
+            .collect()
+    }
+
+    /// Reads one resource. Masked.
+    pub async fn read_resource<T: Transport>(
+        &mut self,
+        transport: &T,
+        uri: &str,
+    ) -> Result<Vec<McpResourceContents>, McpError> {
+        let uri = self.vars.resolve(uri);
+        let result = self
+            .request(transport, "resources/read", json!({ "uri": uri }))
+            .await?;
+        let result = self.vars.mask_value(result);
+        let text = |v: &Value, key: &str| v.get(key).and_then(Value::as_str).map(str::to_owned);
+        Ok(result
+            .get("contents")
+            .and_then(Value::as_array)
+            .ok_or_else(|| McpError::Protocol("resources/read without contents".into()))?
+            .iter()
+            .map(|c| McpResourceContents {
+                uri: text(c, "uri").unwrap_or_default(),
+                mime_type: text(c, "mimeType"),
+                text: text(c, "text"),
+                blob: text(c, "blob"),
+            })
+            .collect())
+    }
+
+    /// Every prompt, following `nextCursor` (at most 100 pages). Masked. A server without
+    /// the `prompts` capability has none (no request is sent).
+    pub async fn prompts<T: Transport>(
+        &mut self,
+        transport: &T,
+    ) -> Result<Vec<McpPrompt>, McpError> {
+        if !self.offers("prompts") {
+            return Ok(Vec::new());
+        }
+        self.list_all(transport, "prompts/list", "prompts")
+            .await?
+            .iter()
+            .map(prompt_of)
+            .collect()
+    }
+
+    /// Gets a prompt with `arguments` (`{{variables}}` resolved). Masked.
+    pub async fn get_prompt<T: Transport>(
+        &mut self,
+        transport: &T,
+        name: &str,
+        arguments: &[(String, String)],
+    ) -> Result<McpPromptResult, McpError> {
+        let arguments: serde_json::Map<String, Value> = arguments
+            .iter()
+            .map(|(n, v)| (n.clone(), Value::String(self.vars.resolve(v))))
+            .collect();
+        let result = self
+            .request(
+                transport,
+                "prompts/get",
+                json!({ "name": name, "arguments": arguments }),
+            )
+            .await?;
+        let result = self.vars.mask_value(result);
+        let messages = result
+            .get("messages")
+            .and_then(Value::as_array)
+            .ok_or_else(|| McpError::Protocol("prompts/get without messages".into()))?
+            .iter()
+            .map(|m| McpPromptMessage {
+                role: m
+                    .get("role")
+                    .and_then(Value::as_str)
+                    .unwrap_or("user")
+                    .to_owned(),
+                content: m
+                    .get("content")
+                    .map_or(McpContent::Other { value: Value::Null }, content_of),
+            })
+            .collect();
+        Ok(McpPromptResult {
+            description: result
+                .get("description")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            messages,
+        })
+    }
+
+    /// Whether `initialize` announced `capability`.
+    fn offers(&self, capability: &str) -> bool {
+        self.info.capabilities.iter().any(|c| c == capability)
+    }
+
+    /// The items under `key` of every page of `method` (masked), following `nextCursor`.
+    async fn list_all<T: Transport>(
+        &mut self,
+        transport: &T,
+        method: &str,
+        key: &str,
+    ) -> Result<Vec<Value>, McpError> {
+        let mut items = Vec::new();
         let mut cursor: Option<String> = None;
         for _ in 0..100 {
             let params = match &cursor {
                 Some(c) => json!({ "cursor": c }),
                 None => json!({}),
             };
-            let result = self.request(transport, "tools/list", params).await?;
+            let result = self.request(transport, method, params).await?;
             let result = self.vars.mask_value(result);
             let list = result
-                .get("tools")
+                .get(key)
                 .and_then(Value::as_array)
-                .ok_or_else(|| McpError::Protocol("tools/list without tools".into()))?;
-            for t in list {
-                tools.push(tool_of(t)?);
-            }
+                .ok_or_else(|| McpError::Protocol(format!("{method} without {key}")))?;
+            items.extend(list.iter().cloned());
             cursor = result
                 .get("nextCursor")
                 .and_then(Value::as_str)
@@ -553,7 +769,7 @@ impl McpClient {
                 break;
             }
         }
-        Ok(tools)
+        Ok(items)
     }
 
     /// Calls `tool` with `arguments` (`{{variables}}` resolved). A tool that fails reports
@@ -578,15 +794,26 @@ impl McpClient {
     ) -> Result<McpCallResult, McpError> {
         let arguments = self.vars.resolve_value(arguments);
         let started = web_time::Instant::now();
+        let token = self.next_id;
         let result = self
             .request(
                 transport,
                 "tools/call",
-                json!({ "name": tool, "arguments": arguments }),
+                json!({ "name": tool, "arguments": arguments, "_meta": { "progressToken": token } }),
             )
             .await?;
         let time_ms = started.elapsed().as_millis() as u64;
-        Ok(call_result(result, time_ms))
+        let mut result = call_result(result, time_ms);
+        result.notifications = std::mem::take(&mut self.pending)
+            .into_iter()
+            .filter_map(|n| {
+                Some(McpNotification {
+                    method: n.get("method")?.as_str()?.to_owned(),
+                    params: n.get("params").cloned().unwrap_or(Value::Null),
+                })
+            })
+            .collect();
+        Ok(result)
     }
 
     /// Ends the session (HTTP `DELETE`) or the process (stdio). Errors are ignored.
@@ -595,6 +822,7 @@ impl McpClient {
             Wire::Http(w) => w.close(transport, self.timeout).await,
             #[cfg(not(target_arch = "wasm32"))]
             Wire::Stdio(w) => w.close(),
+            Wire::Demo(_) => {}
         }
     }
 
@@ -607,13 +835,22 @@ impl McpClient {
         let id = self.next_id;
         self.next_id += 1;
         let message = json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params });
+        self.pending.clear();
+        let pending = &mut self.pending;
         let answer = match &mut self.wire {
             Wire::Http(w) => {
-                w.exchange(transport, &message, Some(id), self.timeout)
+                w.exchange(transport, &message, Some(id), self.timeout, pending)
                     .await
             }
             #[cfg(not(target_arch = "wasm32"))]
-            Wire::Stdio(w) => w.exchange(&message, Some(id), self.timeout),
+            Wire::Stdio(w) => w.exchange(&message, Some(id), self.timeout, pending),
+            Wire::Demo(session) => {
+                let exchange = session.handle(&message);
+                for n in exchange.notifications {
+                    keep_notification(pending, n);
+                }
+                Ok(exchange.response)
+            }
         }
         .map_err(|e| self.vars.mask_error(e))?
         .ok_or_else(|| McpError::Protocol(format!("no answer to {method}")))?;
@@ -635,10 +872,15 @@ impl McpClient {
 
     async fn notify<T: Transport>(&mut self, transport: &T, method: &str) -> Result<(), McpError> {
         let message = json!({ "jsonrpc": "2.0", "method": method });
+        let pending = &mut self.pending;
         match &mut self.wire {
-            Wire::Http(w) => w.exchange(transport, &message, None, self.timeout).await,
+            Wire::Http(w) => {
+                w.exchange(transport, &message, None, self.timeout, pending)
+                    .await
+            }
             #[cfg(not(target_arch = "wasm32"))]
-            Wire::Stdio(w) => w.exchange(&message, None, self.timeout),
+            Wire::Stdio(w) => w.exchange(&message, None, self.timeout, pending),
+            Wire::Demo(session) => Ok(session.handle(&message).response),
         }
         .map(|_| ())
         .map_err(|e| self.vars.mask_error(e))
@@ -729,43 +971,89 @@ fn mask_result(vars: &McpVars, result: McpCallResult) -> McpCallResult {
     McpCallResult {
         content,
         structured: result.structured.map(|v| vars.mask_value(v)),
+        notifications: result
+            .notifications
+            .into_iter()
+            .map(|n| McpNotification {
+                method: vars.mask(&n.method),
+                params: vars.mask_value(n.params),
+            })
+            .collect(),
         ..result
     }
 }
 
-fn call_result(result: Value, time_ms: u64) -> McpCallResult {
+fn resource_of(r: &Value) -> Result<McpResource, McpError> {
+    let text = |key: &str| r.get(key).and_then(Value::as_str).map(str::to_owned);
+    let uri = text("uri").ok_or_else(|| McpError::Protocol("a resource without a uri".into()))?;
+    Ok(McpResource {
+        name: text("name").unwrap_or_else(|| uri.clone()),
+        uri,
+        title: text("title"),
+        description: text("description"),
+        mime_type: text("mimeType"),
+        size: r.get("size").and_then(Value::as_u64),
+    })
+}
+
+fn prompt_of(p: &Value) -> Result<McpPrompt, McpError> {
     let text = |v: &Value, key: &str| v.get(key).and_then(Value::as_str).map(str::to_owned);
+    let name =
+        text(p, "name").ok_or_else(|| McpError::Protocol("a prompt without a name".into()))?;
+    Ok(McpPrompt {
+        name,
+        title: text(p, "title"),
+        description: text(p, "description"),
+        arguments: p
+            .get("arguments")
+            .and_then(Value::as_array)
+            .map(|args| {
+                args.iter()
+                    .filter_map(|a| {
+                        Some(McpPromptArgument {
+                            name: text(a, "name")?,
+                            title: text(a, "title"),
+                            description: text(a, "description"),
+                            required: a.get("required").and_then(Value::as_bool).unwrap_or(false),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
+    })
+}
+
+/// One content item of a tool result or prompt message.
+fn content_of(c: &Value) -> McpContent {
+    let text = |v: &Value, key: &str| v.get(key).and_then(Value::as_str).map(str::to_owned);
+    match c.get("type").and_then(Value::as_str) {
+        Some("text") if c.get("text").is_some_and(Value::is_string) => McpContent::Text {
+            text: text(c, "text").unwrap_or_default(),
+        },
+        Some("image") => McpContent::Image {
+            mime_type: text(c, "mimeType").unwrap_or_default(),
+            data: text(c, "data").unwrap_or_default(),
+        },
+        Some("audio") => McpContent::Audio {
+            mime_type: text(c, "mimeType").unwrap_or_default(),
+            data: text(c, "data").unwrap_or_default(),
+        },
+        Some("resource") if c.get("resource").is_some_and(Value::is_object) => {
+            let r = &c["resource"];
+            McpContent::Resource {
+                uri: text(r, "uri").unwrap_or_default(),
+                text: text(r, "text"),
+            }
+        }
+        _ => McpContent::Other { value: c.clone() },
+    }
+}
+
+fn call_result(result: Value, time_ms: u64) -> McpCallResult {
     let content = result
         .get("content")
         .and_then(Value::as_array)
-        .map(|items| {
-            items
-                .iter()
-                .map(|c| match c.get("type").and_then(Value::as_str) {
-                    Some("text") if c.get("text").is_some_and(Value::is_string) => {
-                        McpContent::Text {
-                            text: text(c, "text").unwrap_or_default(),
-                        }
-                    }
-                    Some("image") => McpContent::Image {
-                        mime_type: text(c, "mimeType").unwrap_or_default(),
-                        data: text(c, "data").unwrap_or_default(),
-                    },
-                    Some("audio") => McpContent::Audio {
-                        mime_type: text(c, "mimeType").unwrap_or_default(),
-                        data: text(c, "data").unwrap_or_default(),
-                    },
-                    Some("resource") if c.get("resource").is_some_and(Value::is_object) => {
-                        let r = &c["resource"];
-                        McpContent::Resource {
-                            uri: text(r, "uri").unwrap_or_default(),
-                            text: text(r, "text"),
-                        }
-                    }
-                    _ => McpContent::Other { value: c.clone() },
-                })
-                .collect()
-        })
+        .map(|items| items.iter().map(content_of).collect())
         .unwrap_or_default();
     McpCallResult {
         content,
@@ -778,6 +1066,7 @@ fn call_result(result: Value, time_ms: u64) -> McpCallResult {
             .and_then(Value::as_bool)
             .unwrap_or(false),
         time_ms,
+        notifications: Vec::new(),
     }
 }
 
@@ -1156,6 +1445,7 @@ mod tests {
             structured,
             is_error,
             time_ms: 7,
+            notifications: Vec::new(),
         };
         let r = test_response(
             &result(vec![text("{\"a\":1}")], Some(json!({"b": 2})), false),

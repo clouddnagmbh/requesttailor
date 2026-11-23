@@ -94,3 +94,35 @@ test("connects, calls tools, saves and runs a test through the real core", async
   expect(refused?.kind).toBe("unsupported");
   expect(refused?.message).toContain("cannot start local commands");
 });
+
+test("the built-in demo server runs inside the browser core: call, save, run all", async ({ page }) => {
+  await setup(page);
+  await page.getByTestId("view-mcp").click();
+  await page.getByTestId("mcp-try-demo").click();
+  await expect(page.getByTestId("mcp-server-info")).toContainText("requesttailor-demo");
+  await expect(page.getByTestId("mcp-tools")).toHaveAttribute("data-count", "10");
+  await expect(tool(page, "fake_weather")).toHaveAttribute("aria-selected", "true");
+  await page.getByTestId("mcp-arg-input").first().fill("Vienna");
+  await page.getByTestId("mcp-call").click();
+  await expect(page.getByTestId("mcp-result-text").first()).toContainText("Vienna: 21 °C, sunny");
+
+  await tool(page, "countdown").click();
+  await page.getByTestId("mcp-call").click();
+  await expect(page.getByTestId("mcp-result-notification")).toHaveCount(6);
+
+  await tool(page, "fake_weather").click();
+  await page.getByTestId("mcp-arg-input").first().fill("Vienna");
+  await page.getByTestId("mcp-call").click();
+  await page.getByTestId("mcp-save-test").click();
+  await page.getByTestId("mcp-save-confirm").click();
+  const saved = page.getByTestId("mcp-test");
+  await expect(saved).toHaveAttribute("data-path", /^mcp\/.+\.mcp\.yaml$/);
+  const path = (await saved.getAttribute("data-path"))!;
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect.poll(() => readFolderFile(page, path)).toContain("rt-demo://mcp");
+  await page.getByTestId("mcp-run-all").click();
+  await expect(page.getByTestId("mcp-test")).toHaveAttribute("data-state", "passed");
+
+  await page.getByRole("tab", { name: /Resources/ }).click();
+  await expect(page.getByTestId("mcp-resources")).toHaveAttribute("data-count", "3");
+});

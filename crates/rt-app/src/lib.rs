@@ -44,6 +44,8 @@ pub mod grpc;
 pub mod history;
 pub mod import;
 pub mod mcp_client;
+/// The MCP demo server: built into the client, `rt mcp-demo`, the desktop app's local port.
+pub mod mcp_demo;
 pub mod merges;
 /// OpenAPI import wizard: fetch, inspect, convert with choices.
 pub mod openapi;

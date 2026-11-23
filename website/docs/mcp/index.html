@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="The RequestTailor MCP server for AI agents is planned for a later release.">
-<title>MCP server · RequestTailor</title>
+<meta name="description" content="Test MCP servers like APIs, try the built-in demo server, and offer your collections to AI agents with rt mcp.">
+<title>MCP · RequestTailor</title>
 <link rel="stylesheet" href="../../assets/site.css">
 </head>
 <body>
@@ -43,12 +43,75 @@
 </ul>
 </nav>
 <article>
-<h1>MCP server</h1>
-<p>The Model Context Protocol lets AI agents call tools. <code>rt mcp</code> offers a collection
-to coding agents as tools over stdin and stdout. It is part of the <code>rt</code> command line
-and uses the same core as the apps, so an agent sends requests exactly as you would, from the
-same collection files.</p>
-<h2>Connect an agent</h2>
+<h1>MCP</h1>
+<p>MCP (Model Context Protocol) is how AI assistants call tools on servers. RequestTailor works
+in both directions:</p>
+<ul>
+<li><strong>Test MCP servers.</strong> In the app, RequestTailor is the client: connect to a
+server, see its tools, resources and prompts, call a tool and keep the call as a test, like an
+API test.</li>
+<li><strong>Serve your collection.</strong> <code>rt mcp</code> makes your collections
+available to AI agents, with read and write rules per environment, approvals and an audit
+log.</li>
+</ul>
+<h2 id="test">Test MCP servers in the app</h2>
+<p>Open the view <strong>MCP</strong> in the sidebar. The first visit explains the view and
+offers <strong>Try the demo server</strong>; a short checklist walks you through your first
+test and can be hidden.</p>
+<ol>
+<li><strong>Connect</strong> to a server by the command that starts it (stdio, desktop only)
+or by URL (Streamable HTTP). Headers, arguments and environment variables take
+<code>{{variables}}</code> from the active environment, so tokens stay secrets.</li>
+<li><strong>Browse</strong> its tools, resources and prompts in tabs.</li>
+<li><strong>Call</strong> a tool with a form built from its input schema, or as raw JSON. The
+result shows structured output, text and images, whether the tool reported an error, and the
+progress and log notifications the server sent before it.</li>
+<li><strong>Save as test</strong> writes a <code>*.mcp.yaml</code> file next to your
+collection, with checks on the result. It is a plain file in your repository, like your
+requests.</li>
+<li><strong>Run all</strong> runs every saved test of the collection and shows what passed and
+what failed, and why.</li>
+</ol>
+<p>In CI, <code>rt mcp-test</code> runs the same tests and exits with 4 when one fails:</p>
+<pre><code>rt mcp-test path/to/collection --env CI</code></pre>
+<h2 id="demo">The demo server</h2>
+<p>A small MCP server with fake data, so you can try all of this without a server of your own.
+It works offline, gives the same answers every time and needs no account.</p>
+<table>
+<thead><tr><th scope="col">What</th><th scope="col">Shows</th></tr></thead>
+<tbody>
+<tr><td><code>echo</code>, <code>add</code></td><td>The simplest call; structured output with an output schema.</td></tr>
+<tr><td><code>fake_weather</code></td><td>A form with a required and a choice argument. The same city always gets the same weather.</td></tr>
+<tr><td><code>todo_add</code>, <code>todo_list</code>, <code>todo_done</code></td><td>State kept per connection.</td></tr>
+<tr><td><code>uuid</code>, <code>image</code>, <code>fail</code></td><td>Stable generated values, image content, a tool error.</td></tr>
+<tr><td><code>countdown</code></td><td>Progress and log notifications before the result.</td></tr>
+<tr><td>Resources and prompts</td><td><code>demo://readme</code>, <code>demo://cities.json</code>, <code>demo://todos</code>; the prompts <code>summarize</code> and <code>weather_report</code>.</td></tr>
+</tbody>
+</table>
+<ul>
+<li><strong>In the app</strong>, desktop and web, <strong>Try the demo server</strong> connects
+to the built-in address <code>rt-demo://mcp</code>. The server runs inside RequestTailor;
+nothing is installed or started and nothing goes over the network. Tests saved against it also
+run with <code>rt mcp-test</code>.</li>
+<li><strong>On a local port</strong> (desktop): start the same server on
+<code>http://127.0.0.1</code> with a free port to try other MCP clients. It stops when you stop
+it or quit the app.</li>
+<li><strong>From the command line</strong>: <code>rt mcp-demo</code> speaks MCP on stdin and
+stdout; <code>rt mcp-demo --http</code> serves <code>http://127.0.0.1:47850/mcp</code> until
+you stop it.</li>
+</ul>
+<pre><code>{
+  "mcpServers": {
+    "requesttailor-demo": { "command": "rt", "args": ["mcp-demo"] }
+  }
+}</code></pre>
+<h2 id="serve">Serve your collection: rt mcp</h2>
+<p><code>rt mcp</code> offers a collection to coding agents as tools over stdin and stdout. It
+is part of the <code>rt</code> command line and uses the same core as the apps, so an agent
+sends requests exactly as you would, from the same collection files. In the desktop app,
+<strong>Connect to RequestTailor itself</strong> starts it on the open collection, so you see
+your requests the way an agent does.</p>
+<h3>Connect an agent</h3>
 <pre><code>claude mcp add requesttailor -- rt mcp /path/to/collection</code></pre>
 <p>Other clients (Cursor, VS Code, Claude Desktop) take the same command in their JSON
 configuration:</p>
@@ -60,7 +123,7 @@ configuration:</p>
     }
   }
 }</code></pre>
-<h2>Tools</h2>
+<h3>Tools</h3>
 <table>
 <thead><tr><th scope="col">Tool</th><th scope="col">What it does</th></tr></thead>
 <tbody>
@@ -74,7 +137,7 @@ configuration:</p>
 <p>GET, HEAD, OPTIONS and TRACE read; every other method writes. A GraphQL request reads unless
 its document contains a mutation. gRPC writes, and a WebSocket request writes as soon as it
 sends messages.</p>
-<h2>Rules for agents</h2>
+<h3>Rules for agents</h3>
 <ul>
 <li><strong>Access per environment.</strong> In the app, "Agent access" sets <code>none</code>,
 <code>read</code> or <code>write</code> for each environment; the rule is stored in
@@ -93,9 +156,7 @@ them.</li>
 an agent that edits files cannot give itself more access.</li>
 </ul>
 <p>The full reference, with all options and the security model, is
-<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/crates/rt-cli/README.md">crates/rt-cli/README.md</a>.
-Testing other MCP servers is the other direction: <code>rt mcp-test</code> runs the saved MCP
-tests of a collection.</p>
+<a href="https://github.com/clouddnagmbh/requesttailor/blob/main/crates/rt-cli/README.md">crates/rt-cli/README.md</a>.</p>
 </article>
 </div>
 </div>

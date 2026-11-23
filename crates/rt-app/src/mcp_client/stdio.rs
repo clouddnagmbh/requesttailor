@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
-use super::McpError;
+use super::{McpError, keep_notification};
 
 /// Bytes of stderr kept for error messages.
 const STDERR_TAIL: usize = 4096;
@@ -159,11 +159,13 @@ impl StdioWire {
     }
 
     /// Sends one message; with `id`, waits for its response (blocking, at most `timeout`).
+    /// Notifications that arrive meanwhile go to `notifications`.
     pub(super) fn exchange(
         &mut self,
         message: &Value,
         id: Option<u64>,
         timeout: Duration,
+        notifications: &mut Vec<Value>,
     ) -> Result<Option<Value>, McpError> {
         self.send(message)?;
         let Some(id) = id else {
@@ -188,8 +190,8 @@ impl StdioWire {
                     };
                     self.send(&reply)?;
                 }
-                // A notification (logging, progress): not part of the result.
-                (Some(_), None) => {}
+                // A notification (logging, progress): kept for the call's result.
+                (Some(_), None) => keep_notification(notifications, m),
                 (None, Some(v)) if is_response && v.as_u64() == Some(id) => return Ok(Some(m)),
                 _ => {}
             }
