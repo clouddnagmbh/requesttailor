@@ -64,6 +64,8 @@
     "allow-companion-stage",
     "allow-variables-scope",
     "allow-variables-define",
+    "allow-folder-scripts-get",
+    "allow-folder-scripts-set",
     "allow-history-list",
     "allow-history-clear",
     "allow-search",

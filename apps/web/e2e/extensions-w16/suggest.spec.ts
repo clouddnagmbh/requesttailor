@@ -143,3 +143,22 @@ test("a new request and a file are suggested from the More menu", async ({ page 
   expect(await page.evaluate(() => (window as unknown as { __rt: { backend: import("@requesttailor/ui").Backend } }).__rt.backend.companions.read("RELEASE-NOTES.md"))).toContain("Added a trace header");
   expect(await demoLog(page)).toEqual(expect.arrayContaining(["suggest-new:true", "suggest-file:true"]));
 });
+
+test("folder scripts are suggested, applied unsaved, and undone", async ({ page }) => {
+  await openCollection(page);
+  await openRequest(page);
+  const scripts = () =>
+    page.evaluate(() => (window as unknown as { __rt: { backend: import("@requesttailor/ui").Backend } }).__rt.backend.folderScripts.get("users"));
+  expect(await scripts()).toEqual([]);
+  await page.getByTestId("extension-actions-menu").first().click();
+  await page.getByRole("menuitem", { name: "Suggest folder scripts" }).click();
+  const view = page.getByTestId("suggested-edit");
+  await expect(view).toContainText("Set a trace id for every request in users");
+  await expect(view.getByTestId("suggest-block")).toContainText("traceId");
+  await view.getByTestId("suggest-apply").click();
+  expect(await scripts()).toEqual([{ phase: "before-request", code: "rt.vars.set('traceId', 'demo');\n" }]);
+  await expect(page.getByTestId("save")).toBeEnabled();
+  await page.getByTestId("suggest-undo").click();
+  expect(await scripts()).toEqual([]);
+  expect(await demoLog(page)).toContain("suggest-folder-scripts:true");
+});

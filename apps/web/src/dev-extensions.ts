@@ -119,6 +119,15 @@ export const demo16Extension: AppExtension = {
         ),
     },
     {
+      id: "folder-scripts",
+      label: "Suggest folder scripts",
+      icon: "code",
+      run: async () =>
+        log(
+          `suggest-folder-scripts:${await ctx.suggest({ kind: "folder-scripts", path: "users", scripts: [{ phase: "before-request", code: "rt.vars.set('traceId', 'demo');\n" }], note: { title: "Set a trace id for every request in users" } })}`,
+        ),
+    },
+    {
       id: "file",
       label: "Suggest release notes",
       icon: "file-text",

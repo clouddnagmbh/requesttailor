@@ -47,6 +47,7 @@ import { tauriGraphQl } from "./graphql";
 import { tauriAgents } from "./agents";
 import { tauriMcp } from "./mcp-client";
 import { tauriCompanions } from "./companions";
+import { tauriFolderScripts } from "./folder-scripts";
 import { tauriVariables } from "./variables";
 import { tauriAi, type MakeAiChannel } from "./ai";
 // Wave 12: one file per strand.
@@ -127,6 +128,8 @@ export const COMMANDS = [
   "companion_stage",
   "variables_scope",
   "variables_define",
+  "folder_scripts_get",
+  "folder_scripts_set",
   "history_list",
   "history_clear",
   "search",
@@ -335,6 +338,8 @@ export class TauriBackend implements Backend {
   readonly companions = tauriCompanions((cmd, args) => this.call(cmd, args));
   /** Wave 14: variable completion. */
   readonly variables = tauriVariables((cmd, args) => this.call(cmd, args), sendInput);
+  /** Wave 16: scripts of the collection and its folders (suggested edits). */
+  readonly folderScripts = tauriFolderScripts((cmd, args) => this.call(cmd, args));
   readonly rescue: RescueApi;
 
   constructor(

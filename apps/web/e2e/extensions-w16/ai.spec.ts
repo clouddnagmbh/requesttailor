@@ -62,7 +62,7 @@ test("confirming the preview sends; Stop aborts the running call", async ({ page
   await fakeProvider(page);
   await page.getByTestId("assistant-toggle").click();
   await page.getByTestId("demo16-ask").click();
-  await page.getByTestId("extension-dialog").getByRole("button", { name: /^Send/ }).click();
+  await page.getByTestId("extension-dialog").getByTestId("ai-preview-send").click();
   await expect(page.getByTestId("demo16-stop")).toBeVisible();
   const state = () => page.evaluate(() => (window as unknown as W).__fakeAi);
   expect((await state()).calls).toHaveLength(1);

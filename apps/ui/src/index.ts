@@ -26,7 +26,6 @@ export * from "./commands/openapi-stub";
 export { refNameProblem, suggestRefName } from "./git/wizards/refname";
 // Wave 16 interface: placeholders for the AI profiles, preview and generic calls (strand A) and
 // the changelog facts (strand D).
-export * from "./commands/wave16-stubs";
 
 export type * from "./extensions";
 export { AI_PROVIDERS, providerInfo } from "./ai/providers";

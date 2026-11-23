@@ -52,6 +52,7 @@ import { mockContract } from "./mock-contract";
 import { mockRescue } from "./mock-rescue";
 import { mockCompanions } from "./mock-companions";
 import { DEMO_ID, MockCollections, mockTree } from "./mock-collections";
+import { mockFolderScripts } from "./mock-folder-scripts";
 import { mockVariables } from "./mock-variables";
 import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
@@ -199,7 +200,7 @@ export class MockBackend implements Backend {
     demo: () => ({ requests: sampleRequests(), envs: sampleEnvironments() }),
     empty: (name) => emptyRequest(name),
     files: this.files,
-    extraDirty: () => [...this.mcp.dirty(), ...this.companions.dirty(), ...this.variables.dirty()],
+    extraDirty: () => [...this.mcp.dirty(), ...this.companions.dirty(), ...this.variables.dirty(), ...this.folderScripts.dirty()],
     saveExtra: () => {
       const changes: FileChange[] = [];
       for (const change of this.mcp.save()) {
@@ -207,7 +208,7 @@ export class MockBackend implements Backend {
         changes.push(change);
       }
       changes.push(...this.companions.save());
-      for (const change of this.variables.save()) {
+      for (const change of [...this.variables.save(), ...this.folderScripts.save()]) {
         this.files.set(change.path, change.text);
         changes.push(change);
       }
@@ -351,6 +352,9 @@ export class MockBackend implements Backend {
     secretValues: (environment) =>
       [...this.secretValues].flatMap(([key, value]) => (key.startsWith(`${environment}/`) ? [value] : [])),
   });
+
+  /** Wave 16: scripts of the collection and its folders. */
+  readonly folderScripts = mockFolderScripts(() => this.requests);
 
   async openCollection(): Promise<CollectionInfo | null> {
     const info = this.collections.openDemo();

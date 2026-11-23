@@ -530,6 +530,32 @@ impl Workspace {
         Ok(())
     }
 
+    /// The scripts of the collection (`folder` is `""`) or of a folder, in file order
+    /// (wave 16, `Backend.folderScripts`).
+    pub fn folder_scripts(&self, folder: &str) -> Result<Vec<rt_core::model::Script>, AppError> {
+        let model = self.doc.model();
+        if folder.is_empty() {
+            return Ok(model.defaults.scripts.clone());
+        }
+        find_folder(&model.items, folder)
+            .map(|f| f.defaults.scripts.clone())
+            .ok_or_else(|| AppError::FolderNotFound(folder.to_owned()))
+    }
+
+    /// Replaces the scripts of the collection (`folder` is `""`) or of a folder. The file is
+    /// read back and must give `scripts` (`CollectionDoc::set_folder_scripts`). Not on disk
+    /// until `save`.
+    pub fn set_folder_scripts(
+        &mut self,
+        folder: &str,
+        scripts: &[rt_core::model::Script],
+    ) -> Result<(), AppError> {
+        self.folder_scripts(folder)?;
+        self.doc.set_folder_scripts(folder, scripts)?;
+        self.refresh_dirty();
+        Ok(())
+    }
+
     pub fn delete_environment(&mut self, name: &str) -> Result<(), AppError> {
         if self.doc.model().environment(name).is_none() {
             return Err(AppError::EnvironmentNotFound(name.to_owned()));

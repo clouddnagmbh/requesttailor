@@ -710,3 +710,36 @@ fn snapshot_carries_referenced_body_files() {
         vec!["data/upload.bin"]
     );
 }
+
+#[test]
+fn folder_scripts_are_read_and_replaced_unsaved() {
+    use rt_core::model::{Script, ScriptPhase};
+    let mut ws = Workspace::open(sample()).unwrap();
+    assert_eq!(ws.folder_scripts("").unwrap(), Vec::new());
+    assert_eq!(ws.folder_scripts("users").unwrap(), Vec::new());
+    let scripts = vec![Script {
+        phase: ScriptPhase::BeforeRequest,
+        code: "rt.vars.set('a', 1);\n".into(),
+    }];
+    ws.set_folder_scripts("users", &scripts).unwrap();
+    ws.set_folder_scripts("", &scripts).unwrap();
+    assert_eq!(ws.folder_scripts("users").unwrap(), scripts);
+    assert_eq!(ws.folder_scripts("").unwrap(), scripts);
+    let dirty = ws.dirty();
+    assert!(dirty.iter().any(|p| p == "users/folder.yml"), "{dirty:?}");
+    assert!(dirty.iter().any(|p| p == COLLECTION_FILE), "{dirty:?}");
+    // Writing the old scripts back leaves the files clean again.
+    ws.set_folder_scripts("users", &[]).unwrap();
+    ws.set_folder_scripts("", &[]).unwrap();
+    assert!(ws.dirty().is_empty(), "{:?}", ws.dirty());
+    assert!(matches!(
+        ws.set_folder_scripts("nope", &scripts),
+        Err(AppError::FolderNotFound(_))
+    ));
+    // Saved, it reads back.
+    ws.set_folder_scripts("users", &scripts).unwrap();
+    let mut set = sample();
+    apply(&mut set, &ws.save().unwrap());
+    let again = Workspace::open(set).unwrap();
+    assert_eq!(again.folder_scripts("users").unwrap(), scripts);
+}

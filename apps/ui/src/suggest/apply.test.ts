@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { MockBackend } from "../commands/mock";
 import type { RequestSpec, Script } from "../commands/types";
 import { AppState } from "../state/app.svelte";
-import { folderScriptsOf, prepare, type FolderScriptsAccess } from "./apply";
+import { prepare } from "./apply";
 import { diffRows, requestBlocks, scriptBlocks, totalStats } from "./model";
 
 async function setup() {
@@ -84,29 +84,34 @@ describe("new request suggestions", () => {
 describe("folder script suggestions", () => {
   const scripts = (code: string): Script[] => [{ phase: "before-request", code }];
 
-  it("is refused where the backend cannot change folder scripts", async () => {
+  it("applies and undoes through the backend's folder scripts, leaves them unsaved, and refuses a stale folder", async () => {
     const { backend, app } = await setup();
-    expect(folderScriptsOf(backend)).toBeNull();
-    await expect(prepare(backend, app, { kind: "folder-scripts", path: "users", scripts: scripts("a") })).rejects.toMatchObject({ kind: "unsupported" });
-  });
-
-  it("applies and undoes through the folder script access, and refuses a stale folder", async () => {
-    const { backend, app } = await setup();
-    let stored: Script[] = scripts("rt.vars.set('a', 1);\n");
-    const access: FolderScriptsAccess = { get: async () => stored, set: async (_p, s) => void (stored = s) };
-    (backend as unknown as { folderScripts: FolderScriptsAccess }).folderScripts = access;
+    await backend.folderScripts.set("users", scripts("rt.vars.set('a', 1);\n"));
+    await backend.save();
 
     const p = await prepare(backend, app, { kind: "folder-scripts", path: "users", scripts: scripts("rt.vars.set('a', 2);\n") });
+    expect(p.title).toBe("Change folder scripts");
     expect(p.blocks).toHaveLength(1);
     expect(p.blocks[0].label).toBe("Script › Before the request");
     const applied = await p.apply();
-    expect(stored[0].code).toContain("2");
+    expect((await backend.folderScripts.get("users"))[0].code).toContain("2");
+    expect(await backend.dirty()).toContain("users/folder.yml");
     expect(await applied.undo!()).toBe(true);
-    expect(stored[0].code).toContain("1");
+    expect((await backend.folderScripts.get("users"))[0].code).toContain("1");
+    expect(await backend.dirty()).not.toContain("users/folder.yml");
 
     const p2 = await prepare(backend, app, { kind: "folder-scripts", path: "users", scripts: scripts("x") });
-    stored = scripts("someone else");
+    await backend.folderScripts.set("users", scripts("someone else"));
     await expect(p2.apply()).rejects.toMatchObject({ kind: "stale" });
+  });
+
+  it("changes the collection scripts with path \"\" and refuses an unknown folder", async () => {
+    const { backend, app } = await setup();
+    const p = await prepare(backend, app, { kind: "folder-scripts", path: "", scripts: scripts("a") });
+    expect(p.title).toBe("Change collection scripts");
+    await p.apply();
+    expect(await backend.folderScripts.get("")).toEqual(scripts("a"));
+    await expect(prepare(backend, app, { kind: "folder-scripts", path: "nope", scripts: scripts("a") })).rejects.toMatchObject({ kind: "folder-not-found" });
   });
 });
 

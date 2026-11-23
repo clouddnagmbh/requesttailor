@@ -9,21 +9,10 @@
 // merged.
 
 import { BackendError, type Backend } from "../commands/backend";
-import type { RequestSpec, Script } from "../commands/types";
+import type { RequestSpec } from "../commands/types";
 import type { SuggestedEdit, SuggestionNote } from "../extensions";
 import type { AppState } from "../state/app.svelte";
 import { requestBlocks, scriptBlocks, textBlock, type PreviewBlock } from "./model";
-
-/** Reading and replacing the scripts of a folder or of the collection (`path` `""`). The core
- *  backend has no such calls yet: a shell that has them provides them as `Backend.folderScripts`
- *  and folder-script suggestions work; without them they are refused with kind `unsupported`. */
-export interface FolderScriptsAccess {
-  get(path: string): Promise<Script[]>;
-  set(path: string, scripts: Script[]): Promise<void>;
-}
-
-export const folderScriptsOf = (backend: Backend): FolderScriptsAccess | null =>
-  (backend as Backend & { folderScripts?: FolderScriptsAccess }).folderScripts ?? null;
 
 export interface Prepared {
   /** What the dialog says it is: "Change request", "New request", … */
@@ -107,10 +96,7 @@ export async function prepare(backend: Backend, app: AppState, edit: SuggestedEd
       };
     }
     case "folder-scripts": {
-      const access = folderScriptsOf(backend);
-      if (!access) {
-        throw new BackendError("unsupported", "This build cannot change folder or collection scripts yet.");
-      }
+      const access = backend.folderScripts;
       const base = await access.get(edit.path);
       const next = edit.scripts.map((s) => ({ ...s }));
       return {
@@ -122,10 +108,12 @@ export async function prepare(backend: Backend, app: AppState, edit: SuggestedEd
         async apply() {
           if (!same(await access.get(edit.path), base)) throw stale(edit.path ? `The scripts of ${edit.path}` : "The collection scripts");
           await access.set(edit.path, next);
+          await app.refreshDirty();
           return {
             async undo() {
               if (!same(await access.get(edit.path), next)) return false;
               await access.set(edit.path, base);
+              await app.refreshDirty();
               return true;
             },
           };
@@ -146,6 +134,7 @@ export async function prepare(backend: Backend, app: AppState, edit: SuggestedEd
         async apply() {
           if ((await backend.companions.read(edit.path)) !== base) throw stale(edit.path);
           await backend.companions.stage(edit.path, edit.text);
+          await app.refreshDirty();
           return {
             // A file that did not exist stays (an empty file); only changes to an existing one
             // can be put back.
@@ -155,6 +144,7 @@ export async function prepare(backend: Backend, app: AppState, edit: SuggestedEd
                 : async () => {
                     if ((await backend.companions.read(edit.path)) !== edit.text) return false;
                     await backend.companions.stage(edit.path, base);
+                    await app.refreshDirty();
                     return true;
                   },
           };

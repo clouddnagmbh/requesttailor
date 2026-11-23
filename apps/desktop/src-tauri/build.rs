@@ -69,6 +69,9 @@ const COMMANDS: &[&str] = &[
     // Wave 14: variable completion.
     "variables_scope",
     "variables_define",
+    // Wave 16: folder and collection scripts.
+    "folder_scripts_get",
+    "folder_scripts_set",
     "history_list",
     "history_clear",
     "search",

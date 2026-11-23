@@ -614,6 +614,15 @@ export class AppState {
     await this.lastEdit;
   }
 
+  /** Re-reads the unsaved files of the active collection, after a change that did not go through
+   *  `edit` (staged companion files, folder scripts), so "Save" and the dirty marks follow. */
+  async refreshDirty(): Promise<void> {
+    await this.lastEdit;
+    const id = this.collection?.id;
+    if (!id) return;
+    this.setDirty(id, await this.backend.dirty());
+  }
+
   /** A new request named `name` in `folder` of the active collection (unsaved), opened. */
   async create(folder: string, name: string): Promise<void> {
     await this.lastEdit;

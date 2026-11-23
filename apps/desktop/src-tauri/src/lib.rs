@@ -31,6 +31,7 @@ pub mod files;
 /// OpenAPI import wizard and run wizard.
 mod openapi;
 /// Wave 14: variable completion.
+mod folder_scripts;
 mod variables;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
@@ -170,6 +171,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             companions::companion_stage,
             variables::variables_scope,
             variables::variables_define,
+            folder_scripts::folder_scripts_get,
+            folder_scripts::folder_scripts_set,
             history::history_list,
             history::history_clear,
             search::search,

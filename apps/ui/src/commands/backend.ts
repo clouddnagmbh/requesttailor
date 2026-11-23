@@ -16,6 +16,7 @@
 
 import type {
   Environment,
+  Script,
   FileChange,
   GitBranch,
   GitAction,
@@ -357,7 +358,7 @@ export interface ContractApi {
   /** API changelog (Markdown) of the range, as `rt changelog`. */
   changelog(from: string, to: string): Promise<string>;
   /** Wave 16: the range's changelog and its parts as data, with the commits (first-parent
-   *  chain), for writers of release notes. Until strand D: `commands/wave16-stubs.ts`. */
+   *  chain), for writers of release notes. */
   changelogFacts(from: string, to: string): Promise<ChangelogFacts>;
 }
 
@@ -587,7 +588,7 @@ export interface AiApi {
   /** One task; the context is masked before it leaves. `input` selects the environment. */
   ask(task: AiTask, input: SendInput): Promise<AiAnswer>;
 
-  // Wave 16 (strand A; until then the placeholders of `commands/wave16-stubs.ts`). The wave-8
+  // Wave 16 (strand A). The wave-8
   // methods above keep working: `config` is the default profile, `setKey` the provider's key.
 
   /** Profiles, roles and the preview mode; `null` until set up (a wave-8 config reads as one
@@ -779,6 +780,21 @@ export interface Backend {
   readonly companions: CompanionApi;
   /** Wave 14: variable completion. */
   readonly variables: VariablesApi;
+  /** Wave 16: the scripts of the collection and its folders (suggested edits). */
+  readonly folderScripts: FolderScriptsApi;
+}
+
+/**
+ * Scripts of the collection (`path` is `""`) or of a folder (since wave 16,
+ * `rt_app::Workspace::{folder_scripts, set_folder_scripts}`).
+ */
+export interface FolderScriptsApi {
+  /** The scripts in file order (phases RequestTailor does not run, gRPC, are not listed).
+   *  Unknown folder: kind `folder-not-found`. */
+  get(path: string): Promise<Script[]>;
+  /** Replaces them. Unsaved, like any edit (`dirty` lists the file); the edit is read back
+   *  and refused if the file cannot hold it. */
+  set(path: string, scripts: Script[]): Promise<void>;
 }
 
 /**

@@ -56,7 +56,7 @@
 //! (`runner_js.rs`, strand D).
 //!
 //! Wave 14: variable completion on `Workspace` (`variables`, `defineVariable`,
-//! `variables_js.rs`).
+//! `variables_js.rs`). Wave 16: `folderScripts`, `setFolderScripts` (`folder_scripts_js.rs`).
 //!
 //! Saving is two-step so a failed write keeps the changes unsaved: `prepareSave()` returns
 //! `{ changes: FileChange[] }` without touching the workspace; after the shell has written the
@@ -681,6 +681,7 @@ mod streams_js;
 /// Wave 14: variable completion.
 #[cfg(target_arch = "wasm32")]
 mod variables_js;
+mod folder_scripts_js;
 // Wave 12 (Git for APIs): one module per strand.
 #[cfg(target_arch = "wasm32")]
 mod compare_js;

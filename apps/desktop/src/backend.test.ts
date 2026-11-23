@@ -250,6 +250,8 @@ describe("TauriBackend", () => {
     await b.merges.resolve([choice]);
     await b.variables.scope("users/list.yml", { environment: "Local", vars: [] });
     await b.variables.define("users", { name: "tenant", value: "acme", enabled: true, secret: false });
+    await b.folderScripts.get("users");
+    await b.folderScripts.set("users", [{ phase: "before-request", code: "a" }]);
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -450,6 +452,8 @@ describe("TauriBackend", () => {
       ["merge_resolve", { choices: [choice] }],
       ["variables_scope", { path: "users/list.yml", input: { environment: "Local", vars: [] } }],
       ["variables_define", { folder: "users", variable: { name: "tenant", value: "acme", enabled: true, secret: false } }],
+      ["folder_scripts_get", { path: "users" }],
+      ["folder_scripts_set", { path: "users", scripts: [{ phase: "before-request", code: "a" }] }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

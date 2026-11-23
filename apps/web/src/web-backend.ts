@@ -37,6 +37,7 @@ import {
   type RequestSpec,
   type RescueApi,
   type CompanionApi,
+  type FolderScriptsApi,
   type VariablesApi,
   type ReviewApi,
   type RunnerApi,
@@ -70,6 +71,7 @@ import { webDiffs } from "./diffs";
 import { webMerges } from "./merges";
 import { webRescue } from "./rescue";
 import { webCompanions } from "./companions";
+import { webFolderScripts } from "./folder-scripts";
 import { webVariables } from "./variables";
 import { webReview } from "./review";
 import { webTimeline } from "./timeline";
@@ -215,6 +217,8 @@ export class WebBackend implements Backend {
   readonly companions: CompanionApi;
   /** Wave 14: variable completion. */
   readonly variables: VariablesApi;
+  /** Wave 16: scripts of the collection and its folders (`folder-scripts.ts`). */
+  readonly folderScripts: FolderScriptsApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;
@@ -312,6 +316,7 @@ export class WebBackend implements Backend {
     this.contract = webContract(wave12);
     this.rescue = webRescue(wave12);
     this.companions = webCompanions(() => this.session());
+    this.folderScripts = webFolderScripts(() => this.session());
     this.variables = webVariables(
       () => this.session(),
       (s, input) => this.coreInput(s, input),
