@@ -23,7 +23,7 @@ export type Actions = Record<CommandId, () => unknown>;
 
 export const LABELS: Record<CommandId, string> = {
   "open-folder": "Open folder",
-  "new-request": "New request",
+  "new-request": "New…",
   send: "Send request",
   save: "Save",
   "close-tab": "Close tab",
