@@ -8,6 +8,7 @@
   import ContractNotes from "../contract/ContractNotes.svelte";
   import ExtensionDiffNotes from "../shell/ExtensionDiffNotes.svelte";
   import type { CollectionDiff, DiffScope } from "../commands/types";
+  import { getGitViews } from "../git/views.svelte";
   import { getApp } from "../state/app.svelte";
   import { summary } from "./format";
   import LineDiff from "./LineDiff.svelte";
@@ -15,6 +16,7 @@
 
   let { scope }: { scope: DiffScope } = $props();
   const app = getApp();
+  const views = getGitViews();
 
   let diff = $state<CollectionDiff | null>(null);
   let error = $state<string | null>(null);
@@ -55,6 +57,10 @@
   <div class="bar">
     <span class="title" data-testid="sd-title">{title}</span>
     {#if diff}<span class="summary" data-testid="sd-summary">{summary(diff.changes)}</span>{/if}
+    {#if scope.kind === "between"}
+      {@const s = scope}
+      <button class="button" data-testid="sd-compare" onclick={() => views.open({ kind: "compare", from: s.from, to: s.to })}>Compare side by side</button>
+    {/if}
     <div class="toggle" role="group" aria-label="Diff display">
       <button class="button" data-testid="sd-mode-fields" aria-pressed={mode === "fields"} onclick={() => (mode = "fields")}>By field</button>
       <button class="button" data-testid="sd-mode-lines" aria-pressed={mode === "lines"} onclick={() => (mode = "lines")}>Lines</button>

@@ -22,6 +22,7 @@
   } from "../commands/types";
   import { fieldLabel } from "../diff/format";
   import SemanticDiff from "../diff/SemanticDiff.svelte";
+  import { getGitViews } from "../git/views.svelte";
   import { getApp } from "../state/app.svelte";
   import { changedRequestPaths, CI_LABEL, groupComments, relativeTime, requestWord, stateLabel, withFields } from "./model";
 
@@ -39,6 +40,7 @@
   } = $props();
 
   const app = getApp();
+  const views = getGitViews();
 
   let session = $state<ReviewSession | null>(null);
   let diff = $state<CollectionDiff | null>(null);
@@ -167,6 +169,12 @@
       <strong class="title" data-testid="review-title">#{session.pull.number} {session.pull.title}</strong>
       <span class="badge" data-testid="review-state">{stateLabel(session.pull)}</span>
       <a class="muted" href={session.pull.url} target="_blank" rel="noopener noreferrer">Open on {repo.host}</a>
+      <button
+        class="button"
+        data-testid="review-compare"
+        title="Every request of the {word} side by side, with the answers at both revisions"
+        onclick={() => views.open({ kind: "compare", from: session!.merge_base, to: session!.head_ref })}>Compare side by side</button
+      >
     {/if}
   </div>
 
