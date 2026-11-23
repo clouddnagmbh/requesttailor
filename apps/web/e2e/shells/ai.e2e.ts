@@ -7,7 +7,10 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { AI, fakePicker, fillFolder, sampleCollection } from "./env";
+import { AI as AI_ROOT, fakePicker, fillFolder, sampleCollection } from "./env";
+
+// Its own lane of the fake provider: other test files run in parallel and must not see these calls.
+const AI = `${AI_ROOT}/lane/ai`;
 
 type Backend = import("@requesttailor/ui").Backend;
 type W = { __rt: { backend: Backend }; __demoAi?: { text?: string; error?: string } };

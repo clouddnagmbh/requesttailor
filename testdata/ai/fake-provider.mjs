@@ -21,16 +21,22 @@
 //   POST /__reset    forget script and calls
 //   POST /__cors     {"anthropic": true, ...}  CORS per path prefix (default: what the real
 //                    provider allows: anthropic and gemini on, the rest off)
+//
+// Lanes: every path above may start with `/lane/<name>` (e.g. `/lane/a/__calls`,
+// `/lane/a/anthropic/v1/messages`); each lane has its own script, call log and CORS, so test
+// files that run in parallel don't see each other's calls. Without the prefix: the default lane.
 
 import http from "node:http";
 
 const port = Number(process.argv[2] ?? process.env.RT_AI_FAKE_PORT ?? 48330);
-const state = { replies: [], calls: [], cors: { anthropic: true, gemini: true, openai: false, azure: false, mistral: false, compat: false } };
+const fresh = () => ({ replies: [], calls: [], cors: { anthropic: true, gemini: true, openai: false, azure: false, mistral: false, compat: false } });
+const lanes = new Map();
+const laneOf = (name) => lanes.get(name) ?? lanes.set(name, fresh()).get(name);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const FALLBACK = { text: "fake answer" };
 
-function nextReply() {
+function nextReply(state) {
   const r = state.replies.length > 1 ? state.replies.shift() : (state.replies[0] ?? FALLBACK);
   return { ...FALLBACK, ...r };
 }
@@ -40,10 +46,10 @@ function chunks(text) {
 }
 
 const provider = (path) => path.split("/")[1];
-const corsOn = (path) => path.startsWith("/__") || state.cors[provider(path)] === true;
+const corsOn = (state, path) => path.startsWith("/__") || state.cors[provider(path)] === true;
 
-function corsHeaders(path) {
-  return corsOn(path)
+function corsHeaders(state, path) {
+  return corsOn(state, path)
     ? {
         "access-control-allow-origin": "*",
         "access-control-allow-headers": "*",
@@ -159,8 +165,8 @@ function gemini(r, stream) {
   return { sse: out };
 }
 
-function respond(path, request) {
-  const r = nextReply();
+function respond(state, path, request) {
+  const r = nextReply(state);
   const p = provider(path);
   const stream = p === "gemini" ? path.includes(":streamGenerateContent") : request.stream === true;
   const make = p === "anthropic" ? anthropic : p === "gemini" ? gemini : chat;
@@ -174,13 +180,16 @@ async function readBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const path = decodeURIComponent(req.url.split("?")[0]);
+  const full = decodeURIComponent(req.url.split("?")[0]);
+  const lane = /^\/lane\/([^/]+)(\/.*)$/.exec(full);
+  const path = lane ? lane[2] : full;
+  const state = laneOf(lane ? lane[1] : "");
   const send = (status, body, extra = {}) => {
-    res.writeHead(status, { "content-type": "application/json", ...corsHeaders(path), ...extra });
+    res.writeHead(status, { "content-type": "application/json", ...corsHeaders(state, path), ...extra });
     res.end(typeof body === "string" ? body : JSON.stringify(body));
   };
   if (req.method === "OPTIONS") {
-    res.writeHead(corsOn(path) ? 204 : 403, corsHeaders(path));
+    res.writeHead(corsOn(state, path) ? 204 : 403, corsHeaders(state, path));
     return res.end();
   }
   if (!["127.0.0.1", "localhost"].includes((req.headers.host ?? "").split(":")[0])) return send(403, { error: "loopback only" });
@@ -211,12 +220,12 @@ const server = http.createServer(async (req, res) => {
   state.calls.push({ path, headers: { ...req.headers }, body, stream: body.stream === true || path.includes(":stream") });
   if (!keyOf(path, req.headers)) return send(401, { error: { message: "missing API key" } });
 
-  const out = respond(path, body);
+  const out = respond(state, path, body);
   if (out.reply.status && out.reply.status >= 400) {
     return send(out.reply.status, { error: { message: out.reply.error ?? "fake provider error" } });
   }
   if (!out.sse) return send(200, out.json);
-  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...corsHeaders(path) });
+  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...corsHeaders(state, path) });
   for (const piece of out.sse) {
     if (res.destroyed) return;
     res.write(piece);
