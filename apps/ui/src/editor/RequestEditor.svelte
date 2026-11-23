@@ -234,6 +234,20 @@
     flush();
     await inflight;
   }
+  // Wave 14: a request tab asked for with `AppState.openRequestTab` (an extension's or a
+  // plugin's), taken once it is offered for this request.
+  $effect(() => {
+    const asked = app.requestTab;
+    if (!asked) return;
+    const key = ([`extension:${asked.key}`, `plugin:${asked.key}`] as const).find(
+      (k) => extensionTabs.some((t) => `extension:${t.key}` === k) || pluginTabs.some((t) => `plugin:${t.key}` === k),
+    );
+    if (!key) return;
+    untrack(() => {
+      chosen = key;
+      app.requestTab = null;
+    });
+  });
   const tabs = $derived<[Tab, string, string][]>(
     spec
       ? [

@@ -97,6 +97,8 @@ export class AppState {
   newDialog = $state<NewDialogRequest | null>(null);
   /** An extension's dialog while open (`showDialog`). */
   dialog = $state<OpenDialog | null>(null);
+  /** A request tab asked for with `openRequestTab`; the request editor takes it. */
+  requestTab = $state<{ key: string; seq: number } | null>(null);
   private seq = 0;
 
   /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
@@ -168,6 +170,13 @@ export class AppState {
   /** Wave 14: shows a collection tab (`<extension id>/<tab id>`) of the active collection. */
   openCollectionTab(key: string): void {
     this.show({ kind: "collection-tab", key });
+  }
+
+  /** Wave 14: shows a request tab of the active request: `<extension id>/<tab id>` for an
+   *  extension's tab, or a plugin's `<plugin id>/<tab id>`. Taken as soon as the request editor
+   *  offers that tab for the active request; a later request replaces it. */
+  openRequestTab(key: string): void {
+    this.requestTab = { key, seq: ++this.seq };
   }
 
   /** Wave 14: opens the "New…" dialog (default: the active collection's root). */

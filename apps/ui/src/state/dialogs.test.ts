@@ -18,6 +18,8 @@ describe("AppState views and dialogs (wave 14 interface)", () => {
     expect(app.view?.view).toEqual({ kind: "collection-tab", key: "odd/diagram" });
     app.show({ kind: "runner", folder: null });
     expect(app.view?.view).toEqual({ kind: "runner", folder: null });
+    app.openRequestTab("odd/query");
+    expect(app.requestTab?.key).toBe("odd/query");
   });
 
   it("resolves a dialog with its result; a second one replaces the first", async () => {
