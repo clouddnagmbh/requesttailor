@@ -114,6 +114,8 @@ import type {
   ScanProgress,
   SpecChanges,
   TestRecord,
+  Variable,
+  VariableScope,
 } from "./types";
 
 export interface CollectionInfo {
@@ -673,6 +675,22 @@ export interface Backend {
   readonly rescue: RescueApi;
   /** Wave 13: companion files for extensions. */
   readonly companions: CompanionApi;
+  /** Wave 14: variable completion. */
+  readonly variables: VariablesApi;
+}
+
+/**
+ * Variable completion (since wave 14, `rt_app::variables`): the `{{` list of the editor.
+ */
+export interface VariablesApi {
+  /** Every variable `path` sees: `path` is a request path, a folder path, or `""` for the
+   *  collection (environment values). With the session's variables in the runtime layer, like
+   *  `preview`; secret values never (secrets have `value: null`). */
+  scope(path: string, input: SendInput): Promise<VariableScope>;
+  /** Adds a plain variable to the collection (`folder` is `""`) or a folder, or replaces the
+   *  one of that name there. Unsaved, like any edit (`dirty` lists the file). Secret
+   *  variables are refused (kind `unsupported`): they belong in an environment. */
+  define(folder: string, variable: Variable): Promise<void>;
 }
 
 /**

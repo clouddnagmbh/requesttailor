@@ -52,6 +52,8 @@
     "allow-companion-list",
     "allow-companion-read",
     "allow-companion-stage",
+    "allow-variables-scope",
+    "allow-variables-define",
     "allow-history-list",
     "allow-history-clear",
     "allow-search",
