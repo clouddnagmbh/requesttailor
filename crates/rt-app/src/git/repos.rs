@@ -88,6 +88,111 @@ pub struct GitCloneRequest {
     pub branch: Option<String>,
 }
 
+/// What a root the user opened or added is (the one rule for every shell).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RootKind {
+    /// It holds collections (itself or in subfolders).
+    Collections,
+    /// No collection, but in a Git repository: a *repository root*, never scaffolded.
+    Repository,
+    /// No collection and outside Git: opens as a new collection, as before wave 15.
+    NewCollection,
+}
+
+/// Classifies a root: `has_collections` (discovery found any), `repo` (the Git repository it
+/// is in, if any).
+pub fn root_kind(has_collections: bool, repo: Option<&str>) -> RootKind {
+    match (has_collections, repo) {
+        (true, _) => RootKind::Collections,
+        (false, Some(_)) => RootKind::Repository,
+        (false, None) => RootKind::NewCollection,
+    }
+}
+
+/// A root that is a repository root: its id, and the repository it is in (the id every
+/// [`RepositoryEntry`] has).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepoRoot {
+    /// [`crate::collections::CollectionRoot::id`].
+    pub root: String,
+    /// [`RepositoryEntry::id`].
+    pub repo: String,
+}
+
+/// The repositories of a set in sidebar order: first those that hold collections (in the order
+/// of the collections), then the repository roots without one. A repository reached through
+/// several roots is listed once, under the first. `describe` gives name, location and whether
+/// it is a linked worktree for a repository id (shells know their paths).
+pub fn repositories(
+    entries: &[crate::collections::CollectionEntry],
+    repo_roots: &[RepoRoot],
+    describe: impl Fn(&str) -> (String, String, bool),
+) -> Vec<RepositoryEntry> {
+    let mut out: Vec<RepositoryEntry> = Vec::new();
+    let mut add = |id: &str, root: &str, collection: Option<&str>| {
+        if let Some(r) = out.iter_mut().find(|r| r.id == id) {
+            if let Some(c) = collection {
+                r.collections.push(c.to_owned());
+            }
+            return;
+        }
+        let (name, location, linked) = describe(id);
+        out.push(RepositoryEntry {
+            id: id.to_owned(),
+            name,
+            location,
+            root: root.to_owned(),
+            collections: collection.map(str::to_owned).into_iter().collect(),
+            linked,
+        });
+    };
+    for e in entries {
+        if let Some(repo) = &e.repo {
+            add(repo, &e.root, Some(&e.id));
+        }
+    }
+    for r in repo_roots {
+        add(&r.repo, &r.root, None);
+    }
+    out
+}
+
+/// The repository Git acts on: the one `chosen` in the sidebar if it is still in the set, else
+/// the one of the active collection (`None` outside Git or without a collection).
+pub fn active_repository(
+    repositories: &[RepositoryEntry],
+    entries: &[crate::collections::CollectionEntry],
+    chosen: Option<&str>,
+    active_collection: Option<&str>,
+) -> Option<String> {
+    if let Some(id) = chosen.filter(|id| repositories.iter().any(|r| r.id == *id)) {
+        return Some(id.to_owned());
+    }
+    let active = active_collection?;
+    entries
+        .iter()
+        .find(|e| e.id == active)
+        .and_then(|e| e.repo.clone())
+}
+
+/// The sidebar's summary of a repository from the status of its whole working tree
+/// (`operation`: what the shell found half done; a `merging` status without one is a merge).
+pub fn summarize(
+    id: &str,
+    status: &crate::git::GitStatus,
+    operation: Option<GitOperation>,
+) -> GitRepoSummary {
+    GitRepoSummary {
+        id: id.to_owned(),
+        branch: status.branch.clone(),
+        upstream: status.upstream.clone(),
+        ahead: status.ahead,
+        behind: status.behind,
+        changes: u32::try_from(status.files.len()).unwrap_or(u32::MAX),
+        operation: operation.or(status.merging.then_some(GitOperation::Merge)),
+    }
+}
+
 /// The default folder name for a clone of `url`: its last path segment without `.git`
 /// (`https://host/acme/orders.git` → `orders`, `/repos/api/` → `api`), `repository` if none.
 pub fn clone_folder_name(url: &str) -> String {

@@ -57,6 +57,10 @@ pub struct Found {
     /// In sidebar order; empty if the folder holds no collection.
     pub collections: Vec<FoundCollection>,
     pub truncated: bool,
+    /// Wave 15: the Git repository the root is in (its working-tree root, as an id) if it holds
+    /// no collection: a *repository root*. `None` for a root with collections, and for a
+    /// folder outside Git.
+    pub repo_root: Option<String>,
 }
 
 /// The collections in the folder `root` (see the module documentation).
@@ -97,12 +101,17 @@ pub fn find(root: &Path) -> io::Result<Found> {
     } else {
         Vec::new()
     };
+    let repo_root = match rt_app::git::repos::root_kind(found, repo_of_root.as_deref()) {
+        rt_app::git::repos::RootKind::Repository => repo_of_root,
+        _ => None,
+    };
     Ok(Found {
         name: folder_name(&path),
         id,
         path,
         collections,
         truncated: discovery.truncated,
+        repo_root,
     })
 }
 
@@ -240,7 +249,10 @@ pub fn save_roots(data_dir: &Path, set: &CollectionSet) {
 
 type CmdResult<T> = std::result::Result<T, CommandError>;
 
-async fn pick_folder(app: tauri::AppHandle, title: &'static str) -> CmdResult<Option<PathBuf>> {
+pub(crate) async fn pick_folder(
+    app: tauri::AppHandle,
+    title: &'static str,
+) -> CmdResult<Option<PathBuf>> {
     let picked = tokio::task::spawn_blocking(move || {
         app.dialog().file().set_title(title).blocking_pick_folder()
     })
