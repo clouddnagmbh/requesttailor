@@ -29,6 +29,7 @@ export { refNameProblem, suggestRefName } from "./git/wizards/refname";
 export * from "./commands/wave16-stubs";
 
 export type * from "./extensions";
+export { AI_PROVIDERS, providerInfo } from "./ai/providers";
 
 // Wave 14 design foundation: UI primitives and the semantic icon set (guide: ui/README.md).
 export * from "./ui";

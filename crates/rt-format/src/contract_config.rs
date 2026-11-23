@@ -32,7 +32,7 @@ const ROOT_ORDER: &[&str] = &[
 ];
 
 /// Keys of `extensions.requesttailor` in the order RequestTailor writes them.
-const EXTENSION_ORDER: &[&str] = &["auth", "agents", "http3", "contract"];
+const EXTENSION_ORDER: &[&str] = &["auth", "agents", "http3", "contract", "ai"];
 
 /// The value in a parsed `opencollection.yml`, as written.
 fn read(root: &Node) -> Option<&str> {

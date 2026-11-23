@@ -29,6 +29,7 @@ import {
   type RecentCollection,
   type RequestSpec,
   type SearchHit,
+  type AiApi,
   type SecretsApi,
   type SendInput,
   type StoredResponse,
@@ -47,7 +48,7 @@ import { tauriAgents } from "./agents";
 import { tauriMcp } from "./mcp-client";
 import { tauriCompanions } from "./companions";
 import { tauriVariables } from "./variables";
-import { tauriAi } from "./ai";
+import { tauriAi, type MakeAiChannel } from "./ai";
 // Wave 12: one file per strand.
 import { tauriCompare, type MakeStepChannel } from "./compare";
 import { tauriContract } from "./contract";
@@ -164,6 +165,17 @@ export const COMMANDS = [
   "ai_set_key",
   "ai_delete_key",
   "ai_ask",
+  "ai_settings",
+  "ai_set_settings",
+  "ai_has_profile_key",
+  "ai_set_profile_key",
+  "ai_delete_profile_key",
+  "ai_policy",
+  "ai_set_device_opt_out",
+  "ai_preview",
+  "ai_confirm_preview",
+  "ai_complete",
+  "ai_cancel",
   "agents_policy",
   "agents_set_policy",
   "agents_pending",
@@ -309,7 +321,7 @@ export class TauriBackend implements Backend {
   readonly graphql = tauriGraphQl((cmd, args) => this.call(cmd, args));
   readonly agents = tauriAgents((cmd, args) => this.call(cmd, args));
   readonly mcp = tauriMcp((cmd, args) => this.call(cmd, args));
-  readonly ai = tauriAi((cmd, args) => this.call(cmd, args));
+  readonly ai: AiApi;
   /** Wave 12 (one file per strand). */
   readonly diffs = tauriDiffs((cmd, args) => this.call(cmd, args));
   readonly merges = tauriMerges((cmd, args) => this.call(cmd, args));
@@ -332,6 +344,8 @@ export class TauriBackend implements Backend {
     makeStepChannel?: MakeStepChannel,
     /** Wave 12: the channel of `rescue.scanHistory` progress (injectable for tests). */
     makeProgressChannel?: MakeProgressChannel,
+    /** Wave 16: the channel of `ai.complete` events (injectable for tests). */
+    makeAiChannel?: MakeAiChannel,
   ) {
     const call: Call = (cmd, args) => this.call(cmd, args);
     this.git = tauriGit(call);
@@ -345,6 +359,7 @@ export class TauriBackend implements Backend {
     this.streams = tauriStreams(call, makeStreamChannel);
     this.compare = tauriCompare(call, makeStepChannel);
     this.rescue = tauriRescue(call, makeProgressChannel);
+    this.ai = tauriAi(call, makeAiChannel);
     this.secrets = {
       has: (environment, variable) => this.call("secret_has", { environment, variable }),
       get: (environment, variable) => this.call("secret_get", { environment, variable }),

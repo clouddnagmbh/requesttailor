@@ -115,6 +115,8 @@ impl<'a> Builder<'a> {
                 // Wave 8, strand C: `extensions.requesttailor.agents`.
                 agents: crate::agents::read(root),
                 http3: false,
+                // Wave 16, strand A: `extensions.requesttailor.ai`.
+                ai: crate::ai_config::read(root),
                 // Wave 8, strand B.
                 protobuf: crate::protocols::grpc::read_protobuf(
                     root.get("config").and_then(|c| c.get("protobuf")),

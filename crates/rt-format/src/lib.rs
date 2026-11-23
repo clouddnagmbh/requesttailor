@@ -26,6 +26,8 @@ use rt_core::model::Collection;
 
 /// Wave 8, strand C: `extensions.requesttailor.agents`.
 mod agents;
+/// Wave 16, strand A: `extensions.requesttailor.ai` (reading only).
+mod ai_config;
 mod auth;
 /// Wave 12, strand F: OpenAPI contract check, breaking changes, API changelog.
 pub mod contract;

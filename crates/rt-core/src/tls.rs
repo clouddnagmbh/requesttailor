@@ -260,6 +260,7 @@ mod tests {
                 external_secrets: None,
             }],
             config: CollectionConfig {
+                ai: Default::default(),
                 agents: Default::default(),
                 http3: false,
                 protobuf: Default::default(),

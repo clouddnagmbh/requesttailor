@@ -43,7 +43,7 @@ const ROOT_ORDER: &[&str] = &[
 ];
 
 /// Keys of `extensions.requesttailor` in the order RequestTailor writes them.
-const EXTENSION_ORDER: &[&str] = &["auth", "agents", "http3"];
+const EXTENSION_ORDER: &[&str] = &["auth", "agents", "http3", "ai"];
 
 const AGENTS_ORDER: &[&str] = &["access", "environments"];
 

@@ -222,6 +222,36 @@ pub struct CollectionConfig {
     /// HTTP/2 or 1.1 when QUIC fails. The browser decides on its own.
     #[serde(default)]
     pub http3: bool,
+    /// `extensions.requesttailor.ai` (wave 16): whether the AI assistant may be used for
+    /// this collection. The team's decision, in the file; every user can also turn it off
+    /// on their device.
+    #[serde(default)]
+    pub ai: AiCollectionConfig,
+}
+
+/// `extensions.requesttailor.ai` of `opencollection.yml`:
+///
+/// ```yaml
+/// extensions:
+///   requesttailor:
+///     ai:
+///       enabled: false
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiCollectionConfig {
+    /// `false` only if the file says exactly `enabled: false`.
+    #[serde(default = "enabled_by_default")]
+    pub enabled: bool,
+}
+
+fn enabled_by_default() -> bool {
+    true
+}
+
+impl Default for AiCollectionConfig {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
 }
 
 /// Secrets of an environment held by an external manager (OpenCollection `externalSecrets`).

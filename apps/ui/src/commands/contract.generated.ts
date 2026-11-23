@@ -4903,7 +4903,7 @@ export const aiCapabilities: AiCapabilities[] = [
     "tools": true
   },
   {
-    "browser_direct": true,
+    "browser_direct": false,
     "json": "schema",
     "needs_base_url": false,
     "streaming": true,

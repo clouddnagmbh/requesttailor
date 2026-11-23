@@ -16,9 +16,9 @@ mod script;
 
 pub use agents::{AgentAccess, AgentPolicy, EnvironmentPolicy};
 pub use auth::{
-    AwsSigV4, CertificateSource, ClientCertificate, CollectionConfig, CredentialsPlacement,
-    ExternalSecret, ExternalSecrets, OAuth2, OAuth2Flow, OAuth2Param, OAuth2Step, ParamPlacement,
-    PkceMethod, SecretProvider, TokenPlacement, TokenSource, TokenUse,
+    AiCollectionConfig, AwsSigV4, CertificateSource, ClientCertificate, CollectionConfig,
+    CredentialsPlacement, ExternalSecret, ExternalSecrets, OAuth2, OAuth2Flow, OAuth2Param,
+    OAuth2Step, ParamPlacement, PkceMethod, SecretProvider, TokenPlacement, TokenSource, TokenUse,
 };
 pub use collection::{Collection, Folder, Item, RequestContext, RequestDefaults, RequestEntry};
 pub use env::{Environment, Variable};
