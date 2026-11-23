@@ -5190,6 +5190,7 @@ dependencies = [
 name = "rt-git"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "gix",
  "gix-pack",
  "gix-transport",

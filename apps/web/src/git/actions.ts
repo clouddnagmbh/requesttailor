@@ -29,7 +29,9 @@
 //   the index and the marked files, as the pull does.
 // - Network (fetch, push, publish, push-tag, pull) through the companion (`ctx.network()`);
 //   errors map with `gitError`, so missing credentials reach the wizard as `git-auth`.
-// - No force push, no rebase.
+// - No force push, no rebase. Wave 15, strand D: amend, abort, restore-files, restore-branch and
+//   rewrite (history others may have is never replaced: `published`), and "park changes" for just
+//   some files. A rebase started on the command line cannot be aborted here.
 //
 // isomorphic-git loads on the first call (as everywhere in ./index.ts), not with this module.
 
@@ -78,7 +80,7 @@ let ops: RepoOps;
 let revs: Revisions;
 let loading: Promise<void> | null = null;
 
-function ready(): Promise<void> {
+export function ready(): Promise<void> {
   loading ??= (async () => {
     // ./repo first: it installs the Buffer polyfill isomorphic-git needs in the browser.
     ops = await import("./repo");
@@ -124,19 +126,19 @@ export function backupRef(unix: number, name: string): string {
 
 // ---------------------------------------------------------------- low-level helpers
 
-interface Entry {
+export interface Entry {
   mode: string;
   oid: string;
   type: "blob" | "tree" | "commit";
 }
-type Flat = Map<string, Entry>;
+export type Flat = Map<string, Entry>;
 type Content = { entry: Entry } | { text: string };
 
 function abs(r: Repo, rel: string): string {
   return `${r.dir.replace(/\/+$/, "")}/${rel}`;
 }
 
-const b = (r: Repo) => ({ fs: r.fs, dir: r.dir, cache: r.cache });
+export const b = (r: Repo) => ({ fs: r.fs, dir: r.dir, cache: r.cache });
 const code = (e: unknown) => (e as { code?: string }).code;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
@@ -237,7 +239,7 @@ async function setRef(r: Repo, ref: string, oid: string | null): Promise<void> {
   else await git.writeRef({ fs: r.fs, dir: r.dir, ref, value: oid, force: true });
 }
 
-async function readCommit(r: Repo, oid: string) {
+export async function readCommit(r: Repo, oid: string) {
   return (await git.readCommit({ ...b(r), oid })).commit;
 }
 
@@ -245,7 +247,7 @@ function toCommit(oid: string, c: { message: string; author: { name: string; tim
   return { oid, summary: subjectOf(c.message), author: c.author.name, time: c.author.timestamp };
 }
 
-async function flatOfTree(r: Repo, tree: string): Promise<Flat> {
+export async function flatOfTree(r: Repo, tree: string): Promise<Flat> {
   const out: Flat = new Map();
   const walk = async (oid: string, prefix: string) => {
     for (const e of (await git.readTree({ ...b(r), oid })).tree) {
@@ -259,12 +261,12 @@ async function flatOfTree(r: Repo, tree: string): Promise<Flat> {
 }
 
 /** Flat map path → entry of a commit's tree; empty for `null`. */
-async function flatTree(r: Repo, commit: string | null): Promise<Flat> {
+export async function flatTree(r: Repo, commit: string | null): Promise<Flat> {
   if (!commit) return new Map();
   return flatOfTree(r, (await readCommit(r, commit)).tree);
 }
 
-async function writeFlatTree(r: Repo, entries: Flat): Promise<string> {
+export async function writeFlatTree(r: Repo, entries: Flat): Promise<string> {
   interface Node {
     files: Map<string, Entry>;
     dirs: Map<string, Node>;
@@ -299,7 +301,7 @@ function changedPaths(a: Flat, z: Flat): Set<string> {
 
 const sameEntry = (x: Entry | undefined, y: Entry | undefined) => (x?.oid ?? null) === (y?.oid ?? null);
 
-async function blobText(r: Repo, e: Entry | undefined | null): Promise<string | null> {
+export async function blobText(r: Repo, e: Entry | undefined | null): Promise<string | null> {
   if (!e) return null;
   return utf8((await git.readBlob({ ...b(r), oid: e.oid })).blob);
 }
@@ -442,6 +444,24 @@ const remoteUrl = (r: Repo, name: string) => getConfig(r, `remote.${name}.url`);
 async function remoteRefs(r: Repo, remote: string): Promise<string[]> {
   const names = await git.listBranches({ fs: r.fs, dir: r.dir, remote }).catch(() => [] as string[]);
   return names.filter((n) => n !== "HEAD").map((n) => `refs/remotes/${remote}/${n}`);
+}
+
+/** Tips of every remote-tracking branch. */
+async function remoteTips(r: Repo): Promise<string[]> {
+  const out: string[] = [];
+  for (const remote of await remoteNames(r)) {
+    for (const ref of await remoteRefs(r, remote)) {
+      const oid = await refOid(r, ref);
+      if (oid) out.push(oid);
+    }
+  }
+  return out;
+}
+
+/** Selects repository paths: a file, or a folder with everything under it; no paths: all. */
+function selection(r: Repo, paths: string[]): (p: string) => boolean {
+  const roots = paths.map((x) => repoPath(r, x).replace(/\/+$/, "")).filter((x) => x !== "");
+  return (p) => roots.length === 0 || roots.some((root) => p === root || p.startsWith(`${root}/`));
 }
 
 /** `https://user:secret@host/x` → `https://host/x`. */
@@ -624,6 +644,7 @@ async function snapshotCommit(
   who: GitIdentity,
   t: number,
   message: string,
+  only?: (path: string) => boolean,
 ): Promise<{ oid: string; files: string[]; message: string } | null> {
   const headFlat = await flatTree(r, head);
   const index = await indexFlat(r);
@@ -636,6 +657,7 @@ async function snapshotCommit(
     type: "blob",
   });
   for (const [p, h, w, s] of await git.statusMatrix({ ...b(r), refresh: false })) {
+    if (only && !only(p)) continue;
     const tracked = h === 1 || s !== 0;
     if (!tracked) {
       if (w === 2) {
@@ -668,7 +690,7 @@ async function snapshotCommit(
 
 /** One file of a three-way merge: what goes into the working tree and, when it conflicts,
  *  the stages for the index. */
-interface FileMerge {
+export interface FileMerge {
   path: string;
   semantic: boolean;
   /** The merged file (or the marked one while conflicted); `null`: deleted. */
@@ -679,7 +701,7 @@ interface FileMerge {
   stages?: [Entry | undefined, Entry | undefined, Entry | undefined];
 }
 
-interface Merged {
+export interface Merged {
   files: FileMerge[];
   ours: Flat;
 }
@@ -743,7 +765,7 @@ async function semanticMerge(r: Repo, bf: Flat, of: Flat, tf: Flat): Promise<Sem
 }
 
 /** The merge of `theirs` into `ours` over `base`, computed without writing anything. */
-async function computeMerge(r: Repo, base: string | null, ours: string, theirs: string): Promise<Merged> {
+export async function computeMerge(r: Repo, base: string | null, ours: string, theirs: string): Promise<Merged> {
   const [bf, of, tf] = [await flatTree(r, base), await flatTree(r, ours), await flatTree(r, theirs)];
   const sem = await semanticMerge(r, bf, of, tf);
   const merger = collectionMerger();
@@ -1025,6 +1047,91 @@ class Session {
     return null;
   }
 
+  /** How many of `commits` are on a remote-tracking branch already. */
+  async publishedAmong(commits: GitCommit[]): Promise<number> {
+    if (commits.length === 0) return 0;
+    const tips = await remoteTips(this.r);
+    if (tips.length === 0) return 0;
+    const published = await ancestors(this.r, tips);
+    return commits.filter((c) => published.has(c.oid)).length;
+  }
+
+  /** `abc1234 ("Subject")`. */
+  async named(oid: string): Promise<string> {
+    return `${short(oid)} ("${await this.subject(oid)}")`;
+  }
+
+  /** The tree an amended commit gets: `HEAD`'s with `paths` as they are on disk, or the index. */
+  async amendContent(head: string, paths: string[], staged: boolean): Promise<{ tree: string; files: string[]; changed: string[] } | null> {
+    const r = this.r;
+    const headFlat = await flatTree(r, head);
+    if (staged) {
+      const idx = await indexFlat(r);
+      const changed = sorted(changedPaths(headFlat, idx));
+      if (changed.length === 0) return null;
+      return { tree: await writeFlatTree(r, idx), files: changed.map(slash), changed };
+    }
+    if (paths.length === 0) return null;
+    const sel = selection(r, paths);
+    const files = (await workFiles(r)).filter((f) => f.state !== "conflicted" && sel(f.path));
+    if (files.length === 0) return null;
+    const flat: Flat = new Map(headFlat);
+    for (const f of files) {
+      if (f.state === "deleted") flat.delete(f.path);
+      else {
+        const blob = (await readOptional(r, f.path)) ?? new Uint8Array();
+        flat.set(f.path, { mode: headFlat.get(f.path)?.mode ?? "100644", oid: await git.writeBlob({ fs: r.fs, dir: r.dir, blob }), type: "blob" });
+      }
+    }
+    return { tree: await writeFlatTree(r, flat), files: files.map((f) => slash(f.path)), changed: files.map((f) => f.path) };
+  }
+
+  /** The operation a merge, cherry-pick or revert left half done. */
+  async underway(): Promise<"merge" | "cherry-pick" | "revert" | null> {
+    if (await readOptional(this.r, ".git/MERGE_HEAD")) return "merge";
+    if (await readOptional(this.r, ".git/CHERRY_PICK_HEAD")) return "cherry-pick";
+    if (await readOptional(this.r, ".git/REVERT_HEAD")) return "revert";
+    return null;
+  }
+
+  /** Files a stopped merge, cherry-pick or revert changed, or the user changed meanwhile:
+   *  everything that differs from `HEAD`, and files the merge added. Unknown files stay out. */
+  async abortFiles(): Promise<string[]> {
+    const r = this.r;
+    const headFlat = await flatTree(r, await headOid(r));
+    const idx = await indexFlat(r);
+    const out = new Set<string>(await conflictedPaths(r));
+    for (const f of await workFiles(r)) {
+      if (f.state !== "untracked" || (idx.has(f.path) && !headFlat.has(f.path))) out.add(f.path);
+    }
+    return sorted(out);
+  }
+
+  /** What restoring `paths` from `at` changes: path and whether the file is deleted. */
+  async restoreHits(at: string, paths: string[]): Promise<{ path: string; deleted: boolean }[]> {
+    const r = this.r;
+    const sel = selection(r, paths);
+    const want = await flatTree(r, at);
+    const headFlat = await flatTree(r, await headOid(r));
+    const work = new Map((await workFiles(r)).map((f) => [f.path, f] as const));
+    const candidates = new Set([...want.keys(), ...headFlat.keys(), ...[...work.values()].filter((f) => f.state === "untracked").map((f) => f.path)]);
+    const out: { path: string; deleted: boolean }[] = [];
+    for (const p of sorted(candidates)) {
+      if (!sel(p)) continue;
+      const w = work.get(p);
+      let now: string | null;
+      if (w?.state === "deleted") now = null;
+      else if (w) {
+        const bytes = await readOptional(r, p);
+        now = bytes ? (await git.hashBlob({ object: bytes })).oid : null;
+      } else now = headFlat.get(p)?.oid ?? null;
+      const e = want.get(p);
+      if (e && now !== e.oid) out.push({ path: p, deleted: false });
+      else if (!e && now !== null) out.push({ path: p, deleted: true });
+    }
+    return out;
+  }
+
   // ------------------------------------------------------------ plan
 
   async plan(action: GitAction): Promise<GitPlan> {
@@ -1255,12 +1362,18 @@ class Session {
         return p;
       }
       case "stash": {
-        const files = await workFiles(r);
-        stop(files.length === 0 ? block("nothing-to-do", "There are no changes to park.") : null);
+        const paths = action.paths ?? [];
+        const sel = selection(r, paths);
+        const files = (await workFiles(r)).filter((f) => sel(f.path));
+        stop(files.length === 0 ? block("nothing-to-do", paths.length === 0 ? "There are no changes to park." : "None of these files has changes to park.") : null);
         stop(head ? null : block("detached", "Make the first commit first."));
         stop(this.unsaved());
         stop(await this.inProgress());
-        p.steps.push(`Parks ${plural(files.length, "change")} and makes your files match the last commit. Bring them back any time.`);
+        p.steps.push(
+          paths.length === 0
+            ? `Parks ${plural(files.length, "change")} and makes your files match the last commit. Bring them back any time.`
+            : `Parks ${plural(files.length, "change")} and makes these files match the last commit; your other changes stay. Bring them back any time.`,
+        );
         p.refs.push({ name: STASH_REF, before: await refOid(r, STASH_REF), after: "" });
         p.files = files.map((f) => slash(f.path));
         return p;
@@ -1414,6 +1527,136 @@ class Session {
         stop((await refOid(r, `refs/tags/${action.name}`)) ? null : block("not-found", `There is no tag ${action.name}.`));
         stop((await remoteUrl(r, action.remote)) ? null : block("not-found", `There is no remote ${action.remote}.`));
         p.steps.push(`Sends the tag ${action.name} to ${action.remote}.`);
+        return p;
+      }
+      case "amend": {
+        needBranch();
+        if (!head || !cur) return p;
+        stop(await this.inProgress());
+        const paths = action.paths ?? [];
+        if (paths.length > 0) stop(this.unsaved());
+        const commit = await readCommit(r, head);
+        if (action.message !== undefined && !action.message.trim()) return { ...p, blocked: block("invalid-name", "The commit message is empty.") };
+        if ((await this.publishedAmong([toCommit(head, commit)])) > 0) {
+          return {
+            ...p,
+            blocked: block("published", "The last commit is already on the server, so changing it would rewrite history others may have. Make a new commit instead."),
+          };
+        }
+        const content = await this.amendContent(head, paths, action.staged ?? false);
+        const message = action.message?.trim();
+        const newMessage = message && message !== commit.message.trim() ? message : null;
+        if (!content && !newMessage) {
+          return {
+            ...p,
+            undoable: false,
+            blocked: p.blocked ?? block(
+              "nothing-to-do",
+              paths.length === 0 && !action.staged ? "There is nothing to change: give a new message or choose files." : "Nothing changed in these files since the last commit.",
+            ),
+          };
+        }
+        const what: string[] = [];
+        if (newMessage) what.push(`the message "${newMessage.split("\n")[0]}"`);
+        if (content) what.push(`the current content of ${plural(content.files.length, "file")}`);
+        p.steps.push(`Replaces the last commit ${await this.named(head)} on ${cur} with a new one that has ${what.join(" and ")}. Its author and place in history stay.`);
+        p.steps.push("Your files do not change. The backup keeps the old commit for Undo.");
+        if (content) p.files = content.files;
+        p.refs.push({ name: branchRef(cur), before: head, after: "" });
+        p.backup = true;
+        return p;
+      }
+      case "abort": {
+        const kind = await this.underway();
+        if (!kind) {
+          if ((await readOptional(r, ".git/rebase-merge/orig-head")) || (await readOptional(r, ".git/rebase-apply/orig-head"))) {
+            return { ...p, undoable: false, blocked: block("unsupported", "A rebase started on the command line is in progress. Stop it there (git rebase --abort); the web app cannot.") };
+          }
+          return { ...p, undoable: false, blocked: block("nothing-to-do", "Nothing is in progress that could be stopped.") };
+        }
+        const files = await this.abortFiles();
+        p.steps.push(`Stops the ${kind} and puts your files back the way they were before it started. Your branch does not move.`);
+        if (files.length > 0) {
+          p.steps.push(`The changes in ${plural(files.length, "file")} are taken out of your working files.`);
+          p.warnings = ["Undo brings your files back as plain changes; it cannot resume the operation."];
+          p.destructive = true;
+        }
+        p.files = files.map(slash);
+        p.backup = true;
+        stop(this.unsaved());
+        return p;
+      }
+      case "restore-files": {
+        if (action.paths.length === 0) return { ...p, blocked: block("nothing-to-do", "Choose the files to restore.") };
+        const at = await this.resolve(action.rev);
+        if (!at) return { ...p, blocked: block("not-found", `There is no commit "${action.rev}".`) };
+        const hits = await this.restoreHits(at, action.paths);
+        if (hits.length === 0) return { ...p, undoable: false, blocked: block("nothing-to-do", "These files are the same already.") };
+        const deleted = hits.filter((h) => h.deleted).length;
+        const changed = new Set((await workFiles(r)).map((f) => f.path));
+        const replaced = hits.filter((h) => changed.has(h.path)).length;
+        p.steps.push(`Makes ${plural(hits.length, "file")} the way ${hits.length === 1 ? "it is" : "they are"} ${await this.named(at)}.`);
+        if (deleted > 0) p.steps.push(`${plural(deleted, "file")} did not exist there and ${deleted === 1 ? "is" : "are"} deleted.`);
+        if (replaced > 0) {
+          p.warnings = [`${plural(replaced, "file has", "files have")} uncommitted changes. They are replaced; the backup keeps them for Undo.`];
+          p.destructive = true;
+        }
+        p.steps.push("Your branch and its commits do not move.");
+        p.files = hits.map((h) => slash(h.path));
+        p.backup = true;
+        stop(this.unsaved());
+        stop(await this.inProgress());
+        return p;
+      }
+      case "restore-branch": {
+        const problem = refNameProblem(action.name);
+        if (problem) return { ...p, blocked: block("invalid-name", problem) };
+        const to = await this.resolve(action.target);
+        if (!to) return { ...p, blocked: block("not-found", `There is no commit "${action.target}".`) };
+        if (cur === action.name) return { ...p, blocked: block("current-branch", `${action.name} is the branch you are on. Use Reset to move it.`) };
+        const old = await refOid(r, branchRef(action.name));
+        if (old === to) return { ...p, undoable: false, blocked: block("nothing-to-do", `${action.name} is there already.`) };
+        if (old === null) p.steps.push(`Creates the branch ${action.name} again at ${await this.named(to)}.`);
+        else {
+          p.steps.push(`Moves ${action.name} to ${await this.named(to)}.`);
+          const leaving = (await commitsOnly(r, old, [to])).length;
+          if (leaving > 0) p.warnings = [`${plural(leaving, "commit leaves", "commits leave")} ${action.name}. The backup keeps ${leaving === 1 ? "it" : "them"} for Undo.`];
+          p.backup = true;
+        }
+        p.refs.push({ name: branchRef(action.name), before: old, after: to });
+        return p;
+      }
+      case "rewrite": {
+        const old = await refOid(r, branchRef(action.branch));
+        if (!old) return { ...p, blocked: block("not-found", `There is no branch "${action.branch}".`) };
+        const to = await this.resolve(action.tip);
+        if (!to) return { ...p, blocked: block("not-found", `The new tip "${action.tip}" does not exist.`) };
+        if (to === old) return { ...p, undoable: false, blocked: block("nothing-to-do", `${action.branch} would not change.`) };
+        const leaving = await commitsOnly(r, old, [to]);
+        const coming = await commitsOnly(r, to, [old]);
+        const published = await this.publishedAmong(leaving);
+        if (published > 0) {
+          stop(
+            block(
+              "published",
+              `${plural(published, "commit")} you would replace ${published === 1 ? "is" : "are"} on the server already. Rewriting history others may have is not done from here.`,
+            ),
+          );
+        }
+        const summary = action.summary.trim().replace(/\.$/, "");
+        if (summary) p.steps.push(`${summary}.`);
+        p.steps.push(`Replaces ${plural(leaving.length, "commit")} on ${action.branch} with ${coming.length}; ${action.branch} then points at ${await this.named(to)}.`);
+        p.steps.push("The backup keeps the old commits for Undo.");
+        p.refs.push({ name: branchRef(action.branch), before: old, after: to });
+        p.backup = true;
+        if (cur === action.branch) {
+          p.files = sorted(changedPaths(await flatTree(r, old), await flatTree(r, to))).map(slash);
+          stop(this.unsaved());
+          stop(await this.inProgress());
+          const tracked = (await workFiles(r)).filter((f) => f.state !== "untracked").length;
+          stop(tracked > 0 ? block("local-changes", `You have ${plural(tracked, "uncommitted change")}. Commit or park them before you rewrite this branch.`) : null);
+          stop(this.overwritten(await this.touched(old, to)));
+        }
         return p;
       }
       default:
@@ -1719,7 +1962,7 @@ class Session {
         const text = action.message?.trim() || `Parked on ${cur ?? "HEAD"}`;
         const who = this.ctx.identity() ?? FALLBACK_WHO;
         x.stashLog = await readText(r, STASH_LOG);
-        const snap = (await snapshotCommit(r, head!, cur, who, t, text))!;
+        const snap = (await snapshotCommit(r, head!, cur, who, t, text, selection(r, action.paths ?? [])))!;
         const old = await refOid(r, STASH_REF);
         await git.writeRef({ ...fsDir, ref: STASH_REF, value: snap.oid, force: true });
         await writeWorkFile(r, STASH_LOG, `${x.stashLog ?? ""}${old ?? ZERO} ${snap.oid} ${reflogRest(who, t, snap.message)}\n`);
@@ -1815,6 +2058,64 @@ class Session {
         await indexToHead(r, paths, head);
         x.paths = paths;
         return { message: `Discarded the changes to ${plural(paths.length, "file")}.`, reload: true };
+      }
+      case "amend": {
+        const commit = await readCommit(r, head!);
+        const content = await this.amendContent(head!, action.paths ?? [], action.staged ?? false);
+        const message = action.message?.trim();
+        const text = message ? `${message}\n` : commit.message;
+        const created = await git.writeCommit({
+          fs: r.fs,
+          dir: r.dir,
+          commit: { tree: content?.tree ?? commit.tree, parent: commit.parent, message: text, author: commit.author, committer: signature(this.identity(), t) },
+        });
+        await this.backup(t, cur!, head, backups);
+        await git.writeRef({ ...fsDir, ref: branchRef(cur!), value: created, force: true });
+        if (content) await indexToHead(r, content.changed, created);
+        x.keepWork = true;
+        return { message: `Replaced the last commit on ${cur} with "${subjectOf(text)}".`, reload: false };
+      }
+      case "abort": {
+        const paths = (p.files ?? []).map(unslash);
+        await this.snapshot(t, head, backups, x);
+        const headFlat = await flatTree(r, head);
+        const conflicted = await conflictedPaths(r);
+        for (const f of paths) await writeContent(r, f, entryContent(headFlat.get(f)));
+        await indexToHead(r, [...paths, ...conflicted], head);
+        for (const f of [...IN_PROGRESS_FILES, ".git/MERGE_MSG", ".git/MERGE_MODE"]) await removeWorkFile(r, f);
+        x.paths = paths;
+        return { message: "Stopped it and went back to where it started.", reload: true };
+      }
+      case "restore-files": {
+        const at = (await this.resolve(action.rev))!;
+        const hits = await this.restoreHits(at, action.paths);
+        await this.snapshot(t, head, backups, x);
+        const want = await flatTree(r, at);
+        for (const h of hits) await writeContent(r, h.path, h.deleted ? null : entryContent(want.get(h.path)));
+        await indexToHead(r, hits.map((h) => h.path), head);
+        x.paths = hits.map((h) => h.path);
+        return { message: `Restored ${plural(hits.length, "file")} from ${short(at)}.`, reload: true };
+      }
+      case "restore-branch": {
+        const to = (await this.resolve(action.target))!;
+        const old = await refOid(r, branchRef(action.name));
+        await this.backup(t, action.name, old, backups);
+        await git.writeRef({ ...fsDir, ref: branchRef(action.name), value: to, force: true });
+        return { message: `${action.name} points at ${await this.named(to)} again.`, reload: false };
+      }
+      case "rewrite": {
+        const old = (await refOid(r, branchRef(action.branch)))!;
+        const to = (await this.resolve(action.tip))!;
+        await this.backup(t, action.branch, old, backups);
+        const summary = action.summary.trim().replace(/\.$/, "");
+        const message = summary ? `${summary}.` : `Rewrote ${action.branch}.`;
+        if (cur === action.branch) {
+          await moveWork(r, await flatTree(r, old), await flatTree(r, to));
+          await git.writeRef({ ...fsDir, ref: branchRef(action.branch), value: to, force: true });
+          return { message, reload: (p.files ?? []).length > 0 };
+        }
+        await git.writeRef({ ...fsDir, ref: branchRef(action.branch), value: to, force: true });
+        return { message, reload: false };
       }
       case "create-tag": {
         const target = (await this.resolve(action.target))!;
