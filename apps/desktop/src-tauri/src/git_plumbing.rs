@@ -231,7 +231,10 @@ mod tests {
         let mut edited = core.get_request("health.yml").unwrap();
         edited.url = "https://api.test/edited".into();
         core.update_request("health.yml", edited).unwrap();
-        assert!(resolve_text(&core, "notes.txt", "x\n").is_err(), "unsaved changes block it");
+        assert!(
+            resolve_text(&core, "notes.txt", "x\n").is_err(),
+            "unsaved changes block it"
+        );
         core.reload().unwrap();
 
         resolve_text(&core, "notes.txt", "one\nboth\nthree\n").unwrap();

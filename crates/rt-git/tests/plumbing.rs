@@ -134,9 +134,21 @@ fn pick_with_revert_gives_the_tree_of_git_revert() {
         return;
     }
     let f = fixture("plumbing-revert");
-    let target = f.commit("change line one", &[("notes.txt", &NOTES.replacen("one", "ONE", 1))]);
-    f.commit("change line ten", &[("notes.txt", &NOTES.replacen("one", "ONE", 1).replacen("ten", "TEN", 1))]);
-    f.commit("add", &[("users/new.yml", &request("GET", "https://api.test/new"))]);
+    let target = f.commit(
+        "change line one",
+        &[("notes.txt", &NOTES.replacen("one", "ONE", 1))],
+    );
+    f.commit(
+        "change line ten",
+        &[(
+            "notes.txt",
+            &NOTES.replacen("one", "ONE", 1).replacen("ten", "TEN", 1),
+        )],
+    );
+    f.commit(
+        "add",
+        &[("users/new.yml", &request("GET", "https://api.test/new"))],
+    );
     let result = f.repo().pick(&pick_req("HEAD", &target, true)).unwrap();
     assert!(result.clean, "{result:?}");
     let twin = tmp("plumbing-revert-twin");
@@ -158,7 +170,10 @@ fn pick_merges_collection_files_on_the_model() {
     );
     f.commit(
         "method",
-        &[("users/get.yml", &request("POST", "https://api.test/users/1"))],
+        &[(
+            "users/get.yml",
+            &request("POST", "https://api.test/users/1"),
+        )],
     );
     apply(&f.repo(), &act(r#"{"action":"switch","target":"main"}"#));
     f.commit(
@@ -176,7 +191,10 @@ fn pick_merges_collection_files_on_the_model() {
         .unwrap();
     assert_eq!(merged, result.tree);
     let text = shown(&f, &result.tree, "users/get.yml");
-    assert!(text.contains("method: POST") && text.contains("users/2"), "{text}");
+    assert!(
+        text.contains("method: POST") && text.contains("users/2"),
+        "{text}"
+    );
 }
 
 /// A file of a tree, via a commit that holds it.
@@ -194,7 +212,10 @@ fn shown(f: &Fixture, tree: &str, path: &str) -> String {
             None,
         )
         .unwrap();
-    f.repo().show(&commit, &format!("/{path}")).unwrap().unwrap()
+    f.repo()
+        .show(&commit, &format!("/{path}"))
+        .unwrap()
+        .unwrap()
 }
 
 #[test]
@@ -204,9 +225,15 @@ fn pick_reports_a_text_conflict_with_our_version_in_the_tree() {
         &f.repo(),
         &act(r#"{"action":"create-branch","name":"other","start":"HEAD","switch":true}"#),
     );
-    f.commit("theirs", &[("notes.txt", &NOTES.replacen("five", "5 theirs", 1))]);
+    f.commit(
+        "theirs",
+        &[("notes.txt", &NOTES.replacen("five", "5 theirs", 1))],
+    );
     apply(&f.repo(), &act(r#"{"action":"switch","target":"main"}"#));
-    f.commit("ours", &[("notes.txt", &NOTES.replacen("five", "5 ours", 1))]);
+    f.commit(
+        "ours",
+        &[("notes.txt", &NOTES.replacen("five", "5 ours", 1))],
+    );
     let result = f.repo().pick(&pick_req("main", "other", false)).unwrap();
     assert!(!result.clean);
     assert!(result.other_conflicts.is_empty());
@@ -214,10 +241,19 @@ fn pick_reports_a_text_conflict_with_our_version_in_the_tree() {
     let c = &result.conflicts[0];
     assert_eq!(c.path, "/notes.txt");
     assert_eq!(c.base.as_deref(), Some(NOTES));
-    assert_eq!(c.ours.as_deref(), Some(NOTES.replacen("five", "5 ours", 1).as_str()));
-    assert_eq!(c.theirs.as_deref(), Some(NOTES.replacen("five", "5 theirs", 1).as_str()));
+    assert_eq!(
+        c.ours.as_deref(),
+        Some(NOTES.replacen("five", "5 ours", 1).as_str())
+    );
+    assert_eq!(
+        c.theirs.as_deref(),
+        Some(NOTES.replacen("five", "5 theirs", 1).as_str())
+    );
     // Our version is in the tree: no markers.
-    assert_eq!(shown(&f, &result.tree, "notes.txt"), c.ours.clone().unwrap());
+    assert_eq!(
+        shown(&f, &result.tree, "notes.txt"),
+        c.ours.clone().unwrap()
+    );
     if have_git() {
         let twin = tmp("plumbing-conflict-twin");
         copy_dir(f.dir(), twin.path());
@@ -243,7 +279,12 @@ fn pick_names_conflicts_that_are_not_text() {
     assert!(!result.clean);
     // Added by both with different content, one of them binary: not a text conflict.
     assert!(
-        result.conflicts.iter().map(|c| c.path.as_str()).chain(result.other_conflicts.iter().map(String::as_str)).any(|p| p == "/image.bin"),
+        result
+            .conflicts
+            .iter()
+            .map(|c| c.path.as_str())
+            .chain(result.other_conflicts.iter().map(String::as_str))
+            .any(|p| p == "/image.bin"),
         "{result:?}"
     );
 }
@@ -261,12 +302,16 @@ fn write_tree_and_commit_move_no_ref() {
             files: vec![
                 GitTreeFile {
                     path: "/notes.txt".into(),
-                    content: GitTreeContent::Text { text: "new notes\n".into() },
+                    content: GitTreeContent::Text {
+                        text: "new notes\n".into(),
+                    },
                     executable: None,
                 },
                 GitTreeFile {
                     path: "/bin/run.sh".into(),
-                    content: GitTreeContent::Base64 { data: "IyEvYmluL3NoCg==".into() },
+                    content: GitTreeContent::Base64 {
+                        data: "IyEvYmluL3NoCg==".into(),
+                    },
                     executable: Some(true),
                 },
                 GitTreeFile {
@@ -321,8 +366,14 @@ fn write_tree_and_commit_move_no_ref() {
     assert_ne!(tree, tree2);
     if have_git() {
         let (_, listing) = try_git(f.dir(), &["ls-tree", "-r", &tree]);
-        assert!(listing.contains("100755 blob") && listing.contains("\tbin/run.sh"), "{listing}");
-        assert!(listing.contains("\tusers/copy.yml") || !listing.contains("copy"), "{listing}");
+        assert!(
+            listing.contains("100755 blob") && listing.contains("\tbin/run.sh"),
+            "{listing}"
+        );
+        assert!(
+            listing.contains("\tusers/copy.yml") || !listing.contains("copy"),
+            "{listing}"
+        );
         assert!(!listing.contains("opencollection.yml"), "{listing}");
         let (_, text) = try_git(f.dir(), &["cat-file", "-p", &format!("{tree}:notes.txt")]);
         assert_eq!(text, "new notes\n");
@@ -330,13 +381,19 @@ fn write_tree_and_commit_move_no_ref() {
         assert!(!listing2.contains("bin/run.sh"), "{listing2}");
         let (ok, _) = try_git(f.dir(), &["fsck", "--no-dangling"]);
         assert!(ok);
-        let (_, header) = try_git(f.dir(), &["log", "-1", "--format=%an <%ae> %at %ai", &commit]);
-        assert!(header.starts_with("Bea <bea@example.com> 1700000000 "), "{header}");
+        let (_, header) = try_git(
+            f.dir(),
+            &["log", "-1", "--format=%an <%ae> %at %ai", &commit],
+        );
+        assert!(
+            header.starts_with("Bea <bea@example.com> 1700000000 "),
+            "{header}"
+        );
         assert!(header.contains("+0100"), "{header}");
     }
     // Bad input is refused.
-    assert!(repo
-        .write_tree(&GitTreeWrite {
+    assert!(
+        repo.write_tree(&GitTreeWrite {
             base: "HEAD".into(),
             files: vec![GitTreeFile {
                 path: "/../x".into(),
@@ -344,9 +401,10 @@ fn write_tree_and_commit_move_no_ref() {
                 executable: None
             }]
         })
-        .is_err());
-    assert!(repo
-        .write_commit(
+        .is_err()
+    );
+    assert!(
+        repo.write_commit(
             &GitCommitWrite {
                 tree: "0123456789012345678901234567890123456789".into(),
                 parents: vec![],
@@ -356,7 +414,8 @@ fn write_tree_and_commit_move_no_ref() {
             },
             None
         )
-        .is_err());
+        .is_err()
+    );
 }
 
 #[test]
@@ -366,20 +425,41 @@ fn resolve_text_ends_a_text_conflict_and_the_next_commit_concludes_the_merge() {
         &f.repo(),
         &act(r#"{"action":"create-branch","name":"other","start":"HEAD","switch":true}"#),
     );
-    f.commit("theirs", &[("notes.txt", &NOTES.replacen("five", "5 theirs", 1))]);
+    f.commit(
+        "theirs",
+        &[("notes.txt", &NOTES.replacen("five", "5 theirs", 1))],
+    );
     apply(&f.repo(), &act(r#"{"action":"switch","target":"main"}"#));
-    let ours = f.commit("ours", &[("notes.txt", &NOTES.replacen("five", "5 ours", 1))]);
+    let ours = f.commit(
+        "ours",
+        &[("notes.txt", &NOTES.replacen("five", "5 ours", 1))],
+    );
     let r = apply(&f.repo(), &act(r#"{"action":"merge","from":"other"}"#));
     assert!(r.reload);
     let status = f.repo().status().unwrap();
     assert!(status.merging);
-    assert!(status.files.iter().any(|x| x.path == "notes.txt" && x.state == GitFileState::Conflicted));
-    assert!(f.repo().resolve_text("/users/get.yml", "x").is_err(), "no conflict there");
+    assert!(
+        status
+            .files
+            .iter()
+            .any(|x| x.path == "notes.txt" && x.state == GitFileState::Conflicted)
+    );
+    assert!(
+        f.repo().resolve_text("/users/get.yml", "x").is_err(),
+        "no conflict there"
+    );
 
     let resolved = NOTES.replacen("five", "5 both", 1);
     f.repo().resolve_text("/notes.txt", &resolved).unwrap();
     assert_eq!(f.read("notes.txt"), resolved);
-    assert!(f.repo().status().unwrap().files.iter().all(|x| x.state != GitFileState::Conflicted));
+    assert!(
+        f.repo()
+            .status()
+            .unwrap()
+            .files
+            .iter()
+            .all(|x| x.state != GitFileState::Conflicted)
+    );
     let c = f.repo().commit("Merge other", &[], None).unwrap();
     let info = f.repo().commit_info(&c.oid).unwrap();
     assert_eq!(info.parents.len(), 2);
