@@ -12,7 +12,9 @@
 //!
 //! Since wave 13 an import can also go into the open collection as a new folder
 //! ([`add_to_workspace`], [`add_to_files`]), and a collection converted elsewhere (an
-//! extension's importer) is checked and kept like any other ([`Imports::adopt`]).
+//! extension's importer) is checked and kept like any other ([`Imports::adopt`]). An OpenAPI
+//! import that kept its spec (`crate::openapi`) brings the spec along and names it as the open
+//! collection's contract spec if it has none.
 //!
 //! Owner: wave 4, strand B. Changes to the public types are interface changes.
 
@@ -215,6 +217,10 @@ fn safe_path(path: &str) -> bool {
 ///   Secret values are never written.
 /// - Every other file (bodies, companion files) is staged below the new folder; body file
 ///   paths of the requests follow.
+/// - A spec the import kept (OpenAPI wizard, `extensions.requesttailor.contract.spec` of the
+///   import) is staged like those files and named in the open collection's
+///   `extensions.requesttailor.contract.spec` as `<folder>/<file>`, unless the collection
+///   names a spec already ([`FolderImport::contract_spec`]).
 ///
 /// Everything is unsaved, like any edit.
 pub fn add_to_workspace(
@@ -293,6 +299,17 @@ pub fn add_to_workspace(
         let target = format!("{top}/{path}");
         work.stage_companion(&target, bytes.clone())?;
         out.files.push(target);
+    }
+    // The spec an OpenAPI import kept becomes the collection's, unless it names one already.
+    if let Some(spec) = rt_format::contract::configured_spec(imported)
+        && !spec.starts_with('/')
+        && imported.files.contains_key(&spec)
+        && !owned_by_format(&spec, imported)
+        && rt_format::contract::configured_spec(&work.doc_mut().write()).is_none()
+    {
+        let target = format!("{top}/{spec}");
+        work.doc_mut().set_contract_spec(&target)?;
+        out.contract_spec = Some(target);
     }
     work.refresh();
     *workspace = work;
