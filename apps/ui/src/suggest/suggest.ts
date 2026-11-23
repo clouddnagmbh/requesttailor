@@ -13,5 +13,5 @@ import type { SuggestedEdit } from "../extensions";
 import type { AppState } from "../state/app.svelte";
 
 export function createSuggest(_backend: Backend, _app: AppState): (edit: SuggestedEdit) => Promise<boolean> {
-  return () => Promise.reject(new BackendError("unsupported", "Suggested edits arrive in wave 16 (strand B)."));
+  return () => Promise.reject(new BackendError("unsupported", "Suggested edits arrive in wave 16 (strand C)."));
 }
