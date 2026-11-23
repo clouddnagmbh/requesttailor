@@ -13,6 +13,9 @@
   import type { CollectionDiff, GitCommit, RunComparison, SpecChange } from "../commands/types";
   import { getGitViews } from "../git/views.svelte";
   import { Banner, Button, Checkbox, Chip, EmptyState, Icon, IconButton, Kbd, Spinner, TextField } from "../ui";
+  import { extensionRangeActions } from "../shell/extension-actions";
+  import { getExtensions } from "../shell/extension-tabs";
+  import ExtensionActions from "../shell/ExtensionActions.svelte";
   import { getApp } from "../state/app.svelte";
   import CompareHeader from "./CompareHeader.svelte";
   import CompareList from "./CompareList.svelte";
@@ -25,6 +28,10 @@
   let props: { from?: string; to?: string } = $props();
 
   const app = getApp();
+  // Wave 16: actions of extensions on the two revisions compared.
+  const extensions = getExtensions();
+  const rangeActions = (from: string, to: string) =>
+    extensionRangeActions(extensions, { collection: app.activeCollection, from, to, source: "compare" });
   const views = getGitViews();
 
   // svelte-ignore state_referenced_locally: the props only seed the fields.
@@ -272,6 +279,7 @@
         </span>
         {#if running}<span class="status" data-testid="compare-running"><Spinner size="sm" label="Sending" /> Sending the requests at both revisions…</span>{/if}
         {#if runError}<span class="status bad" role="alert" data-testid="compare-run-error"><Icon name="error" size="sm" /> Answers not compared: {runError}</span>{/if}
+        <span class="extension-actions"><ExtensionActions actions={rangeActions(shown.from, shown.to)} label="Range actions" /></span>
       </div>
 
       <CompareHeader {counts} {filter} ran={run !== null} onfilter={(f) => (filter = f)} />
@@ -392,6 +400,9 @@
     gap: var(--rt-space-5);
     flex: 1;
     min-height: 0;
+  }
+  .extension-actions {
+    margin-left: auto;
   }
   .revline {
     display: flex;

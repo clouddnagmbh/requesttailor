@@ -31,6 +31,8 @@
   import { getSessions } from "../stream/sessions.svelte";
   import AuthEditor from "./AuthEditor.svelte";
   import BodyEditor from "./BodyEditor.svelte";
+  import ExtensionActions from "../shell/ExtensionActions.svelte";
+  import { extensionRequestActions } from "../shell/extension-actions";
   import CodeField from "./CodeField.svelte";
   import { canFormat, describeFormat, formatBody, onFormatRequest } from "./format-body";
   import KeyValueTable, { type Row } from "./KeyValueTable.svelte";
@@ -240,6 +242,8 @@
   const pluginTab = $derived(tab.startsWith("plugin:") ? (pluginTabs.find((t) => `plugin:${t.key}` === tab) ?? null) : null);
   const extensions = getExtensions();
   const extensionTabs = $derived(extensionTabsFor(extensions, "request"));
+  // Wave 16: actions of extensions on this request.
+  const requestActions = $derived(spec ? extensionRequestActions(extensions, { collection: app.activeCollection ?? "", path, spec }) : []);
   const extensionTab = $derived(
     tab.startsWith("extension:") ? (extensionTabs.find((t) => `extension:${t.key}` === tab) ?? null) : null,
   );
@@ -412,6 +416,8 @@
             {t.tab.title}
           </button>
         {/each}
+        <!-- Like Send: pending typing reaches the backend before an extension reads the request. -->
+        <div class="tab-actions" role="presentation" onpointerdowncapture={() => pending && flush()} onkeydowncapture={() => pending && flush()}><ExtensionActions actions={requestActions} label="Request actions" variant="ghost" collapse /></div>
       </div>
 
       <div class="panel" id="rt-request-panel" role="tabpanel" aria-labelledby={`rt-tab-${tab}`}>
@@ -601,6 +607,10 @@
   .tabs button[aria-selected="true"] {
     color: var(--rt-fg);
     border-bottom-color: var(--rt-accent);
+  }
+  .tab-actions {
+    margin-left: auto;
+    align-self: center;
   }
   .badge {
     margin-left: 6px;

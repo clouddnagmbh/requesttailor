@@ -136,6 +136,7 @@
     <CodeField
       testid="body-editor"
       label="Body"
+      editor={{ kind: "body", contentType: lang === "json" ? "application/json" : lang === "xml" ? "application/xml" : null }}
       multiline
       {lang}
       {lookup}

@@ -8,6 +8,9 @@
 
   import type { BisectOutcome, BisectStep, GitBranch } from "../commands/types";
   import { getGitViews } from "../git/views.svelte";
+  import ExtensionActions from "../shell/ExtensionActions.svelte";
+  import { extensionRunActions } from "../shell/extension-actions";
+  import { getExtensions } from "../shell/extension-tabs";
   import { getApp } from "../state/app.svelte";
   import { Badge, Banner, Button, Card, TextField } from "../ui";
   import { bisectProgress, bisectResult, shortOid, VERDICT_LABEL } from "./model";
@@ -27,6 +30,11 @@
   let error = $state<string | null>(null);
   let steps = $state<BisectStep[]>([]);
   let outcome = $state<BisectOutcome | null>(null);
+  // Wave 16: actions of extensions on a finished bisect.
+  const extensions = getExtensions();
+  const runActions = $derived(
+    outcome && app.activeCollection ? extensionRunActions(extensions, { kind: "bisect", collection: app.activeCollection, outcome }) : [],
+  );
   let branches = $state<GitBranch[]>([]);
 
   onMount(() => {
@@ -150,6 +158,7 @@
           <span class="muted">{bisectProgress(outcome.steps, outcome.candidates)}</span>
         </Banner>
       {/if}
+      <ExtensionActions actions={runActions} label="Bisect actions" />
     </div>
   {/if}
 </section>

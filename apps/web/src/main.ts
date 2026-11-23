@@ -28,8 +28,9 @@ async function startShell() {
 
   // The demo extension exists only in the dev server (`?extensions=demo`); a build drops this branch.
   const extensions: AppExtension[] = [];
-  if (import.meta.env.DEV && params.get("extensions") === "demo") {
-    extensions.push((await import("./dev-extensions")).demoExtension);
+  const demo = params.get("extensions");
+  if (import.meta.env.DEV && (demo === "demo" || demo === "demo16")) {
+    extensions.push((await import("./dev-extensions"))[demo === "demo" ? "demoExtension" : "demo16Extension"]);
   }
 
   startApp(document.getElementById("app")!, backend, { extensions });

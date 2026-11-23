@@ -17,7 +17,10 @@
   import PluginTab from "../plugins/PluginTab.svelte";
   import SendNotes from "../plugins/SendNotes.svelte";
   import { pluginsState } from "../plugins/store.svelte";
+  import ExtensionActions from "../shell/ExtensionActions.svelte";
+  import { extensionResponseActions } from "../shell/extension-actions";
   import { extensionTabsFor, getExtensions } from "../shell/extension-tabs";
+  import { getApp } from "../state/app.svelte";
   import SpecBadge from "../openapi/SpecBadge.svelte";
   import HeadersTable from "./HeadersTable.svelte";
   import ConsolePanel from "./ConsolePanel.svelte";
@@ -86,6 +89,18 @@
   // ---- extension tabs (wave 13) ----
   const extensions = getExtensions();
   const extensionTabs = $derived(extensionTabsFor(extensions, "response", contentTypeOf(response.headers)));
+  // Wave 16: actions of extensions on this response (e.g. after a failure).
+  const app = getApp();
+  const responseActions = $derived(
+    path
+      ? extensionResponseActions(extensions, {
+          collection: app.activeCollection ?? "",
+          path,
+          response: result,
+          failed: response.status >= 400 || tests.passed < tests.total,
+        })
+      : [],
+  );
   const extensionTab = $derived(
     tab.startsWith("extension:") ? (extensionTabs.find((t) => `extension:${t.key}` === tab) ?? null) : null,
   );
@@ -275,6 +290,7 @@
     {/if}
     {#if path}<SpecBadge {backend} {path} {result} />{/if}
     <ExplainButton {result} {backend} />
+    <ExtensionActions actions={responseActions} label="Response actions" variant="ghost" />
   </div>
 
   <SendNotes notes={result.report.notes ?? []} />
