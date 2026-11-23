@@ -10,6 +10,8 @@ import { getContext, setContext } from "svelte";
 import type { Backend, CollectionInfo } from "../commands/backend";
 import type {
   CollectionEntry,
+  CollectionRoot,
+  CollectionSet,
   Environment,
   NewCollection,
   RequestRef,
@@ -18,6 +20,7 @@ import type {
   TreeNode,
 } from "../commands/types";
 import type { ExtensionDialog } from "../extensions";
+import { load as loadSetting, store as storeSetting } from "../shell/storage";
 
 const KEY = Symbol("requesttailor-app");
 
@@ -51,24 +54,108 @@ export interface OpenDialog {
   resolve: (result: unknown) => void;
 }
 
+/** Wave 14: what `AppState` keeps per collection of the set; the fields of the same name on
+ *  `AppState` are the active collection's. */
+interface CollectionView {
+  active: string | null;
+  drafts: Record<string, RequestSpec>;
+  dirty: string[];
+  environments: Environment[];
+  environment: string | null;
+  results: Record<string, StoredResponse>;
+  sending: Record<string, boolean>;
+}
+
+const NO_DRAFTS: Record<string, RequestSpec> = Object.freeze({}) as Record<string, RequestSpec>;
+const NO_RESULTS: Record<string, StoredResponse> = Object.freeze({}) as Record<string, StoredResponse>;
+const NO_SENDING: Record<string, boolean> = Object.freeze({}) as Record<string, boolean>;
+
+const isName = (v: unknown): v is string => typeof v === "string";
+
 export class AppState {
   readonly backend: Backend;
 
+  /** The active collection (wave 14: of the collection set in the sidebar). */
   collection = $state<CollectionInfo | null>(null);
-  tree = $state<TreeNode | null>(null);
-  /** Open tabs (request paths), in tab order. */
-  tabs = $state<string[]>([]);
+
+  // ---- wave 14: per collection; the accessors below are the active collection's ----
+  /** State of every collection of the set that was shown, by id. */
+  private views = $state<Record<string, CollectionView>>({});
+
+  private get current(): CollectionView | undefined {
+    const id = this.collection?.id;
+    return id ? this.views[id] : undefined;
+  }
+
+  /** The active collection's tree. */
+  get tree(): TreeNode | null {
+    const id = this.collection?.id;
+    return (id && this.trees[id]) || null;
+  }
+  set tree(tree: TreeNode | null) {
+    const id = this.collection?.id;
+    if (!id) return;
+    if (tree) this.trees[id] = tree;
+    else delete this.trees[id];
+  }
+  /** Open tabs of the active collection (request paths), in tab order; `openTabs` has all. */
+  get tabs(): string[] {
+    const id = this.collection?.id;
+    return id ? this.openTabs.filter((t) => t.collection === id).map((t) => t.path) : [];
+  }
   /** The request shown in the editor. */
-  active = $state<string | null>(null);
-  /** Current editor state per open request; sent and saved from here. */
-  drafts = $state<Record<string, RequestSpec>>({});
-  /** Paths with unsaved changes (backend's view after the last edit). */
-  dirty = $state<string[]>([]);
-  environments = $state<Environment[]>([]);
-  environment = $state<string | null>(null);
-  /** Last response per request path. */
-  results = $state<Record<string, StoredResponse>>({});
-  sending = $state<Record<string, boolean>>({});
+  get active(): string | null {
+    return this.current?.active ?? null;
+  }
+  set active(path: string | null) {
+    const view = this.current;
+    if (view) view.active = path;
+  }
+  /** Current editor state per open request of the active collection; sent and saved from here. */
+  get drafts(): Record<string, RequestSpec> {
+    return this.current?.drafts ?? NO_DRAFTS;
+  }
+  set drafts(drafts: Record<string, RequestSpec>) {
+    const view = this.current;
+    if (view) view.drafts = drafts;
+  }
+  /** Paths with unsaved changes in the active collection (backend's view after the last edit). */
+  get dirty(): string[] {
+    return this.current?.dirty ?? [];
+  }
+  set dirty(dirty: string[]) {
+    const id = this.collection?.id;
+    if (id) this.setDirty(id, dirty);
+  }
+  get environments(): Environment[] {
+    return this.current?.environments ?? [];
+  }
+  set environments(environments: Environment[]) {
+    const view = this.current;
+    if (view) view.environments = environments;
+  }
+  get environment(): string | null {
+    return this.current?.environment ?? null;
+  }
+  set environment(name: string | null) {
+    const view = this.current;
+    if (view) view.environment = name;
+  }
+  /** Last response per request path of the active collection. */
+  get results(): Record<string, StoredResponse> {
+    return this.current?.results ?? NO_RESULTS;
+  }
+  set results(results: Record<string, StoredResponse>) {
+    const view = this.current;
+    if (view) view.results = results;
+  }
+  get sending(): Record<string, boolean> {
+    return this.current?.sending ?? NO_SENDING;
+  }
+  set sending(sending: Record<string, boolean>) {
+    const view = this.current;
+    if (view) view.sending = sending;
+  }
   /** Last error to show in the status area, or `null`. */
   error = $state<string | null>(null);
   /** Counts finished sends; views that show sent data (history) re-read when it changes. */
@@ -77,20 +164,17 @@ export class AppState {
    *  (Git status, search results) re-read when it changes. */
   loadCount = $state(0);
 
-  // ---- wave 14 (interface): several collections ----
-  // Strand A turns the fields above into the state of the *active* collection (the collection
-  // of the active tab, or the node chosen last): `collection`, `tree`, `tabs` (the active
-  // collection's open tabs), `active`, `drafts`, `dirty`, `environments`, `environment`,
-  // `results` and `sending` keep their meaning for it, so extensions keep working unchanged.
+  // ---- wave 14: several collections ----
 
-  /** The collections in the sidebar, in order. Until strand A: the open collection. */
+  /** The collections in the sidebar, in order (`CollectionSetApi.current`). */
   collections = $state<CollectionEntry[]>([]);
-  /** Trees of the collections in the sidebar, by id. */
+  /** The folders they were found in (opened or added), in order. */
+  roots = $state<CollectionRoot[]>([]);
+  /** Trees of the collections in the sidebar that were read, by id (the active one always;
+   *  the others once `ensureTree` asked, e.g. when their node opens). */
   trees = $state<Record<string, TreeNode>>({});
-  /** The tab bar across collections, in tab order. Until strand A: the open collection's. */
-  openTabs = $derived<RequestRef[]>(
-    this.collection ? this.tabs.map((path) => ({ collection: this.collection!.id, path })) : [],
-  );
+  /** The tab bar across collections, in tab order. */
+  openTabs = $state<RequestRef[]>([]);
   /** A view of the main area asked for with `show` / `openCollectionTab`; the shell takes it. */
   view = $state<{ view: MainView; seq: number } | null>(null);
   /** The "New…" dialog while open (`openNew`). */
@@ -102,8 +186,13 @@ export class AppState {
   private seq = 0;
 
   /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
-   *  shells with concurrent commands (Tauri) never send or save a stale request. */
+   *  shells with concurrent commands (Tauri) never send or save a stale request. Wave 14:
+   *  switching the backend's active collection runs in the same queue, so an edit always
+   *  reaches its own collection. */
   private lastEdit: Promise<unknown> = Promise.resolve();
+  /** The collection the backend has active (it may lag behind `collection` while the queue
+   *  runs). */
+  private backendActive: string | null = null;
 
   /** Wave 10: listeners of `onEdit`. */
   private readonly editListeners = new Set<(path: string, spec: RequestSpec) => void>();
@@ -127,14 +216,70 @@ export class AppState {
     return this.collection?.id ?? null;
   }
 
+  /** Runs `f` after everything queued so far (edits, switches); returns its result. */
+  private enqueue<T>(f: () => Promise<T>): Promise<T> {
+    const run = this.lastEdit.then(f);
+    this.lastEdit = run.catch(() => undefined);
+    return run;
+  }
+
+  /** Makes `id` the backend's active collection (in the queue). */
+  private async backendTo(id: string): Promise<CollectionInfo> {
+    const info = await this.backend.collections.activate(id);
+    this.backendActive = id;
+    return info;
+  }
+
   /** Wave 14: makes collection `id` active (its tabs, environments, Git, ...). */
   async activate(id: string): Promise<void> {
-    if (id === this.collection?.id) return;
-    await this.lastEdit;
-    await this.guard(async () => {
-      const info = await this.backend.collections.activate(id);
-      await this.load(info);
-    });
+    if (id === this.collection?.id && id === this.backendActive) return;
+    await this.guard(() =>
+      this.enqueue(async () => {
+        const info = await this.backendTo(id);
+        await this.show_(info);
+      }),
+    );
+  }
+
+  /** Shows `info` (the backend's active collection) as the active one: its state if it was
+   *  shown before, else read now. Runs in the queue. */
+  private async show_(info: CollectionInfo): Promise<void> {
+    const id = info.id;
+    const known = this.views[id];
+    if (!known) {
+      const [tree, environments, dirty] = await Promise.all([
+        this.backend.tree(),
+        this.backend.environments(),
+        this.backend.dirty(),
+      ]);
+      this.trees[id] = tree;
+      const remembered = loadSetting<string | null>(`env:${id}`, null, isName);
+      this.views[id] = {
+        active: null,
+        drafts: {},
+        dirty,
+        environments,
+        environment: environments.some((e) => e.name === remembered) ? remembered : (environments[0]?.name ?? null),
+        results: {},
+        sending: {},
+      };
+    } else {
+      if (!this.trees[id]) this.trees[id] = await this.backend.tree();
+      // Tabs whose request was dropped by a reload are read again.
+      for (const t of this.openTabs) {
+        if (t.collection !== id || t.path in known.drafts) continue;
+        try {
+          known.drafts[t.path] = await this.backend.getRequest(t.path);
+        } catch {
+          // Gone in this version of the files.
+        }
+      }
+      this.openTabs = this.openTabs.filter((t) => t.collection !== id || t.path in known.drafts);
+      if (known.active && !(known.active in known.drafts)) known.active = null;
+      known.active ??= this.openTabs.find((t) => t.collection === id)?.path ?? null;
+    }
+    this.collection = info;
+    this.loadCount++;
   }
 
   /** Wave 14: opens a request of any collection in the sidebar in a tab. */
@@ -143,23 +288,101 @@ export class AppState {
     if (this.collection?.id === ref.collection) await this.select(ref.path);
   }
 
+  /** Wave 14: closes a tab of any collection. Closing the active tab shows its neighbour in the
+   *  tab bar, which may belong to another collection (that one becomes active). */
+  async closeRef(ref: RequestRef): Promise<void> {
+    const i = this.openTabs.findIndex((t) => t.collection === ref.collection && t.path === ref.path);
+    if (i < 0) return;
+    const wasShown = ref.collection === this.collection?.id && this.active === ref.path;
+    this.openTabs = this.openTabs.filter((_, k) => k !== i);
+    const view = this.views[ref.collection];
+    if (view && view.active === ref.path) {
+      const same = this.openTabs.filter((t) => t.collection === ref.collection);
+      view.active = same.find((t) => this.openTabs.indexOf(t) >= i)?.path ?? same.at(-1)?.path ?? null;
+    }
+    if (!wasShown || this.active) return;
+    const next = this.openTabs[Math.min(i, this.openTabs.length - 1)];
+    if (next) await this.selectRef(next);
+  }
+
+  /** Wave 14: reads the tree of collection `id` if it was not yet (its sidebar node opens). */
+  async ensureTree(id: string): Promise<void> {
+    if (this.trees[id]) return;
+    await this.guard(async () => {
+      const tree = await this.backend.collections.tree(id);
+      this.trees[id] = tree;
+    });
+  }
+
   /** Wave 14: "Add collection…": a folder picker, its collections join the sidebar. */
   async addCollection(): Promise<void> {
     await this.guard(async () => {
       const set = await this.backend.collections.add();
-      if (set?.active && set.active !== this.collection?.id) await this.activate(set.active);
+      if (!set) return;
+      this.applySet(set);
+      if (set.active && set.active !== this.collection?.id) await this.activate(set.active);
     });
+  }
+
+  /** Wave 14: takes a folder and its collections out of the sidebar (files stay); refused
+   *  while one of them has unsaved changes. */
+  async removeRoot(root: string): Promise<void> {
+    await this.guard(() =>
+      this.enqueue(async () => {
+        const set = await this.backend.collections.removeRoot(root);
+        const gone = new Set(this.roots.find((r) => r.id === root)?.collections ?? []);
+        this.openTabs = this.openTabs.filter((t) => !gone.has(t.collection));
+        for (const id of gone) {
+          delete this.views[id];
+          delete this.trees[id];
+        }
+        this.applySet(set);
+        if (!set.active) {
+          this.collection = null;
+          this.backendActive = null;
+          this.loadCount++;
+        } else if (set.active !== this.collection?.id || set.active !== this.backendActive) {
+          await this.show_(await this.backendTo(set.active));
+        }
+      }),
+    );
   }
 
   /** Wave 14: creates a collection (unsaved) and makes it active; `null` if cancelled. */
   async createCollection(spec: NewCollection): Promise<CollectionInfo | null> {
     return (
-      (await this.guard(async () => {
-        const info = await this.backend.collections.create(spec);
-        if (info) await this.load(info);
-        return info;
-      })) ?? null
+      (await this.guard(() =>
+        this.enqueue(async () => {
+          const info = await this.backend.collections.create(spec);
+          if (!info) return null;
+          if (this.collections.length === 0) {
+            await this.load(info);
+            return info;
+          }
+          this.backendActive = info.id;
+          await this.show_(info);
+          await this.refreshSet();
+          return info;
+        }),
+      )) ?? null
     );
+  }
+
+  /** Re-reads the set (names, roots, unsaved counts) from the backend. */
+  private async refreshSet(): Promise<void> {
+    this.applySet(await this.backend.collections.current());
+  }
+
+  private applySet(set: CollectionSet): void {
+    this.roots = set.roots;
+    this.collections = set.collections;
+  }
+
+  private setDirty(id: string, dirty: string[]): void {
+    const view = this.views[id];
+    if (view) view.dirty = dirty;
+    const i = this.collections.findIndex((c) => c.id === id);
+    if (i >= 0 && this.collections[i].dirty !== dirty.length) this.collections[i].dirty = dirty.length;
   }
 
   /** Wave 14: asks the shell to show a view of the main area. */
@@ -209,20 +432,6 @@ export class AppState {
     open?.resolve(result);
   }
 
-  /** Until strand A: the sidebar's collections are the open one. */
-  private syncSingle(): void {
-    const info = this.collection;
-    if (!info) {
-      this.collections = [];
-      this.trees = {};
-      return;
-    }
-    this.collections = [
-      { id: info.id, name: info.name, location: info.location, root: info.id, dir: "", repo: null, dirty: this.dirty.length },
-    ];
-    this.trees = this.tree ? { [info.id]: this.tree } : {};
-  }
-
   /** Shows the folder picker and opens the chosen collection. */
   async open(): Promise<void> {
     await this.guard(async () => {
@@ -237,63 +446,91 @@ export class AppState {
     await this.guard(() => this.load(info));
   }
 
+  /** A collection set the backend has just opened (open, recent, import, clone): everything
+   *  shown before is replaced. */
   private async load(info: CollectionInfo): Promise<void> {
-    this.collection = info;
-    this.tabs = [];
-    this.active = null;
-    this.drafts = {};
-    this.results = {};
-    this.tree = await this.backend.tree();
-    this.environments = await this.backend.environments();
-    this.environment = this.environments[0]?.name ?? null;
-    this.dirty = await this.backend.dirty();
-    this.syncSingle();
-    this.loadCount++;
+    this.openTabs = [];
+    this.views = {};
+    this.trees = {};
+    this.collection = null;
+    this.backendActive = info.id;
+    await this.show_(info);
+    await this.refreshSet();
   }
 
-  /** Re-reads the open collection after its files changed underneath (Git checkout, pull,
-   *  conflict resolution). Keeps the tabs whose requests still exist, with their state from
-   *  the files; the active environment stays if it still exists. */
+  /** Re-reads what changed underneath (Git checkout, pull, conflict resolution): every
+   *  collection of the active collection's repository (wave 14). Keeps the tabs whose requests
+   *  still exist, with their state from the files; the active environment stays if it still
+   *  exists. Collections of the repository that are not active are re-read when shown. */
   async reload(): Promise<void> {
     if (!this.collection) return;
-    await this.lastEdit;
-    await this.guard(async () => {
-      this.tree = await this.backend.tree();
-      const drafts: Record<string, RequestSpec> = {};
-      for (const path of this.tabs) {
-        try {
-          drafts[path] = await this.backend.getRequest(path);
-        } catch {
-          // The request is gone in this version of the files.
+    await this.guard(() =>
+      this.enqueue(async () => {
+        const id = this.collection!.id;
+        const before = this.collections.find((c) => c.id === id);
+        await this.refreshSet();
+        const mates = this.collections.filter((c) =>
+          before?.repo ? c.repo === before.repo : c.id === id,
+        );
+        for (const mate of mates) {
+          if (mate.id === id) continue;
+          // Read again when shown or opened in the sidebar.
+          const view = this.views[mate.id];
+          if (view) {
+            view.drafts = {};
+            view.dirty = await this.backend.collections.dirty(mate.id);
+          }
+          if (this.trees[mate.id]) this.trees[mate.id] = await this.backend.collections.tree(mate.id);
         }
-      }
-      this.drafts = drafts;
-      this.tabs = this.tabs.filter((p) => p in drafts);
-      if (this.active && !(this.active in drafts)) this.active = this.tabs[0] ?? null;
-      this.environments = await this.backend.environments();
-      if (!this.environments.some((e) => e.name === this.environment)) {
-        this.environment = this.environments[0]?.name ?? null;
-      }
-      this.dirty = await this.backend.dirty();
-      this.syncSingle();
-      this.loadCount++;
-    });
+        // The views of collections that left the set go.
+        const present = new Set(this.collections.map((c) => c.id));
+        this.openTabs = this.openTabs.filter((t) => present.has(t.collection));
+        if (!present.has(id)) {
+          const next = this.collections[0];
+          if (next) await this.show_(await this.backendTo(next.id));
+          return;
+        }
+        this.tree = await this.backend.tree();
+        const view = this.current!;
+        const drafts: Record<string, RequestSpec> = {};
+        for (const path of this.tabs) {
+          try {
+            drafts[path] = await this.backend.getRequest(path);
+          } catch {
+            // The request is gone in this version of the files.
+          }
+        }
+        view.drafts = drafts;
+        this.openTabs = this.openTabs.filter((t) => t.collection !== id || t.path in drafts);
+        if (view.active && !(view.active in drafts)) view.active = this.tabs[0] ?? null;
+        view.environments = await this.backend.environments();
+        if (!view.environments.some((e) => e.name === view.environment)) {
+          view.environment = view.environments[0]?.name ?? null;
+        }
+        this.setDirty(id, await this.backend.dirty());
+        this.loadCount++;
+      }),
+    );
   }
 
-  /** Opens a request in a tab (or focuses its tab). */
+  /** Opens a request of the active collection in a tab (or focuses its tab). */
   async select(path: string): Promise<void> {
+    const id = this.collection?.id;
+    const view = this.current;
+    if (!id || !view) return;
     await this.guard(async () => {
-      if (!this.drafts[path]) this.drafts[path] = await this.backend.getRequest(path);
-      if (!this.tabs.includes(path)) this.tabs = [...this.tabs, path];
-      this.active = path;
+      if (!view.drafts[path]) view.drafts[path] = await this.backend.getRequest(path);
+      if (!this.openTabs.some((t) => t.collection === id && t.path === path)) {
+        this.openTabs = [...this.openTabs, { collection: id, path }];
+      }
+      view.active = path;
     });
   }
 
+  /** Closes a tab of the active collection (`closeRef` for any). */
   close(path: string): void {
-    const i = this.tabs.indexOf(path);
-    if (i < 0) return;
-    this.tabs = this.tabs.filter((p) => p !== path);
-    if (this.active === path) this.active = this.tabs[Math.min(i, this.tabs.length - 1)] ?? null;
+    const id = this.collection?.id;
+    if (id) void this.closeRef({ collection: id, path });
   }
 
   /** Records an edit from the editor and tells the backend (in memory, unsaved). */
@@ -328,16 +565,19 @@ export class AppState {
   }
 
   private async update(path: string, snapshot: RequestSpec): Promise<void> {
-    const run = this.lastEdit.then(() =>
+    const id = this.collection?.id;
+    if (!id) return;
+    await this.enqueue(() =>
       this.guard(async () => {
+        // The edit belongs to the collection that was active when it was made.
+        if (this.backendActive !== id) await this.backendTo(id);
         await this.backend.updateRequest(path, snapshot);
-        this.dirty = await this.backend.dirty();
-        if (this.tree) this.tree = await this.backend.tree();
-        this.syncSingle();
+        this.setDirty(id, await this.backend.dirty());
+        if (this.trees[id]) this.trees[id] = await this.backend.tree();
+        const shown = this.collection?.id;
+        if (shown && shown !== id) await this.backendTo(shown);
       }),
     );
-    this.lastEdit = run;
-    await run;
   }
 
   /** Resolves when every `edit` so far has reached the backend (wave 8: sessions open the
@@ -346,41 +586,51 @@ export class AppState {
     await this.lastEdit;
   }
 
+  /** A new request named `name` in `folder` of the active collection (unsaved), opened. */
   async create(folder: string, name: string): Promise<void> {
+    await this.lastEdit;
     await this.guard(async () => {
       const path = await this.backend.createRequest(folder, name);
       this.tree = await this.backend.tree();
       this.dirty = await this.backend.dirty();
-      this.syncSingle();
       await this.select(path);
     });
   }
 
+  /** Saves every collection with unsaved changes (wave 14: Mod+S saves all). */
   async save(): Promise<void> {
-    await this.lastEdit;
-    await this.guard(async () => {
-      await this.backend.save();
-      this.dirty = await this.backend.dirty();
-      this.syncSingle();
-    });
+    await this.guard(() =>
+      this.enqueue(async () => {
+        const saved = await this.backend.collections.saveAll();
+        for (const c of saved) {
+          if (this.views[c.collection]) this.setDirty(c.collection, await this.backend.collections.dirty(c.collection));
+        }
+        if (this.collection) this.setDirty(this.collection.id, await this.backend.dirty());
+      }),
+    );
   }
 
+  /** Sends a request of the active collection; its result stays with that collection, also
+   *  when another one becomes active meanwhile. */
   async send(path: string | null = this.active): Promise<void> {
-    if (!path) return;
-    this.sending[path] = true;
+    const view = this.current;
+    if (!path || !view) return;
+    view.sending[path] = true;
     await this.lastEdit;
     await this.guard(async () => {
-      const previous = this.results[path];
-      const result = await this.backend.send(path, { environment: this.environment, vars: [] });
-      this.results[path] = result;
+      const previous = view.results[path];
+      const result = await this.backend.send(path, { environment: view.environment, vars: [] });
+      view.results[path] = result;
       if (previous?.response_id != null) await this.backend.releaseResponse(previous.response_id);
     });
-    this.sending[path] = false;
+    view.sending[path] = false;
     this.sendCount++;
   }
 
+  /** Selects the active collection's environment (remembered per collection and device). */
   setEnvironment(name: string | null): void {
     this.environment = name;
+    if (this.collection) storeSetting(`env:${this.collection.id}`, name ?? undefined);
   }
 
   /** Re-reads environments after edits; keeps the active one if it still exists. */

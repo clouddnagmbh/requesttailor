@@ -14,6 +14,8 @@
 // Wave 7 (strand C): session variables go into the runtime layer, assertions and actions run
 // in a tiny model (`mock-assert.ts`), a send keeps its `var_changes` for the session.
 // `scriptOutcome` lets UI tests add script results (tests, logs, notes, a script error).
+// Wave 14 (strand A): "Open folder" opens two collections ("Demo API" with the requests above,
+// "Billing API"), `./mock-collections.ts`; the per-collection commands act on the active one.
 
 import type {
   AuthApi,
@@ -48,7 +50,7 @@ import { mockReview } from "./mock-review";
 import { mockContract } from "./mock-contract";
 import { mockRescue } from "./mock-rescue";
 import { mockCompanions } from "./mock-companions";
-import { stubCollections } from "./wave14-stubs";
+import { DEMO_ID, MockCollections, mockTree } from "./mock-collections";
 import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
 import { mockScripts } from "./mock-scripts";
@@ -187,23 +189,51 @@ interface Stored {
 
 export class MockBackend implements Backend {
   readonly kind = "mock" as const;
-  /** Wave 14 interface: one collection until strand A (`mock-collections.ts`). */
-  readonly collections = stubCollections(this);
+  /** Every file "written" by `save`, for tests (`window.__rt.backend.files`); files of a
+   *  collection in a subfolder under that folder (`billing/health.yml`). */
+  readonly files = new Map<string, string>();
+  /** Wave 14: the collections in the sidebar (`mock-collections.ts`). */
+  readonly collections: MockCollections = new MockCollections({
+    demo: () => ({ requests: sampleRequests(), envs: sampleEnvironments() }),
+    empty: (name) => emptyRequest(name),
+    files: this.files,
+    extraDirty: () => [...this.mcp.dirty(), ...this.companions.dirty()],
+    saveExtra: () => {
+      const changes: FileChange[] = [];
+      for (const change of this.mcp.save()) {
+        this.files.set(change.path, change.text);
+        changes.push(change);
+      }
+      changes.push(...this.companions.save());
+      return changes;
+    },
+  });
 
-  private requests = sampleRequests();
-  private saved = new Map<string, RequestSpec>();
-  private envs = sampleEnvironments();
-  private secretValues = new Map<string, string>();
+  // The active collection's data (throws like the shells when nothing is open).
+  private get requests(): Map<string, RequestSpec> {
+    return this.collections.current_().requests;
+  }
+  private get saved(): Map<string, RequestSpec> {
+    return this.collections.current_().saved;
+  }
+  private get envs(): Environment[] {
+    return this.collections.current_().envs;
+  }
+  private set envs(envs: Environment[]) {
+    this.collections.current_().envs = envs;
+  }
+  private get envDirty(): Set<string> {
+    return this.collections.current_().envDirty;
+  }
+  private get secretValues(): Map<string, string> {
+    return this.collections.current_().secretValues;
+  }
   private responses = new Map<number, Stored>();
   private nextId = 1;
   private mode: TransportMode = "browser";
-  private opened = false;
-  /** Every file "written" by `save`, for tests (`window.__rt.backend.files`). */
-  readonly files = new Map<string, string>();
 
   /** `welcome`: ship a bundled plugin and ask the first-start question (wave 6). */
   constructor(options: { welcome?: boolean } = {}) {
-    for (const [p, s] of this.requests) this.saved.set(p, structuredClone(s));
     this.plugins = Object.assign(mockPlugins({ welcome: options.welcome }), {
       requestOf: (path: string) => this.getRequest(path),
       newRequest: (name: string) => emptyRequest(name),
@@ -281,9 +311,8 @@ export class MockBackend implements Backend {
   readonly companions = mockCompanions(this.files, () => this.ensureOpen());
 
   async openCollection(): Promise<CollectionInfo | null> {
-    this.opened = true;
-    const info = { id: "mock-collection", name: "Demo API", location: "mock://demo" };
-    this.recent.opened(info);
+    const info = this.collections.openDemo();
+    this.recent.opened({ id: DEMO_ID, name: "demo", location: "mock://demo" });
     return info;
   }
 
@@ -292,7 +321,7 @@ export class MockBackend implements Backend {
   }
 
   async openRecent(id: string, _interactive: boolean): Promise<CollectionInfo | null> {
-    return id === "mock-collection" ? this.openCollection() : null;
+    return id === DEMO_ID ? this.openCollection() : null;
   }
 
   async search(query: string, limit: number): Promise<SearchHit[]> {
@@ -301,31 +330,13 @@ export class MockBackend implements Backend {
   }
 
   private ensureOpen() {
-    if (!this.opened) throw new BackendError("shell", "no collection open");
+    if (!this.collections.isOpen) throw new BackendError("shell", "no collection open");
   }
 
   async tree(): Promise<TreeNode> {
     this.ensureOpen();
-    const root: TreeNode = { kind: "folder", name: "Demo API", path: "", children: [] };
-    const folders = new Map<string, TreeNode & { kind: "folder" }>();
-    const paths = [...this.requests.keys()].sort();
-    for (const path of paths) {
-      const spec = this.requests.get(path)!;
-      const parts = path.split("/");
-      let parent = root as TreeNode & { kind: "folder" };
-      for (let i = 0; i < parts.length - 1; i++) {
-        const fp = parts.slice(0, i + 1).join("/");
-        let f = folders.get(fp);
-        if (!f) {
-          f = { kind: "folder", name: parts[i], path: fp, children: [] };
-          folders.set(fp, f);
-          parent.children.push(f);
-        }
-        parent = f;
-      }
-      parent.children.push({ kind: "request", name: spec.name, path, method: spec.method });
-    }
-    return root;
+    const c = this.collections.current_();
+    return mockTree(c.info.name, c.requests);
   }
 
   async getRequest(path: string): Promise<RequestSpec> {
@@ -359,49 +370,18 @@ export class MockBackend implements Backend {
   }
 
   async dirty(): Promise<string[]> {
-    const requests = [...this.requests.keys()].filter(
-      (p) => JSON.stringify(this.requests.get(p)) !== JSON.stringify(this.saved.get(p)),
-    );
-    return [
-      ...requests,
-      ...[...this.envDirty].map((n) => `environments/${n}.yml`),
-      ...this.mcp.dirty(),
-      ...this.companions.dirty(),
-    ];
+    if (!this.collections.isOpen) return [];
+    return this.collections.dirtyOf(this.collections.current_(), true);
   }
 
   async save(): Promise<FileChange[]> {
-    const changes: FileChange[] = [];
-    for (const path of (await this.dirty()).filter((p) => this.requests.has(p))) {
-      const spec = this.requests.get(path)!;
-      // Simplified rendering; secret values are never part of a request spec.
-      const text = `# mock rendering, not OpenCollection\n${JSON.stringify(spec, null, 2)}\n`;
-      this.files.set(path, text);
-      this.saved.set(path, structuredClone(spec));
-      changes.push({ path, text, deleted: false });
-    }
-    for (const name of this.envDirty) {
-      const env = this.envs.find((e) => e.name === name);
-      const path = `environments/${name}.yml`;
-      // Secret values are never part of an Environment here (value: null).
-      const text = env ? `# mock rendering\n${JSON.stringify(env, null, 2)}\n` : "";
-      this.files.set(path, text);
-      changes.push({ path, text, deleted: !env });
-    }
-    this.envDirty.clear();
-    for (const change of this.mcp.save()) {
-      this.files.set(change.path, change.text);
-      changes.push(change);
-    }
-    changes.push(...this.companions.save());
-    return changes;
+    if (!this.collections.isOpen) return [];
+    return this.collections.saveOf(this.collections.current_(), true);
   }
 
   async environments(): Promise<Environment[]> {
     return structuredClone(this.envs);
   }
-
-  private envDirty = new Set<string>();
 
   async updateEnvironment(env: Environment): Promise<void> {
     const clean = structuredClone(env);
@@ -447,7 +427,7 @@ export class MockBackend implements Backend {
     }
     const notes = this.plugins.notes();
     if (notes.length > 0) result.report.notes = [...(result.report.notes ?? []), ...notes];
-    this.history.record("mock-collection", await this.getRequest(path), result);
+    this.history.record(this.collections.current_().info.id, await this.getRequest(path), result);
     return result;
   }
 
