@@ -43,6 +43,7 @@ import { collectionMerger, type CollectionMerge, type CollectionMerger, type Con
 import type { FsClient } from "./fs";
 import { hostOf, type HttpClient } from "./http";
 import { treeAt } from "./revisions";
+import { collectionPath, repoPath, scopedPath } from "./scope";
 
 export interface Repo {
   fs: FsClient;
@@ -50,6 +51,11 @@ export interface Repo {
   dir: string;
   /** isomorphic-git's object cache, for one operation. */
   cache: object;
+  /** The collection's folder in the repository (`a/b`), `""` or missing when the collection
+   *  is the work tree. The paths of `status`, `commit`, `diffSides`, the merge and
+   *  `treeAt`/`show` are relative to it (a leading `/`: relative to the repository); the
+   *  wave-14 parts (./actions.ts) use repository paths. */
+  scope?: string;
 }
 
 export interface Credentials {
@@ -229,7 +235,20 @@ async function countOnly(repo: Repo, from: string, not: string | null): Promise<
   return count;
 }
 
+/** The status with the collection's files only (paths relative to it), like `rt-git`. */
 export async function status(repo: Repo): Promise<GitStatus> {
+  const s = await repoStatus(repo);
+  if (!repo.scope || !s.repo) return s;
+  const files: GitFile[] = [];
+  for (const f of s.files) {
+    const p = scopedPath(repo, f.path);
+    if (p !== null) files.push({ ...f, path: p });
+  }
+  return { ...s, files };
+}
+
+/** The status of the whole work tree (repository paths). */
+async function repoStatus(repo: Repo): Promise<GitStatus> {
   if (!(await isRepo(repo))) return NOT_A_REPO;
   const head = await headOid(repo);
   const current = (await git.currentBranch({ fs: repo.fs, dir: repo.dir, fullname: false })) ?? null;
@@ -250,14 +269,17 @@ export async function status(repo: Repo): Promise<GitStatus> {
   }
   const unmerged = new Set(await conflicted(repo));
   const files: GitFile[] = [];
-  for (const [filepath, h, w] of await git.statusMatrix(base(repo))) {
+  const matrix = await git.statusMatrix({ ...base(repo), ...(repo.scope ? { filepaths: [repo.scope] } : {}) });
+  for (const [filepath, h, w] of matrix) {
     if (unmerged.has(filepath)) files.push({ path: filepath, state: "conflicted" });
     else if (h === 0 && w !== 0) files.push({ path: filepath, state: "untracked" });
     else if (h === 1 && w === 0) files.push({ path: filepath, state: "deleted" });
     else if (h === 1 && w === 2) files.push({ path: filepath, state: "modified" });
   }
   for (const p of unmerged) {
-    if (!files.some((f) => f.path === p)) files.push({ path: p, state: "conflicted" });
+    if (!files.some((f) => f.path === p) && (!repo.scope || scopedPath(repo, p) !== null)) {
+      files.push({ path: p, state: "conflicted" });
+    }
   }
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   return { repo: true, branch, upstream, ahead, behind, files, merging: (await mergeHead(repo)) !== null };
@@ -273,7 +295,8 @@ async function blobAt(repo: Repo, commit: string | null, filepath: string): Prom
 }
 
 /** HEAD and working-tree bytes of a file (`null` where missing), for the diff. */
-export async function diffSides(repo: Repo, filepath: string): Promise<[Uint8Array | null, Uint8Array | null]> {
+export async function diffSides(repo: Repo, path: string): Promise<[Uint8Array | null, Uint8Array | null]> {
+  const filepath = repoPath(repo, path);
   return [await blobAt(repo, await headOid(repo), filepath), await readOptional(repo, filepath)];
 }
 
@@ -330,7 +353,12 @@ function toCommit(oid: string, c: { message: string; author: { name: string; tim
   return { oid, summary: c.message.split("\n")[0], author: c.author.name, time: c.author.timestamp };
 }
 
-export async function commit(
+/** Commits the collection files `paths` (relative to the collection). */
+export function commit(repo: Repo, message: string, paths: string[], identity: GitIdentity): Promise<GitCommit> {
+  return commitPaths(repo, message, paths.map((p) => repoPath(repo, p)), identity);
+}
+
+async function commitPaths(
   repo: Repo,
   message: string,
   paths: string[],
@@ -570,7 +598,7 @@ function changedPaths(a: Map<string, Entry>, b: Map<string, Entry>): Set<string>
 
 /** Fails if local changes (anything not committed) touch `paths`. */
 async function guardLocalChanges(repo: Repo, paths: Set<string>): Promise<void> {
-  const local = (await status(repo)).files.map((f) => f.path).filter((p) => paths.has(p));
+  const local = (await repoStatus(repo)).files.map((f) => f.path).filter((p) => paths.has(p));
   if (local.length > 0) {
     throw gitErr(`Commit your changes to ${local.join(", ")} before pulling: the pull changes these files too.`);
   }
@@ -668,11 +696,11 @@ export async function mergeUpstream(
           const covered = new Set(sem.paths);
           const others = [...changedPaths(oursTree, theirsTree)].filter((p) => !covered.has(p));
           await takeTheirsOnly(repo, others, baseTree, oursTree, theirsTree);
-          const c = await commit(repo, message, [...others, ...sem.paths], identity);
+          const c = await commitPaths(repo, message, [...others, ...sem.paths], identity);
           return { outcome: "merged", oid: c.oid };
         }
       }
-      return { outcome: "conflicts", paths: await conflicted(repo) };
+      return { outcome: "conflicts", paths: (await conflicted(repo)).map((p) => collectionPath(repo, p)) };
     }
   } catch (e) {
     throw gitError(e);
@@ -703,13 +731,22 @@ async function semanticMerge(
     oid ? Object.entries((await treeAt(repo, oid)).files) : [];
   try {
     const [b, o, t] = [await files(mergeBase), await files(ours), await files(theirs)];
-    const merged = await merger.merge(b, o, t);
-    const paths = [...new Set([...b, ...o, ...t].map(([p]) => p))].sort();
+    const m = await merger.merge(b, o, t);
+    // The core works on collection paths; the merge here on repository paths.
+    const at = (p: string) => repoPath(repo, p);
+    const moved = (list: TextFiles): TextFiles => list.map(([p, text]) => [at(p), text]);
+    const merged: CollectionMerge = {
+      files: moved(m.files),
+      conflicts: m.conflicts.map((c) => ({ ...c, file: at(c.file) })),
+      text_conflicts: m.text_conflicts.map(at),
+      marked: moved(m.marked),
+    };
+    const paths = [...new Set([...b, ...o, ...t].map(([p]) => at(p)))].sort();
     const theirsOf = new Map(t);
     const byContent = new Map<string, string>();
     for (const [p, text] of o) {
       const other = theirsOf.get(p);
-      if (other !== undefined) byContent.set(contentKey(fileName(p), text, other), p);
+      if (other !== undefined) byContent.set(contentKey(fileName(p), text, other), at(p));
     }
     return { ...merged, paths, byContent };
   } catch {
@@ -803,7 +840,7 @@ export async function mergeSides(
   repo: Repo,
 ): Promise<{ merging: boolean; context: TextFiles; stages: ConflictStages[] }> {
   const merging = (await mergeHead(repo)) !== null;
-  const paths = await conflicted(repo);
+  const paths = (await conflicted(repo)).map((p) => collectionPath(repo, p));
   if (!merging || paths.length === 0) return { merging, context: [], stages: [] };
   const context = Object.entries((await treeAt(repo, "HEAD")).files);
   const stages: ConflictStages[] = [];
@@ -816,7 +853,8 @@ export async function mergeSides(
 
 /** Writes resolved files (`null`: delete) and marks them resolved in the index. */
 export async function writeResolved(repo: Repo, files: [string, string | null][]): Promise<void> {
-  for (const [p, content] of files) {
+  for (const [rel, content] of files) {
+    const p = repoPath(repo, rel);
     if (content === null) {
       await removeOptional(repo, p);
       await git.remove({ fs: repo.fs, dir: repo.dir, filepath: p });
@@ -829,20 +867,22 @@ export async function writeResolved(repo: Repo, files: [string, string | null][]
 
 const text = (b: Uint8Array | null) => (b ? new TextDecoder().decode(b) : null);
 
-export async function conflict(repo: Repo, filepath: string): Promise<GitConflict> {
+export async function conflict(repo: Repo, path: string): Promise<GitConflict> {
+  const filepath = repoPath(repo, path);
   const theirs = await mergeHead(repo);
   if (!theirs) throw gitErr("No merge is in progress.");
   const ours = await headOid(repo);
   const bases = ours ? ((await git.findMergeBase({ ...base(repo), oids: [ours, theirs] })) as string[]) : [];
   return {
-    path: filepath,
+    path,
     base: text(await blobAt(repo, bases[0] ?? null, filepath)),
     ours: text(await blobAt(repo, ours, filepath)),
     theirs: text(await blobAt(repo, theirs, filepath)),
   };
 }
 
-export async function resolve(repo: Repo, filepath: string, resolution: GitResolution): Promise<void> {
+export async function resolve(repo: Repo, path: string, resolution: GitResolution): Promise<void> {
+  const filepath = repoPath(repo, path);
   const theirs = await mergeHead(repo);
   if (!theirs) throw gitErr("No merge is in progress.");
   const side = resolution === "ours" ? await headOid(repo) : theirs;

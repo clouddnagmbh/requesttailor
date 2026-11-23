@@ -71,6 +71,9 @@ interface Entry {
   dir: string;
   repo: string | null;
   handle: FileSystemDirectoryHandle;
+  /** The folder of the repository (`null` outside Git) and the collection's folder in it
+   *  (`""` at its root), for the web Git. */
+  git: { handle: FileSystemDirectoryHandle; scope: string } | null;
 }
 
 /** What the set needs from the backend. */
@@ -168,6 +171,10 @@ async function repoDir(root: FileSystemDirectoryHandle, dir: string): Promise<st
 
 const idOf = (root: string, dir: string) => (dir ? `${root}/${dir}` : root);
 
+/** The collection folder `dir` relative to its repository's folder `repo` (both relative to
+ *  the root; `repo` is `dir` or one of its parents). */
+const scopeIn = (repo: string, dir: string) => (repo === dir ? "" : dir.slice(repo ? repo.length + 1 : 0));
+
 /** Whether two handles are the same folder. */
 async function same(a: FileSystemDirectoryHandle, b: FileSystemDirectoryHandle): Promise<boolean> {
   if (a === b) return true;
@@ -189,6 +196,13 @@ export class WebCollectionSet implements CollectionSetApi {
     const s = this.active ? this.sessions.get(this.active) : undefined;
     if (!s) throw new BackendError("shell", "No collection is open.");
     return s;
+  }
+
+  /** The Git repository of the active collection, as the web Git opens it: the repository's
+   *  folder and the collection's folder in it (`""` at its root); `null` outside Git (or
+   *  before a collection is open). */
+  repository(): { handle: FileSystemDirectoryHandle; scope: string } | null {
+    return this.active ? (this.entries.find((e) => e.id === this.active)?.git ?? null) : null;
   }
 
   get isOpen(): boolean {
@@ -439,6 +453,7 @@ export class WebCollectionSet implements CollectionSetApi {
       dir,
       repo: repo === null ? null : idOf(root.id, repo),
       handle,
+      git: repo === null ? null : { handle: await folderAt(root.handle, repo), scope: scopeIn(repo, dir) },
     });
     root.collections.push(id);
     // Sidebar order: roots in order, each root's collections in order.
@@ -515,6 +530,7 @@ export class WebCollectionSet implements CollectionSetApi {
         dir,
         repo: repo === null ? null : idOf(id, repo),
         handle: h,
+        git: repo === null ? null : { handle: await folderAt(handle, repo), scope: scopeIn(repo, dir) },
       });
     }
     return {

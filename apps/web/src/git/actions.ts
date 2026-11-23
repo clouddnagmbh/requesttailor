@@ -56,6 +56,7 @@ import { collectionMerger, type CollectionMerge, type TextFiles } from "../merge
 import type { WebGitContext } from "./graph";
 import { hostOf } from "./http";
 import type { Network, Repo } from "./repo";
+import { collectionPath, repoPath } from "./scope";
 
 /** What the wizards need beyond the graph's context: the network and the author identity
  *  (./index.ts passes the same as for `push`, `pull` and `commit`). */
@@ -1392,7 +1393,7 @@ class Session {
       }
       case "discard": {
         const all = await workFiles(r);
-        const wanted = new Set(action.paths.length ? action.paths.map(unslash) : all.map((f) => f.path));
+        const wanted = new Set(action.paths.length ? action.paths.map((x) => repoPath(r, x)) : all.map((f) => f.path));
         const hit = all.filter((f) => wanted.has(f.path));
         if (hit.length === 0) return { ...p, undoable: false, blocked: block("nothing-to-do", "There are no changes to discard.") };
         p.steps.push(`Throws away the changes to ${plural(hit.length, "file")}; they go back to the last commit.`);
@@ -1642,7 +1643,7 @@ class Session {
         if (tree === null) {
           await writeWorkFile(r, ".git/MERGE_HEAD", `${from}\n`);
           await writeWorkFile(r, ".git/MERGE_MSG", `${message}\n`);
-          const paths = await conflictedPaths(r);
+          const paths = (await conflictedPaths(r)).map((x) => collectionPath(r, x));
           return { message: `Merging ${action.from} needs your decision in ${plural(paths.length, "file")}.`, outcome: { outcome: "conflicts", paths }, reload: true };
         }
         const oid = await this.commitTree(tree, [head!, from], message, who);
@@ -1786,7 +1787,7 @@ class Session {
         if (tree === null) {
           await writeWorkFile(r, pick ? ".git/CHERRY_PICK_HEAD" : ".git/REVERT_HEAD", `${oid}\n`);
           await writeWorkFile(r, ".git/MERGE_MSG", message.endsWith("\n") ? message : `${message}\n`);
-          const paths = await conflictedPaths(r);
+          const paths = (await conflictedPaths(r)).map((x) => collectionPath(r, x));
           return {
             message: `${pick ? "Copying" : "Undoing"} "${subject}" needs your decision in ${plural(paths.length, "file")}.`,
             outcome: { outcome: "conflicts", paths },

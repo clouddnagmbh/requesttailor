@@ -687,6 +687,33 @@ fn merges_collections_anywhere_in_the_repository() {
 }
 
 #[test]
+fn discards_by_collection_path_in_a_subfolder() {
+    // The Git panel lists the collection's files relative to the collection.
+    let work = tmp("discard-nested");
+    new_repo(work.path(), "Ada");
+    write(work.path(), "api/opencollection.yml", COLLECTION);
+    let get = request("GET", "https://api.test/users/1");
+    write(work.path(), "api/users/get.yml", &get);
+    reopen(work.path())
+        .commit(
+            "init",
+            &paths(&["api/opencollection.yml", "api/users/get.yml"]),
+            None,
+        )
+        .unwrap();
+    write(
+        work.path(),
+        "api/users/get.yml",
+        &request("POST", "https://api.test/users/1"),
+    );
+    let scoped = reopen(&work.path().join("api"));
+    let discard = act(r#"{"action":"discard","paths":["users/get.yml"]}"#);
+    assert_eq!(plan(&scoped, &discard).files, ["/api/users/get.yml"]);
+    apply(&scoped, &discard);
+    assert_eq!(read(work.path(), "api/users/get.yml"), get);
+}
+
+#[test]
 fn remotes_and_tags() {
     let f = fixture("remotes");
     let repo = f.repo();

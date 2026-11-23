@@ -61,8 +61,8 @@ function revisions(): Promise<RevisionsModule> {
   return loadingRevisions;
 }
 
-function repoAt(handle: FileSystemDirectoryHandle): Repo {
-  return { fs: directoryFs(handle), dir: "/", cache: {} };
+function repoAt(handle: FileSystemDirectoryHandle, scope = ""): Repo {
+  return { fs: directoryFs(handle), dir: "/", cache: {}, scope };
 }
 
 function isIdentity(v: unknown): v is GitIdentity {
@@ -135,7 +135,12 @@ export function webGit(host: WebHost): GitApi {
   }
 
   const session = () => host.session();
-  const repo = () => repoAt(session().handle);
+  // The repository may sit above the collection (a collection in a subfolder of the repo):
+  // Git then runs at the repository's folder, paths stay relative to the collection.
+  const repo = () => {
+    const at = host.repository?.();
+    return at ? repoAt(at.handle, at.scope) : repoAt(session().handle);
+  };
   // Wave 14: what the graph (./graph.ts) and the wizards (./actions.ts) get.
   const wave14: WebGitContext = { host, repo, run: (op) => run(op) };
 

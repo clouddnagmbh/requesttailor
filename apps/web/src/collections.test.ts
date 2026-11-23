@@ -105,6 +105,11 @@ describe.skipIf(!built)("web collection set", () => {
     expect(s.roots.map((r) => [r.id, r.collections.length, r.truncated])).toEqual([["id-apis", 3, false]]);
     // `.git` in the root: every collection is in that repository.
     expect(s.collections.every((x) => x.repo === "id-apis")).toBe(true);
+    // The web Git runs at the repository's folder, scoped to the collection's folder.
+    expect(set.repository()?.scope).toBe("billing");
+    await set.activate("id-apis/services/orders");
+    expect(set.repository()?.scope).toBe("services/orders");
+    await set.activate("id-apis/billing");
     expect(opened).toEqual(["id-apis"]);
     expect(remembered.at(-1)).toEqual({ roots: ["id-apis"], active: "id-apis/billing" });
     // The nested collection is not part of Orders.
