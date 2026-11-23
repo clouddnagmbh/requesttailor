@@ -71,6 +71,7 @@ async function cloneRepo(page: Page, port: number, paired = true) {
   await page.getByTestId("open-collection").click();
   await expect(page.getByTestId("collection-name")).toHaveText("Workspace");
   await page.getByTestId("view-git").click();
+  await page.getByTestId("git-clone-open").click();
   await page.getByTestId("git-clone-url").fill(`http://127.0.0.1:${port}/acme/orders.git`);
   await page.getByTestId("git-clone").click();
   await expect(page.getByTestId("collection-name")).toHaveText("Orders", { timeout: 30_000 });
