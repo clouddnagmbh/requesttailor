@@ -138,6 +138,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             git::git_resolve,
             git::git_init,
             git::git_clone,
+            git::git_pick_repository,
             git::git_identity,
             git::git_set_identity,
             git::git_has_credentials,

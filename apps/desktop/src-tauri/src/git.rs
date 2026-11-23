@@ -379,6 +379,27 @@ pub async fn git_clone(
     blocking(app, move |core| clone_into(core, &url, &parent).map(Some)).await
 }
 
+/// Shows the folder picker for a repository on this machine (the folder of a normal
+/// repository or a bare one) and returns its path; `None` if cancelled.
+#[tauri::command]
+pub async fn git_pick_repository(app: tauri::AppHandle) -> Result<Option<String>, CommandError> {
+    let picked = tokio::task::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .set_title("Choose the repository to clone")
+            .blocking_pick_folder()
+    })
+    .await
+    .map_err(|e| AppError::Shell(e.to_string()))?;
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
+    let path = picked
+        .into_path()
+        .map_err(|e| AppError::Shell(format!("unsupported folder: {e}")))?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
 #[tauri::command]
 pub async fn git_identity(app: tauri::AppHandle) -> Result<Option<GitIdentity>, CommandError> {
     blocking(app, identity).await

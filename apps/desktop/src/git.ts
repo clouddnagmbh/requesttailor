@@ -25,6 +25,7 @@ export function tauriGit(call: Call): GitApi {
     resolve: (path, resolution) => call("git_resolve", { path, resolution }),
     init: () => call("git_init"),
     clone: (url) => call("git_clone", { url }),
+    pickRepository: () => call("git_pick_repository"),
     identity: () => call("git_identity"),
     setIdentity: (identity) => call("git_set_identity", { identity }),
     hasCredentials: (host) => call("git_has_credentials", { host }),

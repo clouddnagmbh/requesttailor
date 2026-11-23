@@ -41,6 +41,7 @@ const COMMANDS: &[&str] = &[
     "git_resolve",
     "git_init",
     "git_clone",
+    "git_pick_repository",
     "git_identity",
     "git_set_identity",
     "git_has_credentials",

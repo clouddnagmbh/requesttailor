@@ -23,6 +23,8 @@ import {
   type GitApi,
   type GitIdentity,
   type SecretsApi,
+  LOCAL_CLONE_UNSUPPORTED,
+  looksLocal,
 } from "@requesttailor/ui";
 
 import type { WebHost } from "../web-backend";
@@ -226,6 +228,7 @@ export function webGit(host: WebHost): GitApi {
     clone: (url) =>
       run(async (): Promise<CollectionInfo | null> => {
         const trimmed = url.trim();
+        if (looksLocal(trimmed)) throw new BackendError("unsupported", LOCAL_CLONE_UNSUPPORTED);
         if (!/^https?:\/\//i.test(trimmed)) {
           throw new BackendError("git", "Enter an HTTPS URL of the repository (SSH needs the desktop app).");
         }
