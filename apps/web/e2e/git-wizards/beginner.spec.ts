@@ -89,10 +89,13 @@ test("the wizard is keyboard only: type, Enter, Enter", async ({ page }) => {
   await page.getByTestId("git-branch").focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("menu")).toBeVisible();
+  // Up from the last entry to "New branch…", the first after the branches.
   await page.keyboard.press("End");
-  await page.keyboard.press("ArrowUp");
-  await page.keyboard.press("ArrowUp");
-  await page.keyboard.press("ArrowUp");
+  const newBranch = page.getByRole("menuitem", { name: "New branch…" });
+  for (let i = 0; i < 8 && !(await newBranch.evaluate((el) => el === document.activeElement)); i++) {
+    await page.keyboard.press("ArrowUp");
+  }
+  await expect(newBranch).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("git-wizard-name")).toBeFocused();
   await page.keyboard.type("kbd");
