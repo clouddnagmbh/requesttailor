@@ -423,6 +423,8 @@
               <Icon name={node.kind === "collection" ? "collection" : open ? "folder-open" : "folder"} size="sm" />
             </span>
             <span class="name">{node.name}</span>
+            <!-- The chip and the unsaved count stay clickable: the row actions float to their left. -->
+            <span class="end">
             {@render chip(row)}
             {#if node.kind === "collection" && node.entry.dirty > 0}
               <span
@@ -461,6 +463,7 @@
                 aria-haspopup="menu"
                 onclick={(e) => openMenu(row, (e.currentTarget as HTMLElement).closest(".row") as HTMLElement)}
               />
+            </span>
             </span>
           {/if}
         </div>
@@ -601,13 +604,23 @@
     flex: none;
     display: inline-flex;
   }
-  /* Row actions float over the end of the row while it is hovered or focused, so names keep
-     their width otherwise. */
+  /* Chip, unsaved count and the floating row actions at the end of a collection or folder row. */
+  .end {
+    position: relative;
+    flex: none;
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-3);
+  }
+  /* Row actions float over the end of the name while the row is hovered or focused, so names
+     keep their width otherwise; left of the chip, which stays clickable. */
   .actions {
     position: absolute;
     top: 0;
     bottom: 0;
-    right: var(--rt-space-1);
+    right: 100%;
+    padding-right: var(--rt-space-1);
     display: inline-flex;
     align-items: center;
     gap: var(--rt-space-1);

@@ -6,12 +6,13 @@ import { describe, expect, it, vi } from "vitest";
 import { MockBackend } from "../commands/mock";
 import type { AppExtension } from "../extensions";
 import { AppState } from "../state/app.svelte";
+import { createExtensionContext } from "./extension-context";
 import { dismissalKey, extensionHintsFor, extensionNodeActions, pickHint } from "./extension-hints";
 import type { ProvidedExtensions } from "./extension-tabs";
 
 function provided(extensions: AppExtension[]): ProvidedExtensions {
   const backend = new MockBackend();
-  return { extensions, ctx: { backend, app: new AppState(backend) } };
+  return { extensions, ctx: createExtensionContext(backend, new AppState(backend)) };
 }
 
 describe("extension hints and node actions (wave 14)", () => {

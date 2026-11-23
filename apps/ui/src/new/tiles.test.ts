@@ -22,7 +22,8 @@ describe("tiles", () => {
     );
     expect(groupTiles(tiles).map((g) => [g.group, g.tiles.length])).toEqual([
       ["Requests", 5],
-      ["Organise", 3],
+      // Collection, Folder, Environment and From OpenAPI (the OpenAPI wizard).
+      ["Organise", 4],
       ["Testing", 1],
       ["Data", 2],
       ["More", 1],
@@ -32,9 +33,9 @@ describe("tiles", () => {
     expect(tiles.filter((t) => t.builtin).every((t) => t.badge === undefined)).toBe(true);
   });
 
-  it("without a collection only Collection and extension tiles can be chosen", () => {
+  it("without a collection only Collection, From OpenAPI and extension tiles can be chosen", () => {
     const tiles = allTiles([ext("x/one")], false);
-    expect(tiles.filter((t) => !t.disabled).map((t) => t.key)).toEqual(["collection", "x/one"]);
+    expect(tiles.filter((t) => !t.disabled).map((t) => t.key)).toEqual(["collection", "openapi", "x/one"]);
     expect(filterTiles(tiles, "").best).toBe(tiles.findIndex((t) => t.key === "collection"));
   });
 
@@ -53,6 +54,7 @@ describe("tiles", () => {
     expect(pick("mcp")).toBe("mcp-test");
     expect(pick("proto")).toBe("grpc");
     expect(pick("odata")).toBe("x/odata");
+    expect(pick("openapi")).toBe("openapi");
     expect(filterTiles(tiles, "zzzz").flat).toEqual([]);
   });
 });

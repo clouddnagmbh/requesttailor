@@ -47,6 +47,7 @@
   import { tick } from "svelte";
 
   import type { ExtensionContext, NewTarget } from "../extensions";
+  import { createExtensionContext } from "../shell/extension-context";
   import { getExtensions } from "../shell/extension-tabs";
   import { getApp } from "../state/app.svelte";
   import { Badge, Button, Card, Dialog, DialogFooter, EmptyState, Icon, Kbd, TextField } from "../ui";
@@ -64,7 +65,7 @@
 
   const app = getApp();
   const provided = getExtensions();
-  const ctx: ExtensionContext = provided?.ctx ?? { backend: app.backend, app };
+  const ctx: ExtensionContext = provided?.ctx ?? createExtensionContext(app.backend, app);
   const desktop = app.backend.kind === "tauri";
   const FORM_ID = "rt-new-form";
 

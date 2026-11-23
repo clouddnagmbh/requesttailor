@@ -61,7 +61,8 @@ test("Mod+N, arrow keys and Enter create every kind of request", async ({ page }
     // Unsaved, opened in a tab, at the top level (the dialog was opened for the root).
     const row = treeRequest(page, name);
     await expect(row).toContainText(method);
-    await expect(row).toHaveAttribute("aria-level", "1");
+    // Level 1 is the collection node (wave 14 sidebar); its requests are level 2.
+    await expect(row).toHaveAttribute("aria-level", "2");
     await expect(page.getByTestId("tab").filter({ hasText: name })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("tab").filter({ hasText: name }).getByTestId("tab-dirty")).toBeVisible();
   }
@@ -95,7 +96,7 @@ test("typing filters the tiles; a request goes into the chosen folder", async ({
   await page.getByTestId("new-name").press("Enter");
   await expect(dialog(page)).toBeHidden();
   await expect(treeRequest(page, "Delete user")).toHaveAttribute("data-path", "users/delete-user.yml");
-  await expect(treeRequest(page, "Delete user")).toHaveAttribute("aria-level", "2");
+  await expect(treeRequest(page, "Delete user")).toHaveAttribute("aria-level", "3");
 });
 
 test("folder, environment and MCP test from the keyboard", async ({ page }) => {
@@ -137,6 +138,12 @@ test("folder, environment and MCP test from the keyboard", async ({ page }) => {
     return envs.find((e: { name: string }) => e.name === "Staging");
   });
   expect(staging.variables.find((v: { secret: boolean }) => v.secret)).toMatchObject({ value: null });
+  // The environment manager opens on the new environment.
+  const manager = page.getByTestId("env-manager");
+  await expect(manager).toBeVisible();
+  await expect(manager.getByTestId("env-item").filter({ hasText: "Staging" })).toHaveAttribute("aria-current", "true");
+  await page.keyboard.press("Escape");
+  await expect(manager).toBeHidden();
 
   // MCP server test: staged, then the MCP client opens with it listed.
   await openNew(page);
@@ -149,6 +156,9 @@ test("folder, environment and MCP test from the keyboard", async ({ page }) => {
   await expect(dialog(page)).toBeHidden();
   await expect(page.getByTestId("mcp-panel")).toBeVisible();
   await expect(page.getByTestId("mcp-test").filter({ hasText: "echo-tool" })).toBeVisible();
+  // The new test is open in the client: its server is in the form.
+  await expect(page.getByTestId("mcp-test").filter({ hasText: "echo-tool" })).toHaveClass(/current/);
+  await expect(page.getByTestId("mcp-url")).toHaveValue("http://localhost:3001/mcp");
 });
 
 test("a collection goes into a folder named after it", async ({ page }) => {
@@ -166,7 +176,7 @@ test("a collection goes into a folder named after it", async ({ page }) => {
   await expect(page.getByTestId("collection-name")).toHaveText("Shop API");
   const created = await page.evaluate(() => (window as any).__rt.calls.created);
   expect(created).toEqual([
-    { name: "Shop API", root: "mock-collection", dir: "shop-api", base_url: "http://localhost:3000", environment: "Local" },
+    { name: "Shop API", root: "mock://demo", dir: "shop-api", base_url: "http://localhost:3000", environment: "Local" },
   ]);
 });
 

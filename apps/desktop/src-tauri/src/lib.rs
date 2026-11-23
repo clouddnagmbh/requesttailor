@@ -28,6 +28,10 @@ pub mod core;
 /// Wave 12, strand A: semantic diff.
 mod diffs;
 pub mod files;
+/// Wave 14: variable completion.
+mod variables;
+/// OpenAPI import wizard and run wizard.
+mod openapi;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
 /// Wave 8, strand B.
@@ -164,6 +168,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             companions::companion_list,
             companions::companion_read,
             companions::companion_stage,
+            variables::variables_scope,
+            variables::variables_define,
             history::history_list,
             history::history_clear,
             search::search,
@@ -226,6 +232,14 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             mcp_client::mcp_get_test,
             mcp_client::mcp_save_test,
             mcp_client::mcp_run_test,
+            mcp_client::mcp_resources,
+            mcp_client::mcp_read_resource,
+            mcp_client::mcp_prompts,
+            mcp_client::mcp_get_prompt,
+            mcp_client::mcp_self_server,
+            mcp_client::mcp_demo_status,
+            mcp_client::mcp_demo_start,
+            mcp_client::mcp_demo_stop,
             // Wave 12 (interface): revisions.
             git::git_rev_parse,
             git::git_tree_at,
@@ -270,6 +284,11 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             contract::contract_check,
             contract::contract_changes,
             contract::contract_changelog,
+            openapi::openapi_fetch,
+            openapi::openapi_inspect,
+            openapi::openapi_plan,
+            openapi::openapi_requirements,
+            openapi::openapi_validate_response,
             // Wave 12, strand G.
             rescue::rescue_scan,
             rescue::rescue_rewrite,

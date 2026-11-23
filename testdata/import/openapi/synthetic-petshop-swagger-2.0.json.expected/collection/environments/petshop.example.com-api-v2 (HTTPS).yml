@@ -1,0 +1,14 @@
+name: petshop.example.com/api/v2 (HTTPS)
+variables:
+  - name: baseUrl
+    value: https://petshop.example.com/api/v2
+  - secret: true
+    name: apiKey
+  - name: clientId
+    value: ""
+  - name: username
+    value: ""
+  - secret: true
+    name: password
+  - secret: true
+    name: clientSecret

@@ -8,6 +8,8 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { newBranch } from "../git-wizards/helpers";
+
 import { fakePicker, fillFolder, sampleCollection } from "./env";
 
 async function setIdentityWhenAsked(page: Page) {
@@ -32,9 +34,7 @@ test("saved changes, a commit and a branch compare, per field", async ({ page })
   await setIdentityWhenAsked(page);
   await expect(page.getByTestId("git-clean")).toBeVisible();
 
-  await page.getByTestId("git-new-branch").click();
-  await page.getByTestId("git-new-branch-name").fill("feature");
-  await page.getByTestId("git-new-branch-name").press("Enter");
+  await newBranch(page, "feature");
   await expect(page.getByTestId("git-branch")).toHaveText("feature");
 
   await page.getByTestId("view-requests").click();
@@ -64,7 +64,9 @@ test("saved changes, a commit and a branch compare, per field", async ({ page })
   await expect(page.getByTestId("line-diff").locator('[data-kind="added"]')).toContainText("method: POST");
   await page.getByTestId("git-view-close").click();
 
-  await page.getByTestId("git-compare-branch").selectOption("main");
+  await page.getByTestId("git-branch").click();
+  await page.getByRole("menuitem", { name: "Compare with" }).click();
+  await page.getByRole("menuitem", { name: "main", exact: true }).click();
   await expect(page.getByTestId("sd-title")).toHaveText("feature → main");
   await expect(field.getByTestId("sd-old")).toHaveText("POST");
   await expect(field.getByTestId("sd-new")).toHaveText("GET");

@@ -177,3 +177,113 @@ fn help_mentions_import() {
     let o = rt(&["import".as_ref(), "--help".as_ref()]);
     assert_eq!(o.code, 0);
 }
+
+#[test]
+fn openapi_with_choices_and_a_kept_spec() {
+    let bundle = corpus().join("openapi/synthetic-multi-file-3.0.bundle");
+    let out = scratch("openapi").join("Kennel");
+    let o = rt(&[
+        "import".as_ref(),
+        "openapi".as_ref(),
+        bundle.join("openapi.yaml").as_os_str(),
+        bundle.join("parameters.yaml").as_os_str(),
+        bundle.join("schemas/dog.yaml").as_os_str(),
+        bundle.join("schemas/error.yaml").as_os_str(),
+        "--names".as_ref(),
+        "operation-id".as_ref(),
+        "--group".as_ref(),
+        "flat".as_ref(),
+        "--keep-spec".as_ref(),
+        "--out".as_ref(),
+        out.as_os_str(),
+        "--json".as_ref(),
+    ]);
+    assert_eq!(o.code, 0, "stderr: {}", o.stderr);
+    let v: serde_json::Value = serde_json::from_str(&o.stdout).unwrap();
+    assert_eq!(v["collectionName"], "Kennel");
+    assert_eq!(v["report"]["folders"], 0);
+    let details: Vec<&str> = v["report"]["losses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l["detail"].as_str().unwrap())
+        .collect();
+    assert!(
+        details.contains(&"`schemas/owner.yaml` was not given; references to it are not resolved"),
+        "{details:?}"
+    );
+    let files = read_tree(&out);
+    assert!(
+        files.files.contains_key("listdogs.yml"),
+        "{:?}",
+        files.files.keys()
+    );
+    assert_eq!(
+        rt_format::contract::configured_spec(&files).as_deref(),
+        Some("openapi.json")
+    );
+    let doc = rt_format::read_collection(&files).unwrap();
+    assert!(doc.issues().is_empty(), "{:?}", doc.issues());
+    assert_eq!(doc.model().items.len(), 4);
+    std::fs::remove_dir_all(out.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn openapi_swagger_and_zip_files() {
+    let dir = scratch("openapi-files");
+    let o = rt(&[
+        "import".as_ref(),
+        "openapi".as_ref(),
+        corpus()
+            .join("openapi/synthetic-petshop-swagger-2.0.json")
+            .as_os_str(),
+        "--keep-spec".as_ref(),
+        "-o".as_ref(),
+        dir.join("shop").as_os_str(),
+    ]);
+    assert_eq!(o.code, 0, "stderr: {}", o.stderr);
+    assert!(
+        o.stdout.starts_with("Imported OpenAPI \"Pet Shop\""),
+        "{}",
+        o.stdout
+    );
+    assert_eq!(
+        std::fs::read(dir.join("shop/openapi.json")).unwrap(),
+        std::fs::read(corpus().join("openapi/synthetic-petshop-swagger-2.0.json")).unwrap()
+    );
+    // A zip through the plain `rt import` too, as the snapshot has it.
+    let o = rt(&[
+        "import".as_ref(),
+        corpus()
+            .join("openapi/synthetic-zipped-3.1.zip")
+            .as_os_str(),
+        "-o".as_ref(),
+        dir.join("library").as_os_str(),
+    ]);
+    assert_eq!(o.code, 0, "stderr: {}", o.stderr);
+    let expected =
+        read_tree(&corpus().join("openapi/synthetic-zipped-3.1.zip.expected/collection"));
+    assert_eq!(read_tree(&dir.join("library")).files, expected.files);
+    // Wizard options without `openapi`, and an unknown grouping.
+    let o = rt(&[
+        "import".as_ref(),
+        "a.yaml".as_ref(),
+        "--keep-spec".as_ref(),
+        "-o".as_ref(),
+        dir.join("x").as_os_str(),
+    ]);
+    assert_eq!(o.code, 2);
+    assert!(o.stderr.contains("rt import openapi"), "{}", o.stderr);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn help_mentions_import_openapi() {
+    let o = rt(&["--help".as_ref()]);
+    assert!(
+        o.stdout.contains("rt import openapi <file|url>..."),
+        "{}",
+        o.stdout
+    );
+    assert!(o.stdout.contains("--keep-spec"), "{}", o.stdout);
+}

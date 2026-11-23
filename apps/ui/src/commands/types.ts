@@ -314,6 +314,29 @@ export type VarSource =
   | { layer: "request" }
   | { layer: "runtime" };
 
+/** Wave 14 (variable completion, `rt_app::variables`): one variable a request, folder or the
+ *  collection sees. Never carries a secret value. */
+export interface ScopeVar {
+  name: string;
+  /** As defined (not resolved), secret values masked; `null` for secrets and value-less
+   *  variables. */
+  value: string | null;
+  source: VarSource;
+  secret: boolean;
+  /** The secret manager of an external secret of the environment. */
+  external: SecretProvider | null;
+  /** A higher layer (or a later definition in the same layer) defines the same name. */
+  overridden: boolean;
+}
+
+export interface VariableScope {
+  /** Lowest precedence first (global, collection, environment, folders outer to inner,
+   *  request, runtime); within a layer in file order. */
+  variables: ScopeVar[];
+  /** `{{names}}` used somewhere in the collection that no layer here defines (sorted). */
+  undefined: string[];
+}
+
 export interface VarUse {
   name: string;
   source: VarSource;
@@ -651,6 +674,9 @@ export interface FolderImport {
   files: string[];
   /** Collection-level settings the requests carry instead (in addition to the plan's report). */
   losses: Loss[];
+  /** The kept OpenAPI spec, now named in the collection's `contract.spec`; `null` if none was
+   *  kept or the collection already names one. Absent from older shells. */
+  contract_spec?: string | null;
 }
 
 // ---- history and search (rt_app::history, rt_app::search) ----
@@ -1014,9 +1040,17 @@ export interface AuditEntry {
   detail?: string;
 }
 
-// ---- AI assistant (rt_app::ai; wave 8) ----
+// ---- AI assistant (rt_app::ai; wave 8, extended in wave 16) ----
 
-export type AiProviderKind = "anthropic" | "openai-compatible";
+export type AiProviderKind =
+  | "anthropic"
+  | "openai-compatible"
+  // Wave 16:
+  | "openai"
+  | "azure-openai"
+  | "gemini"
+  | "mistral"
+  | "bedrock";
 
 export interface AiConfig {
   provider: AiProviderKind;
@@ -1024,16 +1058,67 @@ export interface AiConfig {
   base_url: string | null;
 }
 
+/** Wave 16: one model behind one provider (`rt_app::ai::AiProfile`, the config flattened). */
+export interface AiProfile extends AiConfig {
+  id: string;
+  label: string;
+}
+
+export interface AiRoles {
+  fast?: string;
+  smart?: string;
+}
+
+export type AiPreviewMode = "first-use" | "always" | "on-request";
+
+/** Wave 16: the assistant's settings on this device; never a key. */
+export interface AiSettings {
+  profiles: AiProfile[];
+  default_profile?: string;
+  roles: AiRoles;
+  preview: AiPreviewMode;
+  previewed?: string[];
+}
+
+export type AiJsonMode = "schema" | "object" | "prompt";
+
+/** Wave 16: what a provider can do (`AiProviderKind::capabilities`). */
+export interface AiCapabilities {
+  streaming: boolean;
+  tools: boolean;
+  json: AiJsonMode;
+  browser_direct: boolean;
+  needs_base_url: boolean;
+}
+
+/** Wave 16: off if either is set. */
+export interface AiCollectionPolicy {
+  file_off: boolean;
+  device_off: boolean;
+}
+
+export type AiNameTarget = "request" | "folder" | "variable";
+
 export type AiTask =
   | { task: "create-request"; description: string; folder: string }
   | { task: "explain-error"; path: string; response: number }
-  | { task: "suggest-tests"; path: string; response: number };
+  | { task: "suggest-tests"; path: string; response: number }
+  // Wave 16:
+  | { task: "request-from-snippet"; snippet: string; folder: string }
+  | { task: "explain-response"; path: string; response: number }
+  | { task: "suggest-assertions"; path: string; response: number }
+  | { task: "suggest-names"; target: AiNameTarget; path: string }
+  | { task: "draft-docs"; path: string };
 
 export interface AiAnswer {
   text: string;
   request?: RequestSpec;
   scripts?: Script[];
   assertions?: Assertion[];
+  /** Wave 16, `suggest-names`. */
+  names?: string[];
+  /** Wave 16, `draft-docs` (Markdown). */
+  docs?: string;
 }
 
 export type AiError =
@@ -1041,7 +1126,107 @@ export type AiError =
   | { kind: "no-key" }
   | { kind: "transport"; message: string }
   | { kind: "provider"; message: string }
-  | { kind: "answer"; message: string };
+  | { kind: "answer"; message: string }
+  // Wave 16:
+  | { kind: "unsupported"; message: string }
+  | { kind: "cancelled" }
+  | { kind: "opted-out" };
+
+export type AiRole = "user" | "assistant";
+
+/** Wave 16: a tool the model may call; `input_schema` is a JSON Schema. */
+export interface AiTool {
+  name: string;
+  description: string;
+  input_schema: unknown;
+}
+
+export interface AiToolCall {
+  id: string;
+  name: string;
+  input: unknown;
+}
+
+export interface AiToolResult {
+  call_id: string;
+  content: string;
+  is_error?: boolean;
+}
+
+export interface AiMessage {
+  role: AiRole;
+  content: string;
+  tool_calls?: AiToolCall[];
+  tool_results?: AiToolResult[];
+}
+
+/** One model call, provider-neutral, masked. */
+export interface AiCall {
+  system: string;
+  messages: AiMessage[];
+  max_tokens: number;
+  tools?: AiTool[];
+  json?: unknown;
+}
+
+/** Wave 16: what of the active collection the core puts into a call, masked. */
+export interface AiScope {
+  request?: string;
+  response?: number;
+  folder?: string;
+}
+
+/** Wave 16: a call an extension asks for (`ExtensionContext.ai`). */
+export interface AiRequest {
+  /** Chosen by the caller; `AiApi.cancel(id)` stops the call. */
+  id: string;
+  /** One line for the preview: what the call is for. */
+  purpose: string;
+  /** A role (`fast`, `smart`) or a profile id; absent: the default profile. */
+  profile?: string;
+  system: string;
+  messages: AiMessage[];
+  scope: AiScope;
+  tools?: AiTool[];
+  /** JSON Schema the answer must follow. */
+  json?: unknown;
+  max_tokens?: number;
+}
+
+/** Wave 16: exactly what a call will send, masked; nothing has left yet. */
+export interface AiPreview {
+  profile: string;
+  provider: AiProviderKind;
+  model: string;
+  endpoint: string;
+  call: AiCall;
+  masked: number;
+  bytes: number;
+  /** The settings ask for this preview to be confirmed before the call. */
+  required: boolean;
+}
+
+export type AiStop = "end" | "max-tokens" | "tool-use" | "refusal";
+
+export interface AiUsage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
+export interface AiReply {
+  text: string;
+  tool_calls?: AiToolCall[];
+  stop: AiStop;
+  usage?: AiUsage;
+}
+
+export type AiDelta = { kind: "text"; text: string } | { kind: "tool-call"; call: AiToolCall };
+
+/** Wave 16: what a streaming call reports while it runs. */
+export type AiEvent =
+  | { kind: "delta"; delta: AiDelta }
+  | { kind: "done"; reply: AiReply }
+  | { kind: "error"; error: AiError };
 
 // ---- MCP client (rt_app::mcp_client; wave 8) ----
 
@@ -1084,6 +1269,65 @@ export interface McpCallResult {
   structured: unknown | null;
   is_error: boolean;
   time_ms: number;
+  /** Progress, log and other notifications sent while the call ran (wave 14); left out when none. */
+  notifications?: McpNotification[];
+}
+
+/** A notification from the server, as sent (masked). */
+export interface McpNotification {
+  method: string;
+  params: unknown;
+}
+
+/** An entry of `resources/list` (wave 14). */
+export interface McpResource {
+  uri: string;
+  name: string;
+  title: string | null;
+  description: string | null;
+  mime_type: string | null;
+  size: number | null;
+}
+
+/** One item of `resources/read`: text, or binary data as base64 (`blob`). */
+export interface McpResourceContents {
+  uri: string;
+  mime_type: string | null;
+  text: string | null;
+  blob: string | null;
+}
+
+export interface McpPromptArgument {
+  name: string;
+  title: string | null;
+  description: string | null;
+  required: boolean;
+}
+
+/** An entry of `prompts/list` (wave 14). */
+export interface McpPrompt {
+  name: string;
+  title: string | null;
+  description: string | null;
+  arguments: McpPromptArgument[];
+}
+
+export interface McpPromptMessage {
+  role: string;
+  content: McpContent;
+}
+
+/** What `prompts/get` returned. */
+export interface McpPromptResult {
+  description: string | null;
+  messages: McpPromptMessage[];
+}
+
+/** `rt mcp` on the open collection as a server to connect to (rt_app::mcp_client::McpSelfServer). */
+export interface McpSelfServer {
+  /** `null` where it cannot run (the web app); `hint` says why. */
+  server: McpServerConfig | null;
+  hint: string;
 }
 
 export interface McpTest {
@@ -1767,4 +2011,179 @@ export interface GitStash {
   time: number;
   branch?: string;
   files: string[];
+}
+
+// ---- OpenAPI import wizard (rt_format::import::openapi_types, rt_app::openapi) ----
+
+export interface SpecOverview {
+  title: string;
+  version: string;
+  description: string | null;
+  /** `3.0.3`, `3.1.0`, `2.0` (Swagger). */
+  spec_version: string;
+  main_file: string;
+  files: number;
+  servers: SpecServer[];
+  tags: SpecTag[];
+  operations: SpecOperation[];
+  security: SpecSecurityScheme[];
+  losses: Loss[];
+}
+
+export interface SpecServer {
+  url: string;
+  description: string | null;
+  suggested_name: string;
+  variables: SpecServerVariable[];
+}
+
+export interface SpecServerVariable {
+  name: string;
+  default: string;
+  values: string[];
+  description: string | null;
+}
+
+export interface SpecTag {
+  name: string;
+  description: string | null;
+  operations: number;
+}
+
+export interface SpecOperation {
+  /** `GET /pets/{petId}`. */
+  key: string;
+  method: string;
+  path: string;
+  tags: string[];
+  summary: string | null;
+  operation_id: string | null;
+  deprecated: boolean;
+}
+
+export interface SpecSecurityScheme {
+  name: string;
+  /** `basic`, `bearer`, `digest`, `api-key`, `oauth2`, `openid-connect`, `mutual-tls`, `other`. */
+  kind: string;
+  detail: string;
+  /** What the requests get, e.g. `Bearer token {{token}}`; `null`: not imported. */
+  maps_to: string | null;
+  variables: string[];
+}
+
+export type OpenApiGrouping = "tag" | "path" | "flat";
+export type OpenApiNaming = "summary" | "operation-id";
+export type OpenApiExamples = "spec" | "schema";
+
+export interface OpenApiServerChoice {
+  index: number;
+  /** `null`: no environment for this server. */
+  environment: string | null;
+}
+
+export interface OpenApiOptions {
+  /** `null`: all operations. */
+  operations: string[] | null;
+  grouping: OpenApiGrouping;
+  naming: OpenApiNaming;
+  examples: OpenApiExamples;
+  /** `null`: every server, named as suggested. */
+  servers: OpenApiServerChoice[] | null;
+  default_server: number | null;
+  collection_name: string | null;
+  keep_spec: boolean;
+}
+
+export interface FetchedSpec {
+  url: string;
+  files: FetchedFile[];
+  losses: Loss[];
+}
+
+export interface FetchedFile {
+  name: string;
+  text: string;
+}
+
+// ---- run wizard and response check (rt_format::contract, rt_app::contract) ----
+
+export type InputPlace = "variable" | "path" | "query" | "header" | "body";
+export type ProblemKind = "missing" | "invalid";
+
+export interface InputProblem {
+  kind: ProblemKind;
+  message: string;
+  details?: string[];
+}
+
+export interface InputField {
+  /** `variable:baseUrl`, `path:petId`, `query:limit`, `header:X-Id`, `body`. */
+  id: string;
+  place: InputPlace;
+  name: string;
+  required: boolean;
+  secret: boolean;
+  auth: boolean;
+  value: string | null;
+  problem: InputProblem | null;
+  /** JSON Schema, local `$ref`s inlined. */
+  schema: unknown;
+  description: string | null;
+  example: string | null;
+}
+
+export interface ServerOption {
+  url: string;
+  description: string | null;
+}
+
+export interface SendRequirements {
+  operation: string;
+  summary: string | null;
+  deprecated: boolean;
+  spec: string;
+  ready: boolean;
+  fields: InputField[];
+  servers: ServerOption[];
+}
+
+export type DifferencePlace = "status" | "header" | "content-type" | "body";
+
+export interface ResponseDifference {
+  place: DifferencePlace;
+  path: string;
+  expected: string;
+  got: string;
+}
+
+export interface ResponseCheck {
+  operation: string;
+  status: number;
+  matched: string | null;
+  differences: ResponseDifference[];
+  body_skipped: string | null;
+}
+
+// ---- Wave 16: changelog facts (rt_app::contract::{ChangelogFacts, ChangelogCommit}) ----
+
+export interface ChangelogCommit {
+  oid: string;
+  summary: string;
+  body?: string;
+  author: string;
+  /** A pull or merge request number found in the message. */
+  pull?: number;
+}
+
+/** Everything deterministic about a range; a writer of release notes states nothing else. */
+export interface ChangelogFacts {
+  from: string;
+  to: string;
+  title: string;
+  spec: SpecChanges;
+  collection: CollectionDiff;
+  sections?: string[];
+  commits?: ChangelogCommit[];
+  /** The changelog as `rt changelog` writes it. */
+  markdown: string;
 }

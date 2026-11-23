@@ -3,11 +3,12 @@
 
 import { readFileSync } from "node:fs";
 
-import { BackendError } from "@requesttailor/ui";
+import { BackendError, type OpenApiOptions } from "@requesttailor/ui";
 import { describe, expect, it } from "vitest";
 
 import { COMMANDS, TauriBackend, type Command, type Invoke } from "./backend";
 import { packImport, packPluginImport } from "./import";
+import { packSpec } from "./openapi";
 
 function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown) {
   const calls: [Command, Record<string, unknown> | undefined][] = [];
@@ -90,6 +91,23 @@ describe("TauriBackend", () => {
     await b.contract.check("HEAD~1");
     await b.contract.changes("v1", "v2");
     await b.contract.changelog("v1", "v2");
+    // OpenAPI wizard.
+    const specFiles = [{ name: "openapi.json", data: new Uint8Array([123, 125]) }];
+    const options: OpenApiOptions = {
+      operations: ["GET /pets"],
+      grouping: "tag",
+      naming: "summary",
+      examples: "spec",
+      servers: null,
+      default_server: null,
+      collection_name: null,
+      keep_spec: true,
+    };
+    await b.openapi.fetch("https://api.example.com/openapi.json");
+    await b.openapi.inspect(specFiles);
+    await b.openapi.plan(specFiles, options);
+    await b.openapi.requirements("pets/get.yml", { environment: "Dev", vars: [["id", "1"]] });
+    await b.openapi.validateResponse("pets/get.yml", 4);
     await b.imports.analyze([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman");
     await b.imports.write(1);
     await b.imports.discard(1);
@@ -175,6 +193,14 @@ describe("TauriBackend", () => {
     await b.mcp.getTest("mcp/t.mcp.yaml");
     await b.mcp.saveTest(null, test);
     await b.mcp.runTest("mcp/t.mcp.yaml", secretInput);
+    await b.mcp.resources(1);
+    await b.mcp.readResource(1, "demo://readme");
+    await b.mcp.prompts(1);
+    await b.mcp.getPrompt(1, "summarize", [["text", "hi"]]);
+    await b.mcp.selfServer();
+    await b.mcp.localDemo?.status();
+    await b.mcp.localDemo?.start();
+    await b.mcp.localDemo?.stop();
     // Wave 12, strand A.
     await b.diffs.working();
     await b.diffs.commit("abc");
@@ -208,6 +234,8 @@ describe("TauriBackend", () => {
     const choice = { kind: "file", path: "a.yml", side: "theirs" } as const;
     await b.merges.conflicts();
     await b.merges.resolve([choice]);
+    await b.variables.scope("users/list.yml", { environment: "Local", vars: [] });
+    await b.variables.define("users", { name: "tenant", value: "acme", enabled: true, secret: false });
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -273,6 +301,11 @@ describe("TauriBackend", () => {
       ["contract_check", { rev: "HEAD~1" }],
       ["contract_changes", { from: "v1", to: "v2" }],
       ["contract_changelog", { from: "v1", to: "v2" }],
+      ["openapi_fetch", { url: "https://api.example.com/openapi.json" }],
+      ["openapi_inspect", packSpec(specFiles, null)],
+      ["openapi_plan", packSpec(specFiles, options)],
+      ["openapi_requirements", { path: "pets/get.yml", input: { environment: "Dev", vars: [["id", "1"]] } }],
+      ["openapi_validate_response", { path: "pets/get.yml", responseId: 4 }],
       ["import_analyze", packImport([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman")],
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],
@@ -352,6 +385,14 @@ describe("TauriBackend", () => {
       ["mcp_get_test", { path: "mcp/t.mcp.yaml" }],
       ["mcp_save_test", { path: null, test }],
       ["mcp_run_test", { path: "mcp/t.mcp.yaml", input: { environment: "Local", vars: [] } }],
+      ["mcp_resources", { id: 1 }],
+      ["mcp_read_resource", { id: 1, uri: "demo://readme" }],
+      ["mcp_prompts", { id: 1 }],
+      ["mcp_get_prompt", { id: 1, name: "summarize", args: [["text", "hi"]] }],
+      ["mcp_self_server", undefined],
+      ["mcp_demo_status", undefined],
+      ["mcp_demo_start", undefined],
+      ["mcp_demo_stop", undefined],
       ["diff_working", undefined],
       ["diff_commit", { rev: "abc" }],
       ["diff_between", { from: "main", to: "feature" }],
@@ -381,6 +422,8 @@ describe("TauriBackend", () => {
       ["rescue_rewrite", { plan: { findings: ["a:b.yml:1"], variable: "apiToken", environment: "Local" } }],
       ["merge_conflicts", undefined],
       ["merge_resolve", { choices: [choice] }],
+      ["variables_scope", { path: "users/list.yml", input: { environment: "Local", vars: [] } }],
+      ["variables_define", { folder: "users", variable: { name: "tenant", value: "acme", enabled: true, secret: false } }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

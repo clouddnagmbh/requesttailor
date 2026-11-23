@@ -40,6 +40,11 @@ import type {
   AuthPrompt,
   CookieInfo,
   ImportPlan,
+  FetchedSpec,
+  OpenApiOptions,
+  ResponseCheck,
+  SendRequirements,
+  SpecOverview,
   ExternalImport,
   FolderImport,
   LineSlice,
@@ -63,13 +68,25 @@ import type {
   VarChange,
   AgentPolicy,
   AiAnswer,
+  AiCollectionPolicy,
   AiConfig,
+  AiEvent,
+  AiPreview,
   AiProviderKind,
+  AiReply,
+  AiRequest,
+  AiSettings,
   AiTask,
+  ChangelogFacts,
   ApprovalDecision,
   AuditEntry,
   GrpcService,
   McpCallResult,
+  McpPrompt,
+  McpPromptResult,
+  McpResource,
+  McpResourceContents,
+  McpSelfServer,
   McpServerConfig,
   McpServerInfo,
   McpTest,
@@ -114,6 +131,8 @@ import type {
   ScanProgress,
   SpecChanges,
   TestRecord,
+  Variable,
+  VariableScope,
 } from "./types";
 
 export interface CollectionInfo {
@@ -337,6 +356,9 @@ export interface ContractApi {
   changes(from: string, to: string): Promise<SpecChanges>;
   /** API changelog (Markdown) of the range, as `rt changelog`. */
   changelog(from: string, to: string): Promise<string>;
+  /** Wave 16: the range's changelog and its parts as data, with the commits (first-parent
+   *  chain), for writers of release notes. Until strand D: `commands/wave16-stubs.ts`. */
+  changelogFacts(from: string, to: string): Promise<ChangelogFacts>;
 }
 
 /** Credentials anywhere in the history, and rewriting it so they become variables. The
@@ -379,6 +401,27 @@ export interface ImportApi {
   /** Wave 13: checks and keeps a collection converted by an extension, so it is written like
    *  any import (`write`, `writeInto`, `discard`). Rejects with kind `import`. */
   adopt(imported: ExternalImport): Promise<ImportPlan>;
+}
+
+/** The OpenAPI import wizard and the run wizard ("Ready to send?"). Free. `fetch`, `inspect`
+ *  and `plan` work without an open collection; `plan` returns an `ImportPlan` written with
+ *  `ImportApi.write` / `writeInto` / `discard` like any import. `requirements` and
+ *  `validateResponse` use the open collection's spec (`ContractApi.spec`), parsed once and
+ *  cached per collection; both resolve `null` when there is no spec or no operation matches. */
+export interface OpenApiApi {
+  /** Fetches a spec and the relative files its `$ref`s name, over the core transport (web:
+   *  the browser's fetch, then the companion if the server does not allow CORS). Rejects with
+   *  kind `import` (HTTP status, transport error; web: a CORS hint). */
+  fetch(url: string): Promise<FetchedSpec>;
+  /** Reads a spec (one file, a multi-file spec, or a `.zip`) for the wizard. Rejects with
+   *  kind `import`. */
+  inspect(files: ImportSource[]): Promise<SpecOverview>;
+  /** Converts with the wizard's choices. */
+  plan(files: ImportSource[], options: OpenApiOptions): Promise<ImportPlan>;
+  /** What the request at `path` still needs before sending (`input` as for `send`). */
+  requirements(path: string, input: SendInput): Promise<SendRequirements | null>;
+  /** The stored response `responseId` of the request at `path` against the spec. */
+  validateResponse(path: string, responseId: number): Promise<ResponseCheck | null>;
 }
 
 /** Sends from this device. Recorded by the backend on every `send`; no bodies, no header
@@ -541,7 +584,36 @@ export interface AiApi {
   deleteKey(provider: AiProviderKind): Promise<void>;
   /** One task; the context is masked before it leaves. `input` selects the environment. */
   ask(task: AiTask, input: SendInput): Promise<AiAnswer>;
+
+  // Wave 16 (strand A; until then the placeholders of `commands/wave16-stubs.ts`). The wave-8
+  // methods above keep working: `config` is the default profile, `setKey` the provider's key.
+
+  /** Profiles, roles and the preview mode; `null` until set up (a wave-8 config reads as one
+   *  profile `default`). */
+  settings(): Promise<AiSettings | null>;
+  setSettings(settings: AiSettings | null): Promise<void>;
+  /** A profile's own key (before the provider's key of `setKey`); never read back. */
+  hasProfileKey(profile: string): Promise<boolean>;
+  setProfileKey(profile: string, key: string): Promise<void>;
+  deleteProfileKey(profile: string): Promise<void>;
+  /** Whether the active collection allows the assistant (`opencollection.yml` and device). */
+  policy(): Promise<AiCollectionPolicy>;
+  /** Turns the assistant off (or on again) for the active collection on this device. */
+  setDeviceOptOut(off: boolean): Promise<void>;
+  /** Exactly what a task or a request would send, masked; nothing leaves. */
+  preview(what: AiWhat, input: SendInput): Promise<AiPreview>;
+  /** The user confirmed the first-use preview of `profile` on this device. */
+  confirmPreview(profile: string): Promise<void>;
+  /** A call of an extension: its prompt plus the core's masked context of `request.scope`,
+   *  masked as a whole before it leaves. Rejects with kind `opted-out` when the collection
+   *  is off and `cancelled` after `cancel(request.id)`. `onEvent` gets the streamed pieces. */
+  complete(request: AiRequest, input: SendInput, onEvent?: (event: AiEvent) => void): Promise<AiReply>;
+  /** Stops a running `complete`; nothing happens if it already ended. */
+  cancel(id: string): Promise<void>;
 }
+
+/** Wave 16: what a preview is for. */
+export type AiWhat = { kind: "task"; task: AiTask } | { kind: "request"; request: AiRequest };
 
 /** Wave 8, strand D: testing MCP servers. `stdio` servers only on desktop. */
 export interface McpClientApi {
@@ -556,6 +628,31 @@ export interface McpClientApi {
    *  `mcp/` named after the test. Returns the path. */
   saveTest(path: string | null, test: McpTest): Promise<string>;
   runTest(path: string, input: SendInput): Promise<McpTestResult>;
+  /** Wave 14: resources of the server (empty without the `resources` capability). */
+  resources(id: number): Promise<McpResource[]>;
+  readResource(id: number, uri: string): Promise<McpResourceContents[]>;
+  /** Wave 14: prompts of the server (empty without the `prompts` capability). */
+  prompts(id: number): Promise<McpPrompt[]>;
+  getPrompt(id: number, name: string, args: [string, string][]): Promise<McpPromptResult>;
+  /** Wave 14, "Connect to RequestTailor itself": how this shell reaches `rt mcp` on the open
+   *  collection. `server` is a stdio config when the shell can start it (desktop with `rt`
+   *  found), else `null`; `hint` says in a sentence what happens or what to do instead. */
+  selfServer(): Promise<McpSelfServer>;
+  /** Wave 14: the demo server on a real loopback port, for other MCP clients (desktop);
+   *  `null` in shells that cannot listen. The built-in demo (`MCP_DEMO_URL`) works everywhere. */
+  readonly localDemo: McpLocalDemoApi | null;
+}
+
+/** The built-in demo server (rt_app::mcp_demo::DEMO_URL): answered in memory, never sent. */
+export const MCP_DEMO_URL = "rt-demo://mcp";
+
+/** The demo server on `127.0.0.1` with a random port, until stopped or the app ends. */
+export interface McpLocalDemoApi {
+  /** Its URL while running, else `null`. */
+  status(): Promise<string | null>;
+  /** Starts it (or returns the running one's URL). */
+  start(): Promise<string>;
+  stop(): Promise<void>;
 }
 
 /**
@@ -651,6 +748,8 @@ export interface Backend {
   readonly transport: TransportApi;
   readonly git: GitApi;
   readonly imports: ImportApi;
+  /** OpenAPI import wizard and run wizard. */
+  readonly openapi: OpenApiApi;
   readonly history: HistoryApi;
   /** Wave 5. */
   readonly plugins: PluginApi;
@@ -676,6 +775,22 @@ export interface Backend {
   readonly rescue: RescueApi;
   /** Wave 13: companion files for extensions. */
   readonly companions: CompanionApi;
+  /** Wave 14: variable completion. */
+  readonly variables: VariablesApi;
+}
+
+/**
+ * Variable completion (since wave 14, `rt_app::variables`): the `{{` list of the editor.
+ */
+export interface VariablesApi {
+  /** Every variable `path` sees: `path` is a request path, a folder path, or `""` for the
+   *  collection (environment values). With the session's variables in the runtime layer, like
+   *  `preview`; secret values never (secrets have `value: null`). */
+  scope(path: string, input: SendInput): Promise<VariableScope>;
+  /** Adds a plain variable to the collection (`folder` is `""`) or a folder, or replaces the
+   *  one of that name there. Unsaved, like any edit (`dirty` lists the file). Secret
+   *  variables are refused (kind `unsupported`): they belong in an environment. */
+  define(folder: string, variable: Variable): Promise<void>;
 }
 
 /**

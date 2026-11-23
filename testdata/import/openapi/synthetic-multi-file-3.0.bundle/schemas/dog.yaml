@@ -1,0 +1,29 @@
+type: object
+required: [name]
+properties:
+  id:
+    type: string
+    format: uuid
+    readOnly: true
+  name:
+    type: string
+    example: Bello
+  breed:
+    $ref: "../parameters.yaml#/breedName"
+  born:
+    type: string
+    format: date
+  vaccinations:
+    type: array
+    items:
+      $ref: "#/definitions/Vaccination"
+definitions:
+  Vaccination:
+    type: object
+    properties:
+      vaccine:
+        type: string
+        example: rabies
+      date:
+        type: string
+        format: date

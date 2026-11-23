@@ -5,11 +5,15 @@
      `onchange`, which stores it like any other change.
      Every change goes to the backend at once (in memory) and is written to files by the global
      Save. Secret values never travel in an `Environment`: they go to `backend.secrets` (OS
-     keychain on desktop, encrypted browser storage on the web). -->
+     keychain on desktop, encrypted browser storage on the web).
+     Wave 14: plain values are CodeFields with `{{` completion (collection variables and the
+     selected environment's own); "Create variable" there adds a row to this environment. -->
 <script lang="ts">
   import { untrack } from "svelte";
 
   import type { Environment, Variable } from "../commands/types";
+  import CodeField from "../editor/CodeField.svelte";
+  import { createVarSource, provideVarSource, withEnvironmentVariable } from "../editor/var-source";
   import { getApp } from "../state/app.svelte";
   import ClientCertificates from "./ClientCertificates.svelte";
   import ExternalSecrets from "./ExternalSecrets.svelte";
@@ -48,6 +52,8 @@
   let error = $state<string | null>(null);
 
   const names = $derived(app.environments.map((e) => e.name));
+  /** Values are not highlighted by provenance here (no request to preview). */
+  const NO_LOOKUP = new Map();
   const snapshot = (e: Environment): Environment => $state.snapshot(e) as Environment;
 
   // Operations run one after another, each on the then-current draft.
@@ -74,6 +80,7 @@
   }
 
   async function select(name: string | null) {
+    flushValue();
     const env = app.environments.find((e) => e.name === name) ?? app.environments[0] ?? null;
     selected = env?.name ?? null;
     draft = env ? snapshot(env) : null;
@@ -158,6 +165,55 @@
       await select(app.environment ?? app.environments[0]?.name ?? null);
     });
   }
+
+  // ---- plain values: typed into a CodeField, stored after a pause (wave 14) ----
+
+  const VALUE_MS = 250;
+  let valueTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Stores the draft now if a typed value is waiting. */
+  function flushValue() {
+    if (valueTimer === undefined) return;
+    clearTimeout(valueTimer);
+    valueTimer = undefined;
+    if (!draft) return;
+    const env = current();
+    void run(async () => {
+      const problem = validate(env, names.filter((n) => n !== env.name));
+      if (problem) throw new Error(problem);
+      // The draft stays as typed (typing may have gone on meanwhile).
+      await storeEnvironment(app.backend, env);
+      await refresh();
+    });
+  }
+
+  function typeValue(i: number, value: string) {
+    if (!draft || draft.variables[i]?.secret) return;
+    draft.variables[i].value = value;
+    clearTimeout(valueTimer);
+    valueTimer = setTimeout(flushValue, VALUE_MS);
+  }
+
+  function close() {
+    flushValue();
+    onclose();
+  }
+  $effect(() => () => flushValue());
+
+  // `{{` completion in values: the collection's and the selected environment's variables.
+  provideVarSource(
+    createVarSource(app, {
+      path: () => "",
+      environment: () => selected,
+      addToEnvironment: async (_name, variable) => {
+        flushValue();
+        await queue;
+        const next = withEnvironmentVariable(current(), variable);
+        await commit(next);
+        if (variable.secret) stored[variable.name] = true;
+      },
+    }),
+  );
 
   function addVariable() {
     if (!draft) return;
@@ -257,7 +313,7 @@
     {@attach opened}
     oncancel={(e) => {
       e.preventDefault();
-      onclose();
+      close();
     }}
   >
     <header>
@@ -265,7 +321,7 @@
       <button data-testid="env-save" onclick={() => run(() => app.save())} title="Write all changes to the files">
         Save
       </button>
-      <button data-testid="env-close" onclick={onclose}>Close</button>
+      <button data-testid="env-close" onclick={close}>Close</button>
     </header>
 
     {#if error}<p class="error" role="alert" data-testid="env-error">{error}</p>{/if}
@@ -381,11 +437,12 @@
                           onclick={() => reveal(i)}>{i in revealed ? "Hide" : "Reveal"}</button
                         >
                       {:else}
-                        <input
-                          data-testid="var-value"
-                          aria-label="Value"
+                        <CodeField
+                          testid="var-value"
+                          label="Value"
                           value={v.value ?? ""}
-                          onchange={(e) => setField(i, { value: e.currentTarget.value })}
+                          lookup={NO_LOOKUP}
+                          onchange={(value) => typeValue(i, value)}
                         />
                       {/if}
                     </div>

@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -1317,6 +1317,46 @@ export const preview: Preview = {
   ]
 };
 
+export const variableScope: VariableScope = {
+  "undefined": [
+    "missing"
+  ],
+  "variables": [
+    {
+      "external": null,
+      "name": "baseUrl",
+      "overridden": true,
+      "secret": false,
+      "source": {
+        "layer": "collection"
+      },
+      "value": "http://c"
+    },
+    {
+      "external": "one-password",
+      "name": "dbPassword",
+      "overridden": false,
+      "secret": true,
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "value": null
+    },
+    {
+      "external": null,
+      "name": "userId",
+      "overridden": false,
+      "secret": false,
+      "source": {
+        "layer": "folder",
+        "path": "users"
+      },
+      "value": "42"
+    }
+  ]
+};
+
 export const fileChanges: FileChange[] = [
   {
     "deleted": false,
@@ -1474,6 +1514,7 @@ export const importPlan: ImportPlan = {
 };
 
 export const folderImport: FolderImport = {
+  "contract_spec": "Shop/openapi.yaml",
   "environments_added": [
     "Staging"
   ],
@@ -3210,6 +3251,133 @@ export const mcpCallResult: McpCallResult = {
   "time_ms": 12
 };
 
+export const mcpCallResultWithNotifications: McpCallResult = {
+  "content": [
+    {
+      "text": "{\"ok\":true}",
+      "type": "text"
+    },
+    {
+      "data": "iVBORw0K",
+      "mime_type": "image/png",
+      "type": "image"
+    },
+    {
+      "data": "UklGRg==",
+      "mime_type": "audio/wav",
+      "type": "audio"
+    },
+    {
+      "text": null,
+      "type": "resource",
+      "uri": "file:///a.txt"
+    },
+    {
+      "type": "other",
+      "value": {
+        "type": "resource_link"
+      }
+    }
+  ],
+  "is_error": false,
+  "notifications": [
+    {
+      "method": "notifications/progress",
+      "params": {
+        "progress": 1,
+        "progressToken": 3,
+        "total": 2
+      }
+    }
+  ],
+  "structured": {
+    "ok": true
+  },
+  "time_ms": 12
+};
+
+export const mcpResources: McpResource[] = [
+  {
+    "description": "What it offers",
+    "mime_type": "text/markdown",
+    "name": "README",
+    "size": 120,
+    "title": "About",
+    "uri": "demo://readme"
+  },
+  {
+    "description": null,
+    "mime_type": null,
+    "name": "a",
+    "size": null,
+    "title": null,
+    "uri": "file:///a"
+  }
+];
+
+export const mcpResourceContents: McpResourceContents[] = [
+  {
+    "blob": null,
+    "mime_type": "text/markdown",
+    "text": "# Hi",
+    "uri": "demo://readme"
+  },
+  {
+    "blob": "iVBORw0K",
+    "mime_type": null,
+    "text": null,
+    "uri": "demo://logo"
+  }
+];
+
+export const mcpPrompts: McpPrompt[] = [
+  {
+    "arguments": [
+      {
+        "description": null,
+        "name": "text",
+        "required": true,
+        "title": "Text"
+      }
+    ],
+    "description": "Summarize",
+    "name": "summarize",
+    "title": null
+  }
+];
+
+export const mcpSelfServers: McpSelfServer[] = [
+  {
+    "hint": "Starts rt mcp on this collection.",
+    "server": {
+      "args": [
+        "mcp"
+      ],
+      "command": "rt",
+      "cwd": null,
+      "env": [],
+      "transport": "stdio"
+    }
+  },
+  {
+    "hint": "Install rt first.",
+    "server": null
+  }
+];
+
+export const mcpPromptResult: McpPromptResult = {
+  "description": null,
+  "messages": [
+    {
+      "content": {
+        "text": "Summarize",
+        "type": "text"
+      },
+      "role": "user"
+    }
+  ]
+};
+
 export const mcpTest: McpTest = {
   "arguments": {
     "limit": 5
@@ -4424,4 +4592,657 @@ export const wave12RequestSpec: RequestSpec = {
       "value": "1"
     }
   ]
+};
+
+export const specOverview: SpecOverview = {
+  "description": "A sample API",
+  "files": 2,
+  "losses": [
+    {
+      "detail": "references to other files not resolved (`common.yaml`)",
+      "effect": "dropped",
+      "kind": "other",
+      "location": "collection"
+    }
+  ],
+  "main_file": "petstore.yaml",
+  "operations": [
+    {
+      "deprecated": false,
+      "key": "GET /pets/{petId}",
+      "method": "GET",
+      "operation_id": "showPetById",
+      "path": "/pets/{petId}",
+      "summary": "Info for a specific pet",
+      "tags": [
+        "pets"
+      ]
+    }
+  ],
+  "security": [
+    {
+      "detail": "JWT",
+      "kind": "bearer",
+      "maps_to": "Bearer token {{token}}",
+      "name": "bearerAuth",
+      "variables": [
+        "token"
+      ]
+    }
+  ],
+  "servers": [
+    {
+      "description": "Production",
+      "suggested_name": "Production",
+      "url": "https://{region}.example.com/v1",
+      "variables": [
+        {
+          "default": "eu",
+          "description": null,
+          "name": "region",
+          "values": [
+            "eu",
+            "us"
+          ]
+        }
+      ]
+    }
+  ],
+  "spec_version": "3.0.3",
+  "tags": [
+    {
+      "description": null,
+      "name": "pets",
+      "operations": 3
+    }
+  ],
+  "title": "Petstore",
+  "version": "1.0.0"
+};
+
+export const openApiOptions: OpenApiOptions = {
+  "collection_name": "Petstore",
+  "default_server": 0,
+  "examples": "spec",
+  "grouping": "tag",
+  "keep_spec": true,
+  "naming": "summary",
+  "operations": [
+    "GET /pets"
+  ],
+  "servers": [
+    {
+      "environment": "Production",
+      "index": 0
+    }
+  ]
+};
+
+export const openApiOptionsVariants: OpenApiOptions[] = [
+  {
+    "collection_name": "Petstore",
+    "default_server": 0,
+    "examples": "schema",
+    "grouping": "path",
+    "keep_spec": true,
+    "naming": "operation-id",
+    "operations": [
+      "GET /pets"
+    ],
+    "servers": [
+      {
+        "environment": "Production",
+        "index": 0
+      }
+    ]
+  },
+  {
+    "collection_name": "Petstore",
+    "default_server": 0,
+    "examples": "spec",
+    "grouping": "flat",
+    "keep_spec": true,
+    "naming": "summary",
+    "operations": [
+      "GET /pets"
+    ],
+    "servers": [
+      {
+        "environment": "Production",
+        "index": 0
+      }
+    ]
+  },
+  {
+    "collection_name": null,
+    "default_server": null,
+    "examples": "spec",
+    "grouping": "tag",
+    "keep_spec": false,
+    "naming": "summary",
+    "operations": null,
+    "servers": null
+  }
+];
+
+export const fetchedSpec: FetchedSpec = {
+  "files": [
+    {
+      "name": "openapi.yaml",
+      "text": "openapi: 3.0.3"
+    }
+  ],
+  "losses": [
+    {
+      "detail": "references to other files not resolved (`common.yaml`)",
+      "effect": "dropped",
+      "kind": "other",
+      "location": "collection"
+    }
+  ],
+  "url": "https://api.example.com/openapi.yaml"
+};
+
+export const sendRequirements: SendRequirements = {
+  "deprecated": false,
+  "fields": [
+    {
+      "auth": false,
+      "description": "The id of the pet",
+      "example": "42",
+      "id": "path:petId",
+      "name": "petId",
+      "place": "path",
+      "problem": {
+        "details": [
+          "$.name: required property `name` is missing"
+        ],
+        "kind": "missing",
+        "message": "petId is required"
+      },
+      "required": true,
+      "schema": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "secret": false,
+      "value": ""
+    },
+    {
+      "auth": false,
+      "description": "The id of the pet",
+      "example": "42",
+      "id": "path:petId",
+      "name": "petId",
+      "place": "variable",
+      "problem": {
+        "details": [
+          "$.name: required property `name` is missing"
+        ],
+        "kind": "invalid",
+        "message": "petId is required"
+      },
+      "required": true,
+      "schema": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "secret": false,
+      "value": ""
+    },
+    {
+      "auth": false,
+      "description": "The id of the pet",
+      "example": "42",
+      "id": "path:petId",
+      "name": "petId",
+      "place": "query",
+      "problem": null,
+      "required": true,
+      "schema": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "secret": false,
+      "value": ""
+    },
+    {
+      "auth": false,
+      "description": "The id of the pet",
+      "example": "42",
+      "id": "path:petId",
+      "name": "petId",
+      "place": "header",
+      "problem": null,
+      "required": true,
+      "schema": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "secret": false,
+      "value": ""
+    },
+    {
+      "auth": false,
+      "description": null,
+      "example": null,
+      "id": "path:petId",
+      "name": "petId",
+      "place": "body",
+      "problem": {
+        "kind": "missing",
+        "message": "a body is required"
+      },
+      "required": true,
+      "schema": null,
+      "secret": false,
+      "value": null
+    }
+  ],
+  "operation": "GET /pets/{petId}",
+  "ready": false,
+  "servers": [
+    {
+      "description": null,
+      "url": "https://{{region}}.example.com/v1"
+    }
+  ],
+  "spec": "openapi.yaml",
+  "summary": "Info for a specific pet"
+};
+
+export const responseCheck: ResponseCheck = {
+  "body_skipped": "the body is larger than 8 MB",
+  "differences": [
+    {
+      "expected": "integer",
+      "got": "string",
+      "path": "$.id",
+      "place": "status"
+    },
+    {
+      "expected": "integer",
+      "got": "string",
+      "path": "$.id",
+      "place": "header"
+    },
+    {
+      "expected": "integer",
+      "got": "string",
+      "path": "$.id",
+      "place": "content-type"
+    },
+    {
+      "expected": "integer",
+      "got": "string",
+      "path": "$.id",
+      "place": "body"
+    }
+  ],
+  "matched": "200",
+  "operation": "GET /pets/{petId}",
+  "status": 200
+};
+
+export const aiProviderKinds: AiProviderKind[] = [
+  "anthropic",
+  "openai",
+  "azure-openai",
+  "gemini",
+  "mistral",
+  "openai-compatible",
+  "bedrock"
+];
+
+export const aiCapabilities: AiCapabilities[] = [
+  {
+    "browser_direct": true,
+    "json": "schema",
+    "needs_base_url": false,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": true,
+    "json": "schema",
+    "needs_base_url": false,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": false,
+    "json": "schema",
+    "needs_base_url": true,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": true,
+    "json": "schema",
+    "needs_base_url": false,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": false,
+    "json": "schema",
+    "needs_base_url": false,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": false,
+    "json": "prompt",
+    "needs_base_url": true,
+    "streaming": true,
+    "tools": false
+  },
+  {
+    "browser_direct": false,
+    "json": "prompt",
+    "needs_base_url": true,
+    "streaming": true,
+    "tools": true
+  }
+];
+
+export const aiSettings: AiSettings = {
+  "default_profile": "smart",
+  "preview": "first-use",
+  "previewed": [
+    "smart"
+  ],
+  "profiles": [
+    {
+      "base_url": null,
+      "id": "smart",
+      "label": "smart",
+      "model": "claude-opus-5-5",
+      "provider": "anthropic"
+    },
+    {
+      "base_url": "https://acme.openai.azure.com/openai/v1",
+      "id": "azure",
+      "label": "azure",
+      "model": "gpt-deployment",
+      "provider": "azure-openai"
+    },
+    {
+      "base_url": "http://localhost:11434/v1",
+      "id": "local",
+      "label": "local",
+      "model": "llama3.1",
+      "provider": "openai-compatible"
+    }
+  ],
+  "roles": {
+    "fast": "local",
+    "smart": "smart"
+  }
+};
+
+export const aiSettingsEmpty: AiSettings = {
+  "preview": "first-use",
+  "profiles": [],
+  "roles": {}
+};
+
+export const aiCollectionPolicy: AiCollectionPolicy = {
+  "device_off": true,
+  "file_off": false
+};
+
+export const aiTasksWave16: AiTask[] = [
+  {
+    "folder": "users",
+    "snippet": "fetch('https://api.example.com/users')",
+    "task": "request-from-snippet"
+  },
+  {
+    "path": "users/get.yml",
+    "response": 4,
+    "task": "explain-response"
+  },
+  {
+    "path": "users/get.yml",
+    "response": 4,
+    "task": "suggest-assertions"
+  },
+  {
+    "path": "users/get.yml",
+    "target": "variable",
+    "task": "suggest-names"
+  },
+  {
+    "path": "users/get.yml",
+    "task": "draft-docs"
+  }
+];
+
+export const aiAnswerWave16: AiAnswer = {
+  "docs": "Returns the users of a tenant.",
+  "names": [
+    "List users",
+    "Get users"
+  ],
+  "text": "Names for the request."
+};
+
+export const aiErrorsWave16: AiError[] = [
+  {
+    "kind": "unsupported",
+    "message": "tool use with this provider"
+  },
+  {
+    "kind": "cancelled"
+  },
+  {
+    "kind": "opted-out"
+  }
+];
+
+export const aiRequest: AiRequest = {
+  "id": "call-1",
+  "json": {
+    "type": "object"
+  },
+  "max_tokens": 4000,
+  "messages": [
+    {
+      "content": "Why does this fail?",
+      "role": "user"
+    },
+    {
+      "content": "Let me read the request.",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "id": "toolu_1",
+          "input": {
+            "path": "users/get.yml"
+          },
+          "name": "get_request"
+        }
+      ]
+    },
+    {
+      "content": "",
+      "role": "user",
+      "tool_results": [
+        {
+          "call_id": "toolu_1",
+          "content": "{\"method\":\"GET\"}"
+        }
+      ]
+    }
+  ],
+  "profile": "smart",
+  "purpose": "Explain this failure",
+  "scope": {
+    "request": "users/get.yml",
+    "response": 4
+  },
+  "system": "You explain failed HTTP requests.",
+  "tools": [
+    {
+      "description": "Reads a request of the collection.",
+      "input_schema": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "name": "get_request"
+    }
+  ]
+};
+
+export const aiRequestMinimal: AiRequest = {
+  "id": "call-2",
+  "messages": [
+    {
+      "content": "GET /users",
+      "role": "user"
+    }
+  ],
+  "purpose": "Name this request",
+  "scope": {},
+  "system": ""
+};
+
+export const aiPreview: AiPreview = {
+  "bytes": 1834,
+  "call": {
+    "max_tokens": 4000,
+    "messages": [
+      {
+        "content": "Why does this fail?",
+        "role": "user"
+      },
+      {
+        "content": "Let me read the request.",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "toolu_1",
+            "input": {
+              "path": "users/get.yml"
+            },
+            "name": "get_request"
+          }
+        ]
+      },
+      {
+        "content": "",
+        "role": "user",
+        "tool_results": [
+          {
+            "call_id": "toolu_1",
+            "content": "{\"method\":\"GET\"}"
+          }
+        ]
+      }
+    ],
+    "system": "You explain failed HTTP requests."
+  },
+  "endpoint": "https://api.anthropic.com/v1/messages",
+  "masked": 2,
+  "model": "claude-opus-5-5",
+  "profile": "smart",
+  "provider": "anthropic",
+  "required": true
+};
+
+export const aiEvents: AiEvent[] = [
+  {
+    "delta": {
+      "kind": "text",
+      "text": "Add the"
+    },
+    "kind": "delta"
+  },
+  {
+    "delta": {
+      "call": {
+        "id": "toolu_1",
+        "input": {
+          "path": "users/get.yml"
+        },
+        "name": "get_request"
+      },
+      "kind": "tool-call"
+    },
+    "kind": "delta"
+  },
+  {
+    "kind": "done",
+    "reply": {
+      "stop": "tool-use",
+      "text": "Add the CSRF token fetch.",
+      "tool_calls": [
+        {
+          "id": "toolu_1",
+          "input": {
+            "path": "users/get.yml"
+          },
+          "name": "get_request"
+        }
+      ],
+      "usage": {
+        "input_tokens": 1200,
+        "output_tokens": 80
+      }
+    }
+  },
+  {
+    "kind": "done",
+    "reply": {
+      "stop": "end",
+      "text": ""
+    }
+  },
+  {
+    "error": {
+      "kind": "cancelled"
+    },
+    "kind": "error"
+  }
+];
+
+export const changelogFacts: ChangelogFacts = {
+  "collection": {
+    "changes": [],
+    "files": []
+  },
+  "commits": [
+    {
+      "author": "Ada",
+      "body": "Orders get a note",
+      "oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "pull": 12,
+      "summary": "Merge pull request #12 from acme/notes"
+    },
+    {
+      "author": "Ada",
+      "oid": "cccccccccccccccccccccccccccccccccccccccc",
+      "summary": "Fix typo"
+    }
+  ],
+  "from": "v1.0.0",
+  "markdown": "# Orders API 1.0.0 → 1.1.0\n",
+  "sections": [
+    "## Service metadata\n\n- Entity `Order`: new property `Note`"
+  ],
+  "spec": {
+    "changes": [],
+    "from_version": null,
+    "to_version": null
+  },
+  "title": "Orders API 1.0.0 → 1.1.0",
+  "to": "v1.1.0"
 };

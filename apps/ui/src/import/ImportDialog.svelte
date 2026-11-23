@@ -13,6 +13,8 @@
   import { pluginImporters } from "../plugins/permissions";
   import { pluginsState } from "../plugins/store.svelte";
   import { getApp } from "../state/app.svelte";
+  import { looksLikeOpenApi } from "../openapi/source";
+  import { openOpenApiWizard } from "../openapi/store.svelte";
   import { FORMATS, formatName, groupLosses, pasted, readFiles, reportText, summary, type LossGroup } from "./report";
 
   let {
@@ -74,8 +76,16 @@
     onclose();
   }
 
+  /** OpenAPI and Swagger specs (and zips of them) go to the OpenAPI wizard. */
+  function toWizard(files: ImportSource[] | null) {
+    void discardPlan();
+    onclose();
+    openOpenApiWizard(files);
+  }
+
   async function analyze(files: ImportSource[]) {
     if (files.length === 0 || busy) return;
+    if ((format === "auto" || format === "openapi") && files.some(looksLikeOpenApi)) return toWizard(files);
     await discardPlan();
     busy = "analyzing";
     error = null;
@@ -174,6 +184,8 @@
         <p class="hint">
           Postman, Insomnia, OpenAPI, HAR, .http / .rest or cURL. Add environment files (Postman environments and
           globals, <code>http-client.env.json</code>) together with the collection.
+          OpenAPI and Swagger specs open the
+          <button class="link" data-testid="import-openapi-wizard" onclick={() => toWizard(null)}>OpenAPI wizard</button>.
         </p>
         <label
           class="drop"
@@ -363,6 +375,16 @@
     color: var(--rt-fg-muted);
     font-size: var(--rt-size-small);
     margin: 0;
+  }
+
+  .hint .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--rt-accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
 
   .drop {

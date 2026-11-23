@@ -68,12 +68,13 @@ export async function createNew(app: AppState, form: NewForm): Promise<CreateOut
         await app.backend.updateEnvironment(env);
         await app.reloadEnvironments();
         app.setEnvironment(env.name);
+        app.show({ kind: "environments" });
         break;
       }
       case "mcp-test":
-        await app.backend.mcp.saveTest(null, mcpTest(form));
+        const test = await app.backend.mcp.saveTest(null, mcpTest(form));
         app.dirty = await app.backend.dirty();
-        app.show({ kind: "mcp" });
+        app.show({ kind: "mcp", test });
         break;
       default: {
         if (!isRequestKind(form.kind)) return { ok: false, error: "Unknown kind." };

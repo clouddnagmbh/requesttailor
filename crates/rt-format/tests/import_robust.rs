@@ -224,3 +224,49 @@ fn oversized_input_is_refused() {
         Err(ImportError::TooLarge { .. })
     ));
 }
+
+/// Multi-file OpenAPI specs (OpenAPI import wizard): one file mutated at a time, the files
+/// imported together, also with the wizard's overview and every kept spec readable.
+#[test]
+fn mutated_multi_file_specs_never_panic() {
+    let dir = corpus().join("openapi/synthetic-multi-file-3.0.bundle");
+    let mut files: Vec<(String, Vec<u8>)> = Vec::new();
+    for name in [
+        "openapi.yaml",
+        "parameters.yaml",
+        "schemas/dog.yaml",
+        "schemas/error.yaml",
+    ] {
+        files.push((name.to_owned(), std::fs::read(dir.join(name)).unwrap()));
+    }
+    let mut rng = Rng(0x5eed_0a91_77fe_0002);
+    let options = rt_format::import::OpenApiOptions {
+        keep_spec: true,
+        ..Default::default()
+    };
+    for round in 0..60 {
+        let mut set = files.clone();
+        let i = rng.below(set.len());
+        set[i].1 = mutate(&set[i].1, &mut rng);
+        let sources: Vec<SourceFile<'_>> = set
+            .iter()
+            .map(|(name, data)| SourceFile { name, data })
+            .collect();
+        let label = format!("multi-file round {round} ({} mutated)", set[i].0);
+        let result = std::panic::catch_unwind(|| {
+            (
+                import_files(None, &sources),
+                rt_format::import::inspect_openapi(&sources),
+                rt_format::import::import_openapi(&sources, &options),
+            )
+        });
+        let Ok((plain, _, kept)) = result else {
+            panic!("{label}: panicked");
+        };
+        for import in [plain, kept].into_iter().flatten() {
+            let read = rt_format::read_collection(&import.files)
+                .unwrap_or_else(|e| panic!("{label}: unreadable: {e}"));
+            assert!(read.issues().is_empty(), "{label}: {:?}", read.issues());
+        }
+    }
+}

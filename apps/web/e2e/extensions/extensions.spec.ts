@@ -15,7 +15,8 @@ async function openCollection(page: Page) {
   await expect(page.getByTestId("collection-name")).toHaveText("Demo API");
 }
 
-const hint = (page: Page) => page.getByTestId("extension-hint");
+/** The hint above the request editor (the sidebar shows the collection's own). */
+const hint = (page: Page) => page.getByTestId("request-editor").getByTestId("extension-hint");
 
 async function runCommand(page: Page, label: string) {
   await page.keyboard.press(`${MOD}+k`);

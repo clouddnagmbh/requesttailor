@@ -1,0 +1,23 @@
+info:
+  name: Upload a photo
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pets/:petId/photo"
+  params:
+    - name: petId
+      value: "42"
+      type: path
+      description: ID of the pet
+  body:
+    type: multipart-form
+    data:
+      - name: caption
+        type: text
+        value: Rex in the sun
+      - name: file
+        type: file
+        value: []
+  auth: inherit

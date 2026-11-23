@@ -18,6 +18,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { branchMenu, newBranch, syncMenu } from "../git-wizards/helpers";
+
 import { gitCli, hasGit, startGitServer, startProcess, type GitServer } from "../git/server";
 import { fakePicker, fillFolder, readFolderFile, sampleCollection } from "./env";
 
@@ -51,7 +53,7 @@ async function changeMethod(page: Page, request: string, method: string) {
   await page.getByTestId("view-git").click();
 }
 
-const file = (page: Page, path: string) => page.getByTestId("git-file").filter({ hasText: path });
+const file = (page: Page, path: string) => page.locator(`[data-testid="git-file"][data-path="${path}"]`);
 
 test("init, commit, create a branch, switch: the files follow the branch", async ({ page }) => {
   await fakePicker(page);
@@ -63,7 +65,7 @@ test("init, commit, create a branch, switch: the files follow the branch", async
   await expect(page.getByTestId("git-norepo")).toContainText("collection folder itself");
   await page.getByTestId("git-init").click();
   await expect(page.getByTestId("git-branch")).toHaveText("main (no commits yet)");
-  await expect(file(page, "health.yml").getByTestId("git-file-state")).toHaveText("U");
+  await expect(file(page, "health.yml").getByTestId("git-file-state")).toHaveText("A");
 
   await page.getByTestId("git-message").fill("Initial collection");
   await page.getByTestId("git-commit").click();
@@ -71,9 +73,7 @@ test("init, commit, create a branch, switch: the files follow the branch", async
   await expect(page.getByTestId("git-clean")).toBeVisible();
   await expect(page.getByTestId("git-branch")).toHaveText("main");
 
-  await page.getByTestId("git-new-branch").click();
-  await page.getByTestId("git-new-branch-name").fill("feature");
-  await page.getByTestId("git-new-branch-name").press("Enter");
+  await newBranch(page, "feature");
   await expect(page.getByTestId("git-branch")).toHaveText("feature");
 
   await changeMethod(page, "Health", "POST");
@@ -87,15 +87,15 @@ test("init, commit, create a branch, switch: the files follow the branch", async
   await page.getByTestId("git-message").fill("Health is a POST");
   await page.getByTestId("git-commit").click();
   await expect(page.getByTestId("git-clean")).toBeVisible();
-  await expect(page.getByTestId("git-log").getByRole("listitem")).toHaveText(["Health is a POST", "Initial collection"]);
+  await expect(page.getByTestId("git-commit-subject")).toHaveText(["Health is a POST", "Initial collection"]);
 
-  await page.getByTestId("git-branch-select").selectOption("main");
+  await branchMenu(page, "main");
   await expect(page.getByTestId("git-branch")).toHaveText("main");
   expect(await readFolderFile(page, "health.yml")).toContain("method: GET");
   await expect(page.getByTestId("method-select")).toHaveValue("GET");
   expect((await page.evaluate(() => (window as unknown as W).__rt.backend.getRequest("health.yml"))).method).toBe("GET");
 
-  await page.getByTestId("git-branch-select").selectOption("feature");
+  await branchMenu(page, "feature");
   await expect(page.getByTestId("git-branch")).toHaveText("feature");
   expect(await readFolderFile(page, "health.yml")).toContain("method: POST");
   await expect(page.getByTestId("method-select")).toHaveValue("POST");
@@ -143,6 +143,7 @@ test.describe("through a real rt agent", () => {
     await page.getByTestId("view-git").click();
 
     // Clone: the server wants credentials, the prompt stores them and the clone runs again.
+    await page.getByTestId("git-clone-open").click();
     await page.getByTestId("git-clone-url").fill(repoUrl);
     await page.getByTestId("git-clone").click();
     const prompt = page.getByTestId("git-credentials");
@@ -152,7 +153,7 @@ test.describe("through a real rt agent", () => {
     await prompt.getByTestId("git-cred-save").click();
     await expect(page.getByTestId("collection-name")).toHaveText("Shell test", { timeout: 20_000 });
     await expect(page.getByTestId("git-branch")).toHaveText("main");
-    await expect(page.getByTestId("git-sync")).toHaveText("in sync with origin/main");
+    await expect(page.getByTestId("git-sync")).toHaveText("Up to date");
     expect(await readFolderFile(page, "demo/health.yml", "workspace")).toContain("method: GET");
 
     // Commit and push.
@@ -160,10 +161,10 @@ test.describe("through a real rt agent", () => {
     await page.getByTestId("git-message").fill("Health is a PUT");
     await page.getByTestId("git-commit").click();
     await setIdentityWhenAsked(page);
-    await expect(page.getByTestId("git-sync")).toHaveText("↑1 origin/main");
-    await page.getByTestId("git-push").click();
+    await expect(page.getByTestId("git-sync")).toHaveAttribute("data-ahead", "1");
+    await syncMenu(page, /^Push/);
     await expect(page.getByTestId("git-result")).toHaveText("Pushed main to origin/main.", { timeout: 20_000 });
-    await expect(page.getByTestId("git-sync")).toHaveText("in sync with origin/main");
+    await expect(page.getByTestId("git-sync")).toHaveText("Up to date");
     const bare = join(server.root, "demo.git");
     expect(gitCli(bare, "log", "-1", "--format=%s|%an <%ae>").trim()).toBe("Health is a PUT|Ada Lovelace <ada@example.com>");
     expect(gitCli(bare, "show", "main:health.yml")).toContain("method: PUT");
@@ -180,7 +181,7 @@ test.describe("through a real rt agent", () => {
     gitCli(colleague, "commit", "-q", "-m", "Add a request");
     gitCli(colleague, "push", "-q", "origin", "main");
 
-    await page.getByTestId("git-pull").click();
+    await syncMenu(page, /^Pull/);
     await expect(page.getByTestId("git-result")).toHaveText("Pulled 1 commit (fast-forward).", { timeout: 20_000 });
     expect(await readFolderFile(page, "demo/colleague.yml", "workspace")).toContain("From colleague");
     await page.getByTestId("view-requests").click();

@@ -22,6 +22,7 @@ import {
   type GitApi,
   type HistoryApi,
   type ImportApi,
+  type OpenApiApi,
   type LineSlice,
   type PluginApi,
   type Preview,
@@ -45,10 +46,12 @@ import { tauriGraphQl } from "./graphql";
 import { tauriAgents } from "./agents";
 import { tauriMcp } from "./mcp-client";
 import { tauriCompanions } from "./companions";
+import { tauriVariables } from "./variables";
 import { tauriAi } from "./ai";
 // Wave 12: one file per strand.
 import { tauriCompare, type MakeStepChannel } from "./compare";
 import { tauriContract } from "./contract";
+import { tauriOpenApi } from "./openapi";
 import { tauriDiffs } from "./diffs";
 import { tauriMerges } from "./merges";
 import { tauriRescue, type MakeProgressChannel } from "./rescue";
@@ -121,6 +124,8 @@ export const COMMANDS = [
   "companion_list",
   "companion_read",
   "companion_stage",
+  "variables_scope",
+  "variables_define",
   "history_list",
   "history_clear",
   "search",
@@ -183,6 +188,14 @@ export const COMMANDS = [
   "mcp_get_test",
   "mcp_save_test",
   "mcp_run_test",
+  "mcp_resources",
+  "mcp_read_resource",
+  "mcp_prompts",
+  "mcp_get_prompt",
+  "mcp_self_server",
+  "mcp_demo_status",
+  "mcp_demo_start",
+  "mcp_demo_stop",
   // Wave 12 (interface): revisions.
   "git_rev_parse",
   "git_tree_at",
@@ -227,6 +240,12 @@ export const COMMANDS = [
   "contract_check",
   "contract_changes",
   "contract_changelog",
+  // OpenAPI wizard (src-tauri/src/openapi.rs).
+  "openapi_fetch",
+  "openapi_inspect",
+  "openapi_plan",
+  "openapi_requirements",
+  "openapi_validate_response",
   // Wave 12, strand G.
   "rescue_scan",
   "rescue_rewrite",
@@ -277,6 +296,7 @@ export class TauriBackend implements Backend {
   readonly transport: TransportApi;
   readonly git: GitApi;
   readonly imports: ImportApi;
+  readonly openapi: OpenApiApi = tauriOpenApi((cmd, args) => this.call(cmd, args));
   readonly history: HistoryApi;
   readonly plugins: PluginApi;
   readonly auth: AuthApi;
@@ -299,6 +319,8 @@ export class TauriBackend implements Backend {
   readonly contract = tauriContract((cmd, args) => this.call(cmd, args));
   /** Wave 13. */
   readonly companions = tauriCompanions((cmd, args) => this.call(cmd, args));
+  /** Wave 14: variable completion. */
+  readonly variables = tauriVariables((cmd, args) => this.call(cmd, args), sendInput);
   readonly rescue: RescueApi;
 
   constructor(

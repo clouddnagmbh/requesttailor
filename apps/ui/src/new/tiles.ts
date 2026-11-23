@@ -8,6 +8,21 @@
 import { fuzzyScore } from "../shell/fuzzy";
 import type { ExtensionNewItemRef } from "./items";
 import { NEW_ITEMS, type NewItemKind } from "./kinds";
+import { openOpenApiWizard } from "../openapi/store.svelte";
+
+/** "From OpenAPI": opens the OpenAPI import wizard (it asks for the target itself). */
+const OPENAPI_TILE: Tile = {
+  key: "openapi",
+  title: "From OpenAPI",
+  description: "Requests and environments from an OpenAPI or Swagger spec.",
+  group: "Organise",
+  icon: "import",
+  extension: {
+    key: "openapi",
+    extension: "core",
+    item: { id: "openapi", title: "From OpenAPI", description: "", run: () => openOpenApiWizard() },
+  },
+};
 
 export interface Tile {
   /** The built-in kind, or `<extension id>/<item id>`. */
@@ -64,7 +79,7 @@ export function allTiles(extensions: readonly ExtensionNewItemRef[], hasCollecti
       extension: ref,
     }),
   );
-  return [...builtin, ...more];
+  return [...builtin, OPENAPI_TILE, ...more];
 }
 
 export interface TileGroup {

@@ -53,7 +53,7 @@ test("the commit dialog blocks a plaintext token and shows file, line and hint",
   await openDemo(page);
   await setAuthorization(page, `Bearer ${TOKEN}`);
   await page.getByTestId("view-git").click();
-  await expect(page.getByTestId("git-file").filter({ hasText: "health.yml" })).toBeVisible();
+  await expect(page.locator('[data-testid="git-file"][data-path="health.yml"]')).toBeVisible();
 
   await page.getByTestId("git-message").fill("Add auth");
   await page.getByTestId("git-commit").click();
@@ -71,7 +71,7 @@ test("the commit dialog blocks a plaintext token and shows file, line and hint",
 
   // Nothing was committed; the file is still changed and the message kept.
   expect(await gitCalls(page)).not.toContain("commit health.yml");
-  await expect(page.getByTestId("git-log").getByRole("listitem")).toHaveText(["Initial collection"]);
+  await expect(page.getByTestId("git-commit-subject")).toHaveText(["Initial collection"]);
   await expect(page.getByTestId("git-message")).toHaveValue("Add auth");
   // There is no way around it in the dialog.
   await expect(page.getByRole("button", { name: /anyway/i })).toHaveCount(0);
@@ -82,7 +82,7 @@ test("the commit dialog blocks a plaintext token and shows file, line and hint",
   await expect(page.getByTestId("git-secrets")).toHaveCount(0);
   await page.getByTestId("git-message").fill("Add auth");
   await page.getByTestId("git-commit").click();
-  await expect(page.getByTestId("git-log").getByRole("listitem").first()).toContainText("Add auth");
+  await expect(page.getByTestId("git-commit-subject").first()).toContainText("Add auth");
   await expect(page.getByTestId("git-secrets")).toHaveCount(0);
 });
 
@@ -106,7 +106,7 @@ test("a commit the backend refuses with secrets-found shows the findings too", a
   await page.getByTestId("git-message").fill("Add auth");
   await page.getByTestId("git-commit").click();
   await expect(page.getByTestId("git-secret-finding")).toHaveCount(1);
-  await expect(page.getByTestId("git-log").getByRole("listitem")).toHaveText(["Initial collection"]);
+  await expect(page.getByTestId("git-commit-subject")).toHaveText(["Initial collection"]);
 });
 
 test("external secrets: choose a provider and reference variables, no value field", async ({ page }) => {

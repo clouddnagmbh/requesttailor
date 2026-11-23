@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { MockBackend } from "../commands/mock";
 import type { AppExtension, ExtensionTab } from "../extensions";
 import { AppState } from "../state/app.svelte";
+import { createExtensionContext } from "./extension-context";
 import { extensionDiffNotes, extensionTabsFor, type ProvidedExtensions } from "./extension-tabs";
 
 // The component is never rendered here.
@@ -13,7 +14,7 @@ const component = (() => {}) as unknown as ExtensionTab["component"];
 
 function provided(extensions: AppExtension[]): ProvidedExtensions {
   const backend = new MockBackend();
-  return { extensions, ctx: { backend, app: new AppState(backend) } };
+  return { extensions, ctx: createExtensionContext(backend, new AppState(backend)) };
 }
 
 describe("extension tabs", () => {

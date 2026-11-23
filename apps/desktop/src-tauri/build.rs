@@ -66,6 +66,9 @@ const COMMANDS: &[&str] = &[
     "companion_list",
     "companion_read",
     "companion_stage",
+    // Wave 14: variable completion.
+    "variables_scope",
+    "variables_define",
     "history_list",
     "history_clear",
     "search",
@@ -129,6 +132,14 @@ const COMMANDS: &[&str] = &[
     "mcp_get_test",
     "mcp_save_test",
     "mcp_run_test",
+    "mcp_resources",
+    "mcp_read_resource",
+    "mcp_prompts",
+    "mcp_get_prompt",
+    "mcp_self_server",
+    "mcp_demo_status",
+    "mcp_demo_start",
+    "mcp_demo_stop",
     // Wave 12 (interface): revisions.
     "git_rev_parse",
     "git_tree_at",
@@ -173,6 +184,12 @@ const COMMANDS: &[&str] = &[
     "contract_check",
     "contract_changes",
     "contract_changelog",
+    // OpenAPI wizard.
+    "openapi_fetch",
+    "openapi_inspect",
+    "openapi_plan",
+    "openapi_requirements",
+    "openapi_validate_response",
     // Wave 12, strand G.
     "rescue_scan",
     "rescue_rewrite",

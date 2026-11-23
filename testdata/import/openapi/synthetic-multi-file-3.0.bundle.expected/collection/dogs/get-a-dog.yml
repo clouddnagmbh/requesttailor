@@ -1,0 +1,13 @@
+info:
+  name: Get a dog
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{baseUrl}}/dogs/:dogId"
+  params:
+    - name: dogId
+      value: 3f2c9a1e-0000-4000-8000-000000000001
+      type: path
+  auth: inherit

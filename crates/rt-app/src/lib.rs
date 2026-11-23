@@ -21,7 +21,8 @@
 //! Wave 12 (Git for APIs): `diffs` (strand A), `merges` (strand B), `compare` and `bisect`
 //! (strand C), `timeline` (strand D), `review` (strand E), `contract` (strand F), `rescue`
 //! (strand G); revisions in `git` (interface).
-//! Wave 14: `collections` (strand A): the collection set of the sidebar.
+//! Wave 14: `collections` (strand A): the collection set of the sidebar; `variables`
+//! (variable completion).
 //! Changes to the public types here are interface changes (working rule 1).
 
 pub mod agents;
@@ -43,7 +44,11 @@ pub mod grpc;
 pub mod history;
 pub mod import;
 pub mod mcp_client;
+/// The MCP demo server: built into the client, `rt mcp-demo`, the desktop app's local port.
+pub mod mcp_demo;
 pub mod merges;
+/// OpenAPI import wizard: fetch, inspect, convert with choices.
+pub mod openapi;
 pub mod plugins;
 pub mod rescue;
 pub mod response;
@@ -55,6 +60,9 @@ pub mod secret_scan;
 pub mod secret_sources;
 pub mod secrets;
 pub mod timeline;
+/// Variable completion (wave 14): the variables a request sees, new collection and folder
+/// variables.
+pub mod variables;
 mod workspace;
 
 pub use history::{History, HistoryEntry};

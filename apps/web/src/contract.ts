@@ -10,6 +10,7 @@
 
 import {
   BackendError,
+  stubChangelogFacts,
   type ContractApi,
   type ContractReport,
   type ContractSpec,
@@ -149,5 +150,8 @@ export function webContract(w: Wave12Host): ContractApi {
         const [old, next] = [await at(c, from), await at(c, to)];
         return c.contractChangelog(old.files, old.spec?.bytes ?? null, next.files, next.spec?.bytes ?? null, from, to);
       }),
+
+    // Wave 16, strand D.
+    changelogFacts: stubChangelogFacts(),
   };
 }

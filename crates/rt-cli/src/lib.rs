@@ -28,6 +28,8 @@ pub mod docs;
 pub mod grpc;
 pub mod import;
 pub mod mcp;
+/// Wave 14: `rt mcp-demo`, the MCP demo server.
+pub mod mcp_demo;
 pub mod mcp_test;
 /// Wave 12, strand B: `rt merge-driver`.
 pub mod merge_driver;
@@ -77,9 +79,11 @@ Usage:
   rt run [<folder>] [options]
   rt agent [--port <PORT>] [--allow-origin <ORIGIN>]... [--allow-secrets]
   rt import <file>... --out <dir> [--format <FORMAT>] [--json]
+  rt import openapi <file|url>... --out <dir> [--names operation-id]
+            [--group tag|path|flat] [--keep-spec] [--json]
   rt scan [<path>...] [--json]
   rt mcp-test [<path>...] [-e <NAME>] [--var <NAME=VALUE>]...
-{git_usage}  rt --help | --version
+{mcp_demo_usage}{git_usage}  rt --help | --version
 
 Options for send:
   -e, --env <NAME>          Use the environment named NAME
@@ -144,6 +148,7 @@ servers: connect (stdio or Streamable HTTP), call the tool, check the assertions
   \"failed\": M}} as JSON, secret values as ***. Exit code {EXIT_OK} when all passed,
   {EXIT_TESTS} when a test failed, {EXIT_TRANSPORT} when a server could not be reached or started.
 
+{mcp_demo_help}
 External secrets: when the environment of rt send reads secrets from a manager
 (externalSecrets), rt runs its CLI (op, vault, aws, az, gcloud) with your login.
 Variables given with --var are not read from the manager.
@@ -154,10 +159,21 @@ rt import converts exports of other tools into a new collection folder:
                             (default: detected from each file)
       --json                Print the loss report as JSON instead of text
   Several files form one collection: a Postman collection with its environment
-  and globals files, .http files with http-client(.private).env.json, or
-  several cURL files. Secret values are never written; set them in
-  Environments. Exit code {EXIT_OK} once the collection is written, even if the report
-  lists losses; {EXIT_USAGE} if the files cannot be imported.
+  and globals files, .http files with http-client(.private).env.json,
+  several cURL files, or a multi-file OpenAPI spec. Secret values are never
+  written; set them in Environments. Exit code {EXIT_OK} once the collection is
+  written, even if the report lists losses; {EXIT_USAGE} if the files cannot be
+  imported.
+
+rt import openapi imports an OpenAPI 3.x or Swagger 2.0 spec with choices:
+  <file>...                 The spec; several files are one multi-file spec (the
+                            files its $refs name), a .zip holds one
+  <url>                     Fetch the spec and the files its relative $refs name
+                            ({EXIT_TRANSPORT} if it cannot be fetched)
+      --names operation-id  Name requests after the operationId (default: summary)
+      --group <BY>          Folders by tag (default), path (first segment) or flat
+      --keep-spec           Keep the spec in the collection (openapi.yaml/.json)
+                            for the contract check
 
 {git_help}
 The collection root is the nearest folder above <request-file> that contains
@@ -181,6 +197,8 @@ Exit codes:
         agent_port = agent::DEFAULT_PORT,
         agent_origins = agent::DEFAULT_ORIGINS.join(" and "),
         scan_found = scan::EXIT_FOUND,
+        mcp_demo_usage = mcp_demo::USAGE,
+        mcp_demo_help = mcp_demo::help(),
         // Wave 12: each command's usage and help live in its own module.
         git_usage = [
             diff::USAGE,
@@ -221,6 +239,8 @@ pub enum Command {
     Deny(approvals::Args),
     /// Wave 8, strand D: `rt mcp-test`.
     McpTest(mcp_test::Args),
+    /// Wave 14: `rt mcp-demo`.
+    McpDemo(mcp_demo::Args),
     /// Wave 8, strand F: `rt mock`, `rt docs`.
     Mock(mock::Args),
     Docs(docs::Args),
@@ -324,6 +344,9 @@ where
         }
         Some(Value(cmd)) if cmd == "mcp-test" => {
             Ok(mcp_test::parse(&mut parser)?.map_or(Command::Help, Command::McpTest))
+        }
+        Some(Value(cmd)) if cmd == "mcp-demo" => {
+            Ok(mcp_demo::parse(&mut parser)?.map_or(Command::Help, Command::McpDemo))
         }
         Some(Value(cmd)) if cmd == "mock" => {
             Ok(mock::parse(&mut parser)?.map_or(Command::Help, Command::Mock))
@@ -592,6 +615,10 @@ pub struct Distribution<'a> {
     /// Sections `rt changelog` appends after the OpenAPI and collection changes (since wave
     /// 13), in this order.
     pub changelog: &'a [&'a dyn rt_app::contract::ChangelogSection],
+    /// Other ways to write the changelog, each chosen with its own flag of `rt changelog`
+    /// (since wave 16, `rt_app::contract::ChangelogWriter`). Routing the flags arrives with
+    /// wave 16, strand D; until then they are rejected like any unknown flag.
+    pub changelog_writers: &'a [&'a dyn rt_app::contract::ChangelogWriter],
 }
 
 /// [`run_with`] with everything a distribution adds.
@@ -708,6 +735,7 @@ where
             );
         }
         Ok(Command::McpTest(args)) => return mcp_test::run(args, stdout, stderr),
+        Ok(Command::McpDemo(args)) => return mcp_demo::run(args, stderr),
         Ok(Command::Mock(args)) => return mock::run(args, stdout, stderr),
         Ok(Command::Docs(args)) => return docs::run(args, stdout, stderr),
         Ok(Command::Diff(args)) => return diff::run(args, stdout, stderr),

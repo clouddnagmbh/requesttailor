@@ -22,7 +22,9 @@ use rt_app::git::{
     GitFileChange, GitFileState, GitIdentity, GitPullResult, GitResolution, GitStatus,
 };
 use rt_app::mcp_client::{
-    McpCallResult, McpContent, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool,
+    McpCallResult, McpContent, McpNotification, McpPrompt, McpPromptArgument, McpPromptMessage,
+    McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig,
+    McpServerInfo, McpTest, McpTestResult, McpTool,
 };
 use rt_app::plugins::{
     ActionButton, Block, Contributions, FieldKind, FormField, ImporterContribution, Manifest,
@@ -257,6 +259,7 @@ fn mcp_result() -> McpCallResult {
         structured: Some(serde_json::json!({"ok": true})),
         is_error: false,
         time_ms: 12,
+        notifications: Vec::new(),
     }
 }
 
@@ -1272,6 +1275,8 @@ fn history_entry() -> HistoryEntry {
 fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
     let mut all = base_fixtures();
     all.extend(wave12::fixtures());
+    all.extend(openapi_wizard::fixtures());
+    all.extend(wave16::fixtures());
     all
 }
 
@@ -1395,6 +1400,43 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
         (
+            "variableScope",
+            "VariableScope",
+            j(rt_app::variables::VariableScope {
+                variables: vec![
+                    rt_app::variables::ScopeVar {
+                        name: "baseUrl".into(),
+                        value: Some("http://c".into()),
+                        source: VarSource::Collection,
+                        secret: false,
+                        external: None,
+                        overridden: true,
+                    },
+                    rt_app::variables::ScopeVar {
+                        name: "dbPassword".into(),
+                        value: None,
+                        source: VarSource::Environment {
+                            name: "Local".into(),
+                        },
+                        secret: true,
+                        external: Some(SecretProvider::OnePassword),
+                        overridden: false,
+                    },
+                    rt_app::variables::ScopeVar {
+                        name: "userId".into(),
+                        value: Some("42".into()),
+                        source: VarSource::Folder {
+                            path: "users".into(),
+                        },
+                        secret: false,
+                        external: None,
+                        overridden: false,
+                    },
+                ],
+                undefined: vec!["missing".into()],
+            }),
+        ),
+        (
             "fileChanges",
             "FileChange[]",
             j(vec![
@@ -1500,6 +1542,7 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                 environments_extended: vec!["Prod".into()],
                 files: vec!["shop/recording.odtrace".into()],
                 losses: import_plan().report.losses,
+                contract_spec: Some("Shop/openapi.yaml".into()),
             }),
         ),
         (
@@ -1977,6 +2020,7 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                     code: "test('201', () => expect(rt.response.status).to.equal(201));".into(),
                 }],
                 assertions: Vec::new(),
+                ..Default::default()
             }),
         ),
         (
@@ -2025,6 +2069,104 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
         ("mcpCallResult", "McpCallResult", j(mcp_result())),
+        (
+            "mcpCallResultWithNotifications",
+            "McpCallResult",
+            j(McpCallResult {
+                notifications: vec![McpNotification {
+                    method: "notifications/progress".into(),
+                    params: serde_json::json!({"progressToken": 3, "progress": 1, "total": 2}),
+                }],
+                ..mcp_result()
+            }),
+        ),
+        (
+            "mcpResources",
+            "McpResource[]",
+            j(vec![
+                McpResource {
+                    uri: "demo://readme".into(),
+                    name: "README".into(),
+                    title: Some("About".into()),
+                    description: Some("What it offers".into()),
+                    mime_type: Some("text/markdown".into()),
+                    size: Some(120),
+                },
+                McpResource {
+                    uri: "file:///a".into(),
+                    name: "a".into(),
+                    title: None,
+                    description: None,
+                    mime_type: None,
+                    size: None,
+                },
+            ]),
+        ),
+        (
+            "mcpResourceContents",
+            "McpResourceContents[]",
+            j(vec![
+                McpResourceContents {
+                    uri: "demo://readme".into(),
+                    mime_type: Some("text/markdown".into()),
+                    text: Some("# Hi".into()),
+                    blob: None,
+                },
+                McpResourceContents {
+                    uri: "demo://logo".into(),
+                    mime_type: None,
+                    text: None,
+                    blob: Some("iVBORw0K".into()),
+                },
+            ]),
+        ),
+        (
+            "mcpPrompts",
+            "McpPrompt[]",
+            j(vec![McpPrompt {
+                name: "summarize".into(),
+                title: None,
+                description: Some("Summarize".into()),
+                arguments: vec![McpPromptArgument {
+                    name: "text".into(),
+                    title: Some("Text".into()),
+                    description: None,
+                    required: true,
+                }],
+            }]),
+        ),
+        (
+            "mcpSelfServers",
+            "McpSelfServer[]",
+            j(vec![
+                McpSelfServer {
+                    server: Some(McpServerConfig::Stdio {
+                        command: "rt".into(),
+                        args: vec!["mcp".into()],
+                        env: Vec::new(),
+                        cwd: None,
+                    }),
+                    hint: "Starts rt mcp on this collection.".into(),
+                },
+                McpSelfServer {
+                    server: None,
+                    hint: "Install rt first.".into(),
+                },
+            ]),
+        ),
+        (
+            "mcpPromptResult",
+            "McpPromptResult",
+            j(McpPromptResult {
+                description: None,
+                messages: vec![McpPromptMessage {
+                    role: "user".into(),
+                    content: McpContent::Text {
+                        text: "Summarize".into(),
+                    },
+                }],
+            }),
+        ),
         ("mcpTest", "McpTest", j(mcp_test())),
         (
             "mcpTestResult",
@@ -2038,6 +2180,286 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
     ]
+}
+
+/// Wave 16 interface: providers and profiles, tool use, streaming, the generic call of
+/// extensions, the preview, the opt-out and the changelog facts.
+mod wave16 {
+    use rt_app::ai::{
+        AiAnswer, AiCollectionPolicy, AiDelta, AiError, AiEvent, AiMessage, AiNameTarget,
+        AiPreview, AiPreviewMode, AiProfile, AiProviderKind, AiReply, AiRequest, AiRole, AiRoles,
+        AiScope, AiSettings, AiStop, AiTask, AiTool, AiToolCall, AiToolResult, AiUsage,
+    };
+    use rt_app::contract::{ChangelogCommit, ChangelogFacts};
+    use serde::Serialize;
+    use serde_json::json;
+
+    fn j<T: Serialize>(v: T) -> serde_json::Value {
+        serde_json::to_value(v).unwrap()
+    }
+
+    fn tool_call() -> AiToolCall {
+        AiToolCall {
+            id: "toolu_1".into(),
+            name: "get_request".into(),
+            input: json!({ "path": "users/get.yml" }),
+        }
+    }
+
+    fn messages() -> Vec<AiMessage> {
+        vec![
+            AiMessage::text(AiRole::User, "Why does this fail?"),
+            AiMessage {
+                role: AiRole::Assistant,
+                content: "Let me read the request.".into(),
+                tool_calls: vec![tool_call()],
+                tool_results: Vec::new(),
+            },
+            AiMessage {
+                role: AiRole::User,
+                content: String::new(),
+                tool_calls: Vec::new(),
+                tool_results: vec![AiToolResult {
+                    call_id: "toolu_1".into(),
+                    content: "{\"method\":\"GET\"}".into(),
+                    is_error: false,
+                }],
+            },
+        ]
+    }
+
+    fn reply() -> AiReply {
+        AiReply {
+            text: "Add the CSRF token fetch.".into(),
+            tool_calls: vec![tool_call()],
+            stop: AiStop::ToolUse,
+            usage: Some(AiUsage {
+                input_tokens: 1200,
+                output_tokens: 80,
+            }),
+        }
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        let profile = |id: &str, provider, model: &str, base: Option<&str>| AiProfile {
+            id: id.into(),
+            label: id.into(),
+            config: rt_app::ai::AiConfig {
+                provider,
+                model: model.into(),
+                base_url: base.map(Into::into),
+            },
+        };
+        vec![
+            (
+                "aiProviderKinds",
+                "AiProviderKind[]",
+                j(AiProviderKind::ALL),
+            ),
+            (
+                "aiCapabilities",
+                "AiCapabilities[]",
+                j(AiProviderKind::ALL
+                    .iter()
+                    .map(|k| k.capabilities())
+                    .collect::<Vec<_>>()),
+            ),
+            (
+                "aiSettings",
+                "AiSettings",
+                j(AiSettings {
+                    profiles: vec![
+                        profile("smart", AiProviderKind::Anthropic, "claude-opus-5-5", None),
+                        profile(
+                            "azure",
+                            AiProviderKind::AzureOpenai,
+                            "gpt-deployment",
+                            Some("https://acme.openai.azure.com/openai/v1"),
+                        ),
+                        profile(
+                            "local",
+                            AiProviderKind::OpenaiCompatible,
+                            "llama3.1",
+                            Some("http://localhost:11434/v1"),
+                        ),
+                    ],
+                    default_profile: Some("smart".into()),
+                    roles: AiRoles {
+                        fast: Some("local".into()),
+                        smart: Some("smart".into()),
+                    },
+                    preview: AiPreviewMode::FirstUse,
+                    previewed: vec!["smart".into()],
+                }),
+            ),
+            ("aiSettingsEmpty", "AiSettings", j(AiSettings::default())),
+            (
+                "aiCollectionPolicy",
+                "AiCollectionPolicy",
+                j(AiCollectionPolicy {
+                    file_off: false,
+                    device_off: true,
+                }),
+            ),
+            (
+                "aiTasksWave16",
+                "AiTask[]",
+                j(vec![
+                    AiTask::RequestFromSnippet {
+                        snippet: "fetch('https://api.example.com/users')".into(),
+                        folder: "users".into(),
+                    },
+                    AiTask::ExplainResponse {
+                        path: "users/get.yml".into(),
+                        response: 4,
+                    },
+                    AiTask::SuggestAssertions {
+                        path: "users/get.yml".into(),
+                        response: 4,
+                    },
+                    AiTask::SuggestNames {
+                        target: AiNameTarget::Variable,
+                        path: "users/get.yml".into(),
+                    },
+                    AiTask::DraftDocs {
+                        path: "users/get.yml".into(),
+                    },
+                ]),
+            ),
+            (
+                "aiAnswerWave16",
+                "AiAnswer",
+                j(AiAnswer {
+                    text: "Names for the request.".into(),
+                    names: vec!["List users".into(), "Get users".into()],
+                    docs: Some("Returns the users of a tenant.".into()),
+                    ..Default::default()
+                }),
+            ),
+            (
+                "aiErrorsWave16",
+                "AiError[]",
+                j(vec![
+                    AiError::Unsupported("tool use with this provider".into()),
+                    AiError::Cancelled,
+                    AiError::OptedOut,
+                ]),
+            ),
+            (
+                "aiRequest",
+                "AiRequest",
+                j(AiRequest {
+                    id: "call-1".into(),
+                    purpose: "Explain this failure".into(),
+                    profile: Some("smart".into()),
+                    system: "You explain failed HTTP requests.".into(),
+                    messages: messages(),
+                    scope: AiScope {
+                        request: Some("users/get.yml".into()),
+                        response: Some(4),
+                        folder: None,
+                    },
+                    tools: vec![AiTool {
+                        name: "get_request".into(),
+                        description: "Reads a request of the collection.".into(),
+                        input_schema: json!({
+                            "type": "object",
+                            "properties": { "path": { "type": "string" } },
+                            "required": ["path"]
+                        }),
+                    }],
+                    json: Some(json!({ "type": "object" })),
+                    max_tokens: Some(4000),
+                }),
+            ),
+            (
+                "aiRequestMinimal",
+                "AiRequest",
+                j(AiRequest {
+                    id: "call-2".into(),
+                    purpose: "Name this request".into(),
+                    profile: None,
+                    system: String::new(),
+                    messages: vec![AiMessage::text(AiRole::User, "GET /users")],
+                    scope: AiScope::default(),
+                    tools: Vec::new(),
+                    json: None,
+                    max_tokens: None,
+                }),
+            ),
+            (
+                "aiPreview",
+                "AiPreview",
+                j(AiPreview {
+                    profile: "smart".into(),
+                    provider: AiProviderKind::Anthropic,
+                    model: "claude-opus-5-5".into(),
+                    endpoint: "https://api.anthropic.com/v1/messages".into(),
+                    call: rt_app::ai::AiCall {
+                        system: "You explain failed HTTP requests.".into(),
+                        messages: messages(),
+                        max_tokens: 4000,
+                        ..Default::default()
+                    },
+                    masked: 2,
+                    bytes: 1834,
+                    required: true,
+                }),
+            ),
+            (
+                "aiEvents",
+                "AiEvent[]",
+                j(vec![
+                    AiEvent::Delta {
+                        delta: AiDelta::Text {
+                            text: "Add the".into(),
+                        },
+                    },
+                    AiEvent::Delta {
+                        delta: AiDelta::ToolCall { call: tool_call() },
+                    },
+                    AiEvent::Done { reply: reply() },
+                    AiEvent::Done {
+                        reply: AiReply::default(),
+                    },
+                    AiEvent::Error {
+                        error: AiError::Cancelled,
+                    },
+                ]),
+            ),
+            (
+                "changelogFacts",
+                "ChangelogFacts",
+                j(ChangelogFacts {
+                    from: "v1.0.0".into(),
+                    to: "v1.1.0".into(),
+                    title: "Orders API 1.0.0 → 1.1.0".into(),
+                    spec: Default::default(),
+                    collection: Default::default(),
+                    sections: vec![
+                        "## Service metadata\n\n- Entity `Order`: new property `Note`".into(),
+                    ],
+                    commits: vec![
+                        ChangelogCommit {
+                            oid: "b".repeat(40),
+                            summary: "Merge pull request #12 from acme/notes".into(),
+                            body: "Orders get a note".into(),
+                            author: "Ada".into(),
+                            pull: Some(12),
+                        },
+                        ChangelogCommit {
+                            oid: "c".repeat(40),
+                            summary: "Fix typo".into(),
+                            body: String::new(),
+                            author: "Ada".into(),
+                            pull: None,
+                        },
+                    ],
+                    markdown: "# Orders API 1.0.0 → 1.1.0\n".into(),
+                }),
+            ),
+        ]
+    }
 }
 
 /// Wave 12 (Git for APIs): revisions, semantic diff and merge, compare and bisect, timeline,
@@ -2770,4 +3192,207 @@ fn wave5_values_round_trip_through_json() {
     let report = report_ok();
     let json = serde_json::to_string(&report).unwrap();
     assert_eq!(serde_json::from_str::<SendReport>(&json).unwrap(), report);
+}
+
+/// The OpenAPI import wizard and the run wizard.
+mod openapi_wizard {
+    use rt_app::contract::{
+        DifferencePlace, InputField, InputPlace, InputProblem, ProblemKind, ResponseCheck,
+        ResponseDifference, SendRequirements, ServerOption,
+    };
+    use rt_app::openapi::{
+        FetchedFile, FetchedSpec, OpenApiExamples, OpenApiGrouping, OpenApiNaming, OpenApiOptions,
+        OpenApiServerChoice, SpecOperation, SpecOverview, SpecSecurityScheme, SpecServer,
+        SpecServerVariable, SpecTag,
+    };
+    use rt_format::import::{Loss, LossEffect, LossKind};
+    use serde::Serialize;
+
+    fn j<T: Serialize>(v: T) -> serde_json::Value {
+        serde_json::to_value(v).unwrap()
+    }
+
+    fn loss() -> Loss {
+        Loss {
+            location: "collection".into(),
+            kind: LossKind::Other,
+            effect: LossEffect::Dropped,
+            detail: "references to other files not resolved (`common.yaml`)".into(),
+        }
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        let op = |grouping, naming, examples| OpenApiOptions {
+            operations: Some(vec!["GET /pets".into()]),
+            grouping,
+            naming,
+            examples,
+            servers: Some(vec![OpenApiServerChoice {
+                index: 0,
+                environment: Some("Production".into()),
+            }]),
+            default_server: Some(0),
+            collection_name: Some("Petstore".into()),
+            keep_spec: true,
+        };
+        let field = |place, kind: Option<ProblemKind>| InputField {
+            id: "path:petId".into(),
+            place,
+            name: "petId".into(),
+            required: true,
+            secret: false,
+            auth: false,
+            value: Some(String::new()),
+            problem: kind.map(|kind| InputProblem {
+                kind,
+                message: "petId is required".into(),
+                details: vec!["$.name: required property `name` is missing".into()],
+            }),
+            schema: Some(serde_json::json!({ "type": "string", "format": "uuid" })),
+            description: Some("The id of the pet".into()),
+            example: Some("42".into()),
+        };
+        vec![
+            (
+                "specOverview",
+                "SpecOverview",
+                j(SpecOverview {
+                    title: "Petstore".into(),
+                    version: "1.0.0".into(),
+                    description: Some("A sample API".into()),
+                    spec_version: "3.0.3".into(),
+                    main_file: "petstore.yaml".into(),
+                    files: 2,
+                    servers: vec![SpecServer {
+                        url: "https://{region}.example.com/v1".into(),
+                        description: Some("Production".into()),
+                        suggested_name: "Production".into(),
+                        variables: vec![SpecServerVariable {
+                            name: "region".into(),
+                            default: "eu".into(),
+                            values: vec!["eu".into(), "us".into()],
+                            description: None,
+                        }],
+                    }],
+                    tags: vec![SpecTag {
+                        name: "pets".into(),
+                        description: None,
+                        operations: 3,
+                    }],
+                    operations: vec![SpecOperation {
+                        key: "GET /pets/{petId}".into(),
+                        method: "GET".into(),
+                        path: "/pets/{petId}".into(),
+                        tags: vec!["pets".into()],
+                        summary: Some("Info for a specific pet".into()),
+                        operation_id: Some("showPetById".into()),
+                        deprecated: false,
+                    }],
+                    security: vec![SpecSecurityScheme {
+                        name: "bearerAuth".into(),
+                        kind: "bearer".into(),
+                        detail: "JWT".into(),
+                        maps_to: Some("Bearer token {{token}}".into()),
+                        variables: vec!["token".into()],
+                    }],
+                    losses: vec![loss()],
+                }),
+            ),
+            (
+                "openApiOptions",
+                "OpenApiOptions",
+                j(op(
+                    OpenApiGrouping::Tag,
+                    OpenApiNaming::Summary,
+                    OpenApiExamples::Spec,
+                )),
+            ),
+            (
+                "openApiOptionsVariants",
+                "OpenApiOptions[]",
+                j(vec![
+                    op(
+                        OpenApiGrouping::Path,
+                        OpenApiNaming::OperationId,
+                        OpenApiExamples::Schema,
+                    ),
+                    op(
+                        OpenApiGrouping::Flat,
+                        OpenApiNaming::Summary,
+                        OpenApiExamples::Spec,
+                    ),
+                    OpenApiOptions::default(),
+                ]),
+            ),
+            (
+                "fetchedSpec",
+                "FetchedSpec",
+                j(FetchedSpec {
+                    url: "https://api.example.com/openapi.yaml".into(),
+                    files: vec![FetchedFile {
+                        name: "openapi.yaml".into(),
+                        text: "openapi: 3.0.3".into(),
+                    }],
+                    losses: vec![loss()],
+                }),
+            ),
+            (
+                "sendRequirements",
+                "SendRequirements",
+                j(SendRequirements {
+                    operation: "GET /pets/{petId}".into(),
+                    summary: Some("Info for a specific pet".into()),
+                    deprecated: false,
+                    spec: "openapi.yaml".into(),
+                    ready: false,
+                    fields: vec![
+                        field(InputPlace::Path, Some(ProblemKind::Missing)),
+                        field(InputPlace::Variable, Some(ProblemKind::Invalid)),
+                        field(InputPlace::Query, None),
+                        field(InputPlace::Header, None),
+                        InputField {
+                            schema: None,
+                            description: None,
+                            example: None,
+                            value: None,
+                            problem: Some(InputProblem {
+                                kind: ProblemKind::Missing,
+                                message: "a body is required".into(),
+                                details: Vec::new(),
+                            }),
+                            ..field(InputPlace::Body, None)
+                        },
+                    ],
+                    servers: vec![ServerOption {
+                        url: "https://{{region}}.example.com/v1".into(),
+                        description: None,
+                    }],
+                }),
+            ),
+            (
+                "responseCheck",
+                "ResponseCheck",
+                j(ResponseCheck {
+                    operation: "GET /pets/{petId}".into(),
+                    status: 200,
+                    matched: Some("200".into()),
+                    differences: [
+                        DifferencePlace::Status,
+                        DifferencePlace::Header,
+                        DifferencePlace::ContentType,
+                        DifferencePlace::Body,
+                    ]
+                    .into_iter()
+                    .map(|place| ResponseDifference {
+                        place,
+                        path: "$.id".into(),
+                        expected: "integer".into(),
+                        got: "string".into(),
+                    })
+                    .collect(),
+                    body_skipped: Some("the body is larger than 8 MB".into()),
+                }),
+            ),
+        ]
+    }
 }

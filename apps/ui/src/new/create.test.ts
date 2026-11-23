@@ -62,6 +62,7 @@ describe("createNew", () => {
     expect(staging.variables.filter((v) => v.secret).every((v) => v.value === null)).toBe(true);
     expect(app.environment).toBe("Staging");
     expect(app.dirty).toContain("environments/Staging.yml");
+    expect(app.view?.view).toEqual({ kind: "environments" });
     expect(await createNew(app, { ...form, name: "staging" })).toMatchObject({ ok: false });
   });
 
@@ -71,7 +72,7 @@ describe("createNew", () => {
     expect(await createNew(app, form)).toEqual({ ok: true });
     expect(await app.backend.mcp.tests()).toContain("mcp/echo.mcp.yaml");
     expect(await app.backend.mcp.getTest("mcp/echo.mcp.yaml")).toMatchObject({ server: { transport: "http", url: "http://localhost:3001/mcp" }, tool: "" });
-    expect(app.view?.view).toEqual({ kind: "mcp" });
+    expect(app.view?.view).toEqual({ kind: "mcp", test: "mcp/echo.mcp.yaml" });
   });
 
   it("creates a collection through the collection set; a cancelled picker keeps the dialog", async () => {

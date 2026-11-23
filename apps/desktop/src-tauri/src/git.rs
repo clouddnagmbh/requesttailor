@@ -46,7 +46,7 @@ fn root<S: SecretStore>(core: &Core<S>) -> Result<PathBuf> {
         .ok_or_else(|| AppError::Shell("no collection is open".into()))
 }
 
-fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
+pub(crate) fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
     Repo::require(&root(core)?, &options())
 }
 
@@ -59,7 +59,7 @@ fn refuse_unsaved<S: SecretStore>(core: &Core<S>, what: &str) -> Result<()> {
     Ok(())
 }
 
-fn app_identity<S: SecretStore>(core: &Core<S>) -> Result<Option<GitIdentity>> {
+pub(crate) fn app_identity<S: SecretStore>(core: &Core<S>) -> Result<Option<GitIdentity>> {
     rt_git::identity::load(core.data_dir.as_deref())
 }
 
@@ -153,6 +153,31 @@ pub fn pull<S: SecretStore>(core: &Core<S>) -> Result<GitPullResult> {
         }
     }
     Ok(result)
+}
+
+/// After Git changed files of the repository at `workdir` (wave 14: the wizards' actions and
+/// undo), reopens every open collection in it. The desktop holds one open collection: it is
+/// reopened when it lies in that repository. `conflicts`: files may hold conflict markers and
+/// not parse; then what is open stays until the conflicts are resolved.
+pub fn reload_repository<S: SecretStore>(
+    core: &Core<S>,
+    workdir: &Path,
+    conflicts: bool,
+) -> Result<()> {
+    let Some(root) = core.root() else {
+        return Ok(());
+    };
+    let inside = rt_git::canonical(&root)
+        .map(|r| r.starts_with(workdir))
+        .unwrap_or(false);
+    if !inside {
+        return Ok(());
+    }
+    match core.reload() {
+        Ok(_) => Ok(()),
+        Err(_) if conflicts => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 pub fn conflict<S: SecretStore>(core: &Core<S>, path: &str) -> Result<GitConflict> {
@@ -267,7 +292,7 @@ pub fn commits<S: SecretStore>(
 
 /// Runs `f` on a blocking thread (Git does file and network I/O; reqwest's blocking client
 /// must not run on the async runtime).
-async fn blocking<T: Send + 'static>(
+pub(crate) async fn blocking<T: Send + 'static>(
     app: tauri::AppHandle,
     f: impl FnOnce(&AppCore) -> Result<T> + Send + 'static,
 ) -> Result<T, CommandError> {

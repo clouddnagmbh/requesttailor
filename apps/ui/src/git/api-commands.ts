@@ -3,7 +3,7 @@
 
 // Wave 12 interface: the palette entries of all Git-for-APIs strands, in one list for the
 // palette (AppShell) and the Git view's "Tools" section (GitPanel). Each strand edits only its
-// own `commands.ts`.
+// own `commands.ts`. Wave 14 (strand G) adds the Git wizards (`wizards/commands.ts`).
 
 import { compareCommands } from "../compare/commands";
 import { contractCommands } from "../contract/commands";
@@ -15,6 +15,7 @@ import type { Command } from "../shell/commands";
 import type { AppState } from "../state/app.svelte";
 import { timelineCommands } from "../timeline/commands";
 import type { GitViews } from "./views.svelte";
+import { gitWizardCommands } from "./wizards/commands";
 
 export function gitApiCommands(app: AppState, views: GitViews): Command[] {
   if (!app.collection) return [];
@@ -26,5 +27,6 @@ export function gitApiCommands(app: AppState, views: GitViews): Command[] {
     ...reviewCommands(app, views),
     ...contractCommands(app, views),
     ...rescueCommands(app, views),
+    ...gitWizardCommands(app, views),
   ];
 }

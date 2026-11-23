@@ -4,7 +4,7 @@
 // Pure helpers of the MCP client view (wave 8, strand D): server drafts, tool annotations,
 // suggested assertions for "Save as test".
 
-import type { Assertion, McpCallResult, McpServerConfig, McpTool } from "../commands/types";
+import type { Assertion, McpCallResult, McpNotification, McpServerConfig, McpTool } from "../commands/types";
 
 /** An editable server config: both transports' fields, so switching keeps what was typed. */
 export interface ServerDraft {
@@ -109,4 +109,41 @@ export function suggestedName(tool: string, args: unknown): string {
   const first = args && typeof args === "object" ? Object.values(args)[0] : undefined;
   const hint = typeof first === "string" || typeof first === "number" ? ` ${String(first).slice(0, 30)}` : "";
   return `${tool}${hint}`;
+}
+
+/** "Learn more" in the MCP view: the guide in the CLI README (opens only on click). */
+export const LEARN_MORE_URL = "https://github.com/clouddnagmbh/requesttailor/blob/main/crates/rt-cli/README.md#mcp-testing-servers-and-the-demo-server";
+
+/** What the MCP panel calls a server: the demo by name, else its URL or command line. */
+export function serverTitle(c: McpServerConfig, demoUrl: string, localDemoUrl: string | null): string {
+  if (c.transport === "http" && c.url.trim().replace(/\/$/, "") === demoUrl) return "Demo server (built in)";
+  if (c.transport === "http" && localDemoUrl !== null && c.url.trim() === localDemoUrl) return "Demo server (local port)";
+  if (c.transport === "stdio" && c.args[0] === "mcp" && /(^|[/\\])rt(\.exe)?$/.test(c.command)) return "RequestTailor itself (rt mcp)";
+  return serverLabel(c);
+}
+
+/** A notification of a call as one line: progress with its share, a log with its level. */
+export interface NotificationLine {
+  kind: "progress" | "log" | "other";
+  label: string;
+  text: string;
+  /** 0…1 for progress with a total, else `null`. */
+  progress: number | null;
+}
+
+export function notificationLine(n: McpNotification): NotificationLine {
+  const p = (n.params && typeof n.params === "object" ? n.params : {}) as Record<string, unknown>;
+  if (n.method === "notifications/progress") {
+    const done = typeof p.progress === "number" ? p.progress : 0;
+    const total = typeof p.total === "number" && p.total > 0 ? p.total : null;
+    const counts = total === null ? String(done) : `${done}/${total}`;
+    const text = typeof p.message === "string" && p.message !== "" ? p.message : counts;
+    return { kind: "progress", label: "progress", text, progress: total === null ? null : Math.min(1, done / total) };
+  }
+  if (n.method === "notifications/message") {
+    const level = typeof p.level === "string" ? p.level : "info";
+    const data = typeof p.data === "string" ? p.data : JSON.stringify(p.data ?? null);
+    return { kind: "log", label: level, text: data, progress: null };
+  }
+  return { kind: "other", label: n.method.replace(/^notifications\//, ""), text: JSON.stringify(n.params), progress: null };
 }

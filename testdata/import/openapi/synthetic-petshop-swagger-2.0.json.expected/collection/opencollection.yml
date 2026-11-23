@@ -1,0 +1,21 @@
+opencollection: "1.0.0"
+
+info:
+  name: Pet Shop
+
+request:
+  auth:
+    type: apikey
+    key: X-Shop-Key
+    value: "{{apiKey}}"
+    placement: header
+  variables:
+    - name: baseUrl
+      value: https://petshop.example.com/api/v2
+
+docs: |-
+  Version 2.1.0
+
+  A synthetic Swagger 2.0 description for the importer tests.
+
+bundled: false

@@ -1,13 +1,14 @@
 # rt
 
 The RequestTailor command line: `rt send`, `rt run`, `rt import`, `rt scan`, Git for APIs
-(`rt diff`, `rt merge-driver`, `rt bisect`, `rt changelog`), the MCP server `rt mcp` and the
-companion `rt agent` (below).
+(`rt diff`, `rt merge-driver`, `rt bisect`, `rt changelog`), the MCP server `rt mcp`, MCP tests
+and the demo server (`rt mcp-test`, `rt mcp-demo`) and the companion `rt agent` (below).
 
 ```sh
 rt send <request-file> [--env NAME] [--var NAME=VALUE]... [--body-limit BYTES] [--pretty]
 rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAME[=FILE]]...
 rt import <file>... --out DIR [--format FORMAT] [--json]
+rt import openapi <file|url>... --out DIR [--names operation-id] [--group tag|path|flat] [--keep-spec] [--json]
 rt scan [PATH]... [--json]
 rt diff [<rev> | <rev>..<rev>] [--json] [<collection>]
 rt merge-driver <base> <ours> <theirs> [<path>]
@@ -15,6 +16,7 @@ rt bisect --good <rev> --bad <rev> [--env NAME] [--json] [<folder>]
 rt changelog <rev>..<rev> [<collection>] [--out FILE]
 rt mcp [<collection>] [--var NAME=VALUE]... [--env-default NAME]
 rt mcp-test [<path>...] [--env NAME] [--var NAME=VALUE]...
+rt mcp-demo [--http] [--port PORT]
 rt approvals [--json] | rt approve <id> | rt deny <id>
 rt agent [--port PORT] [--allow-origin ORIGIN]... [--allow-secrets]
 rt --help
@@ -272,12 +274,36 @@ rt import api.yaml --format openapi --out ./api --json
 | Option | Meaning |
 | --- | --- |
 | `-o`, `--out DIR` | Folder to create; it must not exist or must be empty |
-| `-f`, `--format FORMAT` | `postman` (v2.0, v2.1), `insomnia` (v4, v5), `openapi` (3.0 to 3.2), `curl`, `har` (1.2) or `http` (VS Code REST Client, JetBrains); default: detected per file |
+| `-f`, `--format FORMAT` | `postman` (v2.0, v2.1), `insomnia` (v4, v5), `openapi` (3.0 to 3.2, Swagger 2.0), `curl`, `har` (1.2) or `http` (VS Code REST Client, JetBrains); default: detected per file |
 | `--json` | Print `{ collectionName, out, files, report }` instead of text |
 
 Several files form one collection: a Postman collection with its environment and globals
 files; `.http` files (one folder each) with `http-client.env.json` and
-`http-client.private.env.json`; several cURL files (one folder each).
+`http-client.private.env.json`; several cURL files (one folder each); a multi-file OpenAPI
+spec (the main file and the files its `$ref`s name). Swagger 2.0 is converted to OpenAPI 3.
+
+### OpenAPI with choices: `rt import openapi`
+
+```sh
+rt import openapi petstore.yaml --out ./petstore --names operation-id --keep-spec
+rt import openapi api/openapi.yaml api/schemas/*.yaml --out ./api --group path
+rt import openapi spec.zip --out ./api
+rt import openapi https://api.example.com/v1/openapi.yaml --out ./api --json
+```
+
+The same choices as the app's import wizard:
+
+| Option | Meaning |
+| --- | --- |
+| `FILE...` | The spec: one file (OpenAPI 3.0 to 3.2 or Swagger 2.0, JSON or YAML), several files of a multi-file spec (named by their paths relative to the folder they share, so relative `$ref`s resolve), or a `.zip` of one |
+| `URL` | Fetch the spec and, recursively, the files its relative `$ref`s name (same origin only, at most 64 files); a reference that cannot be fetched is in the report, a main file that cannot be fetched exits with 1 |
+| `--names operation-id` | Name requests after the `operationId` (default `summary`: the summary, else the `operationId`, else `METHOD /path`) |
+| `--group tag\|path\|flat` | Folders per first tag (default), per first path segment, or none |
+| `--keep-spec` | Keep the spec in the collection (`openapi.yaml` or `openapi.json` with the original bytes; a multi-file spec bundled into one `openapi.json`) and name it in `extensions.requesttailor.contract.spec`, for the contract check |
+| `-o`, `--out DIR`, `--json` | As above |
+
+Referenced files that were not given and URL references are reported, not fetched (except
+the relative ones of a URL given on the command line).
 
 The report lists every loss with its location (`Users / Get user`), kind, effect (`dropped`:
 not in the collection; `approximated`: in it, but not exactly) and one sentence. Scripts and
@@ -555,14 +581,72 @@ under "Agent audit log". Nothing is sent anywhere.
   against the policy; do not trust collections whose scripts you do not know.
 - Every call reads the files anew, so the agent works with the files as they are now.
 
+## MCP: testing servers and the demo server
+
+MCP (Model Context Protocol) is how AI assistants call tools on servers. `rt mcp` (above) is
+one direction: your collection is the server, an agent the client. The MCP view of the app
+is the other: RequestTailor is the client and you test MCP servers like APIs.
+
+1. **Connect** to a server by the command that starts it (stdio) or by URL (Streamable HTTP).
+   Headers, arguments and environment take `{{variables}}` from the active environment.
+2. **Browse** what it offers: tools (with their input schema), resources and prompts, all
+   pages of each list.
+3. **Call** a tool with a form built from its schema (or raw JSON) and see the result:
+   structured output, text, images, `isError`, and the progress and log notifications the
+   server sent on the way.
+4. **Save** the call as a test: a `*.mcp.yaml` file next to your collection with checks on
+   `res.status` (200, or 500 for a tool error), `res.body` (structured output, else the first
+   text) and `res.responseTime`. Secrets stay `{{references}}`.
+5. **Run all** saved tests in the app, and in CI with `rt mcp-test`.
+
+### Demo server: `rt mcp-demo`
+
+A small MCP server with fake data to try all of this with: offline, deterministic, no account.
+
+| Kind | Name | What it shows |
+| --- | --- | --- |
+| Tool | `echo` | The simplest call |
+| Tool | `add` | Structured output with an `outputSchema` |
+| Tool | `fake_weather` | Form with a required and an enum argument; the same city always gets the same weather |
+| Tool | `todo_add`, `todo_list`, `todo_done` | State per session (kept until you disconnect) |
+| Tool | `uuid` | Deterministic per session, so saved tests stay stable |
+| Tool | `image` | Image content (a PNG) |
+| Tool | `fail` | A tool error (`isError: true`) |
+| Tool | `countdown` | Progress and log notifications before the result |
+| Resource | `demo://readme`, `demo://cities.json`, `demo://todos` | Text, JSON, live state |
+| Prompt | `summarize`, `weather_report` | Arguments, an embedded resource |
+
+Lists are paginated (tools four per page) so clients have to follow `nextCursor`.
+
+Where it runs:
+
+- **In the app (desktop and web):** "Try the demo server" connects to the built-in address
+  `rt-demo://mcp`. The server runs inside RequestTailor's core, so nothing is started and
+  nothing goes over the network. Tests saved against it run anywhere, including
+  `rt mcp-test` in CI.
+- **Desktop, on a real port:** "Demo server on a local port" starts the same server on
+  `http://127.0.0.1:<free port>/mcp` for other MCP clients; it stops when you stop it or quit
+  the app.
+- **Command line:** `rt mcp-demo` speaks MCP on stdin/stdout; `rt mcp-demo --http` serves
+  Streamable HTTP on `http://127.0.0.1:47850/mcp` (`--port 0` picks a free port) until
+  Ctrl-C. Only loopback; requests with another `Host` or `Origin` are refused.
+
+```json
+{ "mcpServers": { "requesttailor-demo": { "command": "rt", "args": ["mcp-demo"] } } }
+```
+
+"Connect to RequestTailor itself" in the app starts `rt mcp` on the open collection (desktop,
+when `rt` is installed) so you see your requests as an agent sees them. The web app cannot
+start commands and says so.
+
 ### Testing MCP servers: `rt mcp-test`
 
-The other direction: `rt mcp-test [<path>...] [-e NAME] [--var NAME=VALUE]...` runs the saved
-MCP tests of a collection (`*.mcp.yaml` files next to the requests, made in the app) against
-their servers (stdio or Streamable HTTP) and prints `{"tests", "passed", "failed"}` as JSON
-with secrets shown as `***`. Exit code 0 when all passed, 4 when a test failed, 1 when a
-server could not be reached or started, 2 on a usage error or when there are no tests, 3 when
-external secrets could not be read.
+`rt mcp-test [<path>...] [-e NAME] [--var NAME=VALUE]...` runs the saved MCP tests of a
+collection (`*.mcp.yaml` files next to the requests, made in the app) against their servers
+(stdio, Streamable HTTP or the built-in demo `rt-demo://mcp`) and prints
+`{"tests", "passed", "failed"}` as JSON with secrets shown as `***`. Exit code 0 when all
+passed, 4 when a test failed, 1 when a server could not be reached or started, 2 on a usage
+error or when there are no tests, 3 when external secrets could not be read.
 
 ## Send guard (for distributions)
 

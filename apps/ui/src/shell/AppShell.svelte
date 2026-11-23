@@ -50,6 +50,8 @@
   import McpSidebar from "../mcp/McpSidebar.svelte";
   import CloneDialog from "../git/CloneDialog.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
+  import { openApiCommands } from "../openapi/commands";
+  import OpenApiHost from "../openapi/OpenApiHost.svelte";
   import CollectionPanel, { type CollectionTab } from "../plugins/CollectionPanel.svelte";
   import { tabsFor } from "../plugins/permissions";
   import PluginsDialog from "../plugins/PluginsDialog.svelte";
@@ -69,6 +71,7 @@
   import "../styles/base.css";
   import CompanionOffer from "../transport/CompanionOffer.svelte";
   import CommandPalette from "./CommandPalette.svelte";
+  import { createExtensionContext } from "./extension-context";
   import { extensionTabsFor, provideExtensions } from "./extension-tabs";
   import { buildCommands, LABELS, type Actions } from "./commands";
   import Resizer from "./Resizer.svelte";
@@ -86,7 +89,7 @@
   const app = provideApp(new AppState(backend));
   // Wave 9: extensions of a distribution (none in the builds of this repository); fixed like the backend.
   // svelte-ignore state_referenced_locally
-  const extensionContext: ExtensionContext = { backend, app };
+  const extensionContext: ExtensionContext = createExtensionContext(backend, app);
   // Wave 13: their request, response and collection tabs.
   // svelte-ignore state_referenced_locally
   const provided = provideExtensions({ extensions, ctx: extensionContext });
@@ -302,7 +305,8 @@
       if (v.kind === "collection-tab") {
         const key = [v.key, `extension:${v.key}`].find((k) => collectionTabs.some((t) => t.key === k));
         if (key) void openCollectionTab(key);
-      } else if (v.kind === "mcp") void openMcp();
+      } else if (v.kind === "mcp") void openMcp(v.test);
+      else if (v.kind === "environments") managing = true;
       else void openRunner(v.folder);
     });
   });
@@ -347,12 +351,17 @@
 
   // ---- MCP client (wave 8) ----
   const mcp = new McpState(app);
-  async function openMcp() {
+  /** Shows the MCP client; with `test`, that saved test opened in it (the "New…" dialog). */
+  async function openMcp(test?: string) {
     await tick();
     runner.close();
     collectionTab = null;
     mcp.show();
     if (sideView !== "mcp") await showView("mcp");
+    if (test) {
+      await mcp.loadTests();
+      await mcp.openTest(test);
+    }
   }
   // Opening a request, the runner or a collection tab shows that instead.
   $effect(() => {
@@ -400,6 +409,7 @@
     ...aiCommands(app, ai),
     ...agentCommands(app),
     ...gitApiCommands(app, gitViews),
+    ...openApiCommands(),
     ...(app.collection ? [{ id: "mcp", label: "Test an MCP server", run: () => openMcp() }] : []),
     ...extensions.flatMap((x) =>
       (x.commands?.(extensionContext) ?? []).map((c) => ({ id: `${x.id}:${c.id}`, label: c.label, run: c.run })),
@@ -632,6 +642,7 @@
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
 <CloneDialog open={cloning} onclose={() => (cloning = false)} onopen={adoptCollection} />
 <ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
+<OpenApiHost onopen={adoptCollection} />
 <PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />
 <CookiesDialog open={showingCookies} onclose={() => (showingCookies = false)} />
 <AuthPromptDialog />

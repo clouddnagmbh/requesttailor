@@ -1,0 +1,90 @@
+openapi: 3.0.3
+info:
+  title: Kennel
+  version: 1.4.0
+  description: A synthetic multi-file description; `schemas/owner.yaml` is missing on purpose.
+servers:
+  - url: https://kennel.example.com/v1
+    description: Production
+  - url: https://staging.kennel.example.com/v1
+    description: Staging
+tags:
+  - name: dogs
+    description: Dogs in the kennel
+security:
+  - bearer: []
+paths:
+  /dogs:
+    get:
+      tags: [dogs]
+      summary: List dogs
+      operationId: listDogs
+      parameters:
+        - $ref: "parameters.yaml#/limit"
+        - $ref: "parameters.yaml#/breed"
+      responses:
+        "200":
+          description: Dogs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./schemas/dog.yaml"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [dogs]
+      summary: Add a dog
+      operationId: addDog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "schemas/dog.yaml"
+      responses:
+        "201":
+          description: Added
+  /dogs/{dogId}:
+    parameters:
+      - $ref: "parameters.yaml#/dogId"
+    get:
+      tags: [dogs]
+      summary: Get a dog
+      operationId: getDog
+      responses:
+        "200":
+          description: The dog
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/dog.yaml"
+  /dogs/{dogId}/owner:
+    parameters:
+      - $ref: "parameters.yaml#/dogId"
+    put:
+      tags: [owners]
+      summary: Set the owner
+      operationId: setOwner
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "schemas/owner.yaml"
+      responses:
+        "204":
+          description: Set
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Problem:
+      description: A problem
+      content:
+        application/problem+json:
+          schema:
+            $ref: "schemas/error.yaml"

@@ -1,0 +1,16 @@
+info:
+  name: Set the owner
+  type: http
+  seq: 1
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/dogs/:dogId/owner"
+  params:
+    - name: dogId
+      value: 3f2c9a1e-0000-4000-8000-000000000001
+      type: path
+  headers:
+    - name: Content-Type
+      value: application/json
+  auth: inherit

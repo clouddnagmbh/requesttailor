@@ -53,6 +53,7 @@ test("palette opens the clone dialog; the Git panel accepts a path too", async (
   await page.getByTestId("open-collection").click();
   await page.evaluate(() => (window as unknown as W).__rt.backend.git.scenario("none"));
   await page.getByTestId("view-git").click();
+  await page.getByTestId("git-clone-open").click();
   await page.getByTestId("git-clone-url").fill("/Users/me/origin.git");
   await page.getByTestId("git-clone").click();
   await expect(page.getByTestId("git-branch")).toHaveText("main");

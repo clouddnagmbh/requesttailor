@@ -12,7 +12,14 @@
 //! Workspace.mcpGetTest(path) -> McpTest
 //! Workspace.mcpSaveTest(path | null, test, secretValues: string[]) -> string
 //! Workspace.mcpRunTest(path, input, companion) -> Promise<McpTestResult>
+//! Workspace.mcpResources(id, companion) -> Promise<McpResource[]>          (wave 14)
+//! Workspace.mcpReadResource(id, uri, companion) -> Promise<McpResourceContents[]>
+//! Workspace.mcpPrompts(id, companion) -> Promise<McpPrompt[]>
+//! Workspace.mcpGetPrompt(id, name, args: [string, string][], companion) -> Promise<McpPromptResult>
 //! ```
+//!
+//! The demo server (`rt-demo://mcp`, `rt_app::mcp_demo`) is answered inside the client, in
+//! the browser too: nothing to install, nothing sent.
 //!
 //! `input` is `rt_app::SendInput` with the secret values (as for `send`), `companion`
 //! `{ url, token }` or `null` for `fetch`, as for `send`. Values are the serde JSON of
@@ -158,6 +165,66 @@ impl WorkspaceJs {
             let result = client.call(&transport, &tool, &args).await;
             put(id, client);
             to_js(&result.map_err(mcp_error)?)
+        }))
+    }
+
+    #[wasm_bindgen(js_name = mcpResources)]
+    pub fn mcp_resources(&self, id: f64, companion: JsValue) -> Result<Promise, JsValue> {
+        let id = int(id)?;
+        let transport = WebTransport::from_js(&companion)?;
+        let mut client = take(id)?;
+        Ok(wasm_bindgen_futures::future_to_promise(async move {
+            let r = client.resources(&transport).await;
+            put(id, client);
+            to_js(&r.map_err(mcp_error)?)
+        }))
+    }
+
+    #[wasm_bindgen(js_name = mcpReadResource)]
+    pub fn mcp_read_resource(
+        &self,
+        id: f64,
+        uri: String,
+        companion: JsValue,
+    ) -> Result<Promise, JsValue> {
+        let id = int(id)?;
+        let transport = WebTransport::from_js(&companion)?;
+        let mut client = take(id)?;
+        Ok(wasm_bindgen_futures::future_to_promise(async move {
+            let r = client.read_resource(&transport, &uri).await;
+            put(id, client);
+            to_js(&r.map_err(mcp_error)?)
+        }))
+    }
+
+    #[wasm_bindgen(js_name = mcpPrompts)]
+    pub fn mcp_prompts(&self, id: f64, companion: JsValue) -> Result<Promise, JsValue> {
+        let id = int(id)?;
+        let transport = WebTransport::from_js(&companion)?;
+        let mut client = take(id)?;
+        Ok(wasm_bindgen_futures::future_to_promise(async move {
+            let r = client.prompts(&transport).await;
+            put(id, client);
+            to_js(&r.map_err(mcp_error)?)
+        }))
+    }
+
+    #[wasm_bindgen(js_name = mcpGetPrompt)]
+    pub fn mcp_get_prompt(
+        &self,
+        id: f64,
+        name: String,
+        args: JsValue,
+        companion: JsValue,
+    ) -> Result<Promise, JsValue> {
+        let id = int(id)?;
+        let args: Vec<(String, String)> = from_js(&args, "arguments")?;
+        let transport = WebTransport::from_js(&companion)?;
+        let mut client = take(id)?;
+        Ok(wasm_bindgen_futures::future_to_promise(async move {
+            let r = client.get_prompt(&transport, &name, &args).await;
+            put(id, client);
+            to_js(&r.map_err(mcp_error)?)
         }))
     }
 

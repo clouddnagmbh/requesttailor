@@ -29,6 +29,10 @@ mod agents;
 mod auth;
 /// Wave 12, strand F: OpenAPI contract check, breaking changes, API changelog.
 pub mod contract;
+/// Variable completion: variables of the collection and of folders.
+mod defaults_vars;
+/// OpenAPI import wizard: `extensions.requesttailor.contract.spec` (writing).
+mod contract_config;
 /// Wave 12, strand A: semantic diff (per model field).
 pub mod diff;
 mod edit;

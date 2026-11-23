@@ -28,6 +28,7 @@ import {
   type FileChange,
   type GitApi,
   type ImportApi,
+  type OpenApiApi,
   type LineSlice,
   type McpClientApi,
   type MergeApi,
@@ -36,6 +37,7 @@ import {
   type RequestSpec,
   type RescueApi,
   type CompanionApi,
+  type VariablesApi,
   type ReviewApi,
   type RunnerApi,
   type StreamsApi,
@@ -63,10 +65,12 @@ import { webAi } from "./ai";
 // Wave 12: one file per strand (./wave12.ts).
 import { webCompare } from "./compare";
 import { webContract } from "./contract";
+import { webOpenApi } from "./openapi";
 import { webDiffs } from "./diffs";
 import { webMerges } from "./merges";
 import { webRescue } from "./rescue";
 import { webCompanions } from "./companions";
+import { webVariables } from "./variables";
 import { webReview } from "./review";
 import { webTimeline } from "./timeline";
 import type { Wave12Host } from "./wave12";
@@ -74,7 +78,7 @@ import { webScriptTrust, type WebScriptTrust } from "./scripts";
 import { SessionStore, webSessionVars } from "./session-vars";
 import { webGit } from "./git";
 import { WebHistory } from "./history";
-import { webImports } from "./import";
+import { webImports, type WebImports } from "./import";
 import { webPlugins, type WebPluginApi } from "./plugins";
 import { sendServices, type SendGuardFn } from "./send-services";
 import { webRecent, type WebRecent } from "./recent";
@@ -134,6 +138,10 @@ export interface WebHost {
   /** Wave 14: opens the recent root `id`: the whole remembered set if it is one of its roots,
    *  else `handle` alone. */
   openRecentRoot?(id: string, handle: FileSystemDirectoryHandle, interactive: boolean): Promise<CollectionInfo | null>;
+  /** Wave 14: the Git repository of the active collection (its folder and the collection's
+   *  folder in it, `""` at its root); `null` outside Git. Without it, the web Git takes the
+   *  collection's folder as the repository. */
+  repository?(): { handle: FileSystemDirectoryHandle; scope: string } | null;
   /** The companion's URL and token if it is paired, else `null`. */
   companionCredentials(): Promise<CompanionCredentials | null>;
 }
@@ -174,7 +182,8 @@ export class WebBackend implements Backend {
   readonly transport: TransportApi;
 
   readonly git: GitApi;
-  readonly imports: ImportApi;
+  readonly imports: WebImports;
+  readonly openapi: OpenApiApi;
   readonly history: WebHistory;
   readonly plugins: WebPluginApi;
   readonly auth: WebAuthApi;
@@ -201,6 +210,8 @@ export class WebBackend implements Backend {
   readonly rescue: RescueApi;
   /** Wave 13. */
   readonly companions: CompanionApi;
+  /** Wave 14: variable completion. */
+  readonly variables: VariablesApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;
@@ -222,6 +233,7 @@ export class WebBackend implements Backend {
       session: () => this.session(),
       openHandle: (handle, options) => this.openHandle(handle, options),
       openRecentRoot: (id, handle, interactive) => this.openRecentRoot(id, handle, interactive),
+      repository: () => this.collections.repository(),
       companionCredentials: async () => {
         try {
           return await this.client().credentials();
@@ -243,6 +255,13 @@ export class WebBackend implements Backend {
     });
     this.git = webGit(host);
     this.imports = webImports(host);
+    this.openapi = webOpenApi({
+      host,
+      imports: this.imports,
+      // As for a send (external secrets read too), so what the gate finds is what goes out.
+      coreInput: (input) => this.coreInput(this.session(), input, true),
+      companionOn: () => this.companionOn,
+    });
     this.history = new WebHistory(host);
     this.plugins = webPlugins(host);
     this.auth = webAuth(host);
@@ -289,6 +308,10 @@ export class WebBackend implements Backend {
     this.contract = webContract(wave12);
     this.rescue = webRescue(wave12);
     this.companions = webCompanions(() => this.session());
+    this.variables = webVariables(
+      () => this.session(),
+      (s, input) => this.coreInput(s, input),
+    );
     this.ai = webAi({
       session: host.session,
       openSecrets: deps.openSecrets,

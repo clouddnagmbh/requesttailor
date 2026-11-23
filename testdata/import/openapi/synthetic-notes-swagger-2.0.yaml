@@ -1,0 +1,83 @@
+# A synthetic Swagger 2.0 description in YAML, without a host: the server is relative.
+swagger: "2.0"
+info:
+  title: Notes
+  version: "0.3"
+basePath: /notes-api
+produces:
+  - application/json
+  - text/plain
+securityDefinitions:
+  token:
+    type: apiKey
+    name: access_token
+    in: query
+  cookie_session:
+    type: apiKey
+    name: SESSION
+    in: cookie
+paths:
+  /notes:
+    get:
+      summary: List notes
+      parameters:
+        - name: q
+          in: query
+          type: string
+          x-example: groceries
+        - name: tags
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: csv
+      responses:
+        "200":
+          description: Notes
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Note"
+          examples:
+            text/plain: "milk, eggs"
+      security:
+        - token: []
+    post:
+      summary: Create a note
+      consumes:
+        - text/plain
+      parameters:
+        - in: body
+          name: text
+          schema:
+            type: string
+        - in: body
+          name: second
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Created
+  /notes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        type: string
+    get:
+      summary: Get a note
+      responses:
+        "200":
+          description: The note
+          schema:
+            $ref: "#/definitions/Note"
+      security:
+        - cookie_session: []
+definitions:
+  Note:
+    type: object
+    properties:
+      id:
+        type: string
+      text:
+        type: string

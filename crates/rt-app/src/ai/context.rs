@@ -69,7 +69,12 @@ impl AiContext {
             ..Default::default()
         };
         match task {
-            AiTask::CreateRequest { folder, .. } => {
+            AiTask::CreateRequest { folder, .. }
+            | AiTask::RequestFromSnippet { folder, .. }
+            | AiTask::SuggestNames {
+                target: super::AiNameTarget::Folder,
+                path: folder,
+            } => {
                 let (chain, items) = folder_chain(collection, folder)
                     .ok_or_else(|| AppError::FolderNotFound(folder.clone()))?;
                 context.variables = variables(collection, environment.as_deref(), &chain, None);
@@ -83,7 +88,10 @@ impl AiContext {
                     .take(MAX_SIBLINGS)
                     .collect();
             }
-            AiTask::ExplainError { path, response } | AiTask::SuggestTests { path, response } => {
+            AiTask::ExplainError { path, response }
+            | AiTask::SuggestTests { path, response }
+            | AiTask::ExplainResponse { path, response }
+            | AiTask::SuggestAssertions { path, response } => {
                 let found = collection
                     .request(path)
                     .ok_or_else(|| AppError::RequestNotFound(path.clone()))?;
@@ -96,6 +104,20 @@ impl AiContext {
                 let spec = workspace.request(path)?;
                 context.request = Some(request_view(&spec));
                 context.report = Some(report_view(responses.report(*response)?));
+            }
+            // Wave 16: the request without a response.
+            AiTask::SuggestNames { path, .. } | AiTask::DraftDocs { path } => {
+                let found = collection
+                    .request(path)
+                    .ok_or_else(|| AppError::RequestNotFound(path.clone()))?;
+                context.variables = variables(
+                    collection,
+                    environment.as_deref(),
+                    &found.folders,
+                    Some(&found.request.spec),
+                );
+                let spec = workspace.request(path)?;
+                context.request = Some(request_view(&spec));
             }
         }
         Ok(context)

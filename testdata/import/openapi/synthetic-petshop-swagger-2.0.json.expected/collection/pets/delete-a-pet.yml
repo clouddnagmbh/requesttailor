@@ -1,0 +1,23 @@
+info:
+  name: Delete a pet
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/pets/:petId"
+  params:
+    - name: petId
+      value: "42"
+      type: path
+      description: ID of the pet
+  headers:
+    - name: api_key
+      value: ""
+      disabled: true
+  auth:
+    type: basic
+    username: "{{username}}"
+    password: "{{password}}"
+
+docs: "**Deprecated.**"
