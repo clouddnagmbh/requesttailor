@@ -6,6 +6,7 @@
 // leaves the page. `asked` lists the tasks, for UI tests.
 
 import { BackendError, type AiApi } from "./backend";
+import { looksLikeCurl } from "../ai/task";
 import { providerInfo } from "../ai/providers";
 import type {
   AiCollectionPolicy,
@@ -61,6 +62,38 @@ function proposal(description: string): RequestSpec {
     actions: [],
   };
 }
+
+/** The request a `curl` command describes (method, URL, `-H` headers, `-d` body), as the core's
+ *  importer reads the common cases. */
+function fromCurl(command: string): RequestSpec {
+  const words = [...command.replace(/^\s*\$?\s*curl\s*/, "").matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map((m) => m[1] ?? m[2] ?? m[3]!);
+  let method = "";
+  let url = "";
+  const headers: RequestSpec["headers"] = [];
+  let data = "";
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]!;
+    if (w === "-X" || w === "--request") method = (words[++i] ?? "").toUpperCase();
+    else if (w === "-H" || w === "--header") {
+      const [name, ...rest] = (words[++i] ?? "").split(":");
+      if (name) headers.push({ name: name.trim(), value: rest.join(":").trim(), enabled: true });
+    } else if (w === "-d" || w === "--data" || w === "--data-raw") data = words[++i] ?? "";
+    else if (!w.startsWith("-") && url === "") url = w;
+  }
+  const json = data.trim().startsWith("{");
+  const spec = proposal(url);
+  return {
+    ...spec,
+    name: `${method || (data ? "POST" : "GET")} ${url.replace(/^https?:\/\//, "")}`,
+    method: method || (data ? "POST" : "GET"),
+    url,
+    headers,
+    body: data ? { type: "raw", kind: json ? "json" : "text", data } : { type: "none" },
+    auth: { type: "inherit" },
+  };
+}
+
+const ROLE_OF_TASK: Record<string, "fast" | "smart"> = { "suggest-names": "fast", "explain-response": "fast", "draft-docs": "fast" };
 
 export function mockAi(): MockAiApi {
   let settings: AiSettings | null = null;
@@ -143,12 +176,17 @@ export function mockAi(): MockAiApi {
     policy: async (): Promise<AiCollectionPolicy> => ({ file_off: api.fileOff, device_off: deviceOff }),
     setDeviceOptOut: async (off) => void (deviceOff = off),
     preview: async (what) => {
-      const p = profileFor(what.kind === "request" ? what.request.profile : "smart");
+      const p = profileFor(what.kind === "request" ? what.request.profile : (ROLE_OF_TASK[what.task.task] ?? "smart"));
       if (api.fileOff || deviceOff) throw new BackendError("opted-out", "the AI assistant is off for this collection");
       const raw =
         what.kind === "request"
           ? { system: what.request.system, messages: what.request.messages, max_tokens: what.request.max_tokens ?? 4096, tools: what.request.tools ?? [] }
-          : { system: `Task: ${what.task.task}`, messages: [], max_tokens: 4096, tools: [] };
+          : {
+              system: `Task: ${what.task.task}`,
+              messages: [{ role: "user" as const, content: JSON.stringify(what.task) }],
+              max_tokens: 4096,
+              tools: [],
+            };
       let text = JSON.stringify(raw);
       let masked = 0;
       for (const secret of api.secrets) {
@@ -197,7 +235,12 @@ export function mockAi(): MockAiApi {
     },
     cancel: async (id) => void cancelled.add(id),
     ask: async (task) => {
-      const p = profileFor(null);
+      // A cURL snippet is read without a model: no settings, no key, no opt-out needed.
+      if (task.task === "request-from-snippet" && looksLikeCurl(task.snippet)) {
+        asked.push(task);
+        return { text: "Read from the cURL command, without a model.", request: fromCurl(task.snippet) };
+      }
+      const p = profileFor(ROLE_OF_TASK[task.task] ?? null);
       if (needsKey(p) && !keyFor(p)) throw new BackendError("no-key", "no API key for this provider");
       if (api.fileOff || deviceOff) throw new BackendError("opted-out", "the AI assistant is off for this collection");
       asked.push(task);
@@ -222,9 +265,30 @@ export function mockAi(): MockAiApi {
               { expression: "res.body", operator: "isJson", value: "", description: null, enabled: true },
             ],
           };
-        default:
-          // Wave 16 tasks: their canned answers arrive with strand B.
-          throw new BackendError("unsupported", "This assistant task arrives in wave 16 (strand B).");
+        case "request-from-snippet":
+          return { text: `A request from the snippet.`, request: proposal(task.snippet) };
+        case "explain-response":
+          return { text: "Returns **3 items** as a JSON array; each has an `id` and a `status`." };
+        case "suggest-assertions":
+          return {
+            text: "Checks the status, the type of the body and a field of the first item.",
+            assertions: [
+              { expression: "res.status", operator: "eq", value: "200", description: "status is OK", enabled: true },
+              { expression: "res.body.items", operator: "isArray", value: "", description: null, enabled: true },
+            ],
+          };
+        case "suggest-names":
+          return {
+            text: "",
+            names:
+              task.target === "variable"
+                ? ["baseUrl", "itemId"]
+                : task.target === "folder"
+                  ? ["Orders", "Order management"]
+                  : ["List open orders", "Open orders", "Get open orders"],
+          };
+        case "draft-docs":
+          return { text: "", docs: "Lists the **open orders**.\n\n- `status`: filters by order status." };
       }
     },
   };

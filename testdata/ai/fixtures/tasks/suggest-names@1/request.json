@@ -1,0 +1,20 @@
+{
+  "task": {
+    "task": "suggest-names",
+    "target": "request",
+    "path": "orders/list.yml"
+  },
+  "answer": "Here you go:\n```json\n{\n  \"names\": [\n    \"List open orders\",\n    \"Open orders\",\n    \"list open orders\",\n    \"Orders / open\",\n    \"Get open orders\",\n    \"Fetch orders\",\n    \"Six\"\n  ]\n}\n```",
+  "expect": {
+    "answer": {
+      "text": "",
+      "names": [
+        "List open orders",
+        "Open orders",
+        "Get open orders",
+        "Fetch orders",
+        "Six"
+      ]
+    }
+  }
+}

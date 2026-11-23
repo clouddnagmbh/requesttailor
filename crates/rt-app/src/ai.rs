@@ -62,8 +62,10 @@ mod context;
 mod mask;
 mod profiles;
 mod prompt;
+pub mod prompts;
 mod providers;
 mod runtime;
+pub mod snippet;
 
 pub use call::{
     AiDelta, AiEvent, AiPreview, AiReply, AiRequest, AiScope, AiStop, AiTool, AiToolCall,
@@ -82,6 +84,7 @@ pub use runtime::{
     AiWhat, CallGuard, Calls, CancelToken, DEFAULT_MAX_TOKENS, Prepared, ask_with, ensure_allowed,
     execute, policy, prepare_what, preview, request_call, resolve, scope_tasks, task_call,
 };
+pub use snippet::local_answer;
 
 /// The model suggested when the user picks `anthropic` (they can change it).
 pub const DEFAULT_ANTHROPIC_MODEL: &str = "claude-opus-5-5";
@@ -155,19 +158,6 @@ pub enum AiNameTarget {
     Folder,
     /// The variables a request uses (`path` is the request).
     Variable,
-}
-
-impl AiTask {
-    /// Wave 16 tasks whose prompt and parser arrive with strand B; until then [`run`] answers
-    /// [`AiError::Unsupported`] without a call.
-    pub fn is_pending(&self) -> bool {
-        !matches!(
-            self,
-            AiTask::CreateRequest { .. }
-                | AiTask::ExplainError { .. }
-                | AiTask::SuggestTests { .. }
-        )
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -445,12 +435,12 @@ pub(crate) fn prompt_call(task: &AiTask, context: &AiContext) -> AiCall {
 }
 
 pub fn prepare(task: &AiTask, context: &AiContext, secrets: &[String]) -> Result<AiCall, AiError> {
-    if task.is_pending() {
-        return Err(AiError::Unsupported(
-            "this assistant task arrives with wave 16".to_owned(),
-        ));
-    }
     mask_call(prompt::build(task, context), secrets)
+}
+
+/// Reads the model's `text` as the answer to `task` (checked, never repaired).
+pub fn parse_answer(task: &AiTask, text: &str) -> Result<AiAnswer, AiError> {
+    answer::parse(task, text)
 }
 
 /// Runs one task: [`prepare`], send through `provider`, parse the answer. Errors are masked

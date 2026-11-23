@@ -1,0 +1,50 @@
+{
+  "task": {
+    "task": "request-from-snippet",
+    "snippet": "fetch('https://api.example.com/orders?status=open', {headers: {Accept: 'application/json'}})",
+    "folder": "orders"
+  },
+  "answer": "Here you go:\n```json\n{\n  \"text\": \"Lists open orders.\",\n  \"request\": {\n    \"name\": \"List orders\",\n    \"method\": \"GET\",\n    \"url\": \"{{baseUrl}}/orders?status=open\",\n    \"headers\": [\n      {\n        \"name\": \"Accept\",\n        \"value\": \"application/json\"\n      }\n    ],\n    \"params\": [\n      {\n        \"name\": \"status\",\n        \"value\": \"open\",\n        \"kind\": \"query\"\n      }\n    ],\n    \"body\": {\n      \"type\": \"none\"\n    }\n  }\n}\n```",
+  "expect": {
+    "answer": {
+      "text": "Lists open orders.",
+      "request": {
+        "name": "List orders",
+        "seq": null,
+        "method": "GET",
+        "url": "{{baseUrl}}/orders?status=open",
+        "headers": [
+          {
+            "name": "Accept",
+            "value": "application/json",
+            "enabled": true
+          }
+        ],
+        "params": [
+          {
+            "name": "status",
+            "value": "open",
+            "kind": "query",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "none"
+        },
+        "auth": {
+          "type": "inherit"
+        },
+        "vars": [],
+        "settings": {
+          "timeout_ms": null,
+          "follow_redirects": null,
+          "max_redirects": null,
+          "encode_url": null
+        },
+        "scripts": [],
+        "assertions": [],
+        "actions": []
+      }
+    }
+  }
+}

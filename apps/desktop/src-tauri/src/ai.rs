@@ -300,6 +300,10 @@ pub async fn ask<S: SecretStore>(
     task: AiTask,
     input: SendInput,
 ) -> Result<AiAnswer, CommandError> {
+    // A cURL snippet is read by the importer: no model, so no settings needed.
+    if let Some(local) = ai::local_answer(&task) {
+        return local.map_err(ai_error);
+    }
     let (prepared, settings) = prepare(core, &AiWhat::Task { task: task.clone() }, input)?;
     let key = checked_key(core.secrets(), &prepared.profile)?;
     let runtime = tokio::runtime::Handle::current();

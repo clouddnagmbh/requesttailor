@@ -32,6 +32,7 @@ import {
   type AiProviderKind,
   type AiReply,
   type AiSettings,
+  type AiTask,
   type SecretsApi,
   type SendInput,
 } from "@requesttailor/ui";
@@ -76,6 +77,8 @@ export interface AiCore {
   aiSettingsNormalize(next: AiSettings, old: AiSettings | null): AiSettings;
   aiSettingsConfirm(settings: AiSettings, profile: string): AiSettings;
   aiCancel(id: string): void;
+  /** A task that needs no model (a cURL snippet): its answer, else `undefined`. */
+  aiLocalAnswer?(task: AiTask): AiAnswer | undefined;
 }
 
 export interface AiHost {
@@ -307,6 +310,9 @@ export function webAi(host: AiHost): AiApi {
       }),
     ask: (task, input) =>
       guard(async () => {
+        // A cURL snippet is read by the importer: no model, so no settings needed.
+        const local = (await host.core()).aiLocalAnswer?.(task);
+        if (local) return local;
         const c = await setup(ROLE_OF_TASK[task.task] ?? "smart", input, true);
         return c.ws.aiAsk(task, c.input, c.settings, c.key, c.tokens, deviceOff(c.id), c.companion);
       }),

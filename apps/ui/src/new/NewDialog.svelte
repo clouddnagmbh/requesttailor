@@ -49,6 +49,7 @@
   import type { ExtensionContext, NewTarget } from "../extensions";
   import { createExtensionContext } from "../shell/extension-context";
   import { getExtensions } from "../shell/extension-tabs";
+  import { aiFor } from "../ai/ai.svelte";
   import { getApp } from "../state/app.svelte";
   import { Badge, Button, Card, Dialog, DialogFooter, EmptyState, Icon, Kbd, TextField } from "../ui";
   import { createNew } from "./create";
@@ -67,6 +68,8 @@
   const provided = getExtensions();
   const ctx: ExtensionContext = provided?.ctx ?? createExtensionContext(app.backend, app);
   const desktop = app.backend.kind === "tauri";
+  const ai = aiFor(app.backend);
+  void ai.ensure();
   const FORM_ID = "rt-new-form";
 
   let gridEl = $state<HTMLElement>();
@@ -82,7 +85,7 @@
   const target = $derived<NewTarget>({ collection: request?.collection ?? null, folder: request?.folder ?? "" });
   const hasCollection = $derived(app.collections.length > 0);
   // Asked only while open (extensions may read state, never write it).
-  const tiles = $derived(request ? allTiles(extensionNewItems(provided), hasCollection) : []);
+  const tiles = $derived(request ? allTiles(extensionNewItems(provided), hasCollection, ai.ready) : []);
   const shown = $derived(filterTiles(tiles, query));
   const currentTile = $derived<Tile | undefined>(shown.flat[current]);
   const info = $derived(form ? NEW_ITEMS.find((i) => i.kind === form!.kind) : undefined);

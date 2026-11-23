@@ -1,0 +1,16 @@
+{
+  "task": {
+    "task": "suggest-names",
+    "target": "folder",
+    "path": "orders"
+  },
+  "answer": "Here you go:\n```json\n{\n  \"names\": [\n    \"Orders\",\n    \"a/b\",\n    \"x\\ny\"\n  ]\n}\n```",
+  "expect": {
+    "answer": {
+      "text": "",
+      "names": [
+        "Orders"
+      ]
+    }
+  }
+}

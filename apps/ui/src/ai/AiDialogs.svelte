@@ -15,10 +15,11 @@
   const app = getApp();
   const ai = aiFor(app.backend);
   void ai.ensure();
-  // Another collection: a dialog about the old one closes.
+  // Another collection: a dialog about the old one closes, and the policy is read again.
   $effect(() => {
     void app.collection?.id;
     untrack(() => {
+      void ai.refreshPolicy();
       if (ai.view && ai.view.kind !== "settings") ai.close();
     });
   });
@@ -27,9 +28,30 @@
 {#if ai.view?.kind === "settings"}
   <SettingsDialog {ai} />
 {:else if ai.view?.kind === "create"}
-  <CreateDialog {ai} {app} folder={ai.view.folder} />
+  {#key ai.view}<CreateDialog {ai} {app} folder={ai.view.folder} text={ai.view.text} mode={ai.view.mode} />{/key}
 {:else if ai.view?.kind === "explain"}
   {#key ai.view}<ExplainDialog {ai} {app} path={ai.view.path} response={ai.view.response} />{/key}
 {:else if ai.view?.kind === "tests"}
   {#key ai.view}<TestsDialog {ai} {app} path={ai.view.path} response={ai.view.response} />{/key}
 {/if}
+
+{#if ai.working}
+  <p class="working" role="status" aria-live="polite" data-testid="ai-working">{ai.working}</p>
+{/if}
+
+<style>
+  .working {
+    position: fixed;
+    right: var(--rt-space-5);
+    bottom: var(--rt-space-5);
+    z-index: 50;
+    margin: 0;
+    padding: var(--rt-space-3) var(--rt-space-5);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius-md);
+    background: var(--rt-surface-3);
+    color: var(--rt-fg);
+    box-shadow: var(--rt-elev-2);
+    font: var(--rt-font-caption);
+  }
+</style>

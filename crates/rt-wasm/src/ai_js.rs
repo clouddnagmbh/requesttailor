@@ -12,6 +12,7 @@
 //! aiSettingsConfirm(settings: AiSettings, profile: string): AiSettings
 //! aiSettingsParse(json: string): AiSettings | null    // also a wave-8 `AiConfig`
 //! aiCancel(id: string): void
+//! aiLocalAnswer(task): AiAnswer | undefined   // a task that needs no model (a cURL snippet)
 //! // Workspace methods; `settings` is what the shell stored, `extra` the stored OAuth tokens
 //! // (for masking only), `deviceOff` whether this device turned the assistant off for the
 //! // collection, `companion` { url, token } to go through `rt agent`.
@@ -74,6 +75,17 @@ pub fn ai_settings_normalize(next: JsValue, old: JsValue) -> Result<JsValue, JsV
     next.validate().map_err(ai_error)?;
     next.carry_previewed(old.as_ref());
     to_js(&next)
+}
+
+/// The answer to `task` if it needs no model (a cURL snippet), else `undefined`; an unreadable
+/// command rejects. Works with the assistant not set up.
+#[wasm_bindgen(js_name = aiLocalAnswer)]
+pub fn ai_local_answer(task: JsValue) -> Result<JsValue, JsValue> {
+    let task: AiTask = from_js(&task, "task")?;
+    match ai::local_answer(&task) {
+        Some(answer) => to_js(&answer.map_err(ai_error)?),
+        None => Ok(JsValue::UNDEFINED),
+    }
 }
 
 /// `settings` with the first-use preview of `profile` confirmed.
