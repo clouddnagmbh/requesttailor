@@ -65,6 +65,34 @@ export interface ExtensionDiffNotesProps {
   to: string;
 }
 
+/** Where the "New…" dialog was opened for (since wave 14): the collection and folder its forms
+ *  start with. `collection: null` when no collection is open. */
+export interface NewTarget {
+  collection: string | null;
+  /** Folder path in that collection, `""` for its root. */
+  folder: string;
+}
+
+/** A tile in the "New…" dialog (since wave 14), after the built-in ones. */
+export interface ExtensionNewItem {
+  /** Unique within the extension; the dialog keys the tile `<extension id>/<item id>`. */
+  id: string;
+  title: string;
+  /** One short sentence under the title. */
+  description: string;
+  /** Group heading the tile appears under; tiles without one go under "More". Groups appear
+   *  after the built-in ones, in the order they first occur. */
+  group?: string;
+  /** An icon of the dialog's set (`new/icons.ts`: `http`, `graphql`, `grpc`, `websocket`,
+   *  `sse`, `collection`, `folder`, `environment`, `mcp`, `import`, `service`, `diagram`,
+   *  `trace`, `spark`); unknown or absent: a generic tile icon. */
+  icon?: string;
+  /** A short word shown on the tile (at most 12 characters). */
+  badge?: string;
+  /** Runs after the dialog closed. */
+  run(ctx: ExtensionContext, target: NewTarget): unknown;
+}
+
 export interface AppExtension {
   /** Stable id, e.g. `example`; also the prefix of its command ids (`example:…`). */
   readonly id: string;
@@ -92,6 +120,11 @@ export interface AppExtension {
    * to); reads files with `ctx.backend.git.show`/`treeAt`.
    */
   diffNotes?: Component<ExtensionDiffNotesProps>;
+  /**
+   * Tiles of the "New…" dialog (since wave 14). Called inside a reactive scope like `commands`
+   * while the dialog is open; must not write `$state`.
+   */
+  newItems?(ctx: ExtensionContext): readonly ExtensionNewItem[];
 }
 
 export interface StartOptions {

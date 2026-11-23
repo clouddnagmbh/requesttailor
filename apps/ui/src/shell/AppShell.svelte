@@ -17,7 +17,9 @@
      Wave 12 mount points (interface): GitViewHost in the main area (one Git-for-APIs view at
      a time, `git/views.svelte.ts`) and the strands' palette entries (`git/api-commands.ts`).
      Wave 13: tabs of a distribution's extensions (`AppExtension.tabs`, `extension-tabs.ts`); the
-     collection panel shows plugin and extension collection tabs together. -->
+     collection panel shows plugin and extension collection tabs together.
+     Wave 14 mount point (interface): the "New…" dialog (`new/NewDialog.svelte`, strand B;
+     `AppState.openNew`). -->
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
 
@@ -32,6 +34,7 @@
   import CookiesDialog from "../cookies/CookiesDialog.svelte";
   import { formatAvailable, requestFormat } from "../editor/format-body";
   import RequestEditor from "../editor/RequestEditor.svelte";
+  import NewDialog from "../new/NewDialog.svelte";
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
   import SessionVarsButton from "../scripts/SessionVarsButton.svelte";
@@ -207,7 +210,7 @@
   const actions: Actions = {
     "open-folder": openFolder,
     "new-request": () => {
-      if (app.collection) newIn = "";
+      if (app.collection) app.openNew();
     },
     send: () => (app.active && sessions.kindOf(app.active) ? sessions.primary(app.active) : app.send()),
     save: () => app.save(),
@@ -554,6 +557,7 @@
     <x.overlay ctx={extensionContext} />
   {/if}
 {/each}
+<NewDialog onfallback={(folder) => (newIn = folder)} />
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
 <ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
 <PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />

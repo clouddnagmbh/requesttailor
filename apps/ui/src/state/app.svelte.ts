@@ -20,6 +20,18 @@ import type {
 
 const KEY = Symbol("requesttailor-app");
 
+/** Wave 14: what the "New…" dialog opens with. */
+export interface NewDialogRequest {
+  /** A built-in kind (`new/kinds.ts`) or an extension's tile `<extension id>/<item id>` to
+   *  start on its form; absent: the tiles. */
+  kind?: string;
+  /** The collection and folder the forms start with. */
+  collection: string | null;
+  folder: string;
+  /** Counts requests, so asking again while open restarts it. */
+  seq: number;
+}
+
 export class AppState {
   readonly backend: Backend;
 
@@ -60,6 +72,9 @@ export class AppState {
   openTabs = $derived<RequestRef[]>(
     this.collection ? this.tabs.map((path) => ({ collection: this.collection!.id, path })) : [],
   );
+  /** The "New…" dialog while open (`openNew`). */
+  newDialog = $state<NewDialogRequest | null>(null);
+  private seq = 0;
 
   /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
    *  shells with concurrent commands (Tauri) never send or save a stale request. */
@@ -120,6 +135,20 @@ export class AppState {
         return info;
       })) ?? null
     );
+  }
+
+  /** Wave 14: opens the "New…" dialog (default: the active collection's root). */
+  openNew(options: { kind?: string; collection?: string | null; folder?: string } = {}): void {
+    this.newDialog = {
+      kind: options.kind,
+      collection: options.collection === undefined ? this.activeCollection : options.collection,
+      folder: options.folder ?? "",
+      seq: ++this.seq,
+    };
+  }
+
+  closeNew(): void {
+    this.newDialog = null;
   }
 
   /** Until strand A: the sidebar's collections are the open one. */
