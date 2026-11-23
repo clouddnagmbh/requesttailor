@@ -21,7 +21,7 @@ for (const scenario of SCENARIOS) {
         await openGitPanel(page, { scenario, width, theme });
         if (scenario === "conflict") {
           await page.getByTestId("git-sync-menu").click();
-          await page.getByTestId("git-sync-menu-pull").click();
+          await page.getByRole("menuitem", { name: "Pull" }).click();
           await page.getByTestId("git-merging").waitFor();
         }
         await expectInsideAndAligned(page);

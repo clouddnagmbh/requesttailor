@@ -8,6 +8,8 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { newBranch } from "../git-wizards/helpers";
+
 import { fakePicker, fillFolder, sampleCollection } from "./env";
 
 async function setIdentityWhenAsked(page: Page) {
@@ -32,9 +34,7 @@ test("saved changes, a commit and a branch compare, per field", async ({ page })
   await setIdentityWhenAsked(page);
   await expect(page.getByTestId("git-clean")).toBeVisible();
 
-  await page.getByTestId("git-new-branch").click();
-  await page.getByTestId("git-new-branch-name").fill("feature");
-  await page.getByTestId("git-new-branch-name").press("Enter");
+  await newBranch(page, "feature");
   await expect(page.getByTestId("git-branch")).toHaveText("feature");
 
   await page.getByTestId("view-requests").click();

@@ -23,7 +23,7 @@ async function check(page: Page, name: string) {
     // Nothing is cut: the text fits in the button and the button in the panel.
     expect(await b.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     expect(box.x + box.width).toBeLessThanOrEqual(panel + 1);
-    expect(await b.getAttribute("title")).toBeTruthy();
+    expect(await b.getAttribute("aria-label")).toBeTruthy();
   }
   const scroller = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   expect(scroller).toBe(true);

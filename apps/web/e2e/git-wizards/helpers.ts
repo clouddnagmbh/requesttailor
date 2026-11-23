@@ -55,7 +55,7 @@ export const gitCalls = (page: Page) => page.evaluate(() => [...(window as unkno
 /** Everything in the panel stays inside it: no horizontal scrolling, and each top-level block
  *  keeps the sidebar inset (`--rt-side-inset`) on both sides. */
 export async function expectInsideAndAligned(page: Page): Promise<void> {
-  const r = await page.getByTestId("git-panel").evaluate((panel) => {
+  const r = await page.getByTestId("git-panel").evaluate((panel: HTMLElement) => {
     const inset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--rt-side-inset"));
     const box = panel.getBoundingClientRect();
     const scrollbar = panel.offsetWidth - panel.clientWidth;
@@ -63,7 +63,7 @@ export async function expectInsideAndAligned(page: Page): Promise<void> {
       .filter((el) => el instanceof HTMLElement && el.offsetParent !== null && getComputedStyle(el).display !== "inline")
       .map((el) => {
         const b = el.getBoundingClientRect();
-        return { name: (el as HTMLElement).dataset.testid ?? el.className, left: b.left - box.left, right: box.right - scrollbar - b.right, wide: !el.matches(".link") };
+        return { name: (el as HTMLElement).dataset.testid ?? el.className, left: b.left - box.left, right: box.right - scrollbar - b.right, wide: !el.matches(".link, .footer") };
       });
     // An element sticks out when it reaches past the panel and no ancestor inside the panel
     // clips it (ellipsis rows clip on purpose).
@@ -93,4 +93,38 @@ export async function expectInsideAndAligned(page: Page): Promise<void> {
     expect(Math.round(b.left), `${b.name} left inset`).toBe(r.inset);
     if (b.wide) expect(Math.round(b.right), `${b.name} right inset`).toBe(r.inset);
   }
+}
+
+/** Runs an entry of the repository card's "more" menu. */
+export async function syncMenu(page: Page, name: string | RegExp): Promise<void> {
+  await page.getByTestId("git-sync-menu").click();
+  await page.getByRole("menuitem", { name }).click();
+}
+
+/** Runs an entry of the branch chip's menu (switching uses the branch name). */
+export async function branchMenu(page: Page, name: string | RegExp): Promise<void> {
+  await page.getByTestId("git-branch").click();
+  await page.getByRole("menu").getByRole(/^[^…]*$/.test(String(name)) && typeof name === "string" ? "menuitemcheckbox" : "menuitem", { name, exact: typeof name === "string" }).click();
+}
+
+/** Confirms the open wizard once its plan is ready, and closes the result. */
+export async function confirmWizard(page: Page, options: { again?: boolean; done?: boolean } = {}): Promise<void> {
+  const wizard = page.getByTestId("git-wizard");
+  await expect(wizard.getByTestId("git-wizard-plan")).toBeVisible();
+  await expect(page.getByTestId("git-wizard-confirm")).toBeEnabled();
+  await page.getByTestId("git-wizard-confirm").click();
+  if (options.again) await page.getByTestId("git-wizard-confirm-again").click();
+  await expect(wizard.getByTestId("git-wizard-result")).toBeVisible();
+  if (options.done !== false) {
+    await page.getByTestId("git-wizard-done").click();
+    await expect(wizard).toBeHidden();
+  }
+}
+
+/** Creates a branch through the wizard (branch chip, "New branch…"). */
+export async function newBranch(page: Page, name: string, options: { switchTo?: boolean } = {}): Promise<void> {
+  await branchMenu(page, "New branch…");
+  await page.getByTestId("git-wizard-name").fill(name);
+  if (options.switchTo === false) await page.getByTestId("git-wizard-switch").uncheck();
+  await confirmWizard(page);
 }

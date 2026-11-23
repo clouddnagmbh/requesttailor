@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// Wave 4, strand A2: the Git view against the mock backend's Git (`?backend=mock`,
+// Wave 4, strand A2 (adapted to the wave-14 panel: branch chip and "more" menu, wizards): the Git view against the mock backend's Git (`?backend=mock`,
 // apps/ui/src/commands/mock-git.ts). The same view runs in both shells; the web shell's real
 // Git is covered by e2e/shells/git*.e2e.ts.
 
 import { expect, test, type Page } from "@playwright/test";
 
 import type { MockBackend } from "@requesttailor/ui";
+
+import { branchMenu, newBranch, syncMenu } from "../git-wizards/helpers";
 
 type MockGit = import("../../../ui/src/commands/mock-git").MockGit;
 type W = Window & { __rt: { backend: MockBackend & { git: MockGit } } };
@@ -41,20 +43,20 @@ async function changeAndSave(page: Page, name: string, method: string) {
 }
 
 const files = (page: Page) => page.getByTestId("git-file");
-const file = (page: Page, path: string) => files(page).filter({ hasText: path });
+const file = (page: Page, path: string) => page.locator(`[data-testid="git-file"][data-path="${path}"]`);
 const gitCalls = (page: Page) => page.evaluate(() => [...(window as unknown as W).__rt.backend.git.calls]);
 
 test("shows branch, sync state and changed files with their state", async ({ page }) => {
   await openGit(page);
   await expect(page.getByTestId("git-branch")).toHaveText("main");
-  await expect(page.getByTestId("git-sync")).toContainText("origin/main");
+  await expect(page.getByTestId("git-sync")).toContainText("Up to date");
   await expect(page.getByTestId("git-clean")).toBeVisible();
 
   await changeAndSave(page, "Health", "POST");
   await expect(files(page)).toHaveCount(1);
   await expect(file(page, "health.yml").getByTestId("git-file-state")).toHaveText("M");
   await expect(file(page, "health.yml").getByTestId("git-file-check")).toBeChecked();
-  await expect(page.getByTestId("git-log").getByRole("listitem")).toHaveText(["Initial collection"]);
+  await expect(page.getByTestId("git-commit-subject")).toHaveText(["Initial collection"]);
 });
 
 test("clicking a file shows its diff with coloured added and removed lines", async ({ page }) => {
@@ -87,10 +89,10 @@ test("commits only the checked files", async ({ page }) => {
   await file(page, "users/list-users.yml").getByTestId("git-file-check").uncheck();
   await commit.click();
   await expect(files(page)).toHaveCount(1);
-  await expect(files(page)).toContainText("users/list-users.yml");
+  await expect(files(page)).toHaveAttribute("data-path", "users/list-users.yml");
   await expect(page.getByTestId("git-message")).toHaveValue("");
-  await expect(page.getByTestId("git-sync")).toContainText("↑1");
-  await expect(page.getByTestId("git-log").getByRole("listitem").first()).toHaveText("Health is a POST now");
+  await expect(page.getByTestId("git-sync")).toHaveAttribute("data-ahead", "1");
+  await expect(page.getByTestId("git-commit-subject").first()).toHaveText("Health is a POST now");
   expect(await gitCalls(page)).toContain("commit health.yml");
 
   // Unchecking everything disables Commit again.
@@ -113,15 +115,13 @@ test("asks for the author identity before the first commit", async ({ page }) =>
   await form.getByTestId("git-identity-email").fill("grace@example.com");
   await form.getByTestId("git-identity-save").click();
   await expect(form).toBeHidden();
-  await expect(page.getByTestId("git-log").getByRole("listitem").first()).toHaveText("first own commit");
+  await expect(page.getByTestId("git-commit-subject").first()).toHaveText("first own commit");
   expect((await page.evaluate(() => (window as unknown as W).__rt.backend.git.log(1)))[0].author).toBe("Grace Hopper");
 });
 
 test("creates a branch, switches back and forth, and the tree follows", async ({ page }) => {
   await openGit(page);
-  await page.getByTestId("git-new-branch").click();
-  await page.getByTestId("git-new-branch-name").fill("feature/extra");
-  await page.getByTestId("git-new-branch-name").press("Enter");
+  await newBranch(page, "feature/extra");
   await expect(page.getByTestId("git-branch")).toHaveText("feature/extra");
 
   // A new request on the branch, saved and committed.
@@ -131,17 +131,17 @@ test("creates a branch, switches back and forth, and the tree follows", async ({
   await page.getByTestId("new-request-name").press("Enter");
   await page.getByTestId("save").click();
   await page.getByTestId("view-git").click();
-  await expect(file(page, "only-on-feature.yml").getByTestId("git-file-state")).toHaveText("U");
+  await expect(file(page, "only-on-feature.yml").getByTestId("git-file-state")).toHaveText("A");
   await page.getByTestId("git-message").fill("Add feature request");
   await page.getByTestId("git-commit").click();
   await expect(page.getByTestId("git-clean")).toBeVisible();
 
-  await page.getByTestId("git-branch-select").selectOption("main");
+  await branchMenu(page, "main");
   await expect(page.getByTestId("git-branch")).toHaveText("main");
   await page.getByTestId("view-requests").click();
   await expect(page.getByTestId("tree-request").filter({ hasText: "Only on feature" })).toHaveCount(0);
   await page.getByTestId("view-git").click();
-  await page.getByTestId("git-branch-select").selectOption("feature/extra");
+  await branchMenu(page, "feature/extra");
   await page.getByTestId("view-requests").click();
   await expect(page.getByTestId("tree-request").filter({ hasText: "Only on feature" })).toHaveCount(1);
 });
@@ -153,11 +153,17 @@ test("unsaved changes block switching branches and pulling, and say why", async 
   await page.getByTestId("method-select").selectOption("DELETE");
   await page.getByTestId("view-git").click();
   await expect(page.getByTestId("git-blocked")).toContainText("Save");
-  await expect(page.getByTestId("git-branch-select")).toBeDisabled();
-  await expect(page.getByTestId("git-pull")).toBeDisabled();
+  await page.getByTestId("git-branch").click();
+  await expect(page.getByRole("menuitemcheckbox", { name: "main" })).toHaveAttribute("aria-disabled", "true");
+  await page.keyboard.press("Escape");
+  await page.getByTestId("git-sync-menu").click();
+  await expect(page.getByRole("menuitem", { name: /^Pull/ })).toHaveAttribute("aria-disabled", "true");
+  await page.keyboard.press("Escape");
   await page.getByTestId("save").click();
   await expect(page.getByTestId("git-blocked")).toBeHidden();
-  await expect(page.getByTestId("git-pull")).toBeEnabled();
+  await page.getByTestId("git-sync-menu").click();
+  await expect(page.getByRole("menuitem", { name: /^Pull/ })).not.toHaveAttribute("aria-disabled", "true");
+  await page.keyboard.press("Escape");
   // After saving, the status shows the change without reopening the view.
   await expect(file(page, "health.yml")).toBeVisible();
 });
@@ -167,10 +173,10 @@ test("push and pull show progress and their result", async ({ page }) => {
   await changeAndSave(page, "Health", "POST");
   await page.getByTestId("git-message").fill("local");
   await page.getByTestId("git-commit").click();
-  await expect(page.getByTestId("git-sync")).toContainText("↑1");
-  await page.getByTestId("git-push").click();
+  await expect(page.getByTestId("git-sync")).toHaveAttribute("data-ahead", "1");
+  await syncMenu(page, /^Push/);
   await expect(page.getByTestId("git-result")).toHaveText("Pushed main to origin/main.");
-  await expect(page.getByTestId("git-sync")).not.toContainText("↑1");
+  await expect(page.getByTestId("git-sync")).toHaveAttribute("data-ahead", "0");
 
   // A colleague pushed: pull fast-forwards and the tree reloads.
   await page.evaluate(async () => {
@@ -178,12 +184,12 @@ test("push and pull show progress and their result", async ({ page }) => {
     const spec = await b.getRequest("health.yml");
     b.git.remoteCommit({ "health.yml": { ...spec, name: "Health (remote)" } });
   });
-  await page.getByTestId("git-pull").click();
+  await syncMenu(page, /^Pull/);
   await expect(page.getByTestId("git-result")).toHaveText("Pulled 1 commit (fast-forward).");
   await page.getByTestId("view-requests").click();
   await expect(page.getByTestId("tree-request").filter({ hasText: "Health (remote)" })).toBeVisible();
   await page.getByTestId("view-git").click();
-  await page.getByTestId("git-pull").click();
+  await syncMenu(page, /^Pull/);
   await expect(page.getByTestId("git-result")).toHaveText("Already up to date.");
 
   // Rejected push: the remote moved on.
@@ -194,20 +200,19 @@ test("push and pull show progress and their result", async ({ page }) => {
   await changeAndSave(page, "Health", "PATCH");
   await page.getByTestId("git-message").fill("again");
   await page.getByTestId("git-commit").click();
-  await page.getByTestId("git-push").click();
+  await syncMenu(page, /^Push/);
   await expect(page.getByTestId("git-error")).toContainText("Pull first");
-  await page.getByTestId("git-pull").click();
+  await syncMenu(page, /^Pull/);
   await expect(page.getByTestId("git-result")).toHaveText("Merged origin/main.");
 });
 
 test("a pull with conflicts: ours and theirs side by side, resolve, commit the merge", async ({ page }) => {
   await openGit(page, "conflict");
-  await expect(page.getByTestId("git-sync")).toContainText("↑1");
-  await page.getByTestId("git-pull").click();
-  await expect(page.getByTestId("git-result")).toContainText("Conflicts in 1 file");
-  await expect(page.getByTestId("git-merging")).toBeVisible();
+  await expect(page.getByTestId("git-sync")).toHaveAttribute("data-ahead", "1");
+  await syncMenu(page, /^Pull/);
+  await expect(page.getByTestId("git-merging")).toContainText("The merge needs your decision");
   const row = file(page, "health.yml");
-  await expect(row.getByTestId("git-file-state")).toHaveText("C");
+  await expect(row.getByTestId("git-file-state")).toHaveText("U");
   await expect(page.getByTestId("git-commit")).toBeDisabled();
 
   await row.getByTestId("git-file-open").click();
@@ -237,7 +242,7 @@ test("missing credentials: prompt, store, retry", async ({ page }) => {
   await changeAndSave(page, "Health", "POST");
   await page.getByTestId("git-message").fill("needs auth");
   await page.getByTestId("git-commit").click();
-  await page.getByTestId("git-push").click();
+  await syncMenu(page, /^Push/);
   const prompt = page.getByTestId("git-credentials");
   await expect(prompt).toBeVisible();
   await expect(prompt).toContainText("git.example.com");
@@ -257,7 +262,7 @@ test("a folder without a repository offers to initialize one", async ({ page }) 
   await expect(page.getByTestId("git-norepo")).toBeHidden();
   await expect(page.getByTestId("git-branch")).toHaveText("main (no commits yet)");
   await expect(files(page)).not.toHaveCount(0);
-  await expect(file(page, "health.yml").getByTestId("git-file-state")).toHaveText("U");
+  await expect(file(page, "health.yml").getByTestId("git-file-state")).toHaveText("A");
   await page.getByTestId("git-message").fill("Initial commit");
   await page.getByTestId("git-commit").click();
   await expect(page.getByTestId("git-clean")).toBeVisible();
@@ -266,6 +271,7 @@ test("a folder without a repository offers to initialize one", async ({ page }) 
 
 test("clone: URL, then the cloned collection opens", async ({ page }) => {
   await openGit(page, "none");
+  await page.getByTestId("git-clone-open").click();
   await page.getByTestId("git-clone-url").fill("https://git.example.com/acme/demo-api.git");
   await page.getByTestId("git-clone").click();
   await expect(page.getByTestId("git-branch")).toHaveText("main");
