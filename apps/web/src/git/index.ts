@@ -299,6 +299,6 @@ export function webGit(host: WebHost): GitApi {
 
     // Wave 14 (interface): graph (strand F, ./graph.ts) and wizards (strand G, ./actions.ts).
     ...webGitGraph(wave14),
-    ...webGitActions(wave14),
+    ...webGitActions({ ...wave14, network, identity: () => identity.get() }),
   };
 }
