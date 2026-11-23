@@ -16,8 +16,13 @@
 //! Owner: wave 12, strand F.
 //!
 //! Scope: requests against operations (method and path template, parameters, request body
-//! schema), changes between two versions of the spec, the changelog. Response schemas against
-//! real responses are not checked.
+//! schema), changes between two versions of the spec, the changelog.
+//!
+//! The run wizard ("Ready to send?", [`requirements`]) and the response check
+//! ([`validate_response`]) use the same matching with a stricter schema validation (lengths,
+//! ranges, patterns, formats, …): what a request still needs before it is sent, and where a
+//! real response (status, content type, required headers, JSON body) differs from the
+//! operation's declared responses. The contract check ([`check`]) keeps its own messages.
 
 use serde::{Deserialize, Serialize};
 
@@ -28,8 +33,10 @@ mod changelog;
 mod changes;
 mod check;
 mod matching;
+mod run;
 mod schema;
 mod spec;
+mod strict;
 
 /// Looked for, in this order, when `opencollection.yml` names no spec.
 pub const SPEC_CANDIDATES: &[&str] = &[
@@ -390,9 +397,11 @@ pub const MAX_CHECKED_BODY: usize = 8 * 1024 * 1024;
 
 /// What the request still needs before it can be sent, per the operation it matches; `None`
 /// if no operation of the spec matches it (or it is not HTTP).
+///
+/// `spec` of the result is empty: the caller knows where the spec is (`rt_app::contract`
+/// fills it in).
 pub fn requirements(spec: &ParsedSpec, facts: &RequestFacts<'_>) -> Option<SendRequirements> {
-    let _ = (&spec.spec, facts);
-    None
+    run::requirements(&spec.spec, facts)
 }
 
 /// `request`'s response against the operation it matches; `None` if none matches.
@@ -401,6 +410,5 @@ pub fn validate_response(
     request: &rt_core::model::RequestSpec,
     response: &ResponseFacts<'_>,
 ) -> Option<ResponseCheck> {
-    let _ = (&spec.spec, request, response);
-    None
+    run::validate_response(&spec.spec, request, response)
 }

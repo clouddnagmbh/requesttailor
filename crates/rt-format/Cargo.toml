@@ -21,6 +21,9 @@ similar = "3"
 # OpenAPI import wizard: inflating `.zip` archives of multi-file specs. Already in the tree
 # (Tauri, image crates), MIT OR Zlib OR Apache-2.0, pure Rust, builds on every target.
 miniz_oxide = { version = "0.9.1", default-features = false, features = ["with-alloc"] }
+# The run wizard's `pattern` checks (contract); already in the tree (rt-core), MIT/Apache-2.0,
+# builds on every target.
+regex-lite = "0.1"
 
 [dev-dependencies]
 # Snapshots of the import corpus (loss reports as JSON).

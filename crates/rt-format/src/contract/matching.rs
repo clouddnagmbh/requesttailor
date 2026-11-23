@@ -20,6 +20,8 @@ pub(super) enum Seg {
 #[derive(Debug, Clone)]
 pub(super) struct ReqUrl {
     pub segs: Vec<Seg>,
+    /// The text of each segment of `segs`, as written.
+    pub raw: Vec<String>,
     /// Names in the query string, templates left out.
     pub query: Vec<String>,
 }
@@ -44,9 +46,13 @@ pub(super) fn parse_url(url: &str) -> ReqUrl {
     {
         rest = &rest[end + 2..];
     }
-    let segs = rest
+    let raw: Vec<String> = rest
         .split('/')
         .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let segs = raw
+        .iter()
         .map(|s| {
             if s.contains("{{") {
                 Seg::Var
@@ -63,7 +69,7 @@ pub(super) fn parse_url(url: &str) -> ReqUrl {
         .map(|p| p.split('=').next().unwrap_or("").to_owned())
         .filter(|n| !n.is_empty() && !n.contains("{{"))
         .collect();
-    ReqUrl { segs, query }
+    ReqUrl { segs, raw, query }
 }
 
 /// Whether a request segment fits a spec segment (a literal or `{name}`, maybe with text

@@ -181,7 +181,7 @@ fn check_request(
     }
 }
 
-fn mime_of(body: &Body, headers: &[rt_core::model::KeyValue]) -> Option<String> {
+pub(super) fn mime_of(body: &Body, headers: &[rt_core::model::KeyValue]) -> Option<String> {
     let explicit = || {
         headers
             .iter()
@@ -221,7 +221,7 @@ fn mime_of(body: &Body, headers: &[rt_core::model::KeyValue]) -> Option<String> 
     })
 }
 
-fn media_fits(pattern: &str, mime: &str) -> bool {
+pub(super) fn media_fits(pattern: &str, mime: &str) -> bool {
     let pattern = pattern
         .split(';')
         .next()
