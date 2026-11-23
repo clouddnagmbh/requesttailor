@@ -10,12 +10,15 @@ use std::task::{Context, Poll};
 
 use bytes::Bytes;
 use rt_app::bisect::{BisectVerdict, test_revision};
+use rt_app::compare::RunComparison;
 use rt_app::compare::{
-    CompareRequest, RevisionRunRequest, compare_revisions, run_revision, snapshot_at,
+    CompareRequest, RevisionRunRequest, SNAPSHOT_BODY_LIMIT, compare_revisions, run_revision,
+    snapshot_at,
 };
 use rt_app::git::{GitCommit, GitTree};
 use rt_app::runner::RunSnapshot;
 use rt_app::timeline::{RecordSource, TestRecord, records_of_steps};
+use rt_core::model::Variable;
 use rt_core::send::SendOptions;
 use rt_core::services::Services;
 use rt_core::transport::{
@@ -67,6 +70,35 @@ impl Transport for Wire {
             (200, vec![], "world")
         } else if url.contains("/boom") {
             return Err(TransportError::Connect("refused".into()));
+        } else if let Some(at) = url.find("/echo/") {
+            // Echoes what the request carried: a secret in the URL comes back in header and body.
+            let echoed = url[at + 6..].to_owned();
+            let body = format!(r#"{{"token":"{echoed}","note":"echo"}}"#);
+            return Ok(answer(
+                200,
+                vec![
+                    ("X-Echo".into(), echoed.clone()),
+                    ("Content-Type".into(), "application/json".into()),
+                ],
+                Bytes::from(body),
+                url,
+            ));
+        } else if url.contains("/big") {
+            // Longer than the preview, with a two-byte character across the cut.
+            let text = format!("{}{}", "a".repeat(SNAPSHOT_BODY_LIMIT - 1), "ä".repeat(10));
+            return Ok(answer(
+                200,
+                vec![("Content-Type".into(), "text/plain".into())],
+                Bytes::from(text),
+                url,
+            ));
+        } else if url.contains("/bin") {
+            return Ok(answer(
+                200,
+                vec![("Content-Type".into(), "application/octet-stream".into())],
+                Bytes::from_static(&[0xff, 0xfe, 0x00, 0x81]),
+                url,
+            ));
         } else {
             (200, vec![("Date", "Wed")], r#"{"same":true}"#)
         };
@@ -85,6 +117,21 @@ impl Transport for Wire {
             },
             body,
         })
+    }
+}
+
+fn answer(status: u16, headers: Vec<(String, String)>, body: Bytes, url: String) -> Response {
+    let body: BodyStream = Box::pin(Once(Some(body)));
+    Response {
+        head: ResponseHead {
+            status,
+            version: HttpVersion::Http11,
+            headers,
+            url,
+            redirects: Vec::new(),
+            timing: Timing::default(),
+        },
+        body,
     }
 }
 
@@ -329,6 +376,171 @@ fn compares_status_headers_body_tests_and_errors() {
     assert_eq!(cmp.to.oid, "b");
     assert_eq!(cmp.from_summary.requests, 5);
     assert_eq!(cmp.to_summary.requests, 5);
+}
+
+/// Today's snapshot with a secret `token` in the selected environment (its value from the
+/// keychain, as the shells put it into the environment before a run).
+fn today_with_secret() -> RunSnapshot {
+    let mut snapshot = today();
+    let env = snapshot
+        .collection
+        .environments
+        .iter_mut()
+        .find(|e| e.name == "Local")
+        .unwrap();
+    env.variables.push(Variable {
+        name: "token".into(),
+        value: Some("s3cr3t-T0KEN".into()),
+        enabled: true,
+        secret: true,
+    });
+    snapshot
+}
+
+fn compare_trees(today: &RunSnapshot, from: &GitTree, to: &GitTree) -> RunComparison {
+    block_on(compare_revisions(
+        today,
+        (commit("a"), from),
+        (commit("b"), to),
+        &CompareRequest {
+            from: "a".into(),
+            to: "b".into(),
+            folder: None,
+            paths: None,
+        },
+        &Wire,
+        &SendOptions::default(),
+        &Services::none(),
+        &mut |_, _| {},
+        &never,
+    ))
+    .unwrap()
+}
+
+/// Wave 14, strand H: both responses side by side (status, duration, size, headers, content
+/// type, body preview); a side is `None` where the request was not sent or got no response.
+#[test]
+fn sides_carry_both_responses() {
+    let from = tree(
+        &"a".repeat(40),
+        &[
+            request("api", 1, "/v1/x", false),
+            request("boom", 2, "/boom", false),
+            request("gone", 3, "/same", false),
+        ],
+    );
+    let to = tree(
+        &"b".repeat(40),
+        &[
+            request("api", 1, "/v2/x", false),
+            request("boom", 2, "/v1/x", false),
+            request("added", 4, "/same", false),
+        ],
+    );
+    let cmp = compare_trees(&today(), &from, &to);
+    let by = |p: &str| cmp.requests.iter().find(|r| r.path == p).unwrap();
+
+    let sides = by("api.yml").sides.clone().expect("sides are filled");
+    let (old, new) = (sides.old.unwrap(), sides.new.unwrap());
+    assert_eq!((old.status, new.status), (200, 404));
+    assert!(
+        old.headers
+            .iter()
+            .any(|(n, v)| n == "X-Version" && v == "1")
+    );
+    // Sides keep every header, also the volatile ones the change list leaves out.
+    assert!(new.headers.iter().any(|(n, v)| n == "Date" && v == "Tue"));
+    assert_eq!(
+        old.body.as_deref(),
+        Some(r#"{"id":1,"tags":["a"],"owner":{"name":"ada"},"old":true}"#)
+    );
+    assert_eq!(old.size, old.body.as_ref().unwrap().len() as u64);
+    assert!(!old.truncated);
+    assert_eq!(old.content_type, None);
+
+    // An error on one side: no response there.
+    let boom = by("boom.yml").sides.clone().unwrap();
+    assert!(boom.old.is_none());
+    assert_eq!(boom.new.unwrap().status, 200);
+    // Requests on one side only.
+    let gone = by("gone.yml").sides.clone().unwrap();
+    assert!(gone.old.is_some() && gone.new.is_none());
+    let added = by("added.yml").sides.clone().unwrap();
+    assert!(added.old.is_none() && added.new.is_some());
+
+    // The JSON keeps the shape of the interface (`sides.old.duration_ms`).
+    let json = serde_json::to_value(by("api.yml")).unwrap();
+    assert_eq!(json["sides"]["old"]["status"], 200);
+    assert!(json["sides"]["old"]["duration_ms"].is_u64());
+}
+
+/// The preview is cut at `SNAPSHOT_BODY_LIMIT` bytes on a character boundary; binary bodies
+/// have no preview, only their size and content type.
+#[test]
+fn sides_limit_the_body_preview() {
+    let from = tree(
+        &"a".repeat(40),
+        &[
+            request("big", 1, "/big", false),
+            request("bin", 2, "/bin", false),
+        ],
+    );
+    let cmp = compare_trees(&today(), &from, &from);
+    let by = |p: &str| cmp.requests.iter().find(|r| r.path == p).unwrap();
+
+    let big = by("big.yml").sides.clone().unwrap().new.unwrap();
+    let body = big.body.unwrap();
+    assert!(body.len() <= SNAPSHOT_BODY_LIMIT, "{}", body.len());
+    assert!(body.len() >= SNAPSHOT_BODY_LIMIT - 1);
+    assert!(big.truncated);
+    assert_eq!(big.size, (SNAPSHOT_BODY_LIMIT - 1 + 20) as u64);
+    assert_eq!(big.content_type.as_deref(), Some("text/plain"));
+
+    let bin = by("bin.yml").sides.clone().unwrap().old.unwrap();
+    assert_eq!(bin.body, None);
+    assert_eq!(bin.size, 4);
+    assert!(!bin.truncated);
+    assert_eq!(
+        bin.content_type.as_deref(),
+        Some("application/octet-stream")
+    );
+}
+
+/// A secret that comes back in a response (an echo) is masked in the sides and in the changes,
+/// as the reports mask what went out: the comparison never carries a secret value.
+#[test]
+fn sides_and_changes_mask_secrets() {
+    let from = tree(
+        &"a".repeat(40),
+        &[request("echo", 1, "/echo/{{token}}", false)],
+    );
+    let to = tree(
+        &"b".repeat(40),
+        &[request("echo", 1, "/echo/v2-{{token}}", false)],
+    );
+    let cmp = compare_trees(&today_with_secret(), &from, &to);
+    let echo = &cmp.requests[0];
+    let text = serde_json::to_string(&cmp).unwrap();
+    assert!(!text.contains("s3cr3t-T0KEN"), "{text}");
+
+    let sides = echo.sides.clone().unwrap();
+    let new = sides.new.unwrap();
+    assert!(
+        new.headers
+            .iter()
+            .any(|(n, v)| n == "X-Echo" && v == "v2-***")
+    );
+    assert_eq!(
+        new.body.as_deref(),
+        Some(r#"{"token":"v2-***","note":"echo"}"#)
+    );
+    let header = echo.headers.iter().find(|h| h.name == "X-Echo").unwrap();
+    assert_eq!(
+        (header.old.as_deref(), header.new.as_deref()),
+        (Some("***"), Some("v2-***"))
+    );
+    let token = echo.body.iter().find(|b| b.pointer == "/token").unwrap();
+    assert_eq!(token.new, Some(serde_json::json!("v2-***")));
 }
 
 #[test]
