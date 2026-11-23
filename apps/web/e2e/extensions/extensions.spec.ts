@@ -37,7 +37,7 @@ test("a hint shows above the request, can be dismissed and stays away after a re
   await page.getByTestId("tree-request").filter({ hasText: "Create user" }).click();
   await expect(hint(page)).toHaveCount(1);
 
-  await page.getByTestId("hint-dismiss").click();
+  await hint(page).getByRole("button", { name: "Dismiss hint" }).click();
   await expect(hint(page)).toHaveCount(0);
   await page.getByTestId("tree-request").filter({ hasText: "List users" }).click();
   await expect(hint(page)).toHaveCount(0);
@@ -80,7 +80,7 @@ test("an extension dialog traps focus, closes with Escape and gives focus back",
   expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
   // Width as asked for (420), title bar and close button.
   expect((await dialog.boundingBox())!.width).toBe(420);
-  await expect(dialog.getByTestId("extension-dialog-close")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeVisible();
 
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);

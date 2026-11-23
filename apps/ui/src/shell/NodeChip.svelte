@@ -5,11 +5,11 @@
      not select or fold the row. -->
 <script lang="ts">
   import type { ExtensionNodeAction } from "../extensions";
+  import { Chip } from "../ui";
 
   let { action }: { action: ExtensionNodeAction } = $props();
 
-  function run(e: Event) {
-    e.stopPropagation();
+  function run() {
     try {
       void Promise.resolve(action.run()).catch((err) => console.warn("RequestTailor: node action failed:", err));
     } catch (err) {
@@ -18,40 +18,16 @@
   }
 </script>
 
-<button
-  type="button"
-  class="chip"
-  data-testid="node-chip"
-  data-icon={action.icon}
-  title={action.label}
-  onclick={run}
-  onkeydown={(e) => e.stopPropagation()}
->{action.label}</button>
+<!-- Stops the click and key events so the row neither selects nor folds. -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<span class="chip" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+  <Chip label={action.label} icon={action.icon} tone="accent" size="sm" onclick={run} title={action.label} data-testid="node-chip" data-icon={action.icon} />
+</span>
 
 <style>
   .chip {
+    display: inline-flex;
     flex: none;
-    max-width: 8em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    padding: 0 6px;
-    height: 16px;
-    line-height: 14px;
-    font: inherit;
-    font-size: 10px;
-    color: var(--rt-accent);
-    background: var(--rt-bg);
-    border: 1px solid var(--rt-border);
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .chip:hover {
-    background: var(--rt-bg-hover);
-    border-color: var(--rt-accent);
-  }
-  .chip:focus-visible {
-    outline: 2px solid var(--rt-focus);
-    outline-offset: 1px;
+    max-width: 9em;
   }
 </style>
