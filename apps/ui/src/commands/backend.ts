@@ -74,6 +74,7 @@ import type {
   McpPromptResult,
   McpResource,
   McpResourceContents,
+  McpSelfServer,
   McpServerConfig,
   McpServerInfo,
   McpTest,
@@ -577,11 +578,6 @@ export interface McpClientApi {
 
 /** The built-in demo server (rt_app::mcp_demo::DEMO_URL): answered in memory, never sent. */
 export const MCP_DEMO_URL = "rt-demo://mcp";
-
-export interface McpSelfServer {
-  server: McpServerConfig | null;
-  hint: string;
-}
 
 /** The demo server on `127.0.0.1` with a random port, until stopped or the app ends. */
 export interface McpLocalDemoApi {

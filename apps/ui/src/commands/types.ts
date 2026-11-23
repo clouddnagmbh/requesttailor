@@ -1138,6 +1138,13 @@ export interface McpPromptResult {
   messages: McpPromptMessage[];
 }
 
+/** `rt mcp` on the open collection as a server to connect to (rt_app::mcp_client::McpSelfServer). */
+export interface McpSelfServer {
+  /** `null` where it cannot run (the web app); `hint` says why. */
+  server: McpServerConfig | null;
+  hint: string;
+}
+
 export interface McpTest {
   name: string;
   server: McpServerConfig;

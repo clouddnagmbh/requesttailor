@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -3302,6 +3302,25 @@ export const mcpPrompts: McpPrompt[] = [
     "description": "Summarize",
     "name": "summarize",
     "title": null
+  }
+];
+
+export const mcpSelfServers: McpSelfServer[] = [
+  {
+    "hint": "Starts rt mcp on this collection.",
+    "server": {
+      "args": [
+        "mcp"
+      ],
+      "command": "rt",
+      "cwd": null,
+      "env": [],
+      "transport": "stdio"
+    }
+  },
+  {
+    "hint": "Install rt first.",
+    "server": null
   }
 ];
 
