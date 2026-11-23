@@ -634,6 +634,59 @@ pub struct ChangelogCommit {
     pub pull: Option<u64>,
 }
 
+impl ChangelogCommit {
+    /// A commit from its full message: the first line is the summary, the rest (trimmed) the
+    /// body, and the pull or merge request number is read by [`pull_number`].
+    pub fn from_message(oid: &str, message: &str, author: &str) -> Self {
+        let message = message.trim();
+        let (summary, body) = match message.split_once('\n') {
+            Some((s, b)) => (s.trim_end(), b.trim()),
+            None => (message, ""),
+        };
+        ChangelogCommit {
+            oid: oid.to_owned(),
+            summary: summary.to_owned(),
+            body: body.to_owned(),
+            author: author.to_owned(),
+            pull: pull_number(message),
+        }
+    }
+}
+
+/// The number of the pull or merge request a commit message names: `Merge pull request #12
+/// from ...` (GitHub), `See merge request group/repo!12` (GitLab, in the body) or a trailing
+/// `(#12)` on the summary (squash merges). The summary is looked at first, then the body.
+pub fn pull_number(message: &str) -> Option<u64> {
+    fn digits(s: &str) -> Option<u64> {
+        let n: String = s.chars().take_while(char::is_ascii_digit).collect();
+        if n.is_empty() { None } else { n.parse().ok() }
+    }
+    let message = message.trim();
+    let (summary, body) = message.split_once('\n').unwrap_or((message, ""));
+    let summary = summary.trim();
+    if let Some(rest) = summary.strip_prefix("Merge pull request #")
+        && let Some(n) = digits(rest)
+    {
+        return Some(n);
+    }
+    if let Some(inner) = summary.strip_suffix(')')
+        && let Some((_, n)) = inner.rsplit_once("(#")
+        && n.chars().all(|c| c.is_ascii_digit())
+        && let Some(n) = digits(n)
+    {
+        return Some(n);
+    }
+    for line in std::iter::once(summary).chain(body.lines()) {
+        if let Some(rest) = line.trim().strip_prefix("See merge request ")
+            && let Some((_, n)) = rest.rsplit_once('!')
+            && let Some(n) = digits(n)
+        {
+            return Some(n);
+        }
+    }
+    None
+}
+
 /// Everything deterministic about a range that a writer may build on: the changelog as `rt
 /// changelog` writes it, its parts as data, the distribution's sections and the commits. A
 /// writer must not state anything that is not in here.

@@ -124,6 +124,19 @@ pub fn changelog<S: SecretStore>(core: &Core<S>, from: &str, to: &str) -> Result
     })
 }
 
+/// The facts of a range for writers of release notes (`rt_app::contract::ChangelogFacts`):
+/// what `rt changelog` hands a writer. A desktop build adds no sections of its own.
+pub fn changelog_facts<S: SecretStore>(
+    core: &Core<S>,
+    from: &str,
+    to: &str,
+) -> Result<contract::ChangelogFacts> {
+    let commits = repo(core)?.changelog_commits(from, to)?;
+    with_sides(core, from, to, |old, new| {
+        contract::changelog_facts(old, new, from, to, &[], commits)
+    })
+}
+
 async fn blocking<T: Send + 'static>(
     app: tauri::AppHandle,
     f: impl FnOnce(&AppCore) -> Result<T> + Send + 'static,
@@ -164,6 +177,15 @@ pub async fn contract_changelog(
     to: String,
 ) -> Result<String, CommandError> {
     blocking(app, move |core| changelog(core, &from, &to)).await
+}
+
+#[tauri::command]
+pub async fn contract_changelog_facts(
+    app: tauri::AppHandle,
+    from: String,
+    to: String,
+) -> Result<contract::ChangelogFacts, CommandError> {
+    blocking(app, move |core| changelog_facts(core, &from, &to)).await
 }
 
 #[cfg(test)]
@@ -274,6 +296,18 @@ mod tests {
             text.contains("## Breaking changes") && text.contains("orders/delete-order.yml"),
             "{text}"
         );
+        // The facts carry the same changelog and the commits of the range.
+        let facts = changelog_facts(&core, "HEAD~1", "HEAD").unwrap();
+        assert_eq!(facts.markdown, text);
+        assert_eq!(
+            facts
+                .commits
+                .iter()
+                .map(|c| c.summary.as_str())
+                .collect::<Vec<_>>(),
+            ["v3"]
+        );
+        assert!(facts.spec.breaking().count() >= 5);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

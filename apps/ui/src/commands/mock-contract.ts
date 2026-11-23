@@ -9,9 +9,8 @@
 // answers do not depend on the requests; the real core (rt-format) is tested in Rust.
 
 import { BackendError, type ContractApi } from "./backend";
-import { stubChangelogFacts } from "./wave16-stubs";
 import type { MockWave12Host } from "./mock-wave12";
-import type { ContractReport, ContractSpec, SpecChange, SpecChanges } from "./types";
+import type { ChangelogFacts, ContractReport, ContractSpec, SpecChange, SpecChanges } from "./types";
 
 const SPEC: ContractSpec = { path: "openapi.yaml", title: "Orders API", version: "2.0.0", configured: false };
 
@@ -103,6 +102,12 @@ function render(title: string, changes: SpecChange[]): string {
   return out;
 }
 
+/** The pull request number of a commit summary, like `rt_app::contract::pull_number`. */
+function pullNumber(summary: string): number | null {
+  const m = /^Merge pull request #(\d+)/.exec(summary) ?? /\(#(\d+)\)$/.exec(summary);
+  return m ? Number(m[1]) : null;
+}
+
 export class MockContract implements ContractApi {
   readonly calls: string[] = [];
   private demo = false;
@@ -142,8 +147,24 @@ export class MockContract implements ContractApi {
     return render(`${SPEC.title} ${c.from_version} → ${c.to_version}`, c.changes);
   }
 
-  /** Wave 16, strand D. */
-  changelogFacts = stubChangelogFacts();
+  /** Wave 16, strand D: the changelog and its parts, with the commits of the mock history. */
+  async changelogFacts(from: string, to: string): Promise<ChangelogFacts> {
+    const c = await this.changes(from, to);
+    const title = `${SPEC.title} ${c.from_version} → ${c.to_version}`;
+    const commits = (await this.host.git().commits(from, to, 1000)).map((x) => {
+      const pull = pullNumber(x.summary);
+      return { oid: x.oid, summary: x.summary, author: x.author, ...(pull === null ? {} : { pull }) };
+    });
+    return {
+      from,
+      to,
+      title,
+      spec: c,
+      collection: { changes: [], files: [] },
+      commits,
+      markdown: render(title, c.changes),
+    };
+  }
 
   private need(): void {
     if (!this.demo) throw new BackendError("format", "No OpenAPI spec found.");

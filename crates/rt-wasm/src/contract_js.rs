@@ -97,3 +97,52 @@ pub fn contract_changelog(
     )
     .map_err(app_error)
 }
+
+/// A commit of the range as the shell reads it from Git: its full message is all the facts
+/// need besides the id and the author.
+#[derive(serde::Deserialize)]
+struct RawCommit {
+    oid: String,
+    message: String,
+    author: String,
+}
+
+/// `ChangelogFacts` of a range: the same data `rt changelog` hands to a writer, with `commits`
+/// (newest first, the first-parent chain of the range) given as `{ oid, message, author }`.
+/// The web app adds no sections.
+#[wasm_bindgen(js_name = contractChangelogFacts)]
+pub fn contract_changelog_facts(
+    old_files: JsValue,
+    old_spec: Option<Uint8Array>,
+    new_files: JsValue,
+    new_spec: Option<Uint8Array>,
+    from: &str,
+    to: &str,
+    commits: JsValue,
+) -> Result<JsValue, JsValue> {
+    let (old_files, new_files) = (file_set(&old_files)?, file_set(&new_files)?);
+    let (old_spec, new_spec) = (bytes(old_spec), bytes(new_spec));
+    let raw: Vec<RawCommit> = from_js(&commits, "commits")?;
+    let commits = raw
+        .iter()
+        .map(|c| rt_app::contract::ChangelogCommit::from_message(&c.oid, &c.message, &c.author))
+        .collect();
+    let read_old = |_: &str| Ok(old_spec.clone());
+    let read_new = |_: &str| Ok(new_spec.clone());
+    let facts = rt_app::contract::changelog_facts(
+        &rt_app::contract::Side {
+            files: &old_files,
+            read: &read_old,
+        },
+        &rt_app::contract::Side {
+            files: &new_files,
+            read: &read_new,
+        },
+        from,
+        to,
+        &[],
+        commits,
+    )
+    .map_err(app_error)?;
+    to_js(&facts)
+}

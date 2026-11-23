@@ -196,6 +196,8 @@ const COMMANDS: &[&str] = &[
     "contract_check",
     "contract_changes",
     "contract_changelog",
+    // Wave 16, strand D.
+    "contract_changelog_facts",
     // OpenAPI wizard.
     "openapi_fetch",
     "openapi_inspect",
