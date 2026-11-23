@@ -48,6 +48,7 @@ import { mockReview } from "./mock-review";
 import { mockContract } from "./mock-contract";
 import { mockRescue } from "./mock-rescue";
 import { mockCompanions } from "./mock-companions";
+import { stubCollections } from "./wave14-stubs";
 import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
 import { mockScripts } from "./mock-scripts";
@@ -186,6 +187,8 @@ interface Stored {
 
 export class MockBackend implements Backend {
   readonly kind = "mock" as const;
+  /** Wave 14 interface: one collection until strand A (`mock-collections.ts`). */
+  readonly collections = stubCollections(this);
 
   private requests = sampleRequests();
   private saved = new Map<string, RequestSpec>();

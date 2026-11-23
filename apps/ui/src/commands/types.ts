@@ -1501,3 +1501,71 @@ export interface RescueResult {
   /** Tags that point at a rewritten commit (tags are not rewritten: they keep the value). */
   tags: string[];
 }
+
+// ---- collections in the sidebar (rt_app::collections; wave 14, strand A) ----
+
+/** One collection in the sidebar. */
+export interface CollectionEntry {
+  /** `CollectionInfo.id`: stable on this device; also the key of secrets, tokens, cookies. */
+  id: string;
+  name: string;
+  /** For display only. */
+  location: string;
+  /** The root (`CollectionRoot.id`) it was found in. */
+  root: string;
+  /** Its folder relative to the root, `""` if the root is the collection. */
+  dir: string;
+  /** The Git repository that holds it; collections with the same `repo` share the Git panel. */
+  repo: string | null;
+  /** Number of unsaved changes. */
+  dirty: number;
+}
+
+/** A folder the user opened or added ("Add collection…"), remembered per device. */
+export interface CollectionRoot {
+  id: string;
+  name: string;
+  location: string;
+  /** Ids of its collections, in sidebar order. */
+  collections: string[];
+  /** More than `MAX_COLLECTIONS` (64) were found; the rest is not shown. */
+  truncated: boolean;
+}
+
+/** What the sidebar shows; no file lists it (files stay the truth). */
+export interface CollectionSet {
+  roots: CollectionRoot[];
+  /** All collections in sidebar order. */
+  collections: CollectionEntry[];
+  /** The active collection: the one every per-collection command acts on. */
+  active: string | null;
+}
+
+/** A request in one of the set's collections (tabs, search hits, history, runner targets). */
+export interface RequestRef {
+  collection: string;
+  path: string;
+}
+
+export interface CollectionSearchHit extends SearchHit {
+  collection: string;
+}
+
+/** What saving wrote, per collection. */
+export interface CollectionChanges {
+  collection: string;
+  changes: FileChange[];
+}
+
+/** A new collection from the "New…" dialog. */
+export interface NewCollection {
+  /** `name` in `opencollection.yml`. */
+  name: string;
+  /** Root to create it in; `null`: the shell asks for a folder and adds it as a new root. */
+  root: string | null;
+  /** Folder inside the root (relative, `/`-separated); must not exist yet or be empty. */
+  dir: string;
+  /** `baseUrl` of the first environment, else of the collection. */
+  base_url?: string | null;
+  environment?: string | null;
+}

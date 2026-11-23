@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionDiff, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitFileCommit, GitIdentity, GitPullResult, GitResolution, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitFileCommit, GitIdentity, GitPullResult, GitResolution, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -1673,6 +1673,110 @@ export const searchHits: SearchHit[] = [
       ]
     ],
     "snippet": "{{baseUrl}}/users"
+  }
+];
+
+export const collectionSet: CollectionSet = {
+  "active": "/work/api/orders",
+  "collections": [
+    {
+      "dir": "orders",
+      "dirty": 2,
+      "id": "/work/api/orders",
+      "location": "/work/api/orders",
+      "name": "Orders",
+      "repo": "/work/api",
+      "root": "/work/api"
+    },
+    {
+      "dir": "users",
+      "dirty": 0,
+      "id": "/work/api/users",
+      "location": "/work/api/users",
+      "name": "Users",
+      "repo": "/work/api",
+      "root": "/work/api"
+    },
+    {
+      "dir": "",
+      "dirty": 0,
+      "id": "/work/scratch",
+      "location": "/work/scratch",
+      "name": "Scratch",
+      "repo": null,
+      "root": "/work/scratch"
+    }
+  ],
+  "roots": [
+    {
+      "collections": [
+        "/work/api/orders",
+        "/work/api/users"
+      ],
+      "id": "/work/api",
+      "location": "/work/api",
+      "name": "api",
+      "truncated": false
+    },
+    {
+      "collections": [
+        "/work/scratch"
+      ],
+      "id": "/work/scratch",
+      "location": "/work/scratch",
+      "name": "scratch",
+      "truncated": false
+    }
+  ]
+};
+
+export const requestRef: RequestRef = {
+  "collection": "/work/api/orders",
+  "path": "orders/create.yml"
+};
+
+export const collectionSearchHit: CollectionSearchHit = {
+  "collection": "/work/api/orders",
+  "field": "url",
+  "method": "POST",
+  "name": "Create order",
+  "path": "orders/create.yml",
+  "ranges": [
+    [
+      12,
+      18
+    ]
+  ],
+  "snippet": "{{baseUrl}}/orders"
+};
+
+export const collectionChanges: CollectionChanges[] = [
+  {
+    "changes": [
+      {
+        "deleted": false,
+        "path": "orders/create.yml",
+        "text": "info:\n  name: Create order\n"
+      }
+    ],
+    "collection": "/work/api/orders"
+  }
+];
+
+export const newCollections: NewCollection[] = [
+  {
+    "base_url": "https://billing.example.com",
+    "dir": "billing",
+    "environment": "Local",
+    "name": "Billing",
+    "root": "/work/api"
+  },
+  {
+    "base_url": null,
+    "dir": "scratch",
+    "environment": null,
+    "name": "Scratch",
+    "root": null
   }
 ];
 

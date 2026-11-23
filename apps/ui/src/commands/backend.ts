@@ -8,6 +8,11 @@
 //   - Mock (./mock.ts): in memory, for UI development and Playwright tests of the UI strands.
 // Adding or changing a command is an interface change (working rule 1): no new commands
 // without agreement; list missing ones in your report.
+//
+// Wave 14: the sidebar shows several collections (`collections`, `CollectionSetApi`). "The open
+// collection" in the comments below means the *active* collection of that set: every
+// per-collection command acts on the collection that is active when it is called, and
+// long-running calls (runner, streams, compare, bisect, MCP tests) keep it until they end.
 
 import type {
   Environment,
@@ -69,6 +74,10 @@ import type {
   BisectStep,
   CiStatus,
   CollectionDiff,
+  CollectionChanges,
+  CollectionSearchHit,
+  CollectionSet,
+  NewCollection,
   CompareRequest,
   ConflictChoice,
   ContractReport,
@@ -513,10 +522,48 @@ export interface McpClientApi {
   runTest(path: string, input: SendInput): Promise<McpTestResult>;
 }
 
+/**
+ * The collections in the sidebar (since wave 14, strand A; `rt_app::collections`). A folder the
+ * user opens or adds (a *root*) gives one collection if it is one, else every collection in its
+ * subfolders (depth 4, without hidden folders, `node_modules`, `target`); a folder without any
+ * opens as a new collection. Roots are remembered per device like recent collections; no file
+ * lists them. One collection is active: the per-collection commands of `Backend` act on it.
+ */
+export interface CollectionSetApi {
+  /** The set as it stands; empty before anything is opened. */
+  current(): Promise<CollectionSet>;
+  /** Folder picker; adds the chosen folder as a root (its collections after the existing
+   *  ones) and remembers it; `null` if cancelled. A folder already in the set is not added
+   *  twice. */
+  add(): Promise<CollectionSet | null>;
+  /** Takes a root and its collections out of the set (files untouched). Rejects with kind
+   *  `shell` while one of them has unsaved changes. */
+  removeRoot(root: string): Promise<CollectionSet>;
+  /** Makes collection `id` the active one. */
+  activate(id: string): Promise<CollectionInfo>;
+  /** The tree of any collection in the set, unsaved changes included. */
+  tree(id: string): Promise<TreeNode>;
+  /** Unsaved request paths of any collection in the set. */
+  dirty(id: string): Promise<string[]>;
+  /** Writes the unsaved changes of every collection; what was written, per collection. */
+  saveAll(): Promise<CollectionChanges[]>;
+  /** Full-text search over every collection, unsaved changes included, best hits first. */
+  search(query: string, limit: number): Promise<CollectionSearchHit[]>;
+  /** Creates a collection (folder with `opencollection.yml`, optional first environment and
+   *  `baseUrl`), unsaved like any edit until `save`/`saveAll`, adds it to the set and makes
+   *  it active. `spec.root: null` asks for a folder first (`null` if cancelled). */
+  create(spec: NewCollection): Promise<CollectionInfo | null>;
+}
+
 export interface Backend {
   readonly kind: "tauri" | "web" | "mock";
 
-  /** Shows the platform's folder picker and opens the collection; `null` if cancelled. */
+  /** Wave 14: the collections in the sidebar. */
+  readonly collections: CollectionSetApi;
+
+  /** Shows the platform's folder picker and opens what it holds as the only root of the
+   *  collection set (wave 14: one collection, or every collection in its subfolders); returns
+   *  the active collection; `null` if cancelled. */
   openCollection(): Promise<CollectionInfo | null>;
   /** Collections opened on this device, most recent first. Owner in wave 4: strand C. */
   recentCollections(): Promise<RecentCollection[]>;

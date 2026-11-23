@@ -16,6 +16,8 @@ export { BackendError } from "./commands/backend";
 export { MockBackend } from "./commands/mock";
 // Wave 12 interface: placeholders the shells use until each strand fills in its own file.
 export * from "./commands/wave12-stubs";
+// Wave 14 interface: the collection set over the single open collection (strand A replaces it).
+export * from "./commands/wave14-stubs";
 
 export type * from "./extensions";
 

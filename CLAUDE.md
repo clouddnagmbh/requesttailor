@@ -74,7 +74,7 @@ crates/rt-plugin   Plugin-API (`api`, öffentlich, versioniert: `API.md`, `CHANG
 crates/rt-plugin-sdk  Rust-SDK für Plugins (wasm32-unknown-unknown)
 crates/rt-cli      CLI `rt`, Begleitdienst, MCP-Server
 crates/rt-wasm     Kern als WebAssembly
-crates/rt-app      Befehlsschicht der App (Rust-Seite): Workspace, Antwortspeicher, Secrets, Git-Typen, Import, Historie, Suche
+crates/rt-app      Befehlsschicht der App (Rust-Seite): Workspace, Collection-Set, Antwortspeicher, Secrets, Git-Typen, Import, Historie, Suche
 crates/rt-git      Git nativ (gitoxide), nur Desktop/CLI/iOS, nicht wasm32
 crates/rt-grpc     gRPC: Proto-Dateien, Server-Reflection, JSON ↔ Protobuf (alle Ziele)
 crates/rt-testserver  lokaler HTTP-Testserver (nur Testinfrastruktur, nativ)
@@ -100,7 +100,7 @@ perf/budgets.toml  Performance-Budgets, einzige Quelle für die Schwellwerte
 
 ## Kern-Schnittstellen
 
-Stand Welle 2, ergänzt in den Wellen 3 bis 10 (unten). Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
+Stand Welle 2, ergänzt in den Wellen 3 bis 14 (unten). Änderungen daran sind Schnittstellen-Änderungen (Arbeitsregel 1).
 
 - `rt_core::model`: internes Request-Modell (Collection, Folder, RequestSpec, Environment). Formatneutral.
 - `rt_core::transport::Transport`: Grenze zum Netz. Nativ eigener HTTP-Stack, im Browser `fetch`. Antwort-Body als Stream.
@@ -203,6 +203,11 @@ Stand Welle 2, ergänzt in den Wellen 3 bis 10 (unten). Änderungen daran sind S
 - Begleitdateien für Erweiterungen: `Backend.companions` (`CompanionApi`: `list(prefix)`, `read(path)`, `stage(path, text)`) über `rt_app::companions`; Dateien der Collection, die das OpenCollection-Dokument nicht besitzt (Snapshots, Aufzeichnungen), nur Text. `stage` wird mit `save` geschrieben und steht bis dahin in `dirty`; `*.yml` und Pfade außerhalb des Ordners werden verweigert. Desktop `src-tauri/src/companions.rs` (`companion_list`/`companion_read`/`companion_stage`), Web `src/companions.ts` über `crates/rt-wasm/src/companions_js.rs`, Mock `commands/mock-companions.ts`.
 - Weitere Abschnitte im Changelog und Diff-Hinweise: `rt_app::contract::ChangelogSection` (`section(old, new, from, to) -> Option<Markdown>`, `Side::files` sind die `*.yml`, andere Dateien über `Side::read`), `changelog_with`; `rt_cli::Distribution.changelog` hängt sie in `rt changelog` an (die Builds dieses Repos keine). UI: `AppExtension.diffNotes` (Komponente mit `ExtensionDiffNotesProps`: `ctx`, `from`, `to`) erscheint nach den Contract-Hinweisen im Diff zweier Revisionen und im PR-Review (`shell/ExtensionDiffNotes.svelte`). Tests: `crates/rt-cli/tests/changelog.rs`, `apps/ui/src/shell/extension-tabs.test.ts`.
 - Das OData-Plugin als Bibliothek: `rt-plugin-odata` mit `default-features = false` (Feature `plugin` aus) liefert `edm` und `metadata::parse` ohne den `rt_call`-Export und die Manifest-Section; ein eigenes wasm-Modul importiert dann keine `rt`-Host-Funktionen. `scripts/build-plugins.mjs` baut das Plugin mit den Standard-Features.
+
+### Collections und Dialoge (ab Welle 14)
+
+- Mehrere Collections in der Seitenleiste (Ansicht „Collections“, früher „Requests“): Jede Collection der geöffneten oder hinzugefügten Ordner (*Roots*) ist ein Knoten auf oberster Ebene. Eine Wurzel, die selbst eine Collection ist, ergibt einen Knoten; sonst jede Collection in Unterordnern (`rt_app::collections::{enter, discover}`: Tiefe 4, ohne versteckte Ordner, `node_modules`, `target`, höchstens 64, verschachtelte Collections eigene Knoten); ein Ordner ohne Collection öffnet als neue Collection. Keine Datei listet die Collections (Dateien sind die Wahrheit); die Roots merkt sich das Gerät wie die zuletzt geöffneten Collections. Der Name ist *Collection-Set* (`CollectionSet`, UI „Collections“), nie „Workspace“: `rt_app::Workspace` und die rt-wasm-Klasse `Workspace` sind eine offene Collection, Distributionen meinen damit Team-Bereiche.
+- Aktive Collection: die des aktiven Tabs oder des zuletzt gewählten Knotens. Alle bisherigen Befehle von `Backend` („die offene Collection“) wirken auf sie, zum Zeitpunkt des Aufrufs; lange Aufrufe (Runner, Streams, Compare, Bisect, MCP-Tests) behalten ihre Collection bis zum Ende. `AppState.collection`, `tree`, `tabs`, `active`, `drafts`, `dirty`, `environments`, `environment`, `results`, `sending` bleiben die Sicht auf die aktive Collection (Erweiterungen laufen unverändert). Neu: `Backend.collections` (`CollectionSetApi`: `current`, `add`, `removeRoot`, `activate`, `tree(id)`, `dirty(id)`, `saveAll`, `search`, `create`), Typen `rt_app::collections::{CollectionSet, CollectionRoot, CollectionEntry, RequestRef, CollectionSearchHit, CollectionChanges, NewCollection}`; `AppState.{collections, trees, openTabs, activeCollection, activate, selectRef, addCollection, createCollection}`. Ids wie bisher (`CollectionInfo.id`, Desktop: kanonischer Pfad der Collection, also gleich, ob einzeln oder über einen Eltern-Ordner geöffnet; Secrets, Tokens, Cookies, Vertrauen, Sitzungsvariablen, Plugin-Tabs bleiben pro Collection). Umgebungswahl folgt der aktiven Collection; Git pro Repository (`CollectionEntry.repo`); `rt`, `rt mcp` und die CLI nehmen weiter eine Collection. Bis Strand A: `stubCollections` (`commands/wave14-stubs.ts`) über die eine offene Collection. Tests: `crates/rt-app/src/collections.rs`, `apps/ui/src/state/wave14.test.ts`, Vertragstest.
 
 ## Befehle
 

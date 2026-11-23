@@ -866,6 +866,60 @@ fn git_diff() -> GitDiff {
     }
 }
 
+/// Wave 14: a root with two collections in subfolders (one in Git) and a root that is a
+/// collection itself.
+fn collection_set() -> rt_app::collections::CollectionSet {
+    use rt_app::collections::{CollectionEntry, CollectionRoot, CollectionSet};
+    let entry =
+        |id: &str, name: &str, root: &str, dir: &str, repo: Option<&str>, dirty| CollectionEntry {
+            id: id.into(),
+            name: name.into(),
+            location: id.into(),
+            root: root.into(),
+            dir: dir.into(),
+            repo: repo.map(Into::into),
+            dirty,
+        };
+    CollectionSet {
+        roots: vec![
+            CollectionRoot {
+                id: "/work/api".into(),
+                name: "api".into(),
+                location: "/work/api".into(),
+                collections: vec!["/work/api/orders".into(), "/work/api/users".into()],
+                truncated: false,
+            },
+            CollectionRoot {
+                id: "/work/scratch".into(),
+                name: "scratch".into(),
+                location: "/work/scratch".into(),
+                collections: vec!["/work/scratch".into()],
+                truncated: false,
+            },
+        ],
+        collections: vec![
+            entry(
+                "/work/api/orders",
+                "Orders",
+                "/work/api",
+                "orders",
+                Some("/work/api"),
+                2,
+            ),
+            entry(
+                "/work/api/users",
+                "Users",
+                "/work/api",
+                "users",
+                Some("/work/api"),
+                0,
+            ),
+            entry("/work/scratch", "Scratch", "/work/scratch", "", None, 0),
+        ],
+        active: Some("/work/api/orders".into()),
+    }
+}
+
 fn import_plan() -> ImportPlan {
     ImportPlan {
         id: 1,
@@ -1215,6 +1269,63 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                 ranges: vec![(12, 17)],
             })
             .collect::<Vec<_>>()),
+        ),
+        // Wave 14: the collections in the sidebar.
+        ("collectionSet", "CollectionSet", j(collection_set())),
+        (
+            "requestRef",
+            "RequestRef",
+            j(rt_app::collections::RequestRef {
+                collection: "/work/api/orders".into(),
+                path: "orders/create.yml".into(),
+            }),
+        ),
+        (
+            "collectionSearchHit",
+            "CollectionSearchHit",
+            j(rt_app::collections::CollectionSearchHit {
+                collection: "/work/api/orders".into(),
+                hit: SearchHit {
+                    path: "orders/create.yml".into(),
+                    name: "Create order".into(),
+                    method: "POST".into(),
+                    field: SearchField::Url,
+                    snippet: "{{baseUrl}}/orders".into(),
+                    ranges: vec![(12, 18)],
+                },
+            }),
+        ),
+        (
+            "collectionChanges",
+            "CollectionChanges[]",
+            j(vec![rt_app::collections::CollectionChanges {
+                collection: "/work/api/orders".into(),
+                changes: vec![FileChange {
+                    path: "orders/create.yml".into(),
+                    text: "info:\n  name: Create order\n".into(),
+                    deleted: false,
+                }],
+            }]),
+        ),
+        (
+            "newCollections",
+            "NewCollection[]",
+            j(vec![
+                rt_app::collections::NewCollection {
+                    name: "Billing".into(),
+                    root: Some("/work/api".into()),
+                    dir: "billing".into(),
+                    base_url: Some("https://billing.example.com".into()),
+                    environment: Some("Local".into()),
+                },
+                rt_app::collections::NewCollection {
+                    name: "Scratch".into(),
+                    root: None,
+                    dir: "scratch".into(),
+                    base_url: None,
+                    environment: None,
+                },
+            ]),
         ),
         ("appErrors", "AppError[]", j(app_errors())),
         (

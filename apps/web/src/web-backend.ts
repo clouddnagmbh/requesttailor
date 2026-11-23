@@ -17,6 +17,7 @@
 
 import {
   BackendError,
+  stubCollections,
   type AiApi,
   type Backend,
   type CollectionInfo,
@@ -165,6 +166,8 @@ async function ensureReadWrite(handle: FileSystemDirectoryHandle): Promise<void>
 
 export class WebBackend implements Backend {
   readonly kind = "web" as const;
+  /** Wave 14 interface: one collection until strand A (`collections.ts`). */
+  readonly collections = stubCollections(this);
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
 

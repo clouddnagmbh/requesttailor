@@ -21,12 +21,15 @@
 //! Wave 12 (Git for APIs): `diffs` (strand A), `merges` (strand B), `compare` and `bisect`
 //! (strand C), `timeline` (strand D), `review` (strand E), `contract` (strand F), `rescue`
 //! (strand G); revisions in `git` (interface).
+//! Wave 14: `collections` (strand A): the collection set of the sidebar.
 //! Changes to the public types here are interface changes (working rule 1).
 
 pub mod agents;
 pub mod ai;
 pub mod auth;
 pub mod bisect;
+/// The collections in the sidebar (wave 14).
+pub mod collections;
 /// Companion files for extensions (wave 13).
 pub mod companions;
 pub mod compare;

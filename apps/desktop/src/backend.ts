@@ -7,6 +7,7 @@
 
 import {
   BackendError,
+  stubCollections,
   type AuthApi,
   type Backend,
   type CollectionInfo,
@@ -248,6 +249,8 @@ const NO_COMPANION: CompanionStatus = {
 
 export class TauriBackend implements Backend {
   readonly kind = "tauri" as const;
+  /** Wave 14 interface: one collection until strand A (`collections.ts`). */
+  readonly collections = stubCollections(this);
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
   readonly git: GitApi;

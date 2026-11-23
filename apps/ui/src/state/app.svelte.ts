@@ -8,7 +8,15 @@
 import { getContext, setContext } from "svelte";
 
 import type { Backend, CollectionInfo } from "../commands/backend";
-import type { Environment, RequestSpec, StoredResponse, TreeNode } from "../commands/types";
+import type {
+  CollectionEntry,
+  Environment,
+  NewCollection,
+  RequestRef,
+  RequestSpec,
+  StoredResponse,
+  TreeNode,
+} from "../commands/types";
 
 const KEY = Symbol("requesttailor-app");
 
@@ -38,6 +46,21 @@ export class AppState {
    *  (Git status, search results) re-read when it changes. */
   loadCount = $state(0);
 
+  // ---- wave 14 (interface): several collections ----
+  // Strand A turns the fields above into the state of the *active* collection (the collection
+  // of the active tab, or the node chosen last): `collection`, `tree`, `tabs` (the active
+  // collection's open tabs), `active`, `drafts`, `dirty`, `environments`, `environment`,
+  // `results` and `sending` keep their meaning for it, so extensions keep working unchanged.
+
+  /** The collections in the sidebar, in order. Until strand A: the open collection. */
+  collections = $state<CollectionEntry[]>([]);
+  /** Trees of the collections in the sidebar, by id. */
+  trees = $state<Record<string, TreeNode>>({});
+  /** The tab bar across collections, in tab order. Until strand A: the open collection's. */
+  openTabs = $derived<RequestRef[]>(
+    this.collection ? this.tabs.map((path) => ({ collection: this.collection!.id, path })) : [],
+  );
+
   /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
    *  shells with concurrent commands (Tauri) never send or save a stale request. */
   private lastEdit: Promise<unknown> = Promise.resolve();
@@ -57,6 +80,60 @@ export class AppState {
       this.error = e instanceof Error ? e.message : String(e);
       return undefined;
     }
+  }
+
+  /** Wave 14: id of the active collection. */
+  get activeCollection(): string | null {
+    return this.collection?.id ?? null;
+  }
+
+  /** Wave 14: makes collection `id` active (its tabs, environments, Git, ...). */
+  async activate(id: string): Promise<void> {
+    if (id === this.collection?.id) return;
+    await this.lastEdit;
+    await this.guard(async () => {
+      const info = await this.backend.collections.activate(id);
+      await this.load(info);
+    });
+  }
+
+  /** Wave 14: opens a request of any collection in the sidebar in a tab. */
+  async selectRef(ref: RequestRef): Promise<void> {
+    await this.activate(ref.collection);
+    if (this.collection?.id === ref.collection) await this.select(ref.path);
+  }
+
+  /** Wave 14: "Add collection…": a folder picker, its collections join the sidebar. */
+  async addCollection(): Promise<void> {
+    await this.guard(async () => {
+      const set = await this.backend.collections.add();
+      if (set?.active && set.active !== this.collection?.id) await this.activate(set.active);
+    });
+  }
+
+  /** Wave 14: creates a collection (unsaved) and makes it active; `null` if cancelled. */
+  async createCollection(spec: NewCollection): Promise<CollectionInfo | null> {
+    return (
+      (await this.guard(async () => {
+        const info = await this.backend.collections.create(spec);
+        if (info) await this.load(info);
+        return info;
+      })) ?? null
+    );
+  }
+
+  /** Until strand A: the sidebar's collections are the open one. */
+  private syncSingle(): void {
+    const info = this.collection;
+    if (!info) {
+      this.collections = [];
+      this.trees = {};
+      return;
+    }
+    this.collections = [
+      { id: info.id, name: info.name, location: info.location, root: info.id, dir: "", repo: null, dirty: this.dirty.length },
+    ];
+    this.trees = this.tree ? { [info.id]: this.tree } : {};
   }
 
   /** Shows the folder picker and opens the chosen collection. */
@@ -83,6 +160,7 @@ export class AppState {
     this.environments = await this.backend.environments();
     this.environment = this.environments[0]?.name ?? null;
     this.dirty = await this.backend.dirty();
+    this.syncSingle();
     this.loadCount++;
   }
 
@@ -110,6 +188,7 @@ export class AppState {
         this.environment = this.environments[0]?.name ?? null;
       }
       this.dirty = await this.backend.dirty();
+      this.syncSingle();
       this.loadCount++;
     });
   }
@@ -167,6 +246,7 @@ export class AppState {
         await this.backend.updateRequest(path, snapshot);
         this.dirty = await this.backend.dirty();
         if (this.tree) this.tree = await this.backend.tree();
+        this.syncSingle();
       }),
     );
     this.lastEdit = run;
@@ -184,6 +264,7 @@ export class AppState {
       const path = await this.backend.createRequest(folder, name);
       this.tree = await this.backend.tree();
       this.dirty = await this.backend.dirty();
+      this.syncSingle();
       await this.select(path);
     });
   }
@@ -193,6 +274,7 @@ export class AppState {
     await this.guard(async () => {
       await this.backend.save();
       this.dirty = await this.backend.dirty();
+      this.syncSingle();
     });
   }
 
