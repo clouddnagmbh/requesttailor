@@ -26,7 +26,6 @@ import {
   type SecretsApi,
   LOCAL_CLONE_UNSUPPORTED,
   looksLocal,
-  stubGitHistory,
   stubGitIndex,
   stubGitWorking,
 } from "@requesttailor/ui";
@@ -37,6 +36,7 @@ import { companionHttp, NO_COMPANION_MESSAGE } from "./http";
 import type { Network, Repo } from "./repo";
 import { refuseSecrets, scanPaths } from "./scan";
 import { webGitActions } from "./actions";
+import { webGitHistory } from "./history";
 import { webGitPlumbing } from "./plumbing";
 import { webGitGraph, type WebGitContext } from "./graph";
 
@@ -363,7 +363,7 @@ export function webGit(host: WebHost): GitApi & ChangelogCommitSource & Reposito
     // Wave 15 (interface): placeholders until strands B (working copy), C (history), D (building
     // blocks, ./plumbing.ts) and F (index) add their own files here.
     ...stubGitWorking(),
-    ...stubGitHistory(),
+    ...webGitHistory(wave14),
     ...webGitPlumbing({ ...wave14, identity: () => identity.get() }),
     ...stubGitIndex(),
   };

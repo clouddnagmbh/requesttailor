@@ -170,7 +170,8 @@ export async function show(repo: Repo, rev: string, path: string): Promise<strin
  *  parent, newest first, following renames (./file-log.ts). */
 export async function fileLog(repo: Repo, path: string, limit: number): Promise<GitFileCommit[]> {
   checkPath(path);
-  if (!repo.scope) return followFileLog(repo, path, limit);
+  // A leading `/` names any file of the repository and gets repository paths back.
+  if (!repo.scope || path.startsWith("/")) return followFileLog(repo, path, limit);
   const at = (p: string) => collectionPath(repo, p);
   return (await followFileLog(repo, repoPath(repo, path), limit)).map((c) => ({ ...c, path: at(c.path), ...(c.from ? { from: at(c.from) } : {}) }));
 }
