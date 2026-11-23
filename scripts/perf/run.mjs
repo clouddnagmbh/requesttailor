@@ -10,6 +10,8 @@
 //                       (default: all)
 //   --binary <path>     desktop release binary (default: <target dir>/release/rt-desktop)
 //   --collection <dir>  collection the desktop app reopens (default: testdata/conformance/collection)
+//   --collections <n>   copies of it in one folder that the app reopens (default 10, wave 14;
+//                       1: the collection alone)
 //   --runs <n>          desktop starts, the first is discarded (default 10)
 //   --memory-runs <n>   of those, the last n also measure idle memory (default 3)
 //   --out <file>        results file (default perf/results.json; the report goes next to it)
@@ -49,11 +51,15 @@ export function parseArgs(argv) {
       opts.partial = true;
     } else if (a === "--binary") opts.binary = resolve(value());
     else if (a === "--collection") opts.collection = resolve(value());
+    else if (a === "--collections") opts.collections = Number(value());
     else if (a === "--runs") opts.runs = Number(value());
     else if (a === "--memory-runs") opts.memoryRuns = Number(value());
     else if (a === "--out") opts.out = resolve(value());
     else if (a === "--check") opts.check = true;
     else throw new Error(`unknown option ${a}`);
+  }
+  if (opts.collections !== undefined && (!Number.isInteger(opts.collections) || opts.collections < 1)) {
+    throw new Error("--collections must be at least 1");
   }
   if (!Number.isInteger(opts.runs) || opts.runs < 2) throw new Error("--runs must be at least 2 (the first start is discarded)");
   if (!Number.isInteger(opts.memoryRuns) || opts.memoryRuns < 1 || opts.memoryRuns >= opts.runs) {
@@ -98,6 +104,7 @@ async function desktop(opts) {
   const r = await measureDesktop({
     binary: opts.binary ?? defaultBinary(),
     collection: opts.collection ?? join(ROOT, "testdata", "conformance", "collection"),
+    collections: opts.collections ?? 10,
     runs: opts.runs,
     memoryRuns: opts.memoryRuns,
   });
