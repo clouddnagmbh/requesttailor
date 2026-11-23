@@ -38,6 +38,7 @@
     "allow-git-resolve",
     "allow-git-init",
     "allow-git-clone",
+    "allow-git-pick-repository",
     "allow-git-identity",
     "allow-git-set-identity",
     "allow-git-has-credentials",

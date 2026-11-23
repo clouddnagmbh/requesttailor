@@ -186,9 +186,13 @@ export interface GitApi {
   resolve(path: string, resolution: GitResolution): Promise<void>;
   /** Creates a repository in the collection folder. */
   init(): Promise<void>;
-  /** Clones `url` into a new folder inside one the user picks and opens it; `null` if
+  /** Clones `url` (HTTPS, or on desktop a local repository path / `file://` URL) into a new folder inside one the user picks and opens it; `null` if
    *  cancelled. */
   clone(url: string): Promise<CollectionInfo | null>;
+  /** Desktop only (absent elsewhere): shows the folder picker for a repository on this
+   *  machine and returns its path for the clone field; `null` if cancelled. `clone` also
+   *  accepts the path forms `~/…`, `file://…` and relative paths. */
+  pickRepository?(): Promise<string | null>;
   /** Author for commits; `null` if none is configured. */
   identity(): Promise<GitIdentity | null>;
   setIdentity(identity: GitIdentity): Promise<void>;

@@ -133,6 +133,16 @@ describe("MockGit", () => {
     expect(await git.clone("https://git.example.com/acme/demo-api.git")).toMatchObject({ name: "Demo API" });
     expect((await git.status()).repo).toBe(true);
   });
+
+  it("accepts local paths like the desktop shell and refuses them without a picker", async () => {
+    const { git } = await demo();
+    git.scenario("none");
+    expect(await git.pickRepository?.()).toBe("/Users/demo/origin/api-tests.git");
+    expect(await git.clone("~/repos/api-tests.git")).toMatchObject({ name: "Demo API" });
+    git.pickRepository = undefined;
+    await expect(git.clone("/Users/me/origin.git")).rejects.toThrow(/desktop app/);
+    await expect(git.clone("file:///Users/me/origin.git")).rejects.toThrow(/desktop app/);
+  });
 });
 
 describe("MockGit file text and clock", () => {

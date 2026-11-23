@@ -48,6 +48,7 @@
   import { McpState } from "../mcp/mcp.svelte";
   import McpPanel from "../mcp/McpPanel.svelte";
   import McpSidebar from "../mcp/McpSidebar.svelte";
+  import CloneDialog from "../git/CloneDialog.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
   import CollectionPanel, { type CollectionTab } from "../plugins/CollectionPanel.svelte";
   import { tabsFor } from "../plugins/permissions";
@@ -103,6 +104,7 @@
 
   let managing = $state(false);
   let importing = $state(false);
+  let cloning = $state(false);
   let managingPlugins = $state(false);
   let showingCookies = $state(false);
   let innerWidth = $state(1024);
@@ -223,6 +225,7 @@
     "toggle-theme": () => theme.toggle(),
     "focus-sidebar": () => showView("requests"),
     import: () => (importing = true),
+    clone: () => (cloning = true),
     search: () => showView("search"),
     history: () => showView("history"),
     git: () => showView("git"),
@@ -551,7 +554,10 @@
       {:else}
         <div class="start" data-testid="start">
           <p>{app.collection ? "Open a request from the sidebar." : "Open a folder with a collection to start."}</p>
-          {#if !app.collection}<RecentCollections onopen={adoptCollection} />{/if}
+          {#if !app.collection}
+            <button class="button" data-testid="start-clone" onclick={() => (cloning = true)}>Clone a repository…</button>
+            <RecentCollections onopen={adoptCollection} />
+          {/if}
           <dl>
             {#each SHORTCUTS as s (s.command)}
               <dt><kbd>{formatShortcut(s, mac)}</kbd></dt>
@@ -577,6 +583,7 @@
 <NewDialog onfallback={(folder) => (newIn = folder)} />
 <DialogHost />
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
+<CloneDialog open={cloning} onclose={() => (cloning = false)} onopen={adoptCollection} />
 <ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
 <PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />
 <CookiesDialog open={showingCookies} onclose={() => (showingCookies = false)} />

@@ -61,6 +61,7 @@ describe("TauriBackend", () => {
     await g.resolve("a.yml", "ours");
     await g.init();
     await g.clone("https://example.com/r.git");
+    await g.pickRepository?.();
     await g.identity();
     await g.setIdentity({ name: "Ada", email: "a@example.com" });
     await g.hasCredentials("example.com");
@@ -224,6 +225,7 @@ describe("TauriBackend", () => {
       ["git_resolve", { path: "a.yml", resolution: "ours" }],
       ["git_init", undefined],
       ["git_clone", { url: "https://example.com/r.git" }],
+      ["git_pick_repository", undefined],
       ["git_identity", undefined],
       ["git_set_identity", { identity: { name: "Ada", email: "a@example.com" } }],
       ["git_has_credentials", { host: "example.com" }],

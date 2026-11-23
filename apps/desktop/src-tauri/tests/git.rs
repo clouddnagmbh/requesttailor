@@ -247,3 +247,46 @@ fn credentials_and_identity_through_the_shell() {
     let commit = git::commit(&core, "first", &["opencollection.yml".to_owned()]).unwrap();
     assert_eq!(commit.author, expected.name);
 }
+
+/// Cloning a repository on this machine: a bare one by path (the target folder drops
+/// `.git`) and a normal one by `file://` URL; a folder that is no repository is refused.
+#[test]
+fn clones_local_repositories() {
+    let origin_parent = temp("local-origin");
+    let bare = origin_parent.0.join("playground-origin.git");
+    gix::init_bare(&bare).unwrap();
+    let work = temp("local-work");
+    std::fs::write(
+        work.0.join("opencollection.yml"),
+        "opencollection: \"1.0.0\"\ninfo:\n  name: Local clone\n",
+    )
+    .unwrap();
+    let core = Core::new(MemorySecrets::default()).unwrap();
+    core.open(&work.0).unwrap();
+    git::init(&core).unwrap();
+    set_user(&work.0, "Ada");
+    append_config(
+        &work.0,
+        &format!(
+            "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+            bare.display().to_string().replace('\\', "/")
+        ),
+    );
+    git::commit(&core, "first", &["opencollection.yml".to_owned()]).unwrap();
+    git::push(&core).unwrap();
+
+    let parent = temp("local-clone");
+    let other = Core::new(MemorySecrets::default()).unwrap();
+    let info = git::clone_into(&other, bare.to_str().unwrap(), &parent.0).unwrap();
+    assert_eq!(info.name, "Local clone");
+    assert_eq!(other.root().unwrap(), parent.0.join("playground-origin"));
+
+    let parent = temp("local-clone-url");
+    let url = rt_git::local_url(&work.0);
+    let info = git::clone_into(&other, &url, &parent.0).unwrap();
+    assert_eq!(info.name, "Local clone");
+
+    let plain = temp("local-plain");
+    let err = git::clone_into(&other, plain.0.to_str().unwrap(), &parent.0).unwrap_err();
+    assert!(err.to_string().contains("is not a Git repository"), "{err}");
+}

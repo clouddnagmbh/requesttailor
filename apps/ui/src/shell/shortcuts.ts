@@ -16,6 +16,7 @@ export type CommandId =
   | "toggle-theme"
   | "focus-sidebar"
   | "import"
+  | "clone"
   | "search"
   | "history"
   | "git"

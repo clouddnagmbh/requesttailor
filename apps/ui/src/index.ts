@@ -13,6 +13,7 @@ import "./styles/tokens.css";
 export type * from "./commands/backend";
 export type * from "./commands/types";
 export { BackendError } from "./commands/backend";
+export { LOCAL_CLONE_UNSUPPORTED, looksLocal } from "./commands/clone-source";
 export { MockBackend } from "./commands/mock";
 // Wave 12 interface: placeholders the shells use until each strand fills in its own file.
 export * from "./commands/wave12-stubs";
