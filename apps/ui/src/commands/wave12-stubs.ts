@@ -56,7 +56,7 @@ export function stubReview(): ReviewApi {
 
 export function stubContract(): ContractApi {
   const no = notYet("The contract check", "F");
-  return { spec: async () => null, check: no, changes: no, changelog: no };
+  return { spec: async () => null, check: no, changes: no, changelog: no, changelogFacts: no };
 }
 
 export function stubRescue(): RescueApi {

@@ -9,13 +9,204 @@
 import type { Component } from "svelte";
 
 import type { Backend } from "./commands/backend";
-import type { RequestSpec, StoredResponse } from "./commands/types";
+import type {
+  AiDelta,
+  AiProviderKind,
+  AiReply,
+  AiRequest,
+  AiScope,
+  BisectOutcome,
+  RequestSpec,
+  RunEvent,
+  RunSummary,
+  Script,
+  ScriptPhase,
+  StoredResponse,
+} from "./commands/types";
 import type { AppState } from "./state/app.svelte";
 
 /** What an extension sees: the backend the app was started with and the shared app state. */
 export interface ExtensionContext {
   readonly backend: Backend;
   readonly app: AppState;
+  /** The AI provider the user configured (since wave 16): every call masked, previewed when
+   *  the settings ask for it, refused when the active collection is opted out. */
+  readonly ai: ExtensionAi;
+  /** Shows a suggested change for the user to apply or discard (since wave 16); resolves
+   *  `true` once applied. Applied changes are unsaved, like any edit, and can be undone. */
+  readonly suggest: (edit: SuggestedEdit) => Promise<boolean>;
+}
+
+// ---- Wave 16: AI for extensions, suggested edits, more places for actions ----
+
+/** A configured profile as an extension sees it (never a key). */
+export interface ExtensionAiProfile {
+  id: string;
+  label: string;
+  provider: AiProviderKind;
+  model: string;
+  /** What the provider can do (`rt_app::ai::AiProviderKind::capabilities`). */
+  tools: boolean;
+  streaming: boolean;
+}
+
+export interface ExtensionAiStatus {
+  /** At least one profile is set up. */
+  configured: boolean;
+  /** The active collection allows the assistant (`opencollection.yml` and this device). */
+  allowed: boolean;
+  profiles: ExtensionAiProfile[];
+  /** The profiles the roles `fast` and `smart` resolve to, if any. */
+  fast: string | null;
+  smart: string | null;
+}
+
+/** A call: the extension's own prompt; the core adds the masked context of `scope`. */
+export type ExtensionAiRequest = Omit<AiRequest, "id" | "scope"> & { scope?: AiScope };
+
+export interface ExtensionAiOptions {
+  /** Aborting cancels the call (the promise rejects with kind `cancelled`). */
+  signal?: AbortSignal;
+  /** Streamed pieces of the answer as they arrive. */
+  onDelta?: (delta: AiDelta) => void;
+  /** Show the "what will be sent" preview even when the settings do not require it. */
+  preview?: boolean;
+}
+
+/** `ExtensionContext.ai`. Calls go only to the user's own provider through the app's transport;
+ *  secret values in scope are masked before anything leaves. Errors are `BackendError`s with
+ *  the kinds of `AiError` (`not-configured`, `no-key`, `opted-out`, `cancelled`, …). */
+export interface ExtensionAi {
+  status(): Promise<ExtensionAiStatus>;
+  complete(request: ExtensionAiRequest, options?: ExtensionAiOptions): Promise<AiReply>;
+}
+
+/** Text for a suggestion: what it does and why (Markdown, short). */
+export interface SuggestionNote {
+  title?: string;
+  explanation?: string;
+}
+
+/** A change shown as a diff or preview before it is applied (`ExtensionContext.suggest`). */
+export type SuggestedEdit =
+  /** The request at `path` replaced by `spec` (a field diff of the two). */
+  | { kind: "request"; collection?: string; path: string; spec: RequestSpec; note?: SuggestionNote }
+  /** A new request in `folder` (`""`: the root). */
+  | { kind: "new-request"; collection?: string; folder: string; spec: RequestSpec; note?: SuggestionNote }
+  /** The scripts of a folder (`path`) or of the collection (`path` `""`). */
+  | { kind: "folder-scripts"; collection?: string; path: string; scripts: Script[]; note?: SuggestionNote }
+  /** A text file of the collection that is not a request (e.g. `CHANGELOG.md`), staged like a
+   *  companion file (`Backend.companions.stage`); `*.yml` is refused. */
+  | { kind: "file"; collection?: string; path: string; text: string; note?: SuggestionNote };
+
+/** A code editor an action runs in (since wave 16). */
+export type EditorTarget =
+  /** A script editor: of a request (`path` a request), a folder (`path` a folder) or the
+   *  collection (`path` `""`). */
+  | { kind: "script"; collection: string; owner: "request" | "folder" | "collection"; path: string; phase: ScriptPhase }
+  /** The body editor of a request. */
+  | { kind: "body"; collection: string; path: string; contentType: string | null }
+  /** Another code field of a request, e.g. `url`, `graphql-variables`. */
+  | { kind: "field"; collection: string; path: string; field: string };
+
+export interface EditorSelection {
+  from: number;
+  to: number;
+}
+
+/** What an editor action gets. */
+export interface EditorHandle {
+  readonly target: EditorTarget;
+  /** The editor's text now, unsaved typing included. */
+  text(): string;
+  selection(): EditorSelection | null;
+  /** Shows `next` as an inline diff against the current text, with Apply and Discard.
+   *  Resolves `true` once applied (one undo step in the editor), `false` when discarded or
+   *  when the text changed meanwhile. */
+  propose(next: string, note?: SuggestionNote): Promise<boolean>;
+}
+
+/** An action in a code editor's toolbar or context menu (since wave 16). */
+export interface ExtensionEditorAction {
+  /** Unique within the extension. */
+  id: string;
+  label: string;
+  /** An icon of the "New…" dialog's set. */
+  icon?: string;
+  /** A CodeMirror key, e.g. `Mod-i`; the first action that claims a key gets it. */
+  shortcut?: string;
+  /** Shown as a button in the editor's toolbar (else only in its menu). */
+  inline?: boolean;
+  run(editor: EditorHandle): unknown;
+}
+
+/** An action on a request, a response or a run (since wave 16). */
+export interface ExtensionAction {
+  /** Unique within the extension. */
+  id: string;
+  label: string;
+  icon?: string;
+  /** Shown as a button (at most two per place, the first ones); else in the "More" menu. */
+  inline?: boolean;
+  run: () => unknown;
+}
+
+/** The request shown in the request editor. */
+export interface RequestActionTarget {
+  collection: string;
+  path: string;
+  spec: RequestSpec;
+}
+
+/** The response shown in the response panel. */
+export interface ResponseActionTarget {
+  collection: string;
+  path: string;
+  response: StoredResponse;
+  /** Status 400 and above, a transport error, or a failing test or assertion. */
+  failed: boolean;
+}
+
+/** A finished run or bisect. */
+export type RunActionTarget =
+  | { kind: "run"; collection: string; folder: string; summary: RunSummary; events: readonly RunEvent[] }
+  | { kind: "bisect"; collection: string; outcome: BisectOutcome };
+
+/** Two revisions selected together (since wave 16): two commits or tags in the commit graph, or
+ *  the sides of the comparison and of the diff of two revisions. */
+export interface RevisionRangeTarget {
+  /** The active collection, if the repository has one. */
+  collection: string | null;
+  /** Older side: a commit, branch or tag. */
+  from: string;
+  /** Newer side. */
+  to: string;
+  source: "graph" | "compare" | "diff";
+}
+
+/** What the assistant panel looks at: follows the active tab. */
+export interface AssistantFocus {
+  collection: string | null;
+  /** The request of the active tab. */
+  request: string | null;
+  /** Its last response, if any. */
+  response: StoredResponse | null;
+  /** The folder selected in the sidebar, if any. */
+  folder: string | null;
+}
+
+export interface AssistantPanelProps {
+  ctx: ExtensionContext;
+  focus: AssistantFocus;
+  close: () => void;
+}
+
+/** A side panel of the main area (since wave 16), opened from the header and the palette. The
+ *  shell shows the first extension's panel; it stays mounted while open. */
+export interface ExtensionAssistant {
+  title: string;
+  icon?: string;
+  component: Component<AssistantPanelProps>;
 }
 
 /** A command in the palette. */
@@ -195,6 +386,23 @@ export interface AppExtension {
    * nodes inside a reactive scope: cheap, synchronous, no `$state` writes.
    */
   nodeActions?(ctx: ExtensionContext, target: NodeTarget): readonly ExtensionNodeAction[];
+  /**
+   * Actions of code editors: script editors (request, folder, collection), the body editor and
+   * other code fields (since wave 16). Called inside a reactive scope: cheap, synchronous, no
+   * `$state` writes.
+   */
+  editorActions?(ctx: ExtensionContext, target: EditorTarget): readonly ExtensionEditorAction[];
+  /** Actions on the request in the request editor (since wave 16); same rules. */
+  requestActions?(ctx: ExtensionContext, target: RequestActionTarget): readonly ExtensionAction[];
+  /** Actions on the shown response, e.g. after a failure (since wave 16); same rules. */
+  responseActions?(ctx: ExtensionContext, target: ResponseActionTarget): readonly ExtensionAction[];
+  /** Actions on a range of two revisions in the commit graph, the comparison and the diff of two
+   *  revisions (since wave 16); same rules. */
+  rangeActions?(ctx: ExtensionContext, target: RevisionRangeTarget): readonly ExtensionAction[];
+  /** Actions on a finished run or bisect (since wave 16); same rules. */
+  runActions?(ctx: ExtensionContext, target: RunActionTarget): readonly ExtensionAction[];
+  /** A side panel, e.g. a chat about the current request (since wave 16). */
+  assistant?: ExtensionAssistant;
 }
 
 export interface StartOptions {

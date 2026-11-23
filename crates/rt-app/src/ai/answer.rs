@@ -212,6 +212,14 @@ fn assertions(value: Option<&Value>) -> Vec<Assertion> {
 pub fn parse(task: &AiTask, text: &str) -> Result<AiAnswer, AiError> {
     let block = json_block(text);
     match task {
+        // Wave 16, strand B: their parsers. `prepare` refuses these tasks until then.
+        AiTask::RequestFromSnippet { .. }
+        | AiTask::ExplainResponse { .. }
+        | AiTask::SuggestAssertions { .. }
+        | AiTask::SuggestNames { .. }
+        | AiTask::DraftDocs { .. } => Err(AiError::Unsupported(
+            "this assistant task arrives with wave 16".to_owned(),
+        )),
         AiTask::CreateRequest { .. } => {
             let map = block.ok_or_else(|| bad("no JSON block with a request in the answer"))?;
             Ok(AiAnswer {

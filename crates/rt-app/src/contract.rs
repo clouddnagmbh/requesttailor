@@ -205,3 +205,101 @@ pub fn changelog(old: &Side<'_>, new: &Side<'_>, from: &str, to: &str) -> Result
     let title = changelog_title(name, &spec, from, to);
     Ok(rt_format::contract::changelog(&title, &spec, &collection))
 }
+
+// ---- Wave 16 interface: changelog writers (e.g. release notes written by a model) ----
+
+/// A commit of a changelog's range (first-parent chain from `from` to `to`), for writers that
+/// turn the deterministic changelog into release notes.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ChangelogCommit {
+    pub oid: String,
+    pub summary: String,
+    /// The message after the summary line.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub body: String,
+    pub author: String,
+    /// A pull or merge request number found in the message (`Merge pull request #12`,
+    /// `See merge request group/repo!12`, `(#12)`), if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pull: Option<u64>,
+}
+
+/// Everything deterministic about a range that a writer may build on: the changelog as `rt
+/// changelog` writes it, its parts as data, the distribution's sections and the commits. A
+/// writer must not state anything that is not in here.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ChangelogFacts {
+    pub from: String,
+    pub to: String,
+    pub title: String,
+    pub spec: SpecChanges,
+    pub collection: rt_format::diff::CollectionDiff,
+    /// Markdown of each distribution section that had something to say (`ChangelogSection`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sections: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub commits: Vec<ChangelogCommit>,
+    /// [`changelog_with`] of the range.
+    pub markdown: String,
+}
+
+/// The facts of a range: [`changelog_with`] and its parts. `commits` come from the shell
+/// (`rt-git` natively, isomorphic-git in the browser).
+pub fn changelog_facts(
+    old: &Side<'_>,
+    new: &Side<'_>,
+    from: &str,
+    to: &str,
+    sections: &[&dyn ChangelogSection],
+    commits: Vec<ChangelogCommit>,
+) -> Result<ChangelogFacts> {
+    let old_spec = load(old.files, old.read)?;
+    let new_spec = load(new.files, new.read)?;
+    let spec = rt_format::contract::changes(
+        old_spec.as_ref().map(|l| l.bytes.as_slice()),
+        new_spec.as_ref().map(|l| l.bytes.as_slice()),
+        new.files,
+    )?;
+    let collection = rt_format::diff::diff(old.files, new.files)?;
+    let name = new_spec
+        .as_ref()
+        .or(old_spec.as_ref())
+        .map(|l| l.spec.title.as_str());
+    let title = changelog_title(name, &spec, from, to);
+    let mut extra = Vec::new();
+    for section in sections {
+        if let Some(text) = section.section(old, new, from, to)? {
+            let text = text.trim();
+            if !text.is_empty() {
+                extra.push(text.to_owned());
+            }
+        }
+    }
+    let markdown = changelog_with(old, new, from, to, sections)?;
+    Ok(ChangelogFacts {
+        from: from.to_owned(),
+        to: to.to_owned(),
+        title,
+        spec,
+        collection,
+        sections: extra,
+        commits,
+        markdown,
+    })
+}
+
+/// Another way to write the changelog of a range, chosen with a flag of `rt changelog` (since
+/// wave 16), e.g. `rt changelog v1..v2 --notes --audience developers`. A distribution passes
+/// writers in `rt_cli::Distribution::changelog_writers`; the builds of this repository pass
+/// none, and `rt changelog` without the flag is unchanged. Called outside any async runtime.
+pub trait ChangelogWriter {
+    /// The flag without dashes, e.g. `notes` for `--notes`.
+    fn flag(&self) -> &'static str;
+    /// Options it takes as `--<name> <value>` (names without dashes).
+    fn options(&self) -> &'static [&'static str];
+    /// Lines for `rt changelog --help`.
+    fn help(&self) -> &'static str;
+    /// The text to write instead of [`ChangelogFacts::markdown`]; an error ends `rt changelog`
+    /// with its message (exit code 2).
+    fn write(&self, facts: &ChangelogFacts, options: &[(String, String)]) -> Result<String>;
+}

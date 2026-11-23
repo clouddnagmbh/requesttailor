@@ -14,7 +14,7 @@
 //   only for masking. The call goes out with `fetch`, or through `rt agent` when the
 //   companion is on (e.g. a local model that does not allow this page's origin).
 
-import { BackendError, type AiAnswer, type AiApi, type AiConfig, type AiProviderKind, type AiTask, type SecretsApi, type SendInput } from "@requesttailor/ui";
+import { BackendError, withAiWave16, type AiAnswer, type AiApi, type AiConfig, type AiProviderKind, type AiTask, type SecretsApi, type SendInput } from "@requesttailor/ui";
 
 import { WebTokens } from "./auth";
 import { toBackendError, type CompanionCredentials, type CoreSendInput, type CoreWorkspace } from "./wasm";
@@ -122,7 +122,8 @@ export function webAi(host: AiHost): AiApi {
     return key && key.trim() !== "" ? key : null;
   };
 
-  return {
+  // Wave 16: profiles, preview and generic calls arrive with strand A (placeholders until then).
+  return withAiWave16({
     config: async () => readConfig(),
     setConfig: (config) =>
       guard(async () => {
@@ -157,5 +158,5 @@ export function webAi(host: AiHost): AiApi {
         const tokens = await tokenValues(await host.openSecrets(s.id));
         return (s.ws as AiWorkspace).aiAsk(task, context.input, config, key, tokens, context.companion);
       }),
-  };
+  });
 }

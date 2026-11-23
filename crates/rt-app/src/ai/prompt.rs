@@ -85,6 +85,12 @@ as written and the report of what was sent and received):\n{}\n\nAnswer with one
 of this shape:\n{EXPLAIN_SHAPE}",
             context_json(context),
         ),
+        // Wave 16 tasks: `prepare` refuses them until strand B writes their prompts.
+        AiTask::RequestFromSnippet { .. }
+        | AiTask::ExplainResponse { .. }
+        | AiTask::SuggestAssertions { .. }
+        | AiTask::SuggestNames { .. }
+        | AiTask::DraftDocs { .. } => String::new(),
         AiTask::SuggestTests { .. } => format!(
             "Task: suggest tests for this request and its response: a tests script and \
 declarative assertions. Check what matters for this endpoint (status, the shape and key \
@@ -96,11 +102,9 @@ was sent and received):\n{}\n\nAnswer with one json block of this shape:\n{TESTS
     };
     AiCall {
         system: SYSTEM.to_owned(),
-        messages: vec![AiMessage {
-            role: AiRole::User,
-            content,
-        }],
+        messages: vec![AiMessage::text(AiRole::User, content)],
         max_tokens: MAX_TOKENS,
+        ..Default::default()
     }
 }
 

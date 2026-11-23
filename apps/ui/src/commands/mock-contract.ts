@@ -9,6 +9,7 @@
 // answers do not depend on the requests; the real core (rt-format) is tested in Rust.
 
 import { BackendError, type ContractApi } from "./backend";
+import { stubChangelogFacts } from "./wave16-stubs";
 import type { MockWave12Host } from "./mock-wave12";
 import type { ContractReport, ContractSpec, SpecChange, SpecChanges } from "./types";
 
@@ -140,6 +141,9 @@ export class MockContract implements ContractApi {
     const c = await this.changes(from, to);
     return render(`${SPEC.title} ${c.from_version} → ${c.to_version}`, c.changes);
   }
+
+  /** Wave 16, strand D. */
+  changelogFacts = stubChangelogFacts();
 
   private need(): void {
     if (!this.demo) throw new BackendError("format", "No OpenAPI spec found.");

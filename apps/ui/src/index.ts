@@ -19,6 +19,9 @@ export { MockBackend } from "./commands/mock";
 export * from "./commands/wave12-stubs";
 // Wave 14 interface: the collection set over the single open collection (strand A replaces it).
 export * from "./commands/wave14-stubs";
+// Wave 16 interface: placeholders for the AI profiles, preview and generic calls (strand A) and
+// the changelog facts (strand D).
+export * from "./commands/wave16-stubs";
 
 export type * from "./extensions";
 

@@ -1272,6 +1272,7 @@ fn history_entry() -> HistoryEntry {
 fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
     let mut all = base_fixtures();
     all.extend(wave12::fixtures());
+    all.extend(wave16::fixtures());
     all
 }
 
@@ -1977,6 +1978,7 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                     code: "test('201', () => expect(rt.response.status).to.equal(201));".into(),
                 }],
                 assertions: Vec::new(),
+                ..Default::default()
             }),
         ),
         (
@@ -2038,6 +2040,286 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
     ]
+}
+
+/// Wave 16 interface: providers and profiles, tool use, streaming, the generic call of
+/// extensions, the preview, the opt-out and the changelog facts.
+mod wave16 {
+    use rt_app::ai::{
+        AiAnswer, AiCollectionPolicy, AiDelta, AiError, AiEvent, AiMessage, AiNameTarget,
+        AiPreview, AiPreviewMode, AiProfile, AiProviderKind, AiReply, AiRequest, AiRole, AiRoles,
+        AiScope, AiSettings, AiStop, AiTask, AiTool, AiToolCall, AiToolResult, AiUsage,
+    };
+    use rt_app::contract::{ChangelogCommit, ChangelogFacts};
+    use serde::Serialize;
+    use serde_json::json;
+
+    fn j<T: Serialize>(v: T) -> serde_json::Value {
+        serde_json::to_value(v).unwrap()
+    }
+
+    fn tool_call() -> AiToolCall {
+        AiToolCall {
+            id: "toolu_1".into(),
+            name: "get_request".into(),
+            input: json!({ "path": "users/get.yml" }),
+        }
+    }
+
+    fn messages() -> Vec<AiMessage> {
+        vec![
+            AiMessage::text(AiRole::User, "Why does this fail?"),
+            AiMessage {
+                role: AiRole::Assistant,
+                content: "Let me read the request.".into(),
+                tool_calls: vec![tool_call()],
+                tool_results: Vec::new(),
+            },
+            AiMessage {
+                role: AiRole::User,
+                content: String::new(),
+                tool_calls: Vec::new(),
+                tool_results: vec![AiToolResult {
+                    call_id: "toolu_1".into(),
+                    content: "{\"method\":\"GET\"}".into(),
+                    is_error: false,
+                }],
+            },
+        ]
+    }
+
+    fn reply() -> AiReply {
+        AiReply {
+            text: "Add the CSRF token fetch.".into(),
+            tool_calls: vec![tool_call()],
+            stop: AiStop::ToolUse,
+            usage: Some(AiUsage {
+                input_tokens: 1200,
+                output_tokens: 80,
+            }),
+        }
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        let profile = |id: &str, provider, model: &str, base: Option<&str>| AiProfile {
+            id: id.into(),
+            label: id.into(),
+            config: rt_app::ai::AiConfig {
+                provider,
+                model: model.into(),
+                base_url: base.map(Into::into),
+            },
+        };
+        vec![
+            (
+                "aiProviderKinds",
+                "AiProviderKind[]",
+                j(AiProviderKind::ALL),
+            ),
+            (
+                "aiCapabilities",
+                "AiCapabilities[]",
+                j(AiProviderKind::ALL
+                    .iter()
+                    .map(|k| k.capabilities())
+                    .collect::<Vec<_>>()),
+            ),
+            (
+                "aiSettings",
+                "AiSettings",
+                j(AiSettings {
+                    profiles: vec![
+                        profile("smart", AiProviderKind::Anthropic, "claude-opus-5-5", None),
+                        profile(
+                            "azure",
+                            AiProviderKind::AzureOpenai,
+                            "gpt-deployment",
+                            Some("https://acme.openai.azure.com/openai/v1"),
+                        ),
+                        profile(
+                            "local",
+                            AiProviderKind::OpenaiCompatible,
+                            "llama3.1",
+                            Some("http://localhost:11434/v1"),
+                        ),
+                    ],
+                    default_profile: Some("smart".into()),
+                    roles: AiRoles {
+                        fast: Some("local".into()),
+                        smart: Some("smart".into()),
+                    },
+                    preview: AiPreviewMode::FirstUse,
+                    previewed: vec!["smart".into()],
+                }),
+            ),
+            ("aiSettingsEmpty", "AiSettings", j(AiSettings::default())),
+            (
+                "aiCollectionPolicy",
+                "AiCollectionPolicy",
+                j(AiCollectionPolicy {
+                    file_off: false,
+                    device_off: true,
+                }),
+            ),
+            (
+                "aiTasksWave16",
+                "AiTask[]",
+                j(vec![
+                    AiTask::RequestFromSnippet {
+                        snippet: "fetch('https://api.example.com/users')".into(),
+                        folder: "users".into(),
+                    },
+                    AiTask::ExplainResponse {
+                        path: "users/get.yml".into(),
+                        response: 4,
+                    },
+                    AiTask::SuggestAssertions {
+                        path: "users/get.yml".into(),
+                        response: 4,
+                    },
+                    AiTask::SuggestNames {
+                        target: AiNameTarget::Variable,
+                        path: "users/get.yml".into(),
+                    },
+                    AiTask::DraftDocs {
+                        path: "users/get.yml".into(),
+                    },
+                ]),
+            ),
+            (
+                "aiAnswerWave16",
+                "AiAnswer",
+                j(AiAnswer {
+                    text: "Names for the request.".into(),
+                    names: vec!["List users".into(), "Get users".into()],
+                    docs: Some("Returns the users of a tenant.".into()),
+                    ..Default::default()
+                }),
+            ),
+            (
+                "aiErrorsWave16",
+                "AiError[]",
+                j(vec![
+                    AiError::Unsupported("tool use with this provider".into()),
+                    AiError::Cancelled,
+                    AiError::OptedOut,
+                ]),
+            ),
+            (
+                "aiRequest",
+                "AiRequest",
+                j(AiRequest {
+                    id: "call-1".into(),
+                    purpose: "Explain this failure".into(),
+                    profile: Some("smart".into()),
+                    system: "You explain failed HTTP requests.".into(),
+                    messages: messages(),
+                    scope: AiScope {
+                        request: Some("users/get.yml".into()),
+                        response: Some(4),
+                        folder: None,
+                    },
+                    tools: vec![AiTool {
+                        name: "get_request".into(),
+                        description: "Reads a request of the collection.".into(),
+                        input_schema: json!({
+                            "type": "object",
+                            "properties": { "path": { "type": "string" } },
+                            "required": ["path"]
+                        }),
+                    }],
+                    json: Some(json!({ "type": "object" })),
+                    max_tokens: Some(4000),
+                }),
+            ),
+            (
+                "aiRequestMinimal",
+                "AiRequest",
+                j(AiRequest {
+                    id: "call-2".into(),
+                    purpose: "Name this request".into(),
+                    profile: None,
+                    system: String::new(),
+                    messages: vec![AiMessage::text(AiRole::User, "GET /users")],
+                    scope: AiScope::default(),
+                    tools: Vec::new(),
+                    json: None,
+                    max_tokens: None,
+                }),
+            ),
+            (
+                "aiPreview",
+                "AiPreview",
+                j(AiPreview {
+                    profile: "smart".into(),
+                    provider: AiProviderKind::Anthropic,
+                    model: "claude-opus-5-5".into(),
+                    endpoint: "https://api.anthropic.com/v1/messages".into(),
+                    call: rt_app::ai::AiCall {
+                        system: "You explain failed HTTP requests.".into(),
+                        messages: messages(),
+                        max_tokens: 4000,
+                        ..Default::default()
+                    },
+                    masked: 2,
+                    bytes: 1834,
+                    required: true,
+                }),
+            ),
+            (
+                "aiEvents",
+                "AiEvent[]",
+                j(vec![
+                    AiEvent::Delta {
+                        delta: AiDelta::Text {
+                            text: "Add the".into(),
+                        },
+                    },
+                    AiEvent::Delta {
+                        delta: AiDelta::ToolCall { call: tool_call() },
+                    },
+                    AiEvent::Done { reply: reply() },
+                    AiEvent::Done {
+                        reply: AiReply::default(),
+                    },
+                    AiEvent::Error {
+                        error: AiError::Cancelled,
+                    },
+                ]),
+            ),
+            (
+                "changelogFacts",
+                "ChangelogFacts",
+                j(ChangelogFacts {
+                    from: "v1.0.0".into(),
+                    to: "v1.1.0".into(),
+                    title: "Orders API 1.0.0 → 1.1.0".into(),
+                    spec: Default::default(),
+                    collection: Default::default(),
+                    sections: vec![
+                        "## Service metadata\n\n- Entity `Order`: new property `Note`".into(),
+                    ],
+                    commits: vec![
+                        ChangelogCommit {
+                            oid: "b".repeat(40),
+                            summary: "Merge pull request #12 from acme/notes".into(),
+                            body: "Orders get a note".into(),
+                            author: "Ada".into(),
+                            pull: Some(12),
+                        },
+                        ChangelogCommit {
+                            oid: "c".repeat(40),
+                            summary: "Fix typo".into(),
+                            body: String::new(),
+                            author: "Ada".into(),
+                            pull: None,
+                        },
+                    ],
+                    markdown: "# Orders API 1.0.0 → 1.1.0\n".into(),
+                }),
+            ),
+        ]
+    }
 }
 
 /// Wave 12 (Git for APIs): revisions, semantic diff and merge, compare and bisect, timeline,

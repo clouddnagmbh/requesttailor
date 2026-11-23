@@ -592,6 +592,10 @@ pub struct Distribution<'a> {
     /// Sections `rt changelog` appends after the OpenAPI and collection changes (since wave
     /// 13), in this order.
     pub changelog: &'a [&'a dyn rt_app::contract::ChangelogSection],
+    /// Other ways to write the changelog, each chosen with its own flag of `rt changelog`
+    /// (since wave 16, `rt_app::contract::ChangelogWriter`). Routing the flags arrives with
+    /// wave 16, strand D; until then they are rejected like any unknown flag.
+    pub changelog_writers: &'a [&'a dyn rt_app::contract::ChangelogWriter],
 }
 
 /// [`run_with`] with everything a distribution adds.

@@ -334,6 +334,18 @@ pub fn provider<'t, T: Transport>(
         AiProviderKind::OpenaiCompatible => {
             Box::new(OpenAiCompatibleProvider::new(transport, config, key)?)
         }
+        // Wave 16, strand A: their own wire formats (OpenAI, Mistral and Azure share the chat
+        // completions shape with their own auth headers; Gemini and Bedrock have their own).
+        kind @ (AiProviderKind::Openai
+        | AiProviderKind::AzureOpenai
+        | AiProviderKind::Gemini
+        | AiProviderKind::Mistral
+        | AiProviderKind::Bedrock) => {
+            return Err(AiError::Unsupported(format!(
+                "{} arrives with wave 16",
+                kind.label()
+            )));
+        }
     })
 }
 
@@ -407,11 +419,9 @@ mod tests {
     fn call() -> AiCall {
         AiCall {
             system: "sys".into(),
-            messages: vec![AiMessage {
-                role: AiRole::User,
-                content: "hi".into(),
-            }],
+            messages: vec![AiMessage::text(AiRole::User, "hi")],
             max_tokens: 100,
+            ..Default::default()
         }
     }
 

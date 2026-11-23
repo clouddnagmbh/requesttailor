@@ -63,9 +63,16 @@ import type {
   VarChange,
   AgentPolicy,
   AiAnswer,
+  AiCollectionPolicy,
   AiConfig,
+  AiEvent,
+  AiPreview,
   AiProviderKind,
+  AiReply,
+  AiRequest,
+  AiSettings,
   AiTask,
+  ChangelogFacts,
   ApprovalDecision,
   AuditEntry,
   GrpcService,
@@ -337,6 +344,9 @@ export interface ContractApi {
   changes(from: string, to: string): Promise<SpecChanges>;
   /** API changelog (Markdown) of the range, as `rt changelog`. */
   changelog(from: string, to: string): Promise<string>;
+  /** Wave 16: the range's changelog and its parts as data, with the commits (first-parent
+   *  chain), for writers of release notes. Until strand D: `commands/wave16-stubs.ts`. */
+  changelogFacts(from: string, to: string): Promise<ChangelogFacts>;
 }
 
 /** Credentials anywhere in the history, and rewriting it so they become variables. The
@@ -541,7 +551,36 @@ export interface AiApi {
   deleteKey(provider: AiProviderKind): Promise<void>;
   /** One task; the context is masked before it leaves. `input` selects the environment. */
   ask(task: AiTask, input: SendInput): Promise<AiAnswer>;
+
+  // Wave 16 (strand A; until then the placeholders of `commands/wave16-stubs.ts`). The wave-8
+  // methods above keep working: `config` is the default profile, `setKey` the provider's key.
+
+  /** Profiles, roles and the preview mode; `null` until set up (a wave-8 config reads as one
+   *  profile `default`). */
+  settings(): Promise<AiSettings | null>;
+  setSettings(settings: AiSettings | null): Promise<void>;
+  /** A profile's own key (before the provider's key of `setKey`); never read back. */
+  hasProfileKey(profile: string): Promise<boolean>;
+  setProfileKey(profile: string, key: string): Promise<void>;
+  deleteProfileKey(profile: string): Promise<void>;
+  /** Whether the active collection allows the assistant (`opencollection.yml` and device). */
+  policy(): Promise<AiCollectionPolicy>;
+  /** Turns the assistant off (or on again) for the active collection on this device. */
+  setDeviceOptOut(off: boolean): Promise<void>;
+  /** Exactly what a task or a request would send, masked; nothing leaves. */
+  preview(what: AiWhat, input: SendInput): Promise<AiPreview>;
+  /** The user confirmed the first-use preview of `profile` on this device. */
+  confirmPreview(profile: string): Promise<void>;
+  /** A call of an extension: its prompt plus the core's masked context of `request.scope`,
+   *  masked as a whole before it leaves. Rejects with kind `opted-out` when the collection
+   *  is off and `cancelled` after `cancel(request.id)`. `onEvent` gets the streamed pieces. */
+  complete(request: AiRequest, input: SendInput, onEvent?: (event: AiEvent) => void): Promise<AiReply>;
+  /** Stops a running `complete`; nothing happens if it already ended. */
+  cancel(id: string): Promise<void>;
 }
+
+/** Wave 16: what a preview is for. */
+export type AiWhat = { kind: "task"; task: AiTask } | { kind: "request"; request: AiRequest };
 
 /** Wave 8, strand D: testing MCP servers. `stdio` servers only on desktop. */
 export interface McpClientApi {
