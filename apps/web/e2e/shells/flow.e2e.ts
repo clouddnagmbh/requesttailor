@@ -20,9 +20,11 @@ test("gate in the UI: open folder, create request, type URL, send, save, file on
   await expect(page.getByTestId("collection-name")).toHaveText("Shell test");
   await page.getByTestId("env-switcher").selectOption("Local");
 
+  // The "New…" dialog (wave 14): Enter takes the HTTP tile, then the name and Enter create it.
   await page.keyboard.press("ControlOrMeta+n");
-  await page.getByTestId("new-request-name").fill("Ping");
-  await page.getByTestId("new-request-name").press("Enter");
+  await page.keyboard.press("Enter");
+  await page.getByTestId("new-name").fill("Ping");
+  await page.getByTestId("new-name").press("Enter");
   await expect(page.getByTestId("tree-request").filter({ hasText: "Ping" })).toBeVisible();
 
   const url = page.getByTestId("url-input").locator(".cm-content");
