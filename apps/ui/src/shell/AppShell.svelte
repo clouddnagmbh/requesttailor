@@ -80,7 +80,7 @@
   import { extensionTabsFor, provideExtensions } from "./extension-tabs";
   import { buildCommands, LABELS, type Actions } from "./commands";
   import Resizer from "./Resizer.svelte";
-  import { formatShortcut, isMacPlatform, matchShortcut, shortcutFor, SHORTCUTS, type CommandId } from "./shortcuts";
+  import { formatShortcut, isMacPlatform, matchShortcut, shortcutFor, SHORTCUTS, TAB_NUMBERS, type CommandId, type TabNumber } from "./shortcuts";
   import { IconButton } from "../ui";
   import Sidebar from "./Sidebar.svelte";
   import { isNumber, load, store } from "./storage";
@@ -275,6 +275,14 @@
       if (app.collection) showingCookies = true;
     },
     "format-body": requestFormat,
+    "go-to-tab": () => {
+      if (app.openTabs.length > 0) app.tabList = true;
+    },
+    "next-tab": () => app.stepTab(1),
+    "previous-tab": () => app.stepTab(-1),
+    ...(Object.fromEntries(
+      TAB_NUMBERS.map((id, i) => [id, () => app.gotoTab(i + 1, id === "tab-9")]),
+    ) as Record<TabNumber, () => unknown>),
   };
   // ---- collection tabs of plugins (wave 6) ----
   // The list is read once a collection is open (listing loads the web core).
@@ -603,7 +611,13 @@
     />
 
     <main>
-      <TabBar panelId="rt-request-panel" />
+      <TabBar
+        panelId="rt-request-panel"
+        onreveal={async (ref) => {
+          await app.selectRef(ref);
+          await showView("requests");
+        }}
+      />
       <TrustPrompt />
       <AgentsHost />
       {#if gitViews.current}
@@ -660,7 +674,7 @@
             <RecentCollections onopen={adoptCollection} />
           {/if}
           <dl>
-            {#each SHORTCUTS as s (s.command)}
+            {#each SHORTCUTS.filter((x) => !x.unlisted) as s (s.command)}
               <dt><kbd>{formatShortcut(s, mac)}</kbd></dt>
               <dd>{LABELS[s.command]}</dd>
             {/each}

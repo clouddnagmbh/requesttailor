@@ -27,6 +27,20 @@ describe("shortcuts", () => {
     expect(matchShortcut(key("s"), false)).toBeUndefined();
   });
 
+  it("moves between tabs with Ctrl+Tab, Mod+Shift+]/[ (macOS) and Mod+1…9", () => {
+    expect(matchShortcut(key("Tab", { ctrlKey: true }), false)?.command).toBe("next-tab");
+    expect(matchShortcut(key("Tab", { ctrlKey: true }), true)?.command).toBe("next-tab");
+    expect(matchShortcut(key("Tab", { ctrlKey: true, shiftKey: true }), true)?.command).toBe("previous-tab");
+    expect(matchShortcut({ ...key("}", { metaKey: true, shiftKey: true }), code: "BracketRight" }, true)?.command).toBe("next-tab");
+    expect(matchShortcut({ ...key("[", { metaKey: true, shiftKey: true }), code: "BracketLeft" }, true)?.command).toBe("previous-tab");
+    expect(matchShortcut({ ...key("]", { ctrlKey: true, shiftKey: true }), code: "BracketRight" }, false)).toBeUndefined();
+    expect(matchShortcut(key("3", { metaKey: true }), true)?.command).toBe("tab-3");
+    expect(matchShortcut(key("9", { ctrlKey: true }), false)?.command).toBe("tab-9");
+    expect(matchShortcut(key("3", { ctrlKey: true, shiftKey: true }), false)).toBeUndefined();
+    expect(matchShortcut(key("p", { ctrlKey: true }), false)?.command).toBe("go-to-tab");
+    expect(matchShortcut(key("Tab"), false)).toBeUndefined();
+  });
+
   it("formats the body with Shift+Alt+F (by key code on macOS, where Alt changes the key)", () => {
     const shiftAlt = { shiftKey: true, altKey: true };
     expect(matchShortcut({ ...key("Ï", shiftAlt), code: "KeyF" }, true)?.command).toBe("format-body");
@@ -40,7 +54,7 @@ describe("shortcuts", () => {
   });
 
   it("has one entry per key and formats per platform", () => {
-    expect(new Set(SHORTCUTS.map((s) => s.key)).size).toBe(SHORTCUTS.length);
+    expect(new Set(SHORTCUTS.map((s) => `${s.key}${s.ctrl ? "^" : ""}${s.shift ? "+" : ""}${s.shiftAlt ? "~" : ""}`)).size).toBe(SHORTCUTS.length);
     expect(new Set(SHORTCUTS.map((s) => s.command)).size).toBe(SHORTCUTS.length);
     expect(formatShortcut({ command: "palette", key: "k" }, true)).toBe("⌘K");
     expect(formatShortcut({ command: "send", key: "Enter" }, false)).toBe("Ctrl+Enter");

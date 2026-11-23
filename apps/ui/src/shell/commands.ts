@@ -38,6 +38,18 @@ export const LABELS: Record<CommandId, string> = {
   plugins: "Manage plugins…",
   cookies: "Show cookies…",
   "format-body": "Format body",
+  "go-to-tab": "Go to tab…",
+  "next-tab": "Next tab",
+  "previous-tab": "Previous tab",
+  "tab-1": "Go to tab 1–9 (9: last)",
+  "tab-2": "Go to tab 2",
+  "tab-3": "Go to tab 3",
+  "tab-4": "Go to tab 4",
+  "tab-5": "Go to tab 5",
+  "tab-6": "Go to tab 6",
+  "tab-7": "Go to tab 7",
+  "tab-8": "Go to tab 8",
+  "tab-9": "Go to last tab",
 };
 
 /** Commands available in the current state. */
@@ -68,6 +80,8 @@ export function buildCommands(app: AppState, actions: Actions, mac: boolean): Co
     ...(open ? [cmd("cookies")] : []),
     cmd("toggle-theme"),
     ...(app.active ? [cmd("close-tab")] : []),
+    ...(app.openTabs.length > 0 ? [cmd("go-to-tab")] : []),
+    ...(app.openTabs.length > 1 ? [cmd("next-tab"), cmd("previous-tab")] : []),
     ...(open ? [cmd("focus-sidebar")] : []),
   ];
 }
