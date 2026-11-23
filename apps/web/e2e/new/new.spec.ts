@@ -138,6 +138,12 @@ test("folder, environment and MCP test from the keyboard", async ({ page }) => {
     return envs.find((e: { name: string }) => e.name === "Staging");
   });
   expect(staging.variables.find((v: { secret: boolean }) => v.secret)).toMatchObject({ value: null });
+  // The environment manager opens on the new environment.
+  const manager = page.getByTestId("env-manager");
+  await expect(manager).toBeVisible();
+  await expect(manager.getByTestId("env-item").filter({ hasText: "Staging" })).toHaveAttribute("aria-current", "true");
+  await page.keyboard.press("Escape");
+  await expect(manager).toBeHidden();
 
   // MCP server test: staged, then the MCP client opens with it listed.
   await openNew(page);
@@ -150,6 +156,9 @@ test("folder, environment and MCP test from the keyboard", async ({ page }) => {
   await expect(dialog(page)).toBeHidden();
   await expect(page.getByTestId("mcp-panel")).toBeVisible();
   await expect(page.getByTestId("mcp-test").filter({ hasText: "echo-tool" })).toBeVisible();
+  // The new test is open in the client: its server is in the form.
+  await expect(page.getByTestId("mcp-test").filter({ hasText: "echo-tool" })).toHaveClass(/current/);
+  await expect(page.getByTestId("mcp-url")).toHaveValue("http://localhost:3001/mcp");
 });
 
 test("a collection goes into a folder named after it", async ({ page }) => {

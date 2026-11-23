@@ -29,8 +29,10 @@ export type MainView =
   /** A collection tab: `<extension id>/<tab id>` for an extension's tab, or the palette key of
    *  a plugin's collection tab. Nothing happens if no such tab is offered right now. */
   | { kind: "collection-tab"; key: string }
-  /** The MCP client. */
-  | { kind: "mcp" }
+  /** The MCP client; with `test`, that saved test (`*.mcp.yaml` path) opened in it. */
+  | { kind: "mcp"; test?: string }
+  /** The environment manager, on the selected environment. */
+  | { kind: "environments" }
   /** The runner for `folder` of the active collection (`null`: the whole collection). */
   | { kind: "runner"; folder: string | null };
 

@@ -302,7 +302,8 @@
       if (v.kind === "collection-tab") {
         const key = [v.key, `extension:${v.key}`].find((k) => collectionTabs.some((t) => t.key === k));
         if (key) void openCollectionTab(key);
-      } else if (v.kind === "mcp") void openMcp();
+      } else if (v.kind === "mcp") void openMcp(v.test);
+      else if (v.kind === "environments") managing = true;
       else void openRunner(v.folder);
     });
   });
@@ -347,12 +348,17 @@
 
   // ---- MCP client (wave 8) ----
   const mcp = new McpState(app);
-  async function openMcp() {
+  /** Shows the MCP client; with `test`, that saved test opened in it (the "New…" dialog). */
+  async function openMcp(test?: string) {
     await tick();
     runner.close();
     collectionTab = null;
     mcp.show();
     if (sideView !== "mcp") await showView("mcp");
+    if (test) {
+      await mcp.loadTests();
+      await mcp.openTest(test);
+    }
   }
   // Opening a request, the runner or a collection tab shows that instead.
   $effect(() => {
