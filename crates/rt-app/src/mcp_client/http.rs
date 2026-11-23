@@ -11,7 +11,7 @@ use bytes::Bytes;
 use rt_core::transport::{BodyStream, HttpBody, HttpRequest, SendOptions, Transport};
 use serde_json::Value;
 
-use super::McpError;
+use super::{McpError, keep_notification};
 
 /// Answers larger than this are refused (an SSE stream that never sends our response).
 const MAX_ANSWER: usize = 64 * 1024 * 1024;
@@ -69,12 +69,14 @@ impl HttpWire {
     }
 
     /// Sends one message. `id`: the answer to wait for (`None` for notifications).
+    /// Notifications that come before the answer (in an event stream) go to `notifications`.
     pub(super) async fn exchange<T: Transport>(
         &mut self,
         transport: &T,
         message: &Value,
         id: Option<u64>,
         timeout: Duration,
+        notifications: &mut Vec<Value>,
     ) -> Result<Option<Value>, McpError> {
         let body = Bytes::from(serde_json::to_vec(message).expect("JSON serializes"));
         let request = self.request("POST", Some(body), timeout);
@@ -124,7 +126,7 @@ impl HttpWire {
             .unwrap_or_default()
             .to_ascii_lowercase();
         if content_type.starts_with("text/event-stream") {
-            return read_sse(&mut body, id).await.map(Some);
+            return read_sse(&mut body, id, notifications).await.map(Some);
         }
         let bytes = read_all(&mut body).await?;
         let value: Value = serde_json::from_slice(&bytes)
@@ -177,8 +179,18 @@ fn find_answer(value: Value, id: u64) -> Option<Value> {
     }
 }
 
-/// Reads SSE events until one carries the response with `id`.
-async fn read_sse(body: &mut BodyStream, id: u64) -> Result<Value, McpError> {
+/// A server's notification (a message with a method and without an id).
+fn is_notification(value: &Value) -> bool {
+    value.get("method").is_some_and(Value::is_string) && value.get("id").is_none()
+}
+
+/// Reads SSE events until one carries the response with `id`; notifications on the way go to
+/// `notifications`.
+async fn read_sse(
+    body: &mut BodyStream,
+    id: u64,
+    notifications: &mut Vec<Value>,
+) -> Result<Value, McpError> {
     let mut buffer: Vec<u8> = Vec::new();
     let mut parser = SseParser::default();
     loop {
@@ -188,9 +200,12 @@ async fn read_sse(body: &mut BodyStream, id: u64) -> Result<Value, McpError> {
             let line = String::from_utf8_lossy(&line);
             if let Some(data) = parser.line(line.trim_end_matches(['\n', '\r']))
                 && let Ok(value) = serde_json::from_str::<Value>(&data)
-                && let Some(answer) = find_answer(value, id)
             {
-                return Ok(answer);
+                if is_notification(&value) {
+                    keep_notification(notifications, value);
+                } else if let Some(answer) = find_answer(value, id) {
+                    return Ok(answer);
+                }
             }
         }
         match next_chunk(body).await {

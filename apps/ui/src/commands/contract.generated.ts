@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -3208,6 +3208,114 @@ export const mcpCallResult: McpCallResult = {
     "ok": true
   },
   "time_ms": 12
+};
+
+export const mcpCallResultWithNotifications: McpCallResult = {
+  "content": [
+    {
+      "text": "{\"ok\":true}",
+      "type": "text"
+    },
+    {
+      "data": "iVBORw0K",
+      "mime_type": "image/png",
+      "type": "image"
+    },
+    {
+      "data": "UklGRg==",
+      "mime_type": "audio/wav",
+      "type": "audio"
+    },
+    {
+      "text": null,
+      "type": "resource",
+      "uri": "file:///a.txt"
+    },
+    {
+      "type": "other",
+      "value": {
+        "type": "resource_link"
+      }
+    }
+  ],
+  "is_error": false,
+  "notifications": [
+    {
+      "method": "notifications/progress",
+      "params": {
+        "progress": 1,
+        "progressToken": 3,
+        "total": 2
+      }
+    }
+  ],
+  "structured": {
+    "ok": true
+  },
+  "time_ms": 12
+};
+
+export const mcpResources: McpResource[] = [
+  {
+    "description": "What it offers",
+    "mime_type": "text/markdown",
+    "name": "README",
+    "size": 120,
+    "title": "About",
+    "uri": "demo://readme"
+  },
+  {
+    "description": null,
+    "mime_type": null,
+    "name": "a",
+    "size": null,
+    "title": null,
+    "uri": "file:///a"
+  }
+];
+
+export const mcpResourceContents: McpResourceContents[] = [
+  {
+    "blob": null,
+    "mime_type": "text/markdown",
+    "text": "# Hi",
+    "uri": "demo://readme"
+  },
+  {
+    "blob": "iVBORw0K",
+    "mime_type": null,
+    "text": null,
+    "uri": "demo://logo"
+  }
+];
+
+export const mcpPrompts: McpPrompt[] = [
+  {
+    "arguments": [
+      {
+        "description": null,
+        "name": "text",
+        "required": true,
+        "title": "Text"
+      }
+    ],
+    "description": "Summarize",
+    "name": "summarize",
+    "title": null
+  }
+];
+
+export const mcpPromptResult: McpPromptResult = {
+  "description": null,
+  "messages": [
+    {
+      "content": {
+        "text": "Summarize",
+        "type": "text"
+      },
+      "role": "user"
+    }
+  ]
 };
 
 export const mcpTest: McpTest = {

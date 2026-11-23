@@ -22,7 +22,9 @@ use rt_app::git::{
     GitFileChange, GitFileState, GitIdentity, GitPullResult, GitResolution, GitStatus,
 };
 use rt_app::mcp_client::{
-    McpCallResult, McpContent, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool,
+    McpCallResult, McpContent, McpNotification, McpPrompt, McpPromptArgument, McpPromptMessage,
+    McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig,
+    McpServerInfo, McpTest, McpTestResult, McpTool,
 };
 use rt_app::plugins::{
     ActionButton, Block, Contributions, FieldKind, FormField, ImporterContribution, Manifest,
@@ -257,6 +259,7 @@ fn mcp_result() -> McpCallResult {
         structured: Some(serde_json::json!({"ok": true})),
         is_error: false,
         time_ms: 12,
+        notifications: Vec::new(),
     }
 }
 
@@ -2025,6 +2028,104 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
         ("mcpCallResult", "McpCallResult", j(mcp_result())),
+        (
+            "mcpCallResultWithNotifications",
+            "McpCallResult",
+            j(McpCallResult {
+                notifications: vec![McpNotification {
+                    method: "notifications/progress".into(),
+                    params: serde_json::json!({"progressToken": 3, "progress": 1, "total": 2}),
+                }],
+                ..mcp_result()
+            }),
+        ),
+        (
+            "mcpResources",
+            "McpResource[]",
+            j(vec![
+                McpResource {
+                    uri: "demo://readme".into(),
+                    name: "README".into(),
+                    title: Some("About".into()),
+                    description: Some("What it offers".into()),
+                    mime_type: Some("text/markdown".into()),
+                    size: Some(120),
+                },
+                McpResource {
+                    uri: "file:///a".into(),
+                    name: "a".into(),
+                    title: None,
+                    description: None,
+                    mime_type: None,
+                    size: None,
+                },
+            ]),
+        ),
+        (
+            "mcpResourceContents",
+            "McpResourceContents[]",
+            j(vec![
+                McpResourceContents {
+                    uri: "demo://readme".into(),
+                    mime_type: Some("text/markdown".into()),
+                    text: Some("# Hi".into()),
+                    blob: None,
+                },
+                McpResourceContents {
+                    uri: "demo://logo".into(),
+                    mime_type: None,
+                    text: None,
+                    blob: Some("iVBORw0K".into()),
+                },
+            ]),
+        ),
+        (
+            "mcpPrompts",
+            "McpPrompt[]",
+            j(vec![McpPrompt {
+                name: "summarize".into(),
+                title: None,
+                description: Some("Summarize".into()),
+                arguments: vec![McpPromptArgument {
+                    name: "text".into(),
+                    title: Some("Text".into()),
+                    description: None,
+                    required: true,
+                }],
+            }]),
+        ),
+        (
+            "mcpSelfServers",
+            "McpSelfServer[]",
+            j(vec![
+                McpSelfServer {
+                    server: Some(McpServerConfig::Stdio {
+                        command: "rt".into(),
+                        args: vec!["mcp".into()],
+                        env: Vec::new(),
+                        cwd: None,
+                    }),
+                    hint: "Starts rt mcp on this collection.".into(),
+                },
+                McpSelfServer {
+                    server: None,
+                    hint: "Install rt first.".into(),
+                },
+            ]),
+        ),
+        (
+            "mcpPromptResult",
+            "McpPromptResult",
+            j(McpPromptResult {
+                description: None,
+                messages: vec![McpPromptMessage {
+                    role: "user".into(),
+                    content: McpContent::Text {
+                        text: "Summarize".into(),
+                    },
+                }],
+            }),
+        ),
         ("mcpTest", "McpTest", j(mcp_test())),
         (
             "mcpTestResult",

@@ -1084,6 +1084,58 @@ export interface McpCallResult {
   structured: unknown | null;
   is_error: boolean;
   time_ms: number;
+  /** Progress, log and other notifications sent while the call ran (wave 14); left out when none. */
+  notifications?: McpNotification[];
+}
+
+/** A notification from the server, as sent (masked). */
+export interface McpNotification {
+  method: string;
+  params: unknown;
+}
+
+/** An entry of `resources/list` (wave 14). */
+export interface McpResource {
+  uri: string;
+  name: string;
+  title: string | null;
+  description: string | null;
+  mime_type: string | null;
+  size: number | null;
+}
+
+/** One item of `resources/read`: text, or binary data as base64 (`blob`). */
+export interface McpResourceContents {
+  uri: string;
+  mime_type: string | null;
+  text: string | null;
+  blob: string | null;
+}
+
+export interface McpPromptArgument {
+  name: string;
+  title: string | null;
+  description: string | null;
+  required: boolean;
+}
+
+/** An entry of `prompts/list` (wave 14). */
+export interface McpPrompt {
+  name: string;
+  title: string | null;
+  description: string | null;
+  arguments: McpPromptArgument[];
+}
+
+export interface McpPromptMessage {
+  role: string;
+  content: McpContent;
+}
+
+/** What `prompts/get` returned. */
+export interface McpPromptResult {
+  description: string | null;
+  messages: McpPromptMessage[];
 }
 
 export interface McpTest {
