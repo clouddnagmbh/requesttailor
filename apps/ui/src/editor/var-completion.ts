@@ -13,6 +13,7 @@ import {
   acceptCompletion,
   autocompletion,
   closeCompletion,
+  completionStatus,
   pickedCompletion,
   type Completion,
   type CompletionContext,
@@ -20,8 +21,8 @@ import {
   type CompletionSection,
 } from "@codemirror/autocomplete";
 import { Prec, StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state";
-import { EditorView, keymap, showTooltip, type Tooltip } from "@codemirror/view";
-import { mount, unmount } from "svelte";
+import { EditorView, keymap, showTooltip, ViewPlugin, type Tooltip, type ViewUpdate } from "@codemirror/view";
+import { mount, unmount, type Component } from "svelte";
 
 import type { VariableScope } from "../commands/types";
 import {
@@ -35,6 +36,7 @@ import {
   valueText,
   type CompletionEntry,
 } from "./var-complete";
+import { Badge, Icon } from "../ui";
 import VarCreateForm from "./VarCreateForm.svelte";
 import type { VarSource } from "./var-source";
 
@@ -99,7 +101,13 @@ export function completionResult(scope: VariableScope, query: string, from: numb
     rows.set(option, { kind: "create", name: query });
     options.push(option);
   }
-  return { from, to, options, filter: false, getMatch: (c) => (rows.get(c)?.kind === "entry" ? (rows.get(c) as { ranges: number[] }).ranges : []) };
+  return {
+    from,
+    to,
+    options,
+    filter: false,
+    getMatch: (c) => (rows.get(c)?.kind === "entry" ? (rows.get(c) as { ranges: number[] }).ranges : []),
+  };
 }
 
 /** The completion source (exported for tests): `null` outside an open `{{`, the cached scope
@@ -116,7 +124,27 @@ export function varCompletionSource(vars: VarSource) {
   };
 }
 
-// ---- rendering of a row ----
+// ---- rendering of a row (Icon and Badge from ../ui) ----
+
+/** Components mounted into the rows of the open list; unmounted when it closes. */
+const mounted = new Set<ReturnType<typeof mount>>();
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mountInto(component: Component<any>, props: Record<string, unknown>): HTMLElement {
+  const host = document.createElement("span");
+  host.className = "rt-vc-slot";
+  mounted.add(mount(component, { target: host, props }));
+  return host;
+}
+
+const releaseRows = ViewPlugin.define(() => ({
+  update(u: ViewUpdate) {
+    if (mounted.size > 0 && completionStatus(u.state) === null && completionStatus(u.startState) !== null) {
+      for (const c of mounted) void unmount(c);
+      mounted.clear();
+    }
+  },
+}));
 
 function span(className: string, text: string, title?: string): HTMLElement {
   const el = document.createElement("span");
@@ -126,27 +154,53 @@ function span(className: string, text: string, title?: string): HTMLElement {
   return el;
 }
 
-function renderDot(completion: Completion): Node | null {
+function iconName(row: Row): string {
+  if (row.kind === "create") return "add";
+  const e = row.entry;
+  if (e.kind === "undefined") return "warning";
+  if (e.external) return "key";
+  if (e.secret) return "lock";
+  return "variable";
+}
+
+function renderIcon(completion: Completion): Node | null {
   const row = rows.get(completion);
   if (!row) return null;
-  if (row.kind === "create") return span("rt-vc-dot rt-vc-dot-create", "+");
-  const e = row.entry;
-  const state = e.kind === "undefined" ? "undefined" : e.secret ? "secret" : "plain";
-  return span(`rt-vc-dot rt-vc-dot-${state}`, "");
+  const el = mountInto(Icon, { name: iconName(row), size: "sm" });
+  el.classList.add(`rt-vc-icon-${iconName(row)}`);
+  return el;
 }
 
 function renderValue(completion: Completion): Node | null {
   const row = rows.get(completion);
   if (!row) return null;
-  if (row.kind === "create") return span("rt-vc-value", "environment, collection or folder");
+  if (row.kind === "create") return span("rt-vc-value rt-vc-value-hint", "in the environment, collection or folder");
   const e = row.entry;
   const text = valueText(e);
-  const kind = e.kind === "undefined" ? "undefined" : e.external ? "external" : e.secret ? "secret" : e.value === null || e.value === "" ? "empty" : "plain";
+  const kind =
+    e.kind === "undefined"
+      ? "undefined"
+      : e.external
+        ? "external"
+        : e.secret
+          ? "secret"
+          : e.value === null || e.value === ""
+            ? "empty"
+            : "plain";
   const el = span(`rt-vc-value rt-vc-value-${kind}`, text);
   // The full value on hover; never a secret.
   if (kind === "plain" && e.value !== null && e.value !== text) el.title = e.value;
   return el;
 }
+
+const TONES: Record<string, "neutral" | "accent" | "info" | "ok" | "warn"> = {
+  global: "neutral",
+  collection: "neutral",
+  environment: "info",
+  folder: "neutral",
+  request: "accent",
+  runtime: "warn",
+};
 
 function renderBadge(completion: Completion): Node | null {
   const row = rows.get(completion);
@@ -156,8 +210,13 @@ function renderBadge(completion: Completion): Node | null {
   const over = overrideText(row.entry);
   if (over) wrap.appendChild(span("rt-vc-over", "overridden", over));
   const b = layerBadge(row.entry.source);
-  const badge = wrap.appendChild(span(`rt-vc-badge rt-vc-badge-${row.entry.source.layer}`, b.label, b.title));
-  if (b.detail) badge.appendChild(span("rt-vc-badge-detail", b.detail));
+  const badge = mountInto(Badge, {
+    value: b.detail ? `${b.label} · ${b.detail}` : b.label,
+    tone: TONES[row.entry.source.layer] ?? "neutral",
+    title: b.title,
+  });
+  badge.classList.add("rt-vc-badge");
+  wrap.appendChild(badge);
   return wrap;
 }
 
@@ -165,7 +224,9 @@ function optionClass(completion: Completion): string {
   const row = rows.get(completion);
   if (!row) return "";
   if (row.kind === "create") return "rt-vc-create";
-  return [row.entry.overriddenBy ? "rt-vc-overridden" : "", row.entry.kind === "undefined" ? "rt-vc-undefined" : ""].join(" ").trim();
+  return [row.entry.overriddenBy ? "rt-vc-overridden" : "", row.entry.kind === "undefined" ? "rt-vc-undefined" : ""]
+    .join(" ")
+    .trim();
 }
 
 // ---- "Create variable" form ----
@@ -192,11 +253,7 @@ function createField(vars: VarSource): StateField<CreateState | null> {
       showTooltip.compute([field], (state: EditorState): Tooltip | null => {
         const open = state.field(field);
         if (!open) return null;
-        return {
-          pos: open.pos,
-          above: false,
-          create: (view) => createTooltip(view, vars, open.name),
-        };
+        return { pos: open.pos, above: false, create: (view) => createTooltip(view, vars, open.name) };
       }),
   });
 }
@@ -225,75 +282,71 @@ function createTooltip(view: EditorView, vars: VarSource, name: string) {
   return { dom, destroy: () => void unmount(component) };
 }
 
-// ---- look (tokens only) ----
+// ---- look: the Menu of ../ui (surface 3, elevation 2, rows of control height) ----
+
+const POPUP = ".cm-tooltip.cm-tooltip-autocomplete.rt-vc";
 
 const look = EditorView.theme({
-  ".cm-tooltip.cm-tooltip-autocomplete.rt-vc": {
-    padding: "4px",
-    minWidth: "min(360px, calc(100vw - 24px))",
+  [POPUP]: {
+    zIndex: "var(--rt-z-popover)",
+    boxSizing: "border-box",
+    padding: "var(--rt-space-2)",
+    minWidth: "min(380px, calc(100vw - 24px))",
     maxWidth: "min(560px, calc(100vw - 24px))",
-    fontFamily: "var(--rt-font-ui)",
-    fontSize: "var(--rt-size)",
+    font: "var(--rt-font-body)",
     color: "var(--rt-fg)",
-    backgroundColor: "var(--rt-bg)",
+    backgroundColor: "var(--rt-surface-3)",
     border: "1px solid var(--rt-border)",
-    borderRadius: "8px",
-    boxShadow: "var(--rt-shadow)",
+    borderRadius: "var(--rt-radius-lg)",
+    boxShadow: "var(--rt-elev-2)",
+    animation: "rt-vc-in var(--rt-dur-fast) var(--rt-ease-out)",
   },
-  ".cm-tooltip.cm-tooltip-autocomplete.rt-vc > ul": {
-    fontFamily: "inherit",
+  "@keyframes rt-vc-in": { from: { opacity: "0" } },
+  [`${POPUP} > ul`]: {
+    font: "inherit",
     maxHeight: "min(320px, 45vh)",
     minWidth: "0",
     maxWidth: "none",
     scrollbarWidth: "thin",
-    scrollPadding: "4px",
+    scrollbarColor: "var(--rt-scrollbar) transparent",
+    scrollPaddingBlock: "var(--rt-space-2)",
   },
-  ".cm-tooltip.cm-tooltip-autocomplete.rt-vc > ul > li": {
+  [`${POPUP} > ul > li`]: {
     display: "flex",
     alignItems: "center",
-    gap: "8px",
-    padding: "5px 8px",
-    borderRadius: "5px",
-    lineHeight: "1.35",
+    gap: "var(--rt-space-4)",
+    boxSizing: "border-box",
+    height: "var(--rt-control-md)",
+    padding: "0 var(--rt-space-4)",
+    borderRadius: "var(--rt-radius-md)",
     color: "var(--rt-fg)",
     cursor: "pointer",
   },
-  ".cm-tooltip.cm-tooltip-autocomplete.rt-vc > ul > li:hover": { backgroundColor: "var(--rt-bg-hover)" },
-  ".cm-tooltip.cm-tooltip-autocomplete.rt-vc > ul > li[aria-selected]": {
-    color: "var(--rt-fg)",
-    backgroundColor: "var(--rt-bg-selected)",
-  },
+  [`${POPUP} > ul > li:hover`]: { backgroundColor: "var(--rt-bg-hover)" },
+  [`${POPUP} > ul > li[aria-selected]`]: { color: "var(--rt-fg)", backgroundColor: "var(--rt-bg-active)" },
   ".rt-vc .cm-completionLabel": {
+    // Values line up in a column for usual name lengths; long names still shrink.
     flex: "0 1 auto",
+    width: "13ch",
     minWidth: "0",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     fontFamily: "var(--rt-font-mono)",
-    fontWeight: "500",
+    fontSize: "var(--rt-text-small)",
+    fontWeight: "var(--rt-weight-medium)",
   },
-  ".rt-vc .cm-completionMatchedText": { textDecoration: "none", color: "var(--rt-accent)", fontWeight: "700" },
-  ".rt-vc-dot": {
-    flex: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-    backgroundColor: "var(--rt-var-resolved)",
-  },
-  ".rt-vc-dot-secret": { backgroundColor: "var(--rt-var-secret)" },
-  ".rt-vc-dot-undefined": { backgroundColor: "transparent", boxShadow: "inset 0 0 0 1.5px var(--rt-var-unresolved)" },
-  ".rt-vc-dot-create": {
-    width: "16px",
-    height: "16px",
-    margin: "0 -4px",
-    borderRadius: "4px",
-    backgroundColor: "transparent",
+  ".rt-vc .cm-completionMatchedText": {
+    textDecoration: "none",
     color: "var(--rt-accent)",
-    fontWeight: "700",
+    fontWeight: "var(--rt-weight-bold)",
   },
+  ".rt-vc-slot": { display: "inline-flex", flex: "none", alignItems: "center" },
+  ".rt-vc-slot .rt-icon": { color: "var(--rt-fg-muted)" },
+  ".rt-vc-icon-variable .rt-icon": { color: "var(--rt-var-resolved)" },
+  ".rt-vc-icon-lock .rt-icon, .rt-vc-icon-key .rt-icon": { color: "var(--rt-var-secret)" },
+  ".rt-vc-icon-warning .rt-icon": { color: "var(--rt-var-unresolved)" },
+  ".rt-vc-icon-add .rt-icon": { color: "var(--rt-accent)" },
   ".rt-vc-value": {
     flex: "1 1 auto",
     minWidth: "0",
@@ -301,66 +354,59 @@ const look = EditorView.theme({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     fontFamily: "var(--rt-font-mono)",
-    fontSize: "var(--rt-size-small)",
+    fontSize: "var(--rt-text-small)",
     color: "var(--rt-fg-muted)",
   },
-  ".rt-vc-value-secret": { color: "var(--rt-var-secret)", letterSpacing: "1px" },
-  ".rt-vc-value-external": { color: "var(--rt-var-secret)", fontFamily: "var(--rt-font-ui)" },
-  ".rt-vc-value-empty, .rt-vc-value-undefined": { fontStyle: "italic", fontFamily: "var(--rt-font-ui)" },
-  ".rt-vc-create .rt-vc-value": { fontFamily: "var(--rt-font-ui)" },
-  ".rt-vc-create .cm-completionLabel": { fontFamily: "var(--rt-font-ui)", color: "var(--rt-accent)" },
-  ".rt-vc-meta": { flex: "none", display: "inline-flex", alignItems: "center", gap: "6px", marginLeft: "auto" },
-  ".rt-vc-badge": {
+  ".rt-vc-value-secret": { color: "var(--rt-var-secret)", letterSpacing: "0.1em" },
+  ".rt-vc-value-external": { font: "var(--rt-font-small)", color: "var(--rt-var-secret)" },
+  ".rt-vc-value-empty, .rt-vc-value-undefined, .rt-vc-value-hint": {
+    font: "var(--rt-font-small)",
+    color: "var(--rt-fg-subtle)",
+  },
+  ".rt-vc-create .cm-completionLabel": { font: "var(--rt-font-body)", color: "var(--rt-accent)" },
+  ".rt-vc-meta": {
+    flex: "none",
     display: "inline-flex",
     alignItems: "center",
-    gap: "4px",
-    maxWidth: "160px",
-    padding: "0 6px",
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-    fontSize: "11px",
-    lineHeight: "18px",
-    color: "var(--rt-fg-muted)",
-    backgroundColor: "var(--rt-bg-panel)",
-    border: "1px solid var(--rt-border)",
-    borderRadius: "999px",
+    gap: "var(--rt-space-3)",
+    marginLeft: "auto",
   },
-  ".rt-vc-badge-detail": { color: "var(--rt-fg)", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis" },
-  ".rt-vc-over": { fontSize: "11px", color: "var(--rt-warn)" },
+  ".rt-vc-badge .rt-badge": { maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis" },
+  ".rt-vc-over": { font: "var(--rt-font-small)", color: "var(--rt-warn-fg)" },
   ".rt-vc-overridden .cm-completionLabel, .rt-vc-overridden .rt-vc-value": {
-    opacity: "0.6",
+    color: "var(--rt-fg-subtle)",
     textDecoration: "line-through",
-    textDecorationColor: "var(--rt-fg-muted)",
   },
   ".rt-vc-undefined .cm-completionLabel": { color: "var(--rt-fg-muted)" },
-  ".rt-vc completion-section.rt-vc-section": {
+  [`${POPUP} completion-section.rt-vc-section`]: {
     display: "block",
-    margin: "4px 0 0",
-    padding: "6px 8px 2px",
-    borderTop: "1px solid var(--rt-border)",
-    borderBottom: "0",
-    fontSize: "11px",
-    fontWeight: "600",
-    letterSpacing: "0.02em",
-    textTransform: "uppercase",
-    color: "var(--rt-fg-muted)",
-    opacity: "1",
-  },
-  ".rt-vc completion-section.rt-vc-divider": {
-    display: "block",
-    height: "0",
-    margin: "4px 0",
-    padding: "0",
+    margin: "var(--rt-space-2) 0 0",
+    padding: "var(--rt-space-3) var(--rt-space-4) var(--rt-space-2)",
     border: "0",
     borderTop: "1px solid var(--rt-border)",
+    font: "var(--rt-font-caption)",
+    letterSpacing: "var(--rt-tracking-caps)",
+    textTransform: "uppercase",
+    color: "var(--rt-fg-subtle)",
+    opacity: "1",
   },
-  ".rt-vc-create-tooltip": {
-    backgroundColor: "var(--rt-bg)",
+  [`${POPUP} completion-section.rt-vc-divider`]: {
+    display: "block",
+    height: "1px",
+    margin: "var(--rt-space-2) calc(-1 * var(--rt-space-2))",
+    padding: "0",
+    border: "0",
+    backgroundColor: "var(--rt-border)",
+  },
+  ".cm-tooltip:has(> .rt-vc-create-tooltip)": {
+    zIndex: "var(--rt-z-popover)",
+    color: "var(--rt-fg)",
+    backgroundColor: "var(--rt-surface-3)",
     border: "1px solid var(--rt-border)",
-    borderRadius: "8px",
-    boxShadow: "var(--rt-shadow)",
+    borderRadius: "var(--rt-radius-lg)",
+    boxShadow: "var(--rt-elev-2)",
+    animation: "rt-vc-in var(--rt-dur-fast) var(--rt-ease-out)",
   },
-  ".cm-tooltip:has(> .rt-vc-create-tooltip)": { border: "0", backgroundColor: "transparent" },
 });
 
 /**
@@ -372,18 +418,21 @@ export function varCompletion(vars: VarSource): Extension {
     autocompletion({
       override: [varCompletionSource(vars)],
       activateOnTypingDelay: 0,
+      // The list opens the moment `{{` is typed, so a key right after it is meant for it.
+      interactionDelay: 0,
       icons: false,
       maxRenderedOptions: 200,
       tooltipClass: () => "rt-vc",
       optionClass,
       addToOptions: [
-        { render: renderDot, position: 10 },
+        { render: renderIcon, position: 10 },
         { render: renderValue, position: 60 },
         { render: renderBadge, position: 70 },
       ],
     }),
     Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
     createField(vars),
+    releaseRows,
     EditorView.domEventHandlers({
       focus: () => {
         vars.load().catch(() => undefined);

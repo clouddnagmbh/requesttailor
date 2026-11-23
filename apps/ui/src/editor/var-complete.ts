@@ -40,7 +40,15 @@ export function entriesFrom(scope: VariableScope): CompletionEntry[] {
   }));
   for (const name of scope.undefined) {
     if (winner.has(name)) continue;
-    entries.push({ name, kind: "undefined", value: null, secret: false, external: null, source: null, overriddenBy: null });
+    entries.push({
+      name,
+      kind: "undefined",
+      value: null,
+      secret: false,
+      external: null,
+      source: null,
+      overriddenBy: null,
+    });
   }
   return entries;
 }

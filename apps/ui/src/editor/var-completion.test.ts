@@ -15,21 +15,44 @@ import type { VarSource } from "./var-source";
 
 const scope: VariableScope = {
   variables: [
-    { name: "baseUrl", value: "http://c", source: { layer: "collection" }, secret: false, external: null, overridden: true },
-    { name: "baseUrl", value: "http://local", source: { layer: "environment", name: "Local" }, secret: false, external: null, overridden: false },
-    { name: "token", value: null, source: { layer: "environment", name: "Local" }, secret: true, external: null, overridden: false },
-    { name: "userId", value: "42", source: { layer: "folder", path: "users" }, secret: false, external: null, overridden: false },
+    {
+      name: "baseUrl",
+      value: "http://c",
+      source: { layer: "collection" },
+      secret: false,
+      external: null,
+      overridden: true,
+    },
+    {
+      name: "baseUrl",
+      value: "http://local",
+      source: { layer: "environment", name: "Local" },
+      secret: false,
+      external: null,
+      overridden: false,
+    },
+    {
+      name: "token",
+      value: null,
+      source: { layer: "environment", name: "Local" },
+      secret: true,
+      external: null,
+      overridden: false,
+    },
+    {
+      name: "userId",
+      value: "42",
+      source: { layer: "folder", path: "users" },
+      secret: false,
+      external: null,
+      overridden: false,
+    },
   ],
   undefined: ["missing"],
 };
 
 function source(s: VariableScope | null, loaded: VariableScope = scope): VarSource {
-  return {
-    cached: () => s,
-    load: async () => loaded,
-    targets: () => [],
-    create: async () => undefined,
-  };
+  return { cached: () => s, load: async () => loaded, targets: () => [], create: async () => undefined };
 }
 
 /** Text with `|` as the cursor. */
@@ -43,7 +66,8 @@ function complete(text: string, vars = source(scope), explicit = false) {
   return varCompletionSource(vars)(new CompletionContext(s, s.selection.main.head, explicit));
 }
 
-const labels = (r: CompletionResult | null) => r?.options.map((o) => o.label) ?? null;
+const labels = (r: CompletionResult | Promise<CompletionResult | null> | null) =>
+  (r as CompletionResult | null)?.options.map((o) => o.label) ?? null;
 
 /** A stand-in for the view that `apply` dispatches to. */
 function fakeView(s: EditorState) {
@@ -58,14 +82,16 @@ function fakeView(s: EditorState) {
 
 function accept(text: string, pick: (o: Completion) => boolean): string {
   const s = state(text);
-  const result = varCompletionSource(source(scope))(new CompletionContext(s, s.selection.main.head, false)) as CompletionResult;
+  const result = varCompletionSource(source(scope))(
+    new CompletionContext(s, s.selection.main.head, false),
+  ) as CompletionResult;
   const option = result.options.find(pick)!;
   const view = fakeView(s);
   (option.apply as (v: EditorView, c: Completion, from: number, to: number) => void)(
     view as unknown as EditorView,
     option,
     result.from,
-    result.to,
+    result.to ?? s.selection.main.head,
   );
   const doc = view.state.doc.toString();
   const head = view.state.selection.main.head;

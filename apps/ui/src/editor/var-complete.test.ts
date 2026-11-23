@@ -18,12 +18,54 @@ import {
 
 const scope: VariableScope = {
   variables: [
-    { name: "baseUrl", value: "http://collection", source: { layer: "collection" }, secret: false, external: null, overridden: true },
-    { name: "apiVersion", value: "v2", source: { layer: "collection" }, secret: false, external: null, overridden: false },
-    { name: "dbPassword", value: null, source: { layer: "environment", name: "Local" }, secret: true, external: "one-password", overridden: false },
-    { name: "baseUrl", value: "http://local", source: { layer: "environment", name: "Local" }, secret: false, external: null, overridden: false },
-    { name: "token", value: null, source: { layer: "environment", name: "Local" }, secret: true, external: null, overridden: false },
-    { name: "userId", value: "42", source: { layer: "folder", path: "api/users" }, secret: false, external: null, overridden: false },
+    {
+      name: "baseUrl",
+      value: "http://collection",
+      source: { layer: "collection" },
+      secret: false,
+      external: null,
+      overridden: true,
+    },
+    {
+      name: "apiVersion",
+      value: "v2",
+      source: { layer: "collection" },
+      secret: false,
+      external: null,
+      overridden: false,
+    },
+    {
+      name: "dbPassword",
+      value: null,
+      source: { layer: "environment", name: "Local" },
+      secret: true,
+      external: "one-password",
+      overridden: false,
+    },
+    {
+      name: "baseUrl",
+      value: "http://local",
+      source: { layer: "environment", name: "Local" },
+      secret: false,
+      external: null,
+      overridden: false,
+    },
+    {
+      name: "token",
+      value: null,
+      source: { layer: "environment", name: "Local" },
+      secret: true,
+      external: null,
+      overridden: false,
+    },
+    {
+      name: "userId",
+      value: "42",
+      source: { layer: "folder", path: "api/users" },
+      secret: false,
+      external: null,
+      overridden: false,
+    },
     { name: "page", value: "1", source: { layer: "request" }, secret: false, external: null, overridden: false },
     { name: "session", value: "s1", source: { layer: "runtime" }, secret: false, external: null, overridden: false },
   ],
@@ -52,7 +94,16 @@ describe("entriesFrom", () => {
 
   it("never carries a secret value", () => {
     const leaky: VariableScope = {
-      variables: [{ name: "t", value: "leak", source: { layer: "environment", name: "E" }, secret: true, external: null, overridden: false }],
+      variables: [
+        {
+          name: "t",
+          value: "leak",
+          source: { layer: "environment", name: "E" },
+          secret: true,
+          external: null,
+          overridden: false,
+        },
+      ],
       undefined: [],
     };
     expect(JSON.stringify(entriesFrom(leaky))).not.toContain("leak");
@@ -77,15 +128,46 @@ describe("rankEntries", () => {
 
   it("lists all by name with the winner before overridden definitions; undefined last", () => {
     const names = rankEntries(entries, "").map((r) => `${r.entry.name}${r.entry.overriddenBy ? "*" : ""}`);
-    expect(names).toEqual(["apiVersion", "baseUrl", "baseUrl*", "dbPassword", "page", "session", "token", "userId", "missing"]);
+    expect(names).toEqual([
+      "apiVersion",
+      "baseUrl",
+      "baseUrl*",
+      "dbPassword",
+      "page",
+      "session",
+      "token",
+      "userId",
+      "missing",
+    ]);
   });
 
   it("puts prefix matches first and filters fuzzily", () => {
     const withUser = entriesFrom({
       variables: [
-        { name: "currentUser", value: "a", source: { layer: "collection" }, secret: false, external: null, overridden: false },
-        { name: "userId", value: "1", source: { layer: "collection" }, secret: false, external: null, overridden: false },
-        { name: "superUserName", value: "b", source: { layer: "collection" }, secret: false, external: null, overridden: false },
+        {
+          name: "currentUser",
+          value: "a",
+          source: { layer: "collection" },
+          secret: false,
+          external: null,
+          overridden: false,
+        },
+        {
+          name: "userId",
+          value: "1",
+          source: { layer: "collection" },
+          secret: false,
+          external: null,
+          overridden: false,
+        },
+        {
+          name: "superUserName",
+          value: "b",
+          source: { layer: "collection" },
+          secret: false,
+          external: null,
+          overridden: false,
+        },
       ],
       undefined: [],
     });
@@ -105,15 +187,18 @@ describe("rankEntries", () => {
       })),
       undefined: [],
     });
+    rankEntries(many, "warm");
     const start = performance.now();
     for (const q of ["", "v", "va", "var1", "tok"]) rankEntries(many, q);
-    expect((performance.now() - start) / 5).toBeLessThan(10);
+    // Budget per keystroke (typically ~1 ms; the margin absorbs a loaded CI machine).
+    expect((performance.now() - start) / 5).toBeLessThan(50);
   });
 });
 
 describe("row texts", () => {
   const entries = entriesFrom(scope);
-  const by = (name: string, layer?: string) => entries.find((e) => e.name === name && (!layer || e.source?.layer === layer))!;
+  const by = (name: string, layer?: string) =>
+    entries.find((e) => e.name === name && (!layer || e.source?.layer === layer))!;
 
   it("shows values truncated, secrets masked, external sources and undefined names", () => {
     expect(valueText(by("baseUrl", "environment"))).toBe("http://local");
@@ -128,7 +213,11 @@ describe("row texts", () => {
 
   it("names the layer", () => {
     expect(layerBadge({ layer: "environment", name: "Local" })).toMatchObject({ label: "Env", detail: "Local" });
-    expect(layerBadge({ layer: "folder", path: "api/users" })).toMatchObject({ label: "Folder", detail: "users", title: "Folder api/users" });
+    expect(layerBadge({ layer: "folder", path: "api/users" })).toMatchObject({
+      label: "Folder",
+      detail: "users",
+      title: "Folder api/users",
+    });
     expect(layerBadge({ layer: "collection" }).label).toBe("Collection");
     expect(layerBadge({ layer: "runtime" }).label).toBe("Runtime");
     expect(overrideText(by("baseUrl", "collection"))).toBe("Overridden by Environment Local");

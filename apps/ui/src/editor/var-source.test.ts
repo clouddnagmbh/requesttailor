@@ -55,7 +55,12 @@ describe("createVarSource", () => {
     const source = createVarSource(a, { path: () => "health.yml", onchange: () => changed++ });
     await source.create("environment", { name: "apiKey", value: "k3y-value", secret: true });
     const env = (await a.backend.environments()).find((e) => e.name === "Local")!;
-    expect(env.variables.find((v) => v.name === "apiKey")).toEqual({ name: "apiKey", value: null, enabled: true, secret: true });
+    expect(env.variables.find((v) => v.name === "apiKey")).toEqual({
+      name: "apiKey",
+      value: null,
+      enabled: true,
+      secret: true,
+    });
     expect(await a.backend.secrets.get("Local", "apiKey")).toBe("k3y-value");
     expect(JSON.stringify(source.cached())).not.toContain("k3y-value");
     expect(source.cached()!.variables.some((v) => v.name === "apiKey" && v.secret)).toBe(true);
@@ -78,8 +83,17 @@ describe("createVarSource", () => {
   it("helpers", () => {
     expect(folderOf("users/admin/list.yml")).toBe("users/admin");
     expect(folderOf("health.yml")).toBeNull();
-    const env = { name: "E", variables: [{ name: "a", value: "1", enabled: true, secret: false }], client_certificates: [], external_secrets: null };
-    expect(withEnvironmentVariable(env, { name: "a", value: "2", enabled: true, secret: false }).variables).toHaveLength(1);
-    expect(withEnvironmentVariable(env, { name: "b", value: "2", enabled: true, secret: false }).variables).toHaveLength(2);
+    const env = {
+      name: "E",
+      variables: [{ name: "a", value: "1", enabled: true, secret: false }],
+      client_certificates: [],
+      external_secrets: null,
+    };
+    expect(
+      withEnvironmentVariable(env, { name: "a", value: "2", enabled: true, secret: false }).variables,
+    ).toHaveLength(1);
+    expect(
+      withEnvironmentVariable(env, { name: "b", value: "2", enabled: true, secret: false }).variables,
+    ).toHaveLength(2);
   });
 });
