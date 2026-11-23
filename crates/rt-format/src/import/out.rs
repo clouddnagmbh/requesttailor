@@ -10,6 +10,9 @@
 //! their settings. Every request file is read back and must give exactly the request the
 //! importer meant; the whole collection must read without issues.
 //!
+//! With a kept spec (OpenAPI import wizard), `opencollection.yml` names it in
+//! `extensions.requesttailor.contract.spec`; the spec file itself is added by the importer.
+//!
 //! File names: a slug of the item name (as `CollectionDoc::add_request` names new requests),
 //! made unique per folder ignoring case. Items get `seq` 1, 2, ... in source order.
 
@@ -126,6 +129,9 @@ pub(crate) struct CollectionOut {
     pub defaults: DefaultsOut,
     pub items: Vec<ItemOut>,
     pub environments: Vec<Environment>,
+    /// The spec kept in the collection (OpenAPI import wizard): written as
+    /// `extensions.requesttailor.contract.spec` of `opencollection.yml`.
+    pub contract_spec: Option<String>,
 }
 
 /// What was written.
@@ -687,6 +693,15 @@ fn collection_text(c: &CollectionOut) -> String {
         root.push(("docs", Val::str(d)));
     }
     root.push(("bundled", Val::bool(false)));
+    if let Some(spec) = &c.contract_spec {
+        root.push((
+            "extensions",
+            Val::Map(vec![(
+                "requesttailor",
+                Val::Map(vec![("contract", Val::Map(vec![("spec", Val::str(spec))]))]),
+            )]),
+        ));
+    }
     document_text(&root, true)
 }
 
@@ -767,6 +782,9 @@ pub(crate) fn write_collection(c: &CollectionOut) -> Result<(FileSet, Counts), S
             .collect::<Vec<_>>()
     {
         return Err("collection variables do not read back".into());
+    }
+    if crate::contract::configured_spec(&files) != c.contract_spec {
+        return Err("the contract spec does not read back".into());
     }
     if doc.model().defaults.scripts != c.defaults.scripts {
         return Err("collection scripts do not read back".into());

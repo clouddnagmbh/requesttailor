@@ -13,6 +13,16 @@
 //! Test data: `testdata/import/<source>/`, every file with a snapshot test of the result and
 //! of its loss report.
 //!
+//! OpenAPI (import wizard): [`inspect_openapi`] reads a spec for the wizard's overview,
+//! [`import_openapi`] converts it with the user's choices ([`OpenApiOptions`]; the default is
+//! the plain [`import`]). Both take one file, a multi-file spec (the main file and the files
+//! its `$ref`s name, by relative path; module `spec_files` bundles them into one document) or
+//! a `.zip` of one ([`unzip`], module `zip`). Swagger 2.0 is converted to the OpenAPI 3 model
+//! first (module `swagger2`), then the one OpenAPI importer (module `openapi`) runs.
+//! [`import_files`] routes several files to OpenAPI when one of them is an OpenAPI or Swagger
+//! document, and a zip. [`openapi_references`] lists what a file references, for fetching a
+//! multi-file spec from a URL (`rt_app::openapi::fetch_spec`).
+//!
 //! Secrets (product principle 3): values of secret variables (Postman `secret`, Insomnia
 //! private environments, JetBrains private env files) are never written; the variable is
 //! imported as `secret: true` and the report says to set the value in Environments.
@@ -34,7 +44,10 @@ mod openapi_types;
 mod out;
 mod postman;
 mod shims;
+mod spec_files;
+mod swagger2;
 mod value;
+mod zip;
 
 use value::Value;
 
@@ -51,7 +64,8 @@ pub enum ImportFormat {
     Postman,
     /// Insomnia export v4 (JSON or YAML) and v5 (YAML).
     Insomnia,
-    /// OpenAPI 3.0 / 3.1 (JSON or YAML).
+    /// OpenAPI 3.0 / 3.1 / 3.2 and Swagger 2.0 (JSON or YAML; one file, a multi-file spec or a
+    /// `.zip` of one).
     Openapi,
     /// One or more `curl` command lines.
     Curl,
@@ -440,6 +454,19 @@ pub fn import_files(
             message: format!("{} is empty", base_name(f.name)),
         });
     }
+    // A multi-file OpenAPI spec (the main file and the files its `$ref`s name) or a zip.
+    if matches!(format, None | Some(ImportFormat::Openapi))
+        && (files.len() > 1 || zip::is_zip(files[0].data))
+        && files.iter().any(|f| {
+            zip::is_zip(f.data)
+                || matches!(
+                    role(f.name, f.data),
+                    Some(Role::Main(ImportFormat::Openapi))
+                )
+        })
+    {
+        return import_openapi(files, &OpenApiOptions::default());
+    }
     let mut mains: Vec<(ImportFormat, SourceFile<'_>)> = Vec::new();
     let mut postman_envs = Vec::new();
     let mut http_envs = Vec::new();
@@ -505,7 +532,7 @@ pub fn import_files(
     match main_format {
         ImportFormat::Postman => postman::import(&first, &postman_envs),
         ImportFormat::Insomnia => insomnia::import(&first),
-        ImportFormat::Openapi => openapi::import(&first),
+        ImportFormat::Openapi => import_openapi(&[first], &OpenApiOptions::default()),
         ImportFormat::Curl => curl::import(&mains),
         ImportFormat::Har => har::import(&first),
         ImportFormat::Http => http::import(&mains, &http_envs),
@@ -521,39 +548,137 @@ pub fn import_files(
 /// the main file, or a multi-file spec (the main file and the files its `$ref`s name, with
 /// their relative paths as names), or a `.zip` of one. Rejects like [`import`] does.
 pub fn inspect_openapi(files: &[SourceFile<'_>]) -> Result<SpecOverview, ImportError> {
-    let _ = files;
-    Err(ImportError::Files {
-        message: "the OpenAPI wizard is not built yet".into(),
-    })
+    let loaded = spec_files::load(files)?;
+    let (converted, mut losses) = to_openapi3(&loaded.root)?;
+    let root = converted.as_ref().unwrap_or(&loaded.root);
+    openapi::check_version(root)?;
+    let mut all = loaded.losses.clone();
+    if !loaded.multi {
+        let refs = spec_files::references(&loaded.root);
+        if !refs.is_empty() {
+            all.push(Loss {
+                location: "collection".into(),
+                kind: LossKind::Other,
+                effect: LossEffect::Dropped,
+                detail: openapi::external_refs_detail(&refs),
+            });
+        }
+    }
+    all.append(&mut losses);
+    let spec_version = loaded
+        .root
+        .str_of("swagger")
+        .or_else(|| loaded.root.str_of("openapi"))
+        .unwrap_or_default();
+    Ok(openapi::overview(
+        root,
+        &loaded.main,
+        spec_version,
+        loaded.files,
+        all,
+    ))
 }
 
 /// Converts an OpenAPI 3.x or Swagger 2.0 spec (`files` as for [`inspect_openapi`]) with the
 /// wizard's choices. `OpenApiOptions::default()` gives the same files as [`import`].
+///
+/// With [`OpenApiOptions::keep_spec`] the collection also holds the spec and names it in
+/// `extensions.requesttailor.contract.spec` of `opencollection.yml`: a single file (OpenAPI
+/// or Swagger 2.0) with its bytes as given, as `openapi.json` (JSON) or `openapi.yaml`
+/// (YAML; never `.yml`, which the collection reader would take for a request); a multi-file
+/// spec bundled into one `openapi.json` (see `spec_files`: the other files under
+/// `x-requesttailor-bundled`, references rewritten to local pointers).
 pub fn import_openapi(
     files: &[SourceFile<'_>],
     options: &OpenApiOptions,
 ) -> Result<Import, ImportError> {
-    let _ = (files, options);
-    Err(ImportError::Files {
-        message: "the OpenAPI wizard is not built yet".into(),
-    })
+    let loaded = spec_files::load(files)?;
+    let (converted, conversion_losses) = to_openapi3(&loaded.root)?;
+    let mut losses = loaded.losses.clone();
+    losses.extend(conversion_losses);
+    let kept = options.keep_spec.then(|| kept_spec(&loaded));
+    let mut import = openapi::build(
+        openapi::Source {
+            root: converted.as_ref().unwrap_or(&loaded.root),
+            file_name: &loaded.main,
+            report_external: !loaded.multi,
+            losses,
+        },
+        options,
+        kept.as_ref().map(|(name, _)| name.clone()),
+    )?;
+    if let Some((name, bytes)) = kept {
+        import.files.files.insert(name, bytes);
+    }
+    Ok(import)
+}
+
+/// The OpenAPI 3 form of a Swagger 2.0 document (`None` for anything else) and what the
+/// conversion lost.
+fn to_openapi3(root: &Value) -> Result<(Option<Value>, Vec<Loss>), ImportError> {
+    if !root.is_obj() {
+        return Err(common::invalid(
+            ImportFormat::Openapi,
+            "expected a JSON or YAML object",
+        ));
+    }
+    match root.str_of("swagger") {
+        Some(v) if v.trim().starts_with("2.") || v.trim() == "2" => {
+            let (converted, losses) = swagger2::convert(root);
+            Ok((Some(converted), losses))
+        }
+        Some(v) => Err(ImportError::UnsupportedVersion {
+            format: ImportFormat::Openapi,
+            version: format!("{v} (Swagger)"),
+        }),
+        None => Ok((None, Vec::new())),
+    }
+}
+
+/// The file the collection keeps the spec in, and its bytes.
+fn kept_spec(loaded: &spec_files::Loaded) -> (String, Vec<u8>) {
+    if loaded.bundled {
+        let mut text = loaded.root.to_json_pretty();
+        text.push('\n');
+        return ("openapi.json".into(), text.into_bytes());
+    }
+    let name = if loaded.main_json {
+        "openapi.json"
+    } else {
+        "openapi.yaml"
+    };
+    let bytes = if std::str::from_utf8(&loaded.main_bytes).is_ok() {
+        loaded.main_bytes.clone()
+    } else {
+        // UTF-16 as Windows tools write it: kept as UTF-8, which every reader takes.
+        common::text(&loaded.main_bytes)
+            .map(|t| t.as_bytes().to_vec())
+            .unwrap_or_else(|| loaded.main_bytes.clone())
+    };
+    (name.into(), bytes)
 }
 
 /// The files a spec document references through `$ref` (relative paths or URLs as written,
 /// without `#fragment`, deduplicated, in order of appearance), for fetching a multi-file spec
-/// from a URL. Not a spec, or unreadable: empty.
+/// from a URL. Works on the referenced files too (a schema file is no spec, but may reference
+/// others). Not JSON or YAML: empty.
 pub fn openapi_references(file: &SourceFile<'_>) -> Vec<String> {
-    let _ = file;
-    Vec::new()
+    let Some(text) = common::text(file.data) else {
+        return Vec::new();
+    };
+    if text.len() > MAX_INPUT_BYTES {
+        return Vec::new();
+    }
+    match value::parse_any(&text) {
+        Ok(v) => spec_files::references(&v),
+        Err(_) => Vec::new(),
+    }
 }
 
 /// The files of a `.zip` archive (stored or deflated entries; directories, hidden files and
 /// `__MACOSX` skipped), bounded by [`MAX_INPUT_BYTES`] in total.
 pub fn unzip(data: &[u8]) -> Result<Vec<(String, Vec<u8>)>, ImportError> {
-    let _ = data;
-    Err(ImportError::Files {
-        message: "zip archives are not supported yet".into(),
-    })
+    zip::unzip(data)
 }
 
 /// The file name without directories and without the first of `extensions` it ends with

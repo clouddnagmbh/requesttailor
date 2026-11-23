@@ -1,0 +1,17 @@
+{
+  "collectionName": "Swagger Petstore",
+  "report": {
+    "environments": 1,
+    "folders": 1,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      }
+    ],
+    "requests": 3
+  }
+}

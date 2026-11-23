@@ -1,0 +1,6 @@
+name: /notes-api
+variables:
+  - name: baseUrl
+    value: /notes-api
+  - secret: true
+    name: apiKey

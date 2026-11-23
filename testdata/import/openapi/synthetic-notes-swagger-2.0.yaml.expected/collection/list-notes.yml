@@ -1,0 +1,33 @@
+info:
+  name: List notes
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/notes"
+  params:
+    - name: q
+      value: groceries
+      type: query
+      disabled: true
+    - name: tags
+      value: ""
+      type: query
+      disabled: true
+  auth:
+    type: apikey
+    key: access_token
+    value: "{{apiKey}}"
+    placement: query
+
+examples:
+  - name: 200 Notes
+    response:
+      status: 200
+      headers:
+        - name: Content-Type
+          value: text/plain
+      body:
+        type: text
+        data: milk, eggs

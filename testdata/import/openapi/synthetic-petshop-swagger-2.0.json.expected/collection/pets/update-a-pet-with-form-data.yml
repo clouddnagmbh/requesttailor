@@ -1,0 +1,21 @@
+info:
+  name: Update a pet with form data
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pets/:petId"
+  params:
+    - name: petId
+      value: "42"
+      type: path
+      description: ID of the pet
+  body:
+    type: form-urlencoded
+    data:
+      - name: name
+        value: string
+      - name: status
+        value: available
+  auth: inherit

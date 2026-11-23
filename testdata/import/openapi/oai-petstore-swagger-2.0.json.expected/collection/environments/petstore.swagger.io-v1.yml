@@ -1,0 +1,4 @@
+name: petstore.swagger.io/v1
+variables:
+  - name: baseUrl
+    value: http://petstore.swagger.io/v1

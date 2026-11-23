@@ -1,0 +1,41 @@
+{
+  "collectionName": "Kennel",
+  "report": {
+    "environments": 2,
+    "folders": 2,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "`schemas/owner.yaml` was not given; references to it are not resolved",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "collection"
+      },
+      {
+        "detail": "references to URLs are not fetched (`https://schemas.example.com/problem-detail.json`); download the files and add them",
+        "effect": "dropped",
+        "kind": "other",
+        "location": "collection"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "dogs / Add a dog"
+      },
+      {
+        "detail": "`application/json` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "owners / Set the owner"
+      }
+    ],
+    "requests": 4
+  }
+}

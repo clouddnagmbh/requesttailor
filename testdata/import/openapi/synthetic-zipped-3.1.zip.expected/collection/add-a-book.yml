@@ -1,0 +1,20 @@
+info:
+  name: Add a book
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/books"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "isbn": "978-0-00-000000-2",
+        "title": "A Synthetic Novel",
+        "year": 2026
+      }
+  auth: inherit

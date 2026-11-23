@@ -1,0 +1,19 @@
+opencollection: "1.0.0"
+
+info:
+  name: Kennel
+
+request:
+  auth:
+    type: bearer
+    token: "{{token}}"
+  variables:
+    - name: baseUrl
+      value: https://kennel.example.com/v1
+
+docs: |-
+  Version 1.4.0
+
+  A synthetic multi-file description; `schemas/owner.yaml` is missing on purpose.
+
+bundled: false

@@ -1,0 +1,4 @@
+name: library.example.org/api
+variables:
+  - name: baseUrl
+    value: https://library.example.org/api
