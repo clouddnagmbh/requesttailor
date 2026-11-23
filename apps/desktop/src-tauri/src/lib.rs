@@ -28,10 +28,11 @@ pub mod core;
 /// Wave 12, strand A: semantic diff.
 mod diffs;
 pub mod files;
+/// Wave 16: folder and collection scripts.
+mod folder_scripts;
 /// OpenAPI import wizard and run wizard.
 mod openapi;
 /// Wave 14: variable completion.
-mod folder_scripts;
 mod variables;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;

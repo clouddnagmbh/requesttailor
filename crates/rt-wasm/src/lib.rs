@@ -657,6 +657,8 @@ mod collections_js;
 #[cfg(target_arch = "wasm32")]
 mod cookies_js;
 #[cfg(target_arch = "wasm32")]
+mod folder_scripts_js;
+#[cfg(target_arch = "wasm32")]
 mod git_js;
 #[cfg(target_arch = "wasm32")]
 mod grpc_js;
@@ -681,7 +683,6 @@ mod streams_js;
 /// Wave 14: variable completion.
 #[cfg(target_arch = "wasm32")]
 mod variables_js;
-mod folder_scripts_js;
 // Wave 12 (Git for APIs): one module per strand.
 #[cfg(target_arch = "wasm32")]
 mod compare_js;
