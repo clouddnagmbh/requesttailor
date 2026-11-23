@@ -79,7 +79,8 @@ test("an extension dialog traps focus, closes with Escape and gives focus back",
   await page.keyboard.press("Shift+Tab");
   expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
   // Width as asked for (420), title bar and close button.
-  expect((await dialog.boundingBox())!.width).toBe(420);
+  // Polled and rounded: the dialog may still be scaling in when the box is read.
+  await expect.poll(async () => Math.round((await dialog.boundingBox())!.width)).toBe(420);
   await expect(dialog.getByRole("button", { name: "Close" })).toBeVisible();
 
   await page.keyboard.press("Escape");
