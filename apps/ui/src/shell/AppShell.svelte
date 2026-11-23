@@ -446,7 +446,10 @@
               class="view"
               data-testid="view-{v.id}"
               aria-selected={sideView === v.id}
-              onclick={() => showView(v.id)}>{v.label}</button
+              onclick={(e) => {
+                e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+                void showView(v.id);
+              }}>{v.label}</button
             >
           {/each}
         </div>
@@ -633,10 +636,26 @@
     align-items: stretch;
     gap: 2px;
     height: var(--rt-bar-height);
-    padding: 0 6px;
+    /* The first label lines up with the sidebar content, the last one keeps the same inset to the
+       edge; a narrow sidebar scrolls the views instead of clipping the last one. */
+    padding: 0 0 0 calc(var(--rt-side-inset) - 8px);
+    overflow-x: auto;
+    scroll-padding-inline: var(--rt-side-inset);
+    scrollbar-width: none;
     border-bottom: 1px solid var(--rt-border);
   }
+  .views::-webkit-scrollbar {
+    display: none;
+  }
+  .views::after {
+    /* Keeps the end inset when the row scrolls (padding-right alone is dropped in some engines). */
+    content: "";
+    flex: none;
+    width: calc(var(--rt-side-inset) - 2px);
+  }
   .view {
+    flex: none;
+    white-space: nowrap;
     padding: 0 8px;
     border: none;
     border-bottom: 2px solid transparent;

@@ -261,7 +261,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px var(--rt-gap) 6px 12px;
+    padding: 6px var(--rt-gap) 6px var(--rt-side-inset);
     color: var(--rt-fg-muted);
     font-size: var(--rt-size-small);
     text-transform: uppercase;
@@ -277,7 +277,7 @@
     align-items: center;
     gap: 6px;
     min-height: 26px;
-    padding: 0 var(--rt-gap) 0 calc(12px + (var(--level) - 1) * 14px);
+    padding: 0 var(--rt-gap) 0 calc(var(--rt-side-inset) + (var(--level) - 1) * 14px);
     cursor: default;
     white-space: nowrap;
     user-select: none;
