@@ -18,7 +18,17 @@ import type {
   Environment,
   FileChange,
   GitBranch,
+  GitAction,
+  GitActionResult,
+  GitChangedFile,
   GitCommit,
+  GitGraphPage,
+  GitGraphQuery,
+  GitPlan,
+  GitRef,
+  GitRemote,
+  GitStash,
+  GitUndoEntry,
   GitConflict,
   GitDiff,
   GitIdentity,
@@ -217,6 +227,28 @@ export interface GitApi {
   /** Commits reachable from `to` along first parents but not from `from` (`null`: down to
    *  the root), newest first. */
   commits(from: string | null, to: string, limit: number): Promise<GitCommit[]>;
+
+  // Wave 14 (interface): Git for the whole repository of the active collection, generic (no
+  // assumption that it is a collection). Paths repository-relative with a leading `/`.
+  // Strand F: the commit graph and what a commit changed.
+  /** A page of the commit graph (all refs, topological, newest first). */
+  graph(query: GitGraphQuery): Promise<GitGraphPage>;
+  /** All branches, remote branches, tags and a detached `HEAD`, with ahead/behind. */
+  refs(): Promise<GitRef[]>;
+  /** Files changed from `from` to `to` (`null`: `to` against its first parent). */
+  changes(from: string | null, to: string): Promise<GitChangedFile[]>;
+  /** Line diff of any file between two revs (`to` `null`: the working tree). */
+  fileDiff(from: string | null, to: string | null, path: string): Promise<GitDiff>;
+  // Strand G: the wizards. `plan` only reads; `apply` plans again and rejects with kind `git`
+  // and `GitPlan.blocked.message` when blocked, kind `git-auth` when credentials are needed.
+  remotes(): Promise<GitRemote[]>;
+  stashes(): Promise<GitStash[]>;
+  plan(action: GitAction): Promise<GitPlan>;
+  apply(action: GitAction): Promise<GitActionResult>;
+  /** The newest entry of the action journal, `null` if there is none. */
+  lastAction(): Promise<GitUndoEntry | null>;
+  /** Takes the entry `id` back (refs, working tree); rejects when it is `stale`. */
+  undo(id: string): Promise<GitActionResult>;
 }
 
 /** Semantic diffs: per request, folder, collection and environment field, secrets only by

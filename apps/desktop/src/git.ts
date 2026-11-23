@@ -7,6 +7,8 @@
 import type { GitApi } from "@requesttailor/ui";
 
 import type { Call } from "./backend";
+import { tauriGitActions } from "./git-actions";
+import { tauriGitGraph } from "./git-graph";
 
 export function tauriGit(call: Call): GitApi {
   return {
@@ -36,5 +38,8 @@ export function tauriGit(call: Call): GitApi {
     fileLog: (path, limit) => call("git_file_log", { path, limit }),
     mergeBase: (a, b) => call("git_merge_base", { a, b }),
     commits: (from, to, limit) => call("git_commits", { from, to, limit }),
+    // Wave 14 (interface): graph (strand F) and wizards (strand G).
+    ...tauriGitGraph(call),
+    ...tauriGitActions(call),
   };
 }

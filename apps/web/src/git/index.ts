@@ -30,6 +30,8 @@ import { directoryFs } from "./fs";
 import { companionHttp, NO_COMPANION_MESSAGE } from "./http";
 import type { Network, Repo } from "./repo";
 import { refuseSecrets, scanPaths } from "./scan";
+import { webGitActions } from "./actions";
+import { webGitGraph, type WebGitContext } from "./graph";
 
 type RepoModule = typeof import("./repo");
 type RevisionsModule = typeof import("./revisions");
@@ -132,6 +134,8 @@ export function webGit(host: WebHost): GitApi {
 
   const session = () => host.session();
   const repo = () => repoAt(session().handle);
+  // Wave 14: what the graph (./graph.ts) and the wizards (./actions.ts) get.
+  const wave14: WebGitContext = { host, repo, run: (op) => run(op) };
 
   function requireSaved(what: string): void {
     if (session().ws.dirty().length > 0) {
@@ -289,5 +293,9 @@ export function webGit(host: WebHost): GitApi {
     fileLog: (path, limit) => run(async () => (await revisions()).fileLog(repo(), path, limit)),
     mergeBase: (a, b) => run(async () => (await revisions()).mergeBase(repo(), a, b)),
     commits: (from, to, limit) => run(async () => (await revisions()).commits(repo(), from, to, limit)),
+
+    // Wave 14 (interface): graph (strand F, ./graph.ts) and wizards (strand G, ./actions.ts).
+    ...webGitGraph(wave14),
+    ...webGitActions(wave14),
   };
 }

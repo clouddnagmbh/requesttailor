@@ -1258,6 +1258,26 @@ export interface RequestComparison {
   body_text: boolean;
   tests: TestChange[];
   error: ValueChange<string> | null;
+  /** Wave 14 (strand H): both responses for the side-by-side view. */
+  sides?: ResponseSides;
+}
+
+/** `rt_app::compare::ResponseSides`; a side is `null` where the request was not sent. */
+export interface ResponseSides {
+  old: ResponseSnapshot | null;
+  new: ResponseSnapshot | null;
+}
+
+/** One response as the comparison shows it, masked. */
+export interface ResponseSnapshot {
+  status: number;
+  duration_ms: number;
+  size: number;
+  headers: [string, string][];
+  content_type?: string;
+  /** Text preview (at most 256 KiB); absent for binary bodies. */
+  body?: string;
+  truncated: boolean;
 }
 
 export interface RunComparison {
@@ -1568,4 +1588,183 @@ export interface NewCollection {
   /** `baseUrl` of the first environment, else of the collection. */
   base_url?: string | null;
   environment?: string | null;
+}
+
+// ---- Wave 14: Git for any repository (`rt_app::git::{graph, actions}`) ----
+// Paths are repository-relative with a leading `/`. Nothing assumes the repository is a
+// collection: a file with `collection` set gets the semantic diff, every other the line diff.
+
+export type GitRefKind = "local" | "remote" | "tag" | "head";
+
+export interface GitRef {
+  /** `refs/heads/main`, `refs/remotes/origin/main`, `refs/tags/v1`, `HEAD`. */
+  full: string;
+  /** As shown: `main`, `origin/main`, `v1`, `HEAD`. */
+  name: string;
+  kind: GitRefKind;
+  target: string;
+  current: boolean;
+  upstream?: string;
+  ahead: number;
+  behind: number;
+  /** Annotated tags: first line of the message. */
+  message?: string;
+}
+
+export interface GitGraphQuery {
+  skip?: number;
+  limit: number;
+  /** Full ref names to start from; absent: all refs and `HEAD`. */
+  refs?: string[];
+}
+
+export interface GitGraphCommit extends GitCommit {
+  /** First parent first; two or more: a merge commit. */
+  parents: string[];
+  email: string;
+  /** Full names of the refs at this commit. */
+  refs?: string[];
+}
+
+/** Topological order, newest first; all refs on every page. */
+export interface GitGraphPage {
+  commits: GitGraphCommit[];
+  refs: GitRef[];
+  head?: string;
+  detached: boolean;
+  more: boolean;
+}
+
+export interface GitChangedFile {
+  path: string;
+  change: GitFileChange;
+  from?: string;
+  binary: boolean;
+  /** `CollectionEntry.id` when the file belongs to a collection of the set. */
+  collection?: string;
+}
+
+export type GitResetMode = "keep-changes" | "discard";
+
+/** What a wizard asks Git to do (`rt_app::git::actions::GitAction`). Treat an unknown
+ *  `action` as unsupported: wave 15 adds more. */
+export type GitAction =
+  | { action: "create-branch"; name: string; start: string; switch?: boolean }
+  | { action: "switch"; target: string }
+  | { action: "rename-branch"; from: string; to: string }
+  | { action: "delete-branch"; name: string; force?: boolean }
+  | { action: "merge"; from: string }
+  | { action: "pull" }
+  | { action: "push" }
+  | { action: "publish"; branch: string; remote: string }
+  | { action: "fetch"; remote?: string }
+  | { action: "add-remote"; name: string; url: string }
+  | { action: "remove-remote"; name: string }
+  | { action: "rename-remote"; from: string; to: string }
+  | { action: "set-remote-url"; name: string; url: string }
+  | { action: "stash"; message?: string }
+  | { action: "unstash"; index: number; keep?: boolean }
+  | { action: "drop-stash"; index: number }
+  | { action: "revert"; commit: string }
+  | { action: "cherry-pick"; commit: string }
+  | { action: "reset"; target: string; mode: GitResetMode }
+  | { action: "discard"; paths: string[] }
+  | { action: "create-tag"; name: string; target: string; message?: string }
+  | { action: "delete-tag"; name: string }
+  | { action: "push-tag"; name: string; remote: string };
+
+/** Why an action cannot run now; the UI explains each and offers the way out. */
+export type GitBlockReason =
+  | "unsaved-changes"
+  | "local-changes"
+  | "in-progress"
+  | "detached"
+  | "no-upstream"
+  | "diverged"
+  | "nothing-to-do"
+  | "invalid-name"
+  | "exists"
+  | "not-found"
+  | "current-branch"
+  | "not-merged"
+  | "rejected"
+  | "auth-required"
+  | "network"
+  | "unsupported";
+
+export interface GitBlock {
+  reason: GitBlockReason;
+  message: string;
+}
+
+export interface GitRefMove {
+  name: string;
+  before: string | null;
+  after: string | null;
+}
+
+export interface GitMergeFile {
+  path: string;
+  /** Merged field by field (a collection file) or line by line. */
+  semantic: boolean;
+  clean: number;
+  conflicts: string[];
+}
+
+export interface GitMergePreview {
+  fast_forward: boolean;
+  commits: GitCommit[];
+  files: GitMergeFile[];
+}
+
+/** What an action would do, computed without changing anything. */
+export interface GitPlan {
+  action: GitAction;
+  steps: string[];
+  refs: GitRefMove[];
+  files?: string[];
+  network: boolean;
+  backup: boolean;
+  undoable: boolean;
+  merge?: GitMergePreview;
+  destructive: boolean;
+  warnings?: string[];
+  blocked?: GitBlock;
+}
+
+export interface GitUndoEntry {
+  id: string;
+  /** The `GitAction` tag. */
+  action: string;
+  summary: string;
+  time: number;
+  refs: GitRefMove[];
+  backups?: string[];
+  stash?: string;
+  /** Set when refs moved since: undo is refused. */
+  stale?: string;
+}
+
+export interface GitActionResult {
+  message: string;
+  undo?: GitUndoEntry;
+  outcome?: GitPullResult;
+  /** The working tree changed: reload every collection of the repository. */
+  reload: boolean;
+}
+
+export interface GitRemote {
+  name: string;
+  url: string;
+  push_url?: string;
+}
+
+/** A parked change (`stash@{index}`). */
+export interface GitStash {
+  index: number;
+  oid: string;
+  message: string;
+  time: number;
+  branch?: string;
+  files: string[];
 }

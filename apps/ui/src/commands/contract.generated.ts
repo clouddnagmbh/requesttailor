@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitBranch, GitCommit, GitConflict, GitDiff, GitFileCommit, GitIdentity, GitPullResult, GitResolution, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -1780,6 +1780,353 @@ export const newCollections: NewCollection[] = [
   }
 ];
 
+export const gitGraphQuery: GitGraphQuery = {
+  "limit": 2000,
+  "refs": [
+    "refs/heads/main"
+  ],
+  "skip": 2000
+};
+
+export const gitGraphPage: GitGraphPage = {
+  "commits": [
+    {
+      "author": "Ada",
+      "email": "ada@example.com",
+      "oid": "cccccccccccccccccccccccccccccccccccccccc",
+      "parents": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "refs": [
+        "refs/heads/main",
+        "refs/tags/v1"
+      ],
+      "summary": "Merge feature into main",
+      "time": 1795000000
+    },
+    {
+      "author": "Ada",
+      "email": "ada@example.com",
+      "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "parents": [],
+      "summary": "Initial collection",
+      "time": 1795000000
+    }
+  ],
+  "detached": false,
+  "head": "cccccccccccccccccccccccccccccccccccccccc",
+  "more": true,
+  "refs": [
+    {
+      "ahead": 1,
+      "behind": 2,
+      "current": true,
+      "full": "refs/heads/main",
+      "kind": "local",
+      "name": "main",
+      "target": "cccccccccccccccccccccccccccccccccccccccc",
+      "upstream": "origin/main"
+    },
+    {
+      "ahead": 0,
+      "behind": 0,
+      "current": false,
+      "full": "refs/remotes/origin/main",
+      "kind": "remote",
+      "name": "origin/main",
+      "target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "ahead": 0,
+      "behind": 0,
+      "current": false,
+      "full": "refs/tags/v1",
+      "kind": "tag",
+      "message": "First release",
+      "name": "v1",
+      "target": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    {
+      "ahead": 0,
+      "behind": 0,
+      "current": false,
+      "full": "HEAD",
+      "kind": "head",
+      "name": "HEAD",
+      "target": "cccccccccccccccccccccccccccccccccccccccc"
+    }
+  ]
+};
+
+export const gitChangedFiles: GitChangedFile[] = [
+  {
+    "binary": false,
+    "change": "modified",
+    "collection": "/work/api",
+    "path": "/api/orders/create.yml"
+  },
+  {
+    "binary": true,
+    "change": "renamed",
+    "from": "/logo.png",
+    "path": "/docs/logo.png"
+  }
+];
+
+export const gitActions: GitAction[] = [
+  {
+    "action": "create-branch",
+    "name": "feature/login",
+    "start": "HEAD",
+    "switch": true
+  },
+  {
+    "action": "switch",
+    "target": "origin/release"
+  },
+  {
+    "action": "rename-branch",
+    "from": "a",
+    "to": "b"
+  },
+  {
+    "action": "delete-branch",
+    "force": false,
+    "name": "old"
+  },
+  {
+    "action": "merge",
+    "from": "feature/login"
+  },
+  {
+    "action": "pull"
+  },
+  {
+    "action": "push"
+  },
+  {
+    "action": "publish",
+    "branch": "feature/login",
+    "remote": "origin"
+  },
+  {
+    "action": "fetch"
+  },
+  {
+    "action": "add-remote",
+    "name": "upstream",
+    "url": "https://git.example.com/a.git"
+  },
+  {
+    "action": "remove-remote",
+    "name": "upstream"
+  },
+  {
+    "action": "rename-remote",
+    "from": "upstream",
+    "to": "fork"
+  },
+  {
+    "action": "set-remote-url",
+    "name": "origin",
+    "url": "https://git.example.com/b.git"
+  },
+  {
+    "action": "stash",
+    "message": "half done"
+  },
+  {
+    "action": "unstash",
+    "index": 0,
+    "keep": false
+  },
+  {
+    "action": "drop-stash",
+    "index": 1
+  },
+  {
+    "action": "revert",
+    "commit": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  {
+    "action": "cherry-pick",
+    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  {
+    "action": "reset",
+    "mode": "keep-changes",
+    "target": "HEAD~1"
+  },
+  {
+    "action": "discard",
+    "paths": [
+      "/api/orders/create.yml"
+    ]
+  },
+  {
+    "action": "create-tag",
+    "message": "First release",
+    "name": "v1",
+    "target": "HEAD"
+  },
+  {
+    "action": "delete-tag",
+    "name": "v0"
+  },
+  {
+    "action": "push-tag",
+    "name": "v1",
+    "remote": "origin"
+  }
+];
+
+export const gitPlan: GitPlan = {
+  "action": {
+    "action": "merge",
+    "from": "feature/login"
+  },
+  "backup": true,
+  "blocked": {
+    "message": "Save or discard your changes first.",
+    "reason": "unsaved-changes"
+  },
+  "destructive": false,
+  "files": [
+    "/api/orders/create.yml"
+  ],
+  "merge": {
+    "commits": [
+      {
+        "author": "Ada",
+        "oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "summary": "Login",
+        "time": 1795000000
+      }
+    ],
+    "fast_forward": false,
+    "files": [
+      {
+        "clean": 3,
+        "conflicts": [
+          "http.url"
+        ],
+        "path": "/api/orders/create.yml",
+        "semantic": true
+      },
+      {
+        "clean": 1,
+        "conflicts": [
+          "lines 4-9"
+        ],
+        "path": "/README.md",
+        "semantic": false
+      }
+    ]
+  },
+  "network": false,
+  "refs": [
+    {
+      "after": null,
+      "before": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "name": "refs/heads/main"
+    }
+  ],
+  "steps": [
+    "Brings 2 commits from feature/login into main."
+  ],
+  "undoable": true,
+  "warnings": [
+    "1 field needs your decision."
+  ]
+};
+
+export const gitActionResult: GitActionResult = {
+  "message": "Merged feature/login into main.",
+  "outcome": {
+    "outcome": "conflicts",
+    "paths": [
+      "api/orders/create.yml"
+    ]
+  },
+  "reload": true,
+  "undo": {
+    "action": "merge",
+    "backups": [
+      "refs/requesttailor/backup/1795000000/main"
+    ],
+    "id": "1795000000-1",
+    "refs": [
+      {
+        "after": "cccccccccccccccccccccccccccccccccccccccc",
+        "before": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "refs/heads/main"
+      }
+    ],
+    "stale": "main moved since",
+    "summary": "Merge feature/login into main",
+    "time": 1795000000
+  }
+};
+
+export const gitRemotes: GitRemote[] = [
+  {
+    "name": "origin",
+    "push_url": "git@git.example.com:acme/api.git",
+    "url": "https://git.example.com/acme/api.git"
+  }
+];
+
+export const gitStashes: GitStash[] = [
+  {
+    "branch": "main",
+    "files": [
+      "/api/orders/create.yml"
+    ],
+    "index": 0,
+    "message": "half done",
+    "oid": "dddddddddddddddddddddddddddddddddddddddd",
+    "time": 1795000000
+  }
+];
+
+export const gitBlockReasons: GitBlockReason[] = [
+  "unsaved-changes",
+  "local-changes",
+  "in-progress",
+  "detached",
+  "no-upstream",
+  "diverged",
+  "nothing-to-do",
+  "invalid-name",
+  "exists",
+  "not-found",
+  "current-branch",
+  "not-merged",
+  "rejected",
+  "auth-required",
+  "network",
+  "unsupported"
+];
+
+export const responseSides: ResponseSides = {
+  "new": null,
+  "old": {
+    "body": "{\"id\":1,\"name\":\"A\"}",
+    "content_type": "application/json",
+    "duration_ms": 42,
+    "headers": [
+      [
+        "content-type",
+        "application/json"
+      ]
+    ],
+    "size": 18,
+    "status": 200,
+    "truncated": false
+  }
+};
+
 export const appErrors: AppError[] = [
   {
     "kind": "format",
@@ -3426,6 +3773,23 @@ export const runComparison: RunComparison = {
       "name": "Get user",
       "path": "users/get.yml",
       "same": false,
+      "sides": {
+        "new": null,
+        "old": {
+          "body": "{\"id\":1,\"name\":\"A\"}",
+          "content_type": "application/json",
+          "duration_ms": 42,
+          "headers": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "size": 18,
+          "status": 200,
+          "truncated": false
+        }
+      },
       "status": {
         "new": 404,
         "old": 200

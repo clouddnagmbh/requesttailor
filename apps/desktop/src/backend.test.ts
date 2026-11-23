@@ -73,6 +73,17 @@ describe("TauriBackend", () => {
     await g.fileLog("a.yml", 20);
     await g.mergeBase("main", "feature");
     await g.commits(null, "HEAD", 50);
+    // Wave 14 (interface): graph and wizards.
+    await g.graph({ limit: 2000 });
+    await g.refs();
+    await g.changes(null, "HEAD");
+    await g.fileDiff("HEAD~1", null, "/README.md");
+    await g.remotes();
+    await g.stashes();
+    await g.plan({ action: "create-branch", name: "x", start: "HEAD" });
+    await g.apply({ action: "push" });
+    await g.lastAction();
+    await g.undo("1");
     // Wave 12, strand F: the contract.
     await b.contract.spec();
     await b.contract.check("HEAD~1");
@@ -236,6 +247,16 @@ describe("TauriBackend", () => {
       ["git_file_log", { path: "a.yml", limit: 20 }],
       ["git_merge_base", { a: "main", b: "feature" }],
       ["git_commits", { from: null, to: "HEAD", limit: 50 }],
+      ["git_graph", { query: { limit: 2000 } }],
+      ["git_refs", undefined],
+      ["git_changes", { from: null, to: "HEAD" }],
+      ["git_file_diff", { from: "HEAD~1", to: null, path: "/README.md" }],
+      ["git_remotes", undefined],
+      ["git_stashes", undefined],
+      ["git_plan", { action: { action: "create-branch", name: "x", start: "HEAD" } }],
+      ["git_apply", { action: { action: "push" } }],
+      ["git_last_action", undefined],
+      ["git_undo", { id: "1" }],
       ["contract_spec", undefined],
       ["contract_check", { rev: "HEAD~1" }],
       ["contract_changes", { from: "v1", to: "v2" }],

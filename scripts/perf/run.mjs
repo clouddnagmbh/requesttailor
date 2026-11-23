@@ -6,7 +6,8 @@
 // is sent anywhere. What is measured and how: perf/README.md.
 //
 // Usage: node scripts/perf/run.mjs [options]
-//   --only <list>       comma-separated parts: desktop, frames, keystrokes, diff (default: all)
+//   --only <list>       comma-separated parts: desktop, frames, keystrokes, diff, graph, compare
+//                       (default: all)
 //   --binary <path>     desktop release binary (default: <target dir>/release/rt-desktop)
 //   --collection <dir>  collection the desktop app reopens (default: testdata/conformance/collection)
 //   --runs <n>          desktop starts, the first is discarded (default 10)
@@ -24,11 +25,13 @@ import { arch, cpus, loadavg, platform, release, tmpdir, totalmem } from "node:o
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { measureCompare } from "./compare.mjs";
 import { measureDesktop } from "./desktop.mjs";
+import { measureGraph } from "./graph.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WEB = join(ROOT, "apps", "web");
-const PARTS = ["desktop", "frames", "keystrokes", "diff"];
+const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare"];
 
 export function parseArgs(argv) {
   const opts = { only: PARTS, runs: 10, memoryRuns: 3, check: false, out: join(ROOT, "perf", "results.json") };
@@ -148,7 +151,17 @@ async function diff() {
   }
 }
 
-const STEPS = { desktop, frames, keystrokes, diff };
+/** Wave 14, strand F: the commit graph of 10 000 commits (./graph.mjs). */
+async function graph(opts) {
+  return measureGraph({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+/** Wave 14, strand H: a comparison of 1000 requests (./compare.mjs). */
+async function compare(opts) {
+  return measureCompare({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+const STEPS = { desktop, frames, keystrokes, diff, graph, compare };
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));

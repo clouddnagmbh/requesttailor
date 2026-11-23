@@ -29,6 +29,8 @@ pub mod files;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
 /// Wave 8, strand B.
+mod git_actions;
+mod git_graph;
 mod grpc;
 pub mod history;
 mod import;
@@ -258,5 +260,16 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             // Wave 12, strand G.
             rescue::rescue_scan,
             rescue::rescue_rewrite,
+            // Wave 14 (interface): Git graph (strand F) and wizards (strand G).
+            git_graph::git_graph,
+            git_graph::git_refs,
+            git_graph::git_changes,
+            git_graph::git_file_diff,
+            git_actions::git_remotes,
+            git_actions::git_stashes,
+            git_actions::git_plan,
+            git_actions::git_apply,
+            git_actions::git_last_action,
+            git_actions::git_undo,
         ])
 }

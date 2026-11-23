@@ -165,6 +165,17 @@ const COMMANDS: &[&str] = &[
     // Wave 12, strand G.
     "rescue_scan",
     "rescue_rewrite",
+    // Wave 14 (interface): Git graph (strand F) and wizards (strand G).
+    "git_graph",
+    "git_refs",
+    "git_changes",
+    "git_file_diff",
+    "git_remotes",
+    "git_stashes",
+    "git_plan",
+    "git_apply",
+    "git_last_action",
+    "git_undo",
 ];
 
 fn main() {

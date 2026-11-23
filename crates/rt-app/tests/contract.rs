@@ -19,7 +19,7 @@ use rt_app::auth::{AuthPrompt, DeviceCodePrompt, TokenInfo};
 use rt_app::cookies::CookieInfo;
 use rt_app::git::{
     DiffHunk, DiffLine, DiffLineKind, GitBranch, GitCommit, GitConflict, GitDiff, GitFile,
-    GitFileState, GitIdentity, GitPullResult, GitResolution, GitStatus,
+    GitFileChange, GitFileState, GitIdentity, GitPullResult, GitResolution, GitStatus,
 };
 use rt_app::mcp_client::{
     McpCallResult, McpContent, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool,
@@ -868,6 +868,315 @@ fn git_diff() -> GitDiff {
 
 /// Wave 14: a root with two collections in subfolders (one in Git) and a root that is a
 /// collection itself.
+fn wave14_commit(oid: &str, summary: &str) -> GitCommit {
+    GitCommit {
+        oid: oid.repeat(40 / oid.len()),
+        summary: summary.into(),
+        author: "Ada".into(),
+        time: 1_795_000_000,
+    }
+}
+
+fn git_graph_query() -> rt_app::git::graph::GitGraphQuery {
+    rt_app::git::graph::GitGraphQuery {
+        skip: 2000,
+        limit: 2000,
+        refs: Some(vec!["refs/heads/main".into()]),
+    }
+}
+
+fn git_graph_page() -> rt_app::git::graph::GitGraphPage {
+    use rt_app::git::graph::*;
+    GitGraphPage {
+        commits: vec![
+            GitGraphCommit {
+                commit: wave14_commit("c", "Merge feature into main"),
+                parents: vec!["a".repeat(40), "b".repeat(40)],
+                email: "ada@example.com".into(),
+                refs: vec!["refs/heads/main".into(), "refs/tags/v1".into()],
+            },
+            GitGraphCommit {
+                commit: wave14_commit("a", "Initial collection"),
+                parents: vec![],
+                email: "ada@example.com".into(),
+                refs: vec![],
+            },
+        ],
+        refs: vec![
+            GitRef {
+                full: "refs/heads/main".into(),
+                name: "main".into(),
+                kind: GitRefKind::Local,
+                target: "c".repeat(40),
+                current: true,
+                upstream: Some("origin/main".into()),
+                ahead: 1,
+                behind: 2,
+                message: None,
+            },
+            GitRef {
+                full: "refs/remotes/origin/main".into(),
+                name: "origin/main".into(),
+                kind: GitRefKind::Remote,
+                target: "a".repeat(40),
+                current: false,
+                upstream: None,
+                ahead: 0,
+                behind: 0,
+                message: None,
+            },
+            GitRef {
+                full: "refs/tags/v1".into(),
+                name: "v1".into(),
+                kind: GitRefKind::Tag,
+                target: "c".repeat(40),
+                current: false,
+                upstream: None,
+                ahead: 0,
+                behind: 0,
+                message: Some("First release".into()),
+            },
+            GitRef {
+                full: "HEAD".into(),
+                name: "HEAD".into(),
+                kind: GitRefKind::Head,
+                target: "c".repeat(40),
+                current: false,
+                upstream: None,
+                ahead: 0,
+                behind: 0,
+                message: None,
+            },
+        ],
+        head: Some("c".repeat(40)),
+        detached: false,
+        more: true,
+    }
+}
+
+fn git_changed_files() -> Vec<rt_app::git::graph::GitChangedFile> {
+    use rt_app::git::graph::GitChangedFile;
+    vec![
+        GitChangedFile {
+            path: "/api/orders/create.yml".into(),
+            change: GitFileChange::Modified,
+            from: None,
+            binary: false,
+            collection: Some("/work/api".into()),
+        },
+        GitChangedFile {
+            path: "/docs/logo.png".into(),
+            change: GitFileChange::Renamed,
+            from: Some("/logo.png".into()),
+            binary: true,
+            collection: None,
+        },
+    ]
+}
+
+fn git_actions() -> Vec<rt_app::git::actions::GitAction> {
+    use rt_app::git::actions::{GitAction::*, GitResetMode};
+    vec![
+        CreateBranch {
+            name: "feature/login".into(),
+            start: "HEAD".into(),
+            switch: true,
+        },
+        Switch {
+            target: "origin/release".into(),
+        },
+        RenameBranch {
+            from: "a".into(),
+            to: "b".into(),
+        },
+        DeleteBranch {
+            name: "old".into(),
+            force: false,
+        },
+        Merge {
+            from: "feature/login".into(),
+        },
+        Pull,
+        Push,
+        Publish {
+            branch: "feature/login".into(),
+            remote: "origin".into(),
+        },
+        Fetch { remote: None },
+        AddRemote {
+            name: "upstream".into(),
+            url: "https://git.example.com/a.git".into(),
+        },
+        RemoveRemote {
+            name: "upstream".into(),
+        },
+        RenameRemote {
+            from: "upstream".into(),
+            to: "fork".into(),
+        },
+        SetRemoteUrl {
+            name: "origin".into(),
+            url: "https://git.example.com/b.git".into(),
+        },
+        Stash {
+            message: Some("half done".into()),
+        },
+        Unstash {
+            index: 0,
+            keep: false,
+        },
+        DropStash { index: 1 },
+        Revert {
+            commit: "c".repeat(40),
+        },
+        CherryPick {
+            commit: "b".repeat(40),
+        },
+        Reset {
+            target: "HEAD~1".into(),
+            mode: GitResetMode::KeepChanges,
+        },
+        Discard {
+            paths: vec!["/api/orders/create.yml".into()],
+        },
+        CreateTag {
+            name: "v1".into(),
+            target: "HEAD".into(),
+            message: Some("First release".into()),
+        },
+        DeleteTag { name: "v0".into() },
+        PushTag {
+            name: "v1".into(),
+            remote: "origin".into(),
+        },
+    ]
+}
+
+fn git_plan() -> rt_app::git::actions::GitPlan {
+    use rt_app::git::actions::*;
+    GitPlan {
+        action: GitAction::Merge {
+            from: "feature/login".into(),
+        },
+        steps: vec!["Brings 2 commits from feature/login into main.".into()],
+        refs: vec![GitRefMove {
+            name: "refs/heads/main".into(),
+            before: Some("a".repeat(40)),
+            after: None,
+        }],
+        files: vec!["/api/orders/create.yml".into()],
+        network: false,
+        backup: true,
+        undoable: true,
+        merge: Some(GitMergePreview {
+            fast_forward: false,
+            commits: vec![wave14_commit("b", "Login")],
+            files: vec![
+                GitMergeFile {
+                    path: "/api/orders/create.yml".into(),
+                    semantic: true,
+                    clean: 3,
+                    conflicts: vec!["http.url".into()],
+                },
+                GitMergeFile {
+                    path: "/README.md".into(),
+                    semantic: false,
+                    clean: 1,
+                    conflicts: vec!["lines 4-9".into()],
+                },
+            ],
+        }),
+        destructive: false,
+        warnings: vec!["1 field needs your decision.".into()],
+        blocked: Some(GitBlock {
+            reason: GitBlockReason::UnsavedChanges,
+            message: "Save or discard your changes first.".into(),
+        }),
+    }
+}
+
+fn git_action_result() -> rt_app::git::actions::GitActionResult {
+    use rt_app::git::actions::*;
+    GitActionResult {
+        message: "Merged feature/login into main.".into(),
+        undo: Some(GitUndoEntry {
+            id: "1795000000-1".into(),
+            action: "merge".into(),
+            summary: "Merge feature/login into main".into(),
+            time: 1_795_000_000,
+            refs: vec![GitRefMove {
+                name: "refs/heads/main".into(),
+                before: Some("a".repeat(40)),
+                after: Some("c".repeat(40)),
+            }],
+            backups: vec![backup_ref(1_795_000_000, "main")],
+            stash: None,
+            stale: Some("main moved since".into()),
+        }),
+        outcome: Some(GitPullResult::Conflicts {
+            paths: vec!["api/orders/create.yml".into()],
+        }),
+        reload: true,
+    }
+}
+
+fn git_remotes() -> Vec<rt_app::git::actions::GitRemote> {
+    vec![rt_app::git::actions::GitRemote {
+        name: "origin".into(),
+        url: "https://git.example.com/acme/api.git".into(),
+        push_url: Some("git@git.example.com:acme/api.git".into()),
+    }]
+}
+
+fn git_stashes() -> Vec<rt_app::git::actions::GitStash> {
+    vec![rt_app::git::actions::GitStash {
+        index: 0,
+        oid: "d".repeat(40),
+        message: "half done".into(),
+        time: 1_795_000_000,
+        branch: Some("main".into()),
+        files: vec!["/api/orders/create.yml".into()],
+    }]
+}
+
+fn git_block_reasons() -> Vec<rt_app::git::actions::GitBlockReason> {
+    use rt_app::git::actions::GitBlockReason::*;
+    vec![
+        UnsavedChanges,
+        LocalChanges,
+        InProgress,
+        Detached,
+        NoUpstream,
+        Diverged,
+        NothingToDo,
+        InvalidName,
+        Exists,
+        NotFound,
+        CurrentBranch,
+        NotMerged,
+        Rejected,
+        AuthRequired,
+        Network,
+        Unsupported,
+    ]
+}
+
+fn response_sides() -> rt_app::compare::ResponseSides {
+    use rt_app::compare::{ResponseSides, ResponseSnapshot};
+    ResponseSides {
+        old: Some(ResponseSnapshot {
+            status: 200,
+            duration_ms: 42,
+            size: 18,
+            headers: vec![("content-type".into(), "application/json".into())],
+            content_type: Some("application/json".into()),
+            body: Some("{\"id\":1,\"name\":\"A\"}".into()),
+            truncated: false,
+        }),
+        new: None,
+    }
+}
+
 fn collection_set() -> rt_app::collections::CollectionSet {
     use rt_app::collections::{CollectionEntry, CollectionRoot, CollectionSet};
     let entry =
@@ -1327,6 +1636,25 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                 },
             ]),
         ),
+        // Wave 14: Git for any repository (graph, actions).
+        ("gitGraphQuery", "GitGraphQuery", j(git_graph_query())),
+        ("gitGraphPage", "GitGraphPage", j(git_graph_page())),
+        (
+            "gitChangedFiles",
+            "GitChangedFile[]",
+            j(git_changed_files()),
+        ),
+        ("gitActions", "GitAction[]", j(git_actions())),
+        ("gitPlan", "GitPlan", j(git_plan())),
+        ("gitActionResult", "GitActionResult", j(git_action_result())),
+        ("gitRemotes", "GitRemote[]", j(git_remotes())),
+        ("gitStashes", "GitStash[]", j(git_stashes())),
+        (
+            "gitBlockReasons",
+            "GitBlockReason[]",
+            j(git_block_reasons()),
+        ),
+        ("responseSides", "ResponseSides", j(response_sides())),
         ("appErrors", "AppError[]", j(app_errors())),
         (
             "environmentWithConfig",
@@ -2080,6 +2408,7 @@ mod wave12 {
                             old: None,
                             new: Some("connection refused".into()),
                         }),
+                        sides: Some(crate::response_sides()),
                     }],
                     from_summary: summary(),
                     to_summary: summary(),

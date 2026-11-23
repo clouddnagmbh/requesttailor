@@ -105,7 +105,39 @@ pub struct RequestComparison {
     pub tests: Vec<TestChange>,
     /// Transport or preparation errors (`None` when the same).
     pub error: Option<ValueChange<String>>,
+    /// Wave 14 (interface, strand H): both responses for the side-by-side view (status, timing,
+    /// headers, body preview), masked like the reports. `None` until strand H fills it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sides: Option<ResponseSides>,
 }
+
+/// Both responses of a [`RequestComparison`]; a side is `None` where the request was not sent.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct ResponseSides {
+    pub old: Option<ResponseSnapshot>,
+    pub new: Option<ResponseSnapshot>,
+}
+
+/// One response as the comparison shows it, masked (secrets as in `SendReport`).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct ResponseSnapshot {
+    pub status: u16,
+    /// Total time and, where the transport knows them, the phases (as `SendReport.timing`).
+    pub duration_ms: u64,
+    pub size: u64,
+    pub headers: Vec<(String, String)>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+    /// Body preview (at most [`SNAPSHOT_BODY_LIMIT`] bytes of text); `None` for binary bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
+    /// The body was longer than the preview.
+    #[serde(default)]
+    pub truncated: bool,
+}
+
+/// Body bytes a [`ResponseSnapshot`] keeps.
+pub const SNAPSHOT_BODY_LIMIT: usize = 256 * 1024;
 
 /// The comparison of two runs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -430,6 +462,7 @@ fn compare_one(
         body_text,
         tests,
         error,
+        sides: None,
     }
 }
 

@@ -33,3 +33,12 @@ description = "Semantic diff of a collection with 1000 requests, 100 of them cha
 unit = "ms"
 # Wave 12: comparing two revisions must feel instant, also in a PR review of a large collection.
 max = 200
+
+# Wave 14, strand F (commit graph, scripts/perf/graph.mjs) adds here, together with its
+# measurement:
+#   [metrics.git_graph]        first rows of a 10 000-commit graph visible, ms, max 1500
+#   [metrics.git_graph_frame]  p95 frame time while scrolling that graph, ms, max 20
+
+# Wave 14, strand H (comparison, scripts/perf/compare.mjs) adds here, together with its
+# measurement:
+#   [metrics.compare_view]     comparison of 1000 requests (100 changed) visible, ms, max 1000
