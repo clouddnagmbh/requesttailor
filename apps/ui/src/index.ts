@@ -22,6 +22,9 @@ export * from "./commands/wave14-stubs";
 
 export type * from "./extensions";
 
+// Wave 14 design foundation: UI primitives and the semantic icon set (guide: ui/README.md).
+export * from "./ui";
+
 /**
  * Mounts the app into `target` with the given backend. A distribution passes its extensions in
  * `options` (wave 9, `./extensions`); the builds of this repository pass none.
