@@ -64,7 +64,9 @@ test("saved changes, a commit and a branch compare, per field", async ({ page })
   await expect(page.getByTestId("line-diff").locator('[data-kind="added"]')).toContainText("method: POST");
   await page.getByTestId("git-view-close").click();
 
-  await page.getByTestId("git-compare-branch").selectOption("main");
+  await page.getByTestId("git-branch").click();
+  await page.getByRole("menuitem", { name: "Compare with" }).click();
+  await page.getByRole("menuitem", { name: "main", exact: true }).click();
   await expect(page.getByTestId("sd-title")).toHaveText("feature → main");
   await expect(field.getByTestId("sd-old")).toHaveText("POST");
   await expect(field.getByTestId("sd-new")).toHaveText("GET");

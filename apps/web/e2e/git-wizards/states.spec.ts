@@ -149,3 +149,11 @@ test("the help button explains the word behind the current state", async ({ page
   await page.getByTestId("git-help").click();
   await expect(page.getByTestId("git-gloss")).toHaveCount(0);
 });
+
+test("the branch menu compares the current branch with another, field by field", async ({ page }) => {
+  await openGitPanel(page, { scenario: "showcase" });
+  await page.getByTestId("git-branch").click();
+  await page.getByRole("menuitem", { name: "Compare with" }).click();
+  await page.getByRole("menuitem", { name: "feature/auth", exact: true }).click();
+  await expect(page.getByTestId("git-view")).toHaveAttribute("data-kind", "diff");
+});
