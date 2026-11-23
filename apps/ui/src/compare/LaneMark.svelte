@@ -4,19 +4,26 @@
      vertical lines, the revision's own as a dot on its lane, as in the commit graph. Lane 0 (a
      tag) is a diamond to the right of the lanes. -->
 <script lang="ts">
-  let { lane, lanes, kind = "branch" }: { lane: number; lanes: number; kind?: "branch" | "remote" | "tag" | "commit" } = $props();
+  let {
+    lane,
+    lanes,
+    kind = "branch",
+    single = false,
+  }: { lane: number; lanes: number; kind?: "branch" | "remote" | "tag" | "commit"; single?: boolean } = $props();
 
   const STEP = 10;
-  const width = $derived(Math.max(1, lanes) * STEP + (lane === 0 ? STEP : 0));
-  const x = (n: number) => (n - 1) * STEP + STEP / 2;
+  const width = $derived(single ? STEP : Math.max(1, lanes) * STEP + (lane === 0 ? STEP : 0));
+  /** `single`: only the revision's own mark, centred. */
+  const x = (n: number) => (single ? STEP / 2 : (n - 1) * STEP + STEP / 2);
 </script>
 
 <svg class="lanes" {width} height="24" viewBox="0 0 {width} 24" aria-hidden="true">
-  {#each Array.from({ length: lanes }, (_, i) => i + 1) as n (n)}
+  {#each single ? [] : Array.from({ length: lanes }, (_, i) => i + 1) as n (n)}
     <line x1={x(n)} x2={x(n)} y1="0" y2="24" stroke="var(--rt-lane-{n})" stroke-opacity={n === lane ? 0.9 : 0.28} stroke-width="2" />
   {/each}
   {#if lane === 0}
-    <rect x={lanes * STEP + 1} y="8" width="8" height="8" transform="rotate(45 {lanes * STEP + 5} 12)" fill="var(--rt-fg-muted)" />
+    {@const at = single ? 0 : lanes * STEP}
+    <rect x={at + 1} y="8" width="8" height="8" transform="rotate(45 {at + 5} 12)" fill="var(--rt-fg-muted)" />
   {:else if kind === "commit"}
     <circle cx={x(lane)} cy="12" r="3.5" fill="var(--rt-bg)" stroke="var(--rt-lane-{lane})" stroke-width="2" />
   {:else}

@@ -90,7 +90,7 @@
     <span class="label">{label}</span>
     <span class="control" class:open>
       {#if selected}
-        <LaneMark lane={selected.lane} lanes={1} kind={selected.kind} />
+        <LaneMark lane={selected.lane} lanes={1} kind={selected.kind} single />
       {/if}
       <input
         bind:this={input}
