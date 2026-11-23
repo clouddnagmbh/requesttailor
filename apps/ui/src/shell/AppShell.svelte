@@ -50,6 +50,8 @@
   import McpSidebar from "../mcp/McpSidebar.svelte";
   import CloneDialog from "../git/CloneDialog.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
+  import { openApiCommands } from "../openapi/commands";
+  import OpenApiHost from "../openapi/OpenApiHost.svelte";
   import CollectionPanel, { type CollectionTab } from "../plugins/CollectionPanel.svelte";
   import { tabsFor } from "../plugins/permissions";
   import PluginsDialog from "../plugins/PluginsDialog.svelte";
@@ -366,6 +368,7 @@
     ...aiCommands(app, ai),
     ...agentCommands(app),
     ...gitApiCommands(app, gitViews),
+    ...openApiCommands(),
     ...(app.collection ? [{ id: "mcp", label: "Test an MCP server", run: () => openMcp() }] : []),
     ...extensions.flatMap((x) =>
       (x.commands?.(extensionContext) ?? []).map((c) => ({ id: `${x.id}:${c.id}`, label: c.label, run: c.run })),
@@ -585,6 +588,7 @@
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
 <CloneDialog open={cloning} onclose={() => (cloning = false)} onopen={adoptCollection} />
 <ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
+<OpenApiHost onopen={adoptCollection} />
 <PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />
 <CookiesDialog open={showingCookies} onclose={() => (showingCookies = false)} />
 <AuthPromptDialog />

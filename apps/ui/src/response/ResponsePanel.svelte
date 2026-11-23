@@ -18,6 +18,7 @@
   import SendNotes from "../plugins/SendNotes.svelte";
   import { pluginsState } from "../plugins/store.svelte";
   import { extensionTabsFor, getExtensions } from "../shell/extension-tabs";
+  import SpecBadge from "../openapi/SpecBadge.svelte";
   import HeadersTable from "./HeadersTable.svelte";
   import ConsolePanel from "./ConsolePanel.svelte";
   import JsonNode from "./JsonNode.svelte";
@@ -32,10 +33,13 @@
     response,
     backend,
     onpick,
+    path = null,
   }: {
     result: StoredResponse;
     response: ReceivedResponse;
     backend: Backend;
+    /** The request's path, for the spec check (`SpecBadge`); `null`: no check. */
+    path?: string | null;
     /** "Set as variable" from the JSON tree (wave 7); absent: no such button. */
     onpick?: (path: string, value: unknown) => void;
   } = $props();
@@ -269,6 +273,7 @@
         {response.redirects.length} redirect{response.redirects.length === 1 ? "" : "s"}
       </span>
     {/if}
+    {#if path}<SpecBadge {backend} {path} {result} />{/if}
     <ExplainButton {result} {backend} />
   </div>
 

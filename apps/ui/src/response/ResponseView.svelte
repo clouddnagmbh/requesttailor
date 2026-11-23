@@ -24,7 +24,7 @@
 <section data-testid="response-view" aria-label="Response" aria-busy={app.sending[path] ?? false}>
   {#if result && response && result.response_id !== null}
     {#key result.response_id}
-      <ResponsePanel {result} {response} backend={app.backend} onpick={(p, value) => (pick = { path: p, value })} />
+      <ResponsePanel {result} {response} {path} backend={app.backend} onpick={(p, value) => (pick = { path: p, value })} />
     {/key}
   {:else if result?.report.error}
     <SendNotes notes={result.report.notes ?? []} />

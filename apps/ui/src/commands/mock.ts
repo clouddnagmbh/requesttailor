@@ -29,8 +29,8 @@ import type {
   TransportApi,
   TransportMode,
 } from "./backend";
-import { BackendError, type OpenApiApi } from "./backend";
-import { stubOpenApi } from "./openapi-stub";
+import { BackendError } from "./backend";
+import { mockOpenApi } from "./mock-openapi";
 import { mockAuth } from "./mock-auth";
 import { maskCookieHeader, maskSetCookie, mockCookies, setCookiesFor } from "./mock-cookies";
 import { mockRunner } from "./mock-runner";
@@ -218,8 +218,20 @@ export class MockBackend implements Backend {
     dirty: () => this.dirty(),
     openCollection: () => this.openCollection(),
   });
-  readonly openapi: OpenApiApi = stubOpenApi();
-  readonly imports: ImportApi = mockImports(
+  readonly openapi = mockOpenApi({
+    getRequest: (p) => this.getRequest(p),
+    createRequest: (folder, name) => this.createRequest(folder, name),
+    updateRequest: (p, spec) => this.updateRequest(p, spec),
+    environments: () => this.environments(),
+    updateEnvironment: (env) => this.updateEnvironment(env),
+    hasSecret: async (env, name) => this.secretValues.has(`${env}/${name}`),
+    folderNames: async () => [...new Set([...this.requests.keys()].flatMap((p) => (p.includes("/") ? [p.split("/")[0]!] : [])))],
+    response: (id) => {
+      const s = this.responses.get(id);
+      return s ? { status: 200, text: s.text, contentType: "application/json" } : null;
+    },
+  });
+  private readonly baseImports: ImportApi = mockImports(
     () => this.openCollection(),
     () => this.plugins,
     async (wanted, names) => {
@@ -233,6 +245,21 @@ export class MockBackend implements Backend {
       return { folder, name };
     },
   );
+  /** Plans of the OpenAPI wizard (`mock-openapi.ts`) are written by it, all others as before. */
+  readonly imports: ImportApi = {
+    ...this.baseImports,
+    write: async (id) => {
+      const into = this.openapi.writeInto(id, null);
+      if (!into) return this.baseImports.write(id);
+      const added = await into;
+      const info = (await this.openCollection())!;
+      return { ...info, location: `mock://${added.name}` };
+    },
+    writeInto: async (id, name) => (await this.openapi.writeInto(id, name)) ?? this.baseImports.writeInto(id, name),
+    discard: async (id) => {
+      if (!this.openapi.discardPlan(id)) await this.baseImports.discard(id);
+    },
+  };
   readonly history = new MockHistory();
   readonly recent = new MockRecent();
   // Wave 5 parts, one file per strand.
