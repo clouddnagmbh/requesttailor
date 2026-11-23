@@ -51,6 +51,7 @@ export function stubReview(): ReviewApi {
     comment: no,
     submit: no,
     ci: no,
+    create: no,
   };
 }
 

@@ -26,6 +26,7 @@ import type {
   ImportApi,
   PluginApi,
   RecentCollection,
+  RepositoryApi,
   SecretsApi,
   SendInput,
   TransportApi,
@@ -62,6 +63,7 @@ import { MockHistory, mockSearch } from "./mock-history";
 import { mockImports } from "./mock-import";
 import { mockPlugins, type MockPlugins } from "./mock-plugins";
 import { MockRecent } from "./mock-recent";
+import { stubRepositories } from "./wave15-stubs";
 import type {
   Environment,
   FileChange,
@@ -195,6 +197,8 @@ export class MockBackend implements Backend {
   /** Every file "written" by `save`, for tests (`window.__rt.backend.files`); files of a
    *  collection in a subfolder under that folder (`billing/health.yml`). */
   readonly files = new Map<string, string>();
+  /** Wave 15: repositories in the set (placeholder until strand A, `mock-repositories.ts`). */
+  readonly repositories: RepositoryApi = stubRepositories();
   /** Wave 14: the collections in the sidebar (`mock-collections.ts`). */
   readonly collections: MockCollections = new MockCollections({
     demo: () => ({ requests: sampleRequests(), envs: sampleEnvironments() }),

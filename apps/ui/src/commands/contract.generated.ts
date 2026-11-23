@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlame, GitBlob, GitBlockReason, GitBranch, GitChangedFile, GitCloneRequest, GitCommit, GitCommitDetails, GitCommitWrite, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitHistoryPage, GitHistoryQuery, GitIdentity, GitIndexDiff, GitOperation, GitPatchRequest, GitPickRequest, GitPickResult, GitPlan, GitPullResult, GitReflogEntry, GitRemote, GitRepoSummary, GitResolution, GitSignatureCheck, GitSignatureKind, GitSignatureState, GitStagedCommit, GitStash, GitStatus, GitTree, GitTreeEntry, GitTreeWrite, GitWorkingCopy, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewPullRequest, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RepositoryEntry, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -1719,6 +1719,7 @@ export const searchHits: SearchHit[] = [
 
 export const collectionSet: CollectionSet = {
   "active": "/work/api/orders",
+  "active_repository": "/work/api",
   "collections": [
     {
       "dir": "orders",
@@ -1746,6 +1747,19 @@ export const collectionSet: CollectionSet = {
       "name": "Scratch",
       "repo": null,
       "root": "/work/scratch"
+    }
+  ],
+  "repositories": [
+    {
+      "collections": [
+        "/work/api/orders",
+        "/work/api/users"
+      ],
+      "id": "/work/api",
+      "linked": false,
+      "location": "/work/api",
+      "name": "api",
+      "root": "/work/api"
     }
   ],
   "roots": [
@@ -1843,6 +1857,7 @@ export const gitGraphPage: GitGraphPage = {
         "refs/heads/main",
         "refs/tags/v1"
       ],
+      "signed": true,
       "summary": "Merge feature into main",
       "time": 1795000000
     },
@@ -1851,6 +1866,7 @@ export const gitGraphPage: GitGraphPage = {
       "email": "ada@example.com",
       "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "parents": [],
+      "signed": false,
       "summary": "Initial collection",
       "time": 1795000000
     }
@@ -1978,6 +1994,12 @@ export const gitActions: GitAction[] = [
     "message": "half done"
   },
   {
+    "action": "stash",
+    "paths": [
+      "/README.md"
+    ]
+  },
+  {
     "action": "unstash",
     "index": 0,
     "keep": false
@@ -2019,6 +2041,39 @@ export const gitActions: GitAction[] = [
     "action": "push-tag",
     "name": "v1",
     "remote": "origin"
+  },
+  {
+    "action": "amend",
+    "message": "Fix the order total",
+    "paths": [
+      "/src/total.rs"
+    ],
+    "staged": false
+  },
+  {
+    "action": "amend",
+    "staged": true
+  },
+  {
+    "action": "abort"
+  },
+  {
+    "action": "restore-branch",
+    "name": "feature/login",
+    "target": "dddddddddddddddddddddddddddddddddddddddd"
+  },
+  {
+    "action": "restore-files",
+    "paths": [
+      "/docs/guide.md"
+    ],
+    "rev": "HEAD~2"
+  },
+  {
+    "action": "rewrite",
+    "branch": "feature/login",
+    "summary": "Squashed 3 commits into one",
+    "tip": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   }
 ];
 
@@ -2147,7 +2202,8 @@ export const gitBlockReasons: GitBlockReason[] = [
   "rejected",
   "auth-required",
   "network",
-  "unsupported"
+  "unsupported",
+  "published"
 ];
 
 export const responseSides: ResponseSides = {
@@ -5252,4 +5308,478 @@ export const changelogFacts: ChangelogFacts = {
   },
   "title": "Orders API 1.0.0 → 1.1.0",
   "to": "v1.1.0"
+};
+
+export const repositoryRoot: RepositoryEntry = {
+  "collections": [],
+  "id": "/work/website",
+  "linked": true,
+  "location": "/work/website",
+  "name": "website",
+  "root": "/work/website"
+};
+
+export const gitRepoSummaries: GitRepoSummary[] = [
+  {
+    "ahead": 1,
+    "behind": 2,
+    "branch": "main",
+    "changes": 3,
+    "id": "/work/api",
+    "upstream": "origin/main"
+  },
+  {
+    "ahead": 0,
+    "behind": 0,
+    "branch": null,
+    "changes": 0,
+    "id": "/work/website",
+    "operation": "rebase",
+    "upstream": null
+  }
+];
+
+export const gitOperations: GitOperation[] = [
+  "merge",
+  "cherry-pick",
+  "revert",
+  "rebase"
+];
+
+export const gitCloneRequests: GitCloneRequest[] = [
+  {
+    "branch": "develop",
+    "name": "web",
+    "parent": "/work",
+    "url": "https://github.com/acme/web.git"
+  },
+  {
+    "url": "https://github.com/acme/api.git"
+  }
+];
+
+export const gitWorkingCopy: GitWorkingCopy = {
+  "ahead": 0,
+  "behind": 1,
+  "branch": "main",
+  "detached": false,
+  "files": [
+    {
+      "collection": "/work/api/orders",
+      "path": "/orders/create.yml",
+      "staged": "modified",
+      "state": "modified",
+      "unstaged": true
+    },
+    {
+      "from": "/docs/old-name.md",
+      "path": "/docs/new-name.md",
+      "staged": "renamed",
+      "state": "modified",
+      "unstaged": false
+    },
+    {
+      "kind": "submodule",
+      "path": "/vendor/lib",
+      "state": "modified",
+      "unstaged": true
+    },
+    {
+      "path": "/notes.txt",
+      "state": "untracked",
+      "unstaged": true
+    }
+  ],
+  "head": "cccccccccccccccccccccccccccccccccccccccc",
+  "operation": "merge",
+  "repository": "/work/api",
+  "truncated": false,
+  "upstream": "origin/main"
+};
+
+export const gitTreeEntries: GitTreeEntry[] = [
+  {
+    "ignored": false,
+    "kind": "dir",
+    "name": "src",
+    "path": "/src"
+  },
+  {
+    "ignored": false,
+    "kind": "file",
+    "name": "logo.png",
+    "path": "/logo.png",
+    "size": 2048,
+    "state": "modified"
+  },
+  {
+    "ignored": false,
+    "kind": "symlink",
+    "name": "link",
+    "path": "/link",
+    "size": 7
+  },
+  {
+    "ignored": true,
+    "kind": "dir",
+    "name": "target",
+    "path": "/target"
+  }
+];
+
+export const gitBlobs: GitBlob[] = [
+  {
+    "binary": false,
+    "lfs_pointer": false,
+    "oid": "3333333333333333333333333333333333333333",
+    "path": "/README.md",
+    "rev": "HEAD",
+    "size": 6,
+    "text": "Hello\n",
+    "truncated": false
+  },
+  {
+    "base64": "iVBORw==",
+    "binary": true,
+    "lfs_pointer": false,
+    "media_type": "image/png",
+    "path": "/logo.png",
+    "size": 4,
+    "truncated": false
+  },
+  {
+    "binary": false,
+    "lfs_pointer": true,
+    "oid": "4444444444444444444444444444444444444444",
+    "path": "/video.mp4",
+    "rev": "HEAD",
+    "size": 130,
+    "truncated": true
+  }
+];
+
+export const gitBlame: GitBlame = {
+  "binary": false,
+  "hunks": [
+    {
+      "commit": {
+        "author": "Ada",
+        "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "summary": "Initial",
+        "time": 1700000000
+      },
+      "lines": 10,
+      "orig_start": 1,
+      "path": "/src/sum.rs",
+      "start": 1
+    },
+    {
+      "commit": {
+        "author": "Ada",
+        "oid": "cccccccccccccccccccccccccccccccccccccccc",
+        "summary": "Fix the total",
+        "time": 1700000000
+      },
+      "lines": 2,
+      "orig_start": 11,
+      "path": "/src/total.rs",
+      "start": 11
+    }
+  ],
+  "lines": 12,
+  "path": "/src/total.rs",
+  "rev": "cccccccccccccccccccccccccccccccccccccccc"
+};
+
+export const gitHistoryQueries: GitHistoryQuery[] = [
+  {
+    "author": "ada",
+    "content": "total",
+    "limit": 50,
+    "message": "fix",
+    "path": "/src",
+    "refs": [
+      "refs/heads/main"
+    ],
+    "since": 1690000000,
+    "skip": 50,
+    "until": 1700000000
+  },
+  {
+    "limit": 100,
+    "skip": 0
+  }
+];
+
+export const gitHistoryPage: GitHistoryPage = {
+  "hits": [
+    {
+      "commit": {
+        "author": "Ada",
+        "email": "ada@example.com",
+        "oid": "cccccccccccccccccccccccccccccccccccccccc",
+        "parents": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ],
+        "refs": [
+          "refs/heads/main"
+        ],
+        "signed": false,
+        "summary": "Fix the total",
+        "time": 1700000000
+      },
+      "matched": [
+        "message",
+        "author",
+        "path",
+        "content"
+      ],
+      "paths": [
+        "/src/total.rs"
+      ]
+    }
+  ],
+  "more": true,
+  "scanned": 2000
+};
+
+export const gitReflog: GitReflogEntry[] = [
+  {
+    "commit": {
+      "author": "Ada",
+      "oid": "cccccccccccccccccccccccccccccccccccccccc",
+      "summary": "Fix the total",
+      "time": 1700000000
+    },
+    "index": 0,
+    "message": "commit: Fix the total",
+    "name": "HEAD",
+    "new": "cccccccccccccccccccccccccccccccccccccccc",
+    "old": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "time": 1700000000
+  },
+  {
+    "index": 1,
+    "message": "branch: Created from HEAD",
+    "name": "refs/heads/main",
+    "new": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "old": null,
+    "time": 1690000000
+  }
+];
+
+export const gitCommitDetails: GitCommitDetails = {
+  "author": {
+    "email": "ada@example.com",
+    "name": "Ada",
+    "offset": 60,
+    "time": 1700000000
+  },
+  "committer": {
+    "email": "ada@example.com",
+    "name": "Ada",
+    "offset": 60,
+    "time": 1700000000
+  },
+  "message": "Fix the total\n\nSums the items.\n",
+  "oid": "cccccccccccccccccccccccccccccccccccccccc",
+  "parents": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ],
+  "signed": true,
+  "tree": "5555555555555555555555555555555555555555"
+};
+
+export const gitPickRequests: GitPickRequest[] = [
+  {
+    "commit": "cccccccccccccccccccccccccccccccccccccccc",
+    "onto": "HEAD",
+    "revert": false
+  },
+  {
+    "commit": "dddddddddddddddddddddddddddddddddddddddd",
+    "mainline": 1,
+    "onto": "main",
+    "revert": true
+  }
+];
+
+export const gitPickResult: GitPickResult = {
+  "clean": false,
+  "conflicts": [
+    {
+      "base": "a\n",
+      "ours": "b\n",
+      "path": "/src/total.rs",
+      "theirs": null
+    }
+  ],
+  "other_conflicts": [
+    "/logo.png"
+  ],
+  "tree": "6666666666666666666666666666666666666666"
+};
+
+export const gitTreeWrite: GitTreeWrite = {
+  "base": "6666666666666666666666666666666666666666",
+  "files": [
+    {
+      "kind": "text",
+      "path": "/src/total.rs",
+      "text": "c\n"
+    },
+    {
+      "data": "iVBORw==",
+      "kind": "base64",
+      "path": "/logo.png"
+    },
+    {
+      "executable": true,
+      "kind": "from",
+      "path": "/build.sh",
+      "rev": "dddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+      "kind": "delete",
+      "path": "/old.txt"
+    }
+  ]
+};
+
+export const gitCommitWrites: GitCommitWrite[] = [
+  {
+    "author": {
+      "email": "ada@example.com",
+      "name": "Ada",
+      "offset": 60,
+      "time": 1700000000
+    },
+    "message": "Squashed",
+    "parents": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "tree": "7777777777777777777777777777777777777777"
+  },
+  {
+    "committer": {
+      "email": "ada@example.com",
+      "name": "Ada",
+      "offset": 60,
+      "time": 1700000000
+    },
+    "message": "Root",
+    "parents": [],
+    "tree": "7777777777777777777777777777777777777777"
+  }
+];
+
+export const gitIndexDiff: GitIndexDiff = {
+  "diff": {
+    "binary": false,
+    "hunks": [
+      {
+        "lines": [
+          {
+            "kind": "removed",
+            "text": "let total = 0;"
+          },
+          {
+            "kind": "added",
+            "text": "let total = sum(items);"
+          },
+          {
+            "kind": "context",
+            "text": "total"
+          }
+        ],
+        "new_lines": 2,
+        "new_start": 3,
+        "old_lines": 1,
+        "old_start": 3
+      }
+    ],
+    "path": "/src/total.rs"
+  },
+  "new": "2222222222222222222222222222222222222222",
+  "old": "1111111111111111111111111111111111111111",
+  "side": "unstaged"
+};
+
+export const gitPatchRequests: GitPatchRequest[] = [
+  {
+    "hunks": [
+      {
+        "hunk": 0,
+        "lines": [
+          1
+        ]
+      },
+      {
+        "hunk": 1
+      }
+    ],
+    "new": "2222222222222222222222222222222222222222",
+    "old": "1111111111111111111111111111111111111111",
+    "path": "/src/total.rs",
+    "side": "unstaged"
+  },
+  {
+    "hunks": [
+      {
+        "hunk": 0,
+        "lines": [
+          1
+        ]
+      },
+      {
+        "hunk": 1
+      }
+    ],
+    "new": "2222222222222222222222222222222222222222",
+    "old": "1111111111111111111111111111111111111111",
+    "path": "/src/total.rs",
+    "side": "staged"
+  }
+];
+
+export const gitStagedCommit: GitStagedCommit = {
+  "message": "Stage only the fix"
+};
+
+export const gitSignatureChecks: GitSignatureCheck[] = [
+  {
+    "key": "SHA256:abc",
+    "kind": "ssh",
+    "oid": "cccccccccccccccccccccccccccccccccccccccc",
+    "signer": "ada@example.com",
+    "state": "good"
+  },
+  {
+    "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "state": "unsigned"
+  }
+];
+
+export const gitSignatureStates: GitSignatureState[] = [
+  "unsigned",
+  "unverified",
+  "good",
+  "untrusted",
+  "bad",
+  "unknown-key",
+  "expired"
+];
+
+export const gitSignatureKinds: GitSignatureKind[] = [
+  "gpg",
+  "ssh",
+  "x509"
+];
+
+export const newPullRequest: NewPullRequest = {
+  "base": "main",
+  "body": "Adds passkeys.",
+  "draft": true,
+  "head": "feature/login",
+  "title": "Login with passkeys"
 };

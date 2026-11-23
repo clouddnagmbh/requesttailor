@@ -51,3 +51,20 @@ max = 20
 description = "Comparison of two revisions with 1000 requests, 100 changed, visible with both runs' answers (median of 5, mock backend)"
 unit = "ms"
 max = 1000
+
+# Wave 15: the Git client for any repository. `pending` names the strand that builds the
+# measurement; until it lands, a missing value does not fail `--require-all` (a measured value
+# must still hold). The strand removes `pending` in the commit that adds the measurement.
+# Strand C (scripts/perf/graph-large.mjs, crates/rt-git/examples/perf_graph.rs).
+[metrics.git_graph_large]
+description = "Commit graph of a repository with 100 000 commits: first page native (release rt-git) plus first rows visible (median of 5)"
+unit = "ms"
+pending = "wave 15, strand C"
+max = 1500
+
+# Strand B (scripts/perf/status.mjs, crates/rt-git/examples/perf_status.rs).
+[metrics.git_status_large]
+description = "Working copy of a repository with 50 000 tracked files, 100 changed: GitApi.workingCopy natively (release, warm, median of 9)"
+unit = "ms"
+pending = "wave 15, strand B"
+max = 300

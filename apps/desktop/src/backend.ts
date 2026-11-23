@@ -62,6 +62,7 @@ import { tauriTimeline } from "./timeline";
 import { tauriScripts } from "./scripts";
 import { tauriGit } from "./git";
 import { tauriCollections } from "./collections";
+import { tauriRepositories } from "./repositories";
 import { tauriHistory } from "./history";
 import { tauriImports } from "./import";
 import { tauriPlugins } from "./plugins";
@@ -278,6 +279,32 @@ export const COMMANDS = [
   "git_apply",
   "git_last_action",
   "git_undo",
+  // Wave 15 (interface): Git client (strands A–F).
+  "repositories_open",
+  "repositories_activate",
+  "repositories_summary",
+  "repositories_clone",
+  "repositories_init",
+  "git_working_copy",
+  "git_file_tree",
+  "git_blob",
+  "git_blame",
+  "git_search_history",
+  "git_reflog",
+  "git_commit_info",
+  "git_pick",
+  "git_write_tree",
+  "git_write_commit",
+  "git_resolve_text",
+  "git_index_diff",
+  "git_stage",
+  "git_unstage",
+  "git_stage_patch",
+  "git_unstage_patch",
+  "git_discard_patch",
+  "git_commit_staged",
+  "git_verify",
+  "review_create",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -310,6 +337,8 @@ export class TauriBackend implements Backend {
   readonly kind = "tauri" as const;
   /** Wave 14: the collections in the sidebar (`collections.ts`). */
   readonly collections = tauriCollections((cmd, args) => this.call(cmd, args));
+  /** Wave 15: repositories in the set (`repositories.ts`). */
+  readonly repositories = tauriRepositories((cmd, args) => this.call(cmd, args));
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
   readonly git: GitApi;

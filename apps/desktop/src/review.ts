@@ -25,5 +25,6 @@ export function tauriReview(call: Call): ReviewApi {
     comment: (number, comment) => call("review_comment", { number, comment }),
     submit: (number, review) => call("review_submit", { number, review }),
     ci: (number) => call("review_ci", { number }),
+    create: (pull) => call("review_create", { pull }),
   };
 }

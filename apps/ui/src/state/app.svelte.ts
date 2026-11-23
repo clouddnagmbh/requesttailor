@@ -14,12 +14,14 @@ import type {
   CollectionSet,
   Environment,
   NewCollection,
+  RepositoryEntry,
   RequestRef,
   RequestSpec,
   StoredResponse,
   TreeNode,
 } from "../commands/types";
 import type { ExtensionDialog } from "../extensions";
+import type { GitView } from "../git/views.svelte";
 import { load as loadSetting, store as storeSetting } from "../shell/storage";
 
 const KEY = Symbol("requesttailor-app");
@@ -34,7 +36,10 @@ export type MainView =
   /** The environment manager, on the selected environment. */
   | { kind: "environments" }
   /** The runner for `folder` of the active collection (`null`: the whole collection). */
-  | { kind: "runner"; folder: string | null };
+  | { kind: "runner"; folder: string | null }
+  /** Wave 15: a Git view of the active repository (`git/views.svelte.ts`), e.g. an extension's
+   *  `{ kind: "extension", id: "<extension>/<view>" }`. */
+  | { kind: "git"; view: GitView };
 
 /** Wave 14: what the "New…" dialog opens with. */
 export interface NewDialogRequest {
@@ -172,6 +177,10 @@ export class AppState {
   collections = $state<CollectionEntry[]>([]);
   /** The folders they were found in (opened or added), in order. */
   roots = $state<CollectionRoot[]>([]);
+  /** Wave 15: the repositories of the set (`CollectionSet.repositories`), in sidebar order. */
+  repositories = $state<RepositoryEntry[]>([]);
+  /** Wave 15: the repository every Git view acts on (`CollectionSet.active_repository`). */
+  activeRepository = $state<string | null>(null);
   /** Trees of the collections in the sidebar that were read, by id (the active one always;
    *  the others once `ensureTree` asked, e.g. when their node opens). */
   trees = $state<Record<string, TreeNode>>({});
@@ -421,6 +430,8 @@ export class AppState {
   private applySet(set: CollectionSet): void {
     this.roots = set.roots;
     this.collections = set.collections;
+    this.repositories = set.repositories ?? [];
+    this.activeRepository = set.active_repository ?? null;
   }
 
   private setDirty(id: string, dirty: string[]): void {

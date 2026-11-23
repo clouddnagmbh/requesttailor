@@ -38,7 +38,11 @@ mod variables;
 pub mod git;
 /// Wave 8, strand B.
 mod git_actions;
+mod git_files;
 mod git_graph;
+mod git_history;
+mod git_index;
+mod git_plumbing;
 mod grpc;
 pub mod history;
 mod import;
@@ -48,6 +52,8 @@ mod mcp_client;
 mod merges;
 mod plugins;
 pub mod recent;
+/// Wave 15, strand A: repositories without a collection in the set.
+mod repositories;
 /// Wave 12, strand G: secret rescue.
 pub mod rescue;
 /// Wave 12, strand E: pull-request review.
@@ -320,5 +326,31 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             git_actions::git_apply,
             git_actions::git_last_action,
             git_actions::git_undo,
+            // Wave 15 (interface): Git client (strands A–F).
+            repositories::repositories_open,
+            repositories::repositories_activate,
+            repositories::repositories_summary,
+            repositories::repositories_clone,
+            repositories::repositories_init,
+            git_files::git_working_copy,
+            git_files::git_file_tree,
+            git_files::git_blob,
+            git_history::git_blame,
+            git_history::git_search_history,
+            git_history::git_reflog,
+            git_plumbing::git_commit_info,
+            git_plumbing::git_pick,
+            git_plumbing::git_write_tree,
+            git_plumbing::git_write_commit,
+            git_plumbing::git_resolve_text,
+            git_index::git_index_diff,
+            git_index::git_stage,
+            git_index::git_unstage,
+            git_index::git_stage_patch,
+            git_index::git_unstage_patch,
+            git_index::git_discard_patch,
+            git_index::git_commit_staged,
+            git_index::git_verify,
+            review::review_create,
         ])
 }

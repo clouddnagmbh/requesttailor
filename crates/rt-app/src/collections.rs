@@ -25,6 +25,12 @@
 //!
 //! Owner in wave 14: strand A (shells, set management, [`scaffold`]). [`enter`] and
 //! [`discover`] are the one rule for every shell.
+//!
+//! Wave 15 (interface): the set also lists repositories ([`CollectionSet::repositories`],
+//! `rt_app::git::repos`). A root without a collection that is (or lies in) a Git repository is a
+//! *repository root*: it has no collections ([`CollectionRoot::collections`] empty) and is not
+//! scaffolded; a root without a collection outside Git still opens as a new collection. The
+//! active repository ([`CollectionSet::active_repository`]) is what Git acts on.
 
 use serde::{Deserialize, Serialize};
 
@@ -109,7 +115,8 @@ pub struct CollectionRoot {
     pub id: String,
     pub name: String,
     pub location: String,
-    /// Ids of the collections found in it, in sidebar order.
+    /// Ids of the collections found in it, in sidebar order. Since wave 15 empty for a
+    /// repository root (a Git repository without any collection).
     pub collections: Vec<String>,
     /// More collections than [`MAX_COLLECTIONS`] were found; the rest is not shown.
     pub truncated: bool,
@@ -124,6 +131,14 @@ pub struct CollectionSet {
     pub collections: Vec<CollectionEntry>,
     /// Id of the active collection.
     pub active: Option<String>,
+    /// Wave 15: every repository of the set (those holding a collection, then repository roots
+    /// without one), in sidebar order.
+    #[serde(default)]
+    pub repositories: Vec<crate::git::repos::RepositoryEntry>,
+    /// Wave 15: the repository Git acts on ([`crate::git::repos::RepositoryEntry::id`]): the one
+    /// chosen last, else the active collection's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_repository: Option<String>,
 }
 
 /// A request in one of the set's collections: tabs, search hits, history entries and runner

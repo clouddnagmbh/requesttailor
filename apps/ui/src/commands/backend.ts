@@ -30,6 +30,27 @@ import type {
   GitRemote,
   GitStash,
   GitUndoEntry,
+  GitBlame,
+  GitBlob,
+  GitCloneRequest,
+  GitCommitDetails,
+  GitCommitWrite,
+  GitHistoryPage,
+  GitHistoryQuery,
+  GitIndexDiff,
+  GitPatchRequest,
+  GitPatchSide,
+  GitPickRequest,
+  GitPickResult,
+  GitReflogEntry,
+  GitRepoSummary,
+  GitSignatureCheck,
+  GitStagedCommit,
+  GitTreeEntry,
+  GitTreeWrite,
+  GitWorkingCopy,
+  NewPullRequest,
+  RepositoryEntry,
   GitConflict,
   GitDiff,
   GitIdentity,
@@ -274,6 +295,68 @@ export interface GitApi {
   lastAction(): Promise<GitUndoEntry | null>;
   /** Takes the entry `id` back (refs, working tree); rejects when it is `stale`. */
   undo(id: string): Promise<GitActionResult>;
+
+  // Wave 15 (interface): a Git client for any repository. Every method acts on the *active
+  // repository* (`CollectionSet.active_repository`); paths are repository-relative with a
+  // leading `/`. Until a strand lands, a method rejects with kind `unsupported`.
+  // Strand B: the working copy, the file tree, file contents.
+  /** Status of the whole working tree against `HEAD` (and the index). */
+  workingCopy(): Promise<GitWorkingCopy>;
+  /** One folder of the file tree (`dir` `"/"` for the root): at `rev`, or (`null`) the working
+   *  tree with states and ignored files. */
+  fileTree(rev: string | null, dir: string): Promise<GitTreeEntry[]>;
+  /** A file for the viewers: at `rev`, or (`null`) in the working tree. */
+  blob(rev: string | null, path: string): Promise<GitBlob>;
+  // Strand C: inspecting the history of any file.
+  /** Who last changed each line of `path` at `rev`. */
+  blame(rev: string, path: string): Promise<GitBlame>;
+  searchHistory(query: GitHistoryQuery): Promise<GitHistoryPage>;
+  /** The reflog of `name` (`HEAD`, `refs/heads/main`, or a short branch name), newest first. */
+  reflog(name: string, limit: number): Promise<GitReflogEntry[]>;
+  // Strand D: building blocks for history editors; nothing moves until `apply` of a
+  // `rewrite` action. And the 3-way text conflict view's result.
+  commitInfo(rev: string): Promise<GitCommitDetails>;
+  pick(request: GitPickRequest): Promise<GitPickResult>;
+  /** The id of the tree written. */
+  writeTree(write: GitTreeWrite): Promise<string>;
+  /** The id of the commit written (no ref moves). */
+  writeCommit(write: GitCommitWrite): Promise<string>;
+  /** Writes `text` as the resolution of the conflicted file `path` and marks it resolved
+   *  (refused with unsaved changes; the next `commit` concludes the merge). */
+  resolveText(path: string, text: string): Promise<void>;
+  // Strand F: the index, for a staging view an extension adds (the app's own commit form
+  // keeps "commit without staging"), and signatures.
+  indexDiff(path: string, side: GitPatchSide): Promise<GitIndexDiff>;
+  stage(paths: string[]): Promise<void>;
+  unstage(paths: string[]): Promise<void>;
+  /** Stages the chosen lines of an `unstaged` diff (refused when the file changed since). */
+  stagePatch(patch: GitPatchRequest): Promise<void>;
+  /** Unstages the chosen lines of a `staged` diff. */
+  unstagePatch(patch: GitPatchRequest): Promise<void>;
+  /** Takes the chosen lines of an `unstaged` diff out of the working tree. */
+  discardPatch(patch: GitPatchRequest): Promise<void>;
+  /** Commits what the index holds (secret scan as `commit`). */
+  commitStaged(commit: GitStagedCommit): Promise<GitCommit>;
+  /** Signature state of each commit; without a verifier `unverified` or `unsigned`. */
+  verify(oids: string[]): Promise<GitSignatureCheck[]>;
+}
+
+/** Wave 15 (interface, strand A): repositories in the collection set. The list is part of
+ *  `CollectionSet` (`repositories`, `active_repository`); these calls change it. */
+export interface RepositoryApi {
+  /** Folder picker; adds the folder as a root: its collections, or, without any, the Git
+   *  repository it is in as a repository root (outside Git: a new collection, as `add`).
+   *  `null` if cancelled. */
+  open(): Promise<CollectionSet | null>;
+  /** Makes repository `id` the active one (every `GitApi` command then acts on it). */
+  activate(id: string): Promise<RepositoryEntry>;
+  /** Branch, ahead/behind and number of changes of any repository of the set. */
+  summary(id: string): Promise<GitRepoSummary>;
+  /** Clones into a new folder, adds it as a root and makes it active; `null` if cancelled. */
+  clone(request: GitCloneRequest): Promise<RepositoryEntry | null>;
+  /** Folder picker, then `git init` there (an existing repository is refused), added as a root
+   *  and made active; `null` if cancelled. */
+  init(): Promise<RepositoryEntry | null>;
 }
 
 /** Semantic diffs: per request, folder, collection and environment field, secrets only by
@@ -345,6 +428,8 @@ export interface ReviewApi {
   comment(number: number, comment: NewReviewComment): Promise<ReviewComment>;
   submit(number: number, review: ReviewSubmission): Promise<void>;
   ci(number: number): Promise<CiStatus>;
+  /** Wave 15 (strand E): opens a pull request from a branch already on the remote. */
+  create(pull: NewPullRequest): Promise<PullRequest>;
 }
 
 /** The OpenAPI spec in the repository against the collection, and its changes over the
@@ -709,6 +794,8 @@ export interface Backend {
 
   /** Wave 14: the collections in the sidebar. */
   readonly collections: CollectionSetApi;
+  /** Wave 15: repositories in the set, also without a collection. */
+  readonly repositories: RepositoryApi;
 
   /** Shows the platform's folder picker and opens what it holds as the only root of the
    *  collection set (wave 14: one collection, or every collection in its subfolders); returns

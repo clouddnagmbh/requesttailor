@@ -29,6 +29,7 @@ import {
   type SearchHit,
   type SecretsApi,
   type TreeNode,
+  withRepositories,
 } from "@requesttailor/ui";
 
 import { COLLECTION_FILE, pathParts, readDirectory } from "./fs/directory";
@@ -555,7 +556,7 @@ export class WebCollectionSet implements CollectionSetApi {
       repo: e.repo,
       dirty: this.dirtyNow(e.id).length,
     });
-    return {
+    return withRepositories({
       roots: this.roots.map((r) => ({
         id: r.id,
         name: r.name,
@@ -565,7 +566,7 @@ export class WebCollectionSet implements CollectionSetApi {
       })),
       collections: this.entries.map(entry),
       active: this.active,
-    };
+    });
   }
 
   private remember(): void {

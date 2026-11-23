@@ -255,7 +255,38 @@ impl Sets {
                 })
                 .collect(),
             active: self.active.clone(),
+            repositories: self.repositories(),
+            active_repository: self
+                .active
+                .as_deref()
+                .and_then(|id| self.entry(id).ok())
+                .and_then(|e| e.repo.clone()),
         }
+    }
+
+    /// Wave 15 interface: the repositories of the collections, in sidebar order. Strand A adds
+    /// repository roots without a collection and the active repository chosen in the sidebar.
+    fn repositories(&self) -> Vec<rt_app::git::repos::RepositoryEntry> {
+        let mut out: Vec<rt_app::git::repos::RepositoryEntry> = Vec::new();
+        for e in &self.entries {
+            let Some(repo) = &e.repo else { continue };
+            if let Some(r) = out.iter_mut().find(|r| &r.id == repo) {
+                r.collections.push(e.id.clone());
+                continue;
+            }
+            out.push(rt_app::git::repos::RepositoryEntry {
+                id: repo.clone(),
+                name: std::path::Path::new(repo)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| repo.clone()),
+                location: repo.clone(),
+                root: e.root.clone(),
+                collections: vec![e.id.clone()],
+                linked: false,
+            });
+        }
+        out
     }
 
     /// Ids of the collections in the active collection's repository (just the active one
@@ -345,6 +376,15 @@ impl<S: SecretStore> Core<S> {
         let sets = lock(&self.session);
         let id = sets.active.as_deref()?;
         sets.entry(id).ok().map(|e| e.path.clone())
+    }
+
+    /// Wave 15: the working tree (or a folder inside it) of the repository Git acts on, the
+    /// active repository of the set. Interface: the active collection's root, from which
+    /// `rt_git::Repo::open` finds the repository; strand A adds repository roots without a
+    /// collection and the repository chosen in the sidebar. Public for distributions (e.g. a
+    /// Tauri plugin that works on the same repository).
+    pub fn active_repository(&self) -> Option<PathBuf> {
+        self.root()
     }
 
     /// Id (`CollectionInfo::id`) of the open (active) collection.

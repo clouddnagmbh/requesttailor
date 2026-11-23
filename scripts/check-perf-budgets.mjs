@@ -5,7 +5,9 @@
 // Usage: node scripts/check-perf-budgets.mjs [results.json] [--require-all]
 // results.json maps metric names to numbers, e.g. { "cold_start": 412 }; scripts/perf/run.mjs
 // writes it (perf/README.md). A metric without a number is "not measured". Exceeding a budget
-// always fails; with --require-all (CI, since wave 4) a missing measurement fails as well.
+// always fails; with --require-all (CI, since wave 4) a missing measurement fails as well,
+// except for a budget marked `pending = "<wave, strand>"` (status "pending": the strand that
+// builds its measurement has not landed yet; since wave 15).
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -37,7 +39,8 @@ export function parseBudgets(text) {
   return metrics;
 }
 
-/** Returns one row per budget: { name, value, max, unit, status: "ok" | "over" | "not measured" }. */
+/** Returns one row per budget: { name, value, max, unit, status: "ok" | "over" | "not measured" |
+ *  "pending" } ("pending": not measured, and the budget names the strand that will measure it). */
 export function evaluate(budgets, results) {
   if (typeof results !== "object" || results === null || Array.isArray(results)) {
     throw new Error("results must be an object mapping metric names to numbers");
@@ -46,8 +49,9 @@ export function evaluate(budgets, results) {
   if (unknown.length > 0) throw new Error(`results for unknown metrics: ${unknown.join(", ")}`);
   return Object.entries(budgets).map(([name, b]) => {
     const value = results[name];
-    const status = typeof value !== "number" ? "not measured" : value <= b.max ? "ok" : "over";
-    return { name, value, max: b.max, unit: b.unit ?? "", status };
+    const missing = typeof b.pending === "string" ? "pending" : "not measured";
+    const status = typeof value !== "number" ? missing : value <= b.max ? "ok" : "over";
+    return { name, value, max: b.max, unit: b.unit ?? "", status, ...(status === "pending" ? { pending: b.pending } : {}) };
   });
 }
 
@@ -60,8 +64,9 @@ function main() {
   const rows = evaluate(budgets, results);
 
   for (const r of rows) {
-    const shown = r.status === "not measured" ? "-" : `${r.value} ${r.unit}`;
-    console.log(`${r.status.padEnd(12)} ${r.name.padEnd(22)} ${shown.padStart(10)}  (max ${r.max} ${r.unit})`);
+    const shown = r.status === "not measured" || r.status === "pending" ? "-" : `${r.value} ${r.unit}`;
+    const note = r.status === "pending" ? `, measured from ${r.pending}` : "";
+    console.log(`${r.status.padEnd(12)} ${r.name.padEnd(22)} ${shown.padStart(10)}  (max ${r.max} ${r.unit}${note})`);
   }
   const failed = rows.filter((r) => r.status === "over" || (requireAll && r.status === "not measured"));
   if (failed.length > 0) {

@@ -1796,7 +1796,8 @@ export interface CollectionRoot {
   id: string;
   name: string;
   location: string;
-  /** Ids of its collections, in sidebar order. */
+  /** Ids of its collections, in sidebar order; wave 15: empty for a repository root (a Git
+   *  repository without any collection). */
   collections: string[];
   /** More than `MAX_COLLECTIONS` (64) were found; the rest is not shown. */
   truncated: boolean;
@@ -1809,6 +1810,12 @@ export interface CollectionSet {
   collections: CollectionEntry[];
   /** The active collection: the one every per-collection command acts on. */
   active: string | null;
+  /** Wave 15: every repository of the set (those holding a collection, then repository roots
+   *  without one), in sidebar order. */
+  repositories: RepositoryEntry[];
+  /** Wave 15: the repository every `GitApi` command acts on (chosen last, else the active
+   *  collection's). */
+  active_repository?: string;
 }
 
 /** A request in one of the set's collections (tabs, search hits, history, runner targets). */
@@ -1874,6 +1881,8 @@ export interface GitGraphCommit extends GitCommit {
   email: string;
   /** Full names of the refs at this commit. */
   refs?: string[];
+  /** Wave 15: carries a signature (`GitApi.verify` checks it). */
+  signed?: boolean;
 }
 
 /** Topological order, newest first; all refs on every page. */
@@ -1912,7 +1921,7 @@ export type GitAction =
   | { action: "remove-remote"; name: string }
   | { action: "rename-remote"; from: string; to: string }
   | { action: "set-remote-url"; name: string; url: string }
-  | { action: "stash"; message?: string }
+  | { action: "stash"; message?: string; paths?: string[] }
   | { action: "unstash"; index: number; keep?: boolean }
   | { action: "drop-stash"; index: number }
   | { action: "revert"; commit: string }
@@ -1921,7 +1930,13 @@ export type GitAction =
   | { action: "discard"; paths: string[] }
   | { action: "create-tag"; name: string; target: string; message?: string }
   | { action: "delete-tag"; name: string }
-  | { action: "push-tag"; name: string; remote: string };
+  | { action: "push-tag"; name: string; remote: string }
+  // Wave 15 (strand D):
+  | { action: "amend"; message?: string; paths?: string[]; staged?: boolean }
+  | { action: "abort" }
+  | { action: "restore-branch"; name: string; target: string }
+  | { action: "restore-files"; rev: string; paths: string[] }
+  | { action: "rewrite"; branch: string; tip: string; summary: string };
 
 /** Why an action cannot run now; the UI explains each and offers the way out. */
 export type GitBlockReason =
@@ -1940,7 +1955,9 @@ export type GitBlockReason =
   | "rejected"
   | "auth-required"
   | "network"
-  | "unsupported";
+  | "unsupported"
+  /** Wave 15: it would replace commits that are already on a remote. */
+  | "published";
 
 export interface GitBlock {
   reason: GitBlockReason;
@@ -2192,4 +2209,281 @@ export interface ChangelogFacts {
   commits?: ChangelogCommit[];
   /** The changelog as `rt changelog` writes it. */
   markdown: string;
+}
+
+// ---- Wave 15: Git client for any repository (`rt_app::git::{repos, files, history, plumbing,
+// index, signing}`, `rt_app::review::NewPullRequest`). Paths repository-relative with a leading
+// `/`; the default commit stays "without staging". ----
+
+/** A repository of the set (strand A). */
+export interface RepositoryEntry {
+  /** Same string as `CollectionEntry.repo` of its collections. */
+  id: string;
+  name: string;
+  /** For display only. */
+  location: string;
+  /** The root it was found through. */
+  root: string;
+  /** Collections of the set inside it, in sidebar order (empty for a repository root). */
+  collections: string[];
+  /** A linked worktree or a submodule's checkout. */
+  linked: boolean;
+}
+
+/** A merge, cherry-pick, revert or rebase that stopped half way. */
+export type GitOperation = "merge" | "cherry-pick" | "revert" | "rebase";
+
+/** What the sidebar shows next to a repository. */
+export interface GitRepoSummary {
+  id: string;
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  /** Changed, new and conflicted files of the whole working tree. */
+  changes: number;
+  operation?: GitOperation;
+}
+
+/** Clone any repository into a new folder and add it to the set. */
+export interface GitCloneRequest {
+  url: string;
+  /** Folder to clone into; absent: the folder picker. */
+  parent?: string;
+  /** New folder's name; absent: from the URL. */
+  name?: string;
+  branch?: string;
+}
+
+export type GitEntryKind = "file" | "dir" | "symlink" | "submodule";
+
+/** A changed file of the working copy (strand B). */
+export interface GitWorkingFile {
+  path: string;
+  /** `HEAD` → working tree. */
+  state: GitFileState;
+  /** Renames: the old path. */
+  from?: string;
+  /** Absent: a file. */
+  kind?: GitEntryKind;
+  /** `HEAD` → index, if the index differs from `HEAD`. */
+  staged?: GitFileChange;
+  /** The working tree differs from the index. */
+  unstaged: boolean;
+  collection?: string;
+}
+
+export interface GitWorkingCopy {
+  repository: string;
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  head?: string;
+  detached: boolean;
+  operation?: GitOperation;
+  /** Sorted by path; ignored files left out; at most 10 000 (`truncated`). */
+  files: GitWorkingFile[];
+  truncated: boolean;
+}
+
+/** One entry of a folder in the file tree. */
+export interface GitTreeEntry {
+  name: string;
+  path: string;
+  kind: GitEntryKind;
+  size?: number;
+  /** Working tree only. */
+  state?: GitFileState;
+  ignored: boolean;
+}
+
+/** A file's content for the viewers: text up to 8 MiB, images up to 16 MiB as base64, else
+ *  metadata only. */
+export interface GitBlob {
+  path: string;
+  /** Absent: the working tree. */
+  rev?: string;
+  oid?: string;
+  size: number;
+  binary: boolean;
+  media_type?: string;
+  text?: string;
+  base64?: string;
+  truncated: boolean;
+  lfs_pointer: boolean;
+}
+
+/** Consecutive lines from the same commit (strand C). */
+export interface GitBlameHunk {
+  /** 1-based. */
+  start: number;
+  lines: number;
+  commit: GitCommit;
+  /** The path in that commit. */
+  path: string;
+  orig_start: number;
+}
+
+export interface GitBlame {
+  path: string;
+  rev: string;
+  lines: number;
+  hunks: GitBlameHunk[];
+  binary: boolean;
+}
+
+/** Every given field must match; case-insensitive substrings. */
+export interface GitHistoryQuery {
+  message?: string;
+  author?: string;
+  /** Path prefix, repository-relative with a leading `/`. */
+  path?: string;
+  /** Added or removed lines containing this (`git log -S`, case-insensitive). */
+  content?: string;
+  since?: number;
+  until?: number;
+  refs?: string[];
+  skip?: number;
+  limit: number;
+}
+
+export type GitHistoryField = "message" | "author" | "path" | "content";
+
+export interface GitHistoryHit {
+  commit: GitGraphCommit;
+  matched: GitHistoryField[];
+  paths?: string[];
+}
+
+export interface GitHistoryPage {
+  hits: GitHistoryHit[];
+  more: boolean;
+  scanned: number;
+}
+
+/** One reflog entry, newest first. */
+export interface GitReflogEntry {
+  name: string;
+  index: number;
+  old: string | null;
+  new: string;
+  message: string;
+  time: number;
+  commit?: GitCommit;
+}
+
+/** Author or committer (strand D). */
+export interface GitSignature {
+  name: string;
+  email: string;
+  time: number;
+  /** Minutes east of UTC. */
+  offset: number;
+}
+
+export interface GitCommitDetails {
+  oid: string;
+  tree: string;
+  parents: string[];
+  message: string;
+  author: GitSignature;
+  committer: GitSignature;
+  signed: boolean;
+}
+
+/** Replay `commit`'s change onto `onto` in memory (cherry-pick, or revert). */
+export interface GitPickRequest {
+  onto: string;
+  commit: string;
+  revert?: boolean;
+  /** Merge commits: the parent (1-based) that counts as base. */
+  mainline?: number;
+}
+
+export interface GitPickResult {
+  /** The merged tree; conflicted paths hold `onto`'s version. */
+  tree: string;
+  clean: boolean;
+  conflicts?: GitConflict[];
+  /** Conflicts that are not text: take a side with `writeTree`. */
+  other_conflicts?: string[];
+}
+
+export type GitTreeContent =
+  | { kind: "text"; text: string }
+  | { kind: "base64"; data: string }
+  /** The path as in another tree or commit. */
+  | { kind: "from"; rev: string }
+  | { kind: "delete" };
+
+export type GitTreeFile = { path: string; executable?: boolean } & GitTreeContent;
+
+export interface GitTreeWrite {
+  /** A tree or commit rev. */
+  base: string;
+  files: GitTreeFile[];
+}
+
+export interface GitCommitWrite {
+  tree: string;
+  parents: string[];
+  message: string;
+  /** Absent: the app's identity, now. */
+  author?: GitSignature;
+  committer?: GitSignature;
+}
+
+/** Which pair of versions a diff compares (strand F). */
+export type GitPatchSide = "unstaged" | "staged";
+
+export interface GitIndexDiff {
+  side: GitPatchSide;
+  diff: GitDiff;
+  /** Blob ids of both sides (`""`: missing there). */
+  old: string;
+  new: string;
+}
+
+export interface GitHunkSelection {
+  /** Index into `diff.hunks`. */
+  hunk: number;
+  /** Indexes into the hunk's `lines` (added and removed lines only); absent: the whole hunk. */
+  lines?: number[];
+}
+
+export interface GitPatchRequest {
+  path: string;
+  side: GitPatchSide;
+  /** `GitIndexDiff.old`/`new` of the diff the selection was made on. */
+  old: string;
+  new: string;
+  hunks: GitHunkSelection[];
+}
+
+export interface GitStagedCommit {
+  message: string;
+}
+
+export type GitSignatureKind = "gpg" | "ssh" | "x509";
+
+export type GitSignatureState = "unsigned" | "unverified" | "good" | "untrusted" | "bad" | "unknown-key" | "expired";
+
+export interface GitSignatureCheck {
+  oid: string;
+  state: GitSignatureState;
+  kind?: GitSignatureKind;
+  signer?: string;
+  key?: string;
+}
+
+/** Open a pull request from a branch on the remote (strand E, GitHub and GitLab). */
+export interface NewPullRequest {
+  title: string;
+  body: string;
+  /** Branch with the changes, as named on the remote. */
+  head: string;
+  /** Branch to merge into. */
+  base: string;
+  draft: boolean;
 }

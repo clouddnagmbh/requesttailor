@@ -41,8 +41,9 @@ fn options() -> Options {
     Options::default()
 }
 
+/// The active repository (wave 15: `Core::active_repository`).
 fn root<S: SecretStore>(core: &Core<S>) -> Result<PathBuf> {
-    core.root()
+    core.active_repository()
         .ok_or_else(|| AppError::Shell("no collection is open".into()))
 }
 

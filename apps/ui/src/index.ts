@@ -19,6 +19,7 @@ export { MockBackend } from "./commands/mock";
 export * from "./commands/wave12-stubs";
 // Wave 14 interface: the collection set over the single open collection (strand A replaces it).
 export * from "./commands/wave14-stubs";
+export * from "./commands/wave15-stubs";
 // Wave 14, strand F: the graph's order and pages for shells that build it in TypeScript.
 export { dateOrder, graphPage, reachable, sortChanges, sortRefs, type GraphSource, type OrderCommit } from "./git/graph/order";
 export * from "./commands/openapi-stub";

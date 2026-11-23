@@ -32,6 +32,7 @@ describe("tauriReview", () => {
     await api.comment(7, { path: "a.yml", line: 3, body: "hi" });
     await api.submit(7, { verdict: "approve", body: "" });
     await api.ci(7);
+    await api.create({ title: "T", body: "", head: "feature", base: "main", draft: false });
     expect(calls).toEqual([
       ["review_repo", undefined],
       ["review_hosts", undefined],
@@ -47,6 +48,7 @@ describe("tauriReview", () => {
       ["review_comment", { number: 7, comment: { path: "a.yml", line: 3, body: "hi" } }],
       ["review_submit", { number: 7, review: { verdict: "approve", body: "" } }],
       ["review_ci", { number: 7 }],
+      ["review_create", { pull: { title: "T", body: "", head: "feature", base: "main", draft: false } }],
     ]);
     const reviewCommands = COMMANDS.filter((c) => c.startsWith("review_"));
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(reviewCommands));
