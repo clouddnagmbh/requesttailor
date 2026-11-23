@@ -39,9 +39,9 @@ test("Mod+N, arrow keys and Enter create every kind of request", async ({ page }
   ];
   for (const [key, steps, name, method] of kinds) {
     await openNew(page);
-    await expect(tile(page, "http")).toHaveAttribute("aria-selected", "true");
+    await expect(tile(page, "http")).toHaveAttribute("data-current", "true");
     for (let i = 0; i < steps; i++) await page.keyboard.press("ArrowRight");
-    await expect(tile(page, key)).toHaveAttribute("aria-selected", "true");
+    await expect(tile(page, key)).toHaveAttribute("data-current", "true");
     await page.keyboard.press("Enter");
     await expect(page.getByTestId("new-form")).toHaveAttribute("data-kind", key);
     // The name starts selected: typing replaces the default.
@@ -78,7 +78,7 @@ test("typing filters the tiles; a request goes into the chosen folder", async ({
   await openCollection(page);
   await openNew(page);
   await page.keyboard.type("graph");
-  await expect(tile(page, "graphql")).toHaveAttribute("aria-selected", "true");
+  await expect(tile(page, "graphql")).toHaveAttribute("data-current", "true");
   await page.keyboard.press("Backspace");
   await page.keyboard.press("Backspace");
   await page.keyboard.press("Backspace");
@@ -86,6 +86,7 @@ test("typing filters the tiles; a request goes into the chosen folder", async ({
   await page.keyboard.press("Backspace");
   await page.keyboard.type("zzzz");
   await expect(page.getByTestId("new-empty")).toContainText("Nothing matches");
+  if (process.env.RT_SHOTS) await page.screenshot({ path: `${process.env.RT_SHOTS}/new-empty.png`, animations: "disabled" });
   await page.getByTestId("new-filter").fill("");
   await page.keyboard.type("http");
   await page.keyboard.press("Enter");
@@ -143,7 +144,7 @@ test("folder, environment and MCP test from the keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   await page.keyboard.type("Echo tool");
   await page.getByTestId("new-url").fill("http://localhost:3001/mcp");
-  await expect(page.getByTestId("new-transport-stdio")).toBeDisabled();
+  await expect(page.getByRole("radio", { name: "Local command" })).toBeDisabled();
   await page.keyboard.press(`${MOD}+Enter`);
   await expect(dialog(page)).toBeHidden();
   await expect(page.getByTestId("mcp-panel")).toBeVisible();
@@ -187,7 +188,7 @@ test("Escape goes back to the tiles, then closes; the palette opens it too", asy
   await page.keyboard.type("New…");
   await page.keyboard.press("Enter");
   await expect(dialog(page)).toBeVisible();
-  await page.getByTestId("new-close").click();
+  await dialog(page).getByRole("button", { name: "Close" }).click();
   await expect(dialog(page)).toBeHidden();
 });
 
@@ -197,11 +198,12 @@ test("a tile of an extension appears with its badge and runs for the target", as
   const thing = tile(page, "test/thing");
   await expect(thing).toContainText("Test thing");
   await expect(thing.getByTestId("new-tile-badge")).toHaveText("Beta");
-  await expect(page.getByRole("group", { name: "Extras" })).toContainText("Test thing");
+  await expect(page.getByRole("region", { name: "Extras" })).toContainText("Test thing");
   // Built-in tiles carry no badge.
   await expect(page.getByTestId("new-tile-badge")).toHaveCount(1);
   await page.keyboard.type("test thing");
-  await expect(thing).toHaveAttribute("aria-selected", "true");
+  await expect(thing).toHaveAttribute("data-current", "true");
+  if (process.env.RT_SHOTS) await page.screenshot({ path: `${process.env.RT_SHOTS}/new-extension-tile.png`, animations: "disabled" });
   await page.keyboard.press("Enter");
   await expect(dialog(page)).toBeHidden();
   expect(await page.evaluate(() => (window as any).__rt.calls.ran)).toEqual([{ collection: "mock-collection", folder: "" }]);
@@ -217,18 +219,33 @@ for (const width of [900, 1440]) {
       const fits = () =>
         page.evaluate(() => {
           const d = document.querySelector<HTMLElement>("[data-testid=new-dialog]")!;
-          const over = [...d.querySelectorAll<HTMLElement>("*")].filter((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== "visible");
+          // Visually hidden text (a live region) clips on purpose.
+          const over = [...d.querySelectorAll<HTMLElement>("*")].filter(
+            (el) => el.clientWidth > 1 && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== "visible",
+          );
           const r = d.getBoundingClientRect();
           return { inside: r.left >= 0 && r.right <= innerWidth, page: document.documentElement.scrollWidth <= innerWidth, over: over.map((e) => e.className) };
         });
       expect(await fits()).toEqual({ inside: true, page: true, over: [] });
-      if (process.env.RT_SHOTS) await page.screenshot({ path: `${process.env.RT_SHOTS}/new-tiles-${width}-${scheme}.png` });
+      // Alignment: the filter and the tiles share the left edge; tiles in a row share top and width.
+      const boxes = await page.evaluate(() => {
+        const r = (el: Element) => el.getBoundingClientRect();
+        const filter = r(document.querySelector("[data-testid=new-filter]")!.closest(".rt-field-box")!);
+        const tiles = [...document.querySelectorAll("[data-testid=new-tile] .rt-card")].map(r);
+        return { filter: { left: filter.left, right: filter.right }, tiles: tiles.map((t) => ({ left: t.left, top: t.top, width: t.width, right: t.right })) };
+      });
+      expect(Math.abs(boxes.filter.left - boxes.tiles[0].left)).toBeLessThan(1);
+      const firstRow = boxes.tiles.filter((t) => Math.abs(t.top - boxes.tiles[0].top) < 1);
+      expect(firstRow.length).toBeGreaterThan(1);
+      for (const t of firstRow) expect(Math.abs(t.width - firstRow[0].width)).toBeLessThan(1);
+      expect(Math.abs(firstRow[firstRow.length - 1].right - boxes.filter.right)).toBeLessThan(1);
+      if (process.env.RT_SHOTS) await page.screenshot({ path: `${process.env.RT_SHOTS}/new-tiles-${width}-${scheme}.png`, animations: "disabled" });
       for (const kind of ["http", "collection", "mcp-test"]) {
         await page.getByTestId("new-filter").fill("");
         await tile(page, kind).click();
         await expect(page.getByTestId("new-form")).toHaveAttribute("data-kind", kind);
         expect(await fits(), kind).toEqual({ inside: true, page: true, over: [] });
-        if (process.env.RT_SHOTS) await page.screenshot({ path: `${process.env.RT_SHOTS}/new-${kind}-${width}-${scheme}.png` });
+        if (process.env.RT_SHOTS) await page.screenshot({ path: `${process.env.RT_SHOTS}/new-${kind}-${width}-${scheme}.png`, animations: "disabled" });
         await page.keyboard.press("Escape");
       }
       await page.keyboard.press("Escape");

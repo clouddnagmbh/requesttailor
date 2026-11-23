@@ -49,12 +49,13 @@
   import type { ExtensionContext, NewTarget } from "../extensions";
   import { getExtensions } from "../shell/extension-tabs";
   import { getApp } from "../state/app.svelte";
+  import { Badge, Button, Card, Dialog, DialogFooter, EmptyState, Icon, Kbd, TextField } from "../ui";
   import { createNew } from "./create";
-  import { folderChildren, initialForm, validate, type FormErrors, type NewForm } from "./forms";
+  import { folderChildren, FORM_TITLES, initialForm, validate, type FormErrors, type NewForm } from "./forms";
+  import { isNewIcon } from "./icons";
   import { extensionNewItems } from "./items";
   import { isNewItemKind, NEW_ITEMS, type NewItemKind } from "./kinds";
   import NewFields from "./NewFields.svelte";
-  import TileIcon from "./TileIcon.svelte";
   import { allTiles, filterTiles, moveTile, type MoveKey, type Tile } from "./tiles";
 
   /** Unused since wave 14 (the dialog replaced the sidebar's inline prompt); kept so the shell's
@@ -64,10 +65,9 @@
   const app = getApp();
   const provided = getExtensions();
   const ctx: ExtensionContext = provided?.ctx ?? { backend: app.backend, app };
-  const mac = isMacPlatform();
   const desktop = app.backend.kind === "tauri";
+  const FORM_ID = "rt-new-form";
 
-  let dialogEl = $state<HTMLDialogElement>();
   let gridEl = $state<HTMLElement>();
   let query = $state("");
   let current = $state(0);
@@ -85,6 +85,7 @@
   const shown = $derived(filterTiles(tiles, query));
   const currentTile = $derived<Tile | undefined>(shown.flat[current]);
   const info = $derived(form ? NEW_ITEMS.find((i) => i.kind === form!.kind) : undefined);
+  const targetName = $derived(app.collections.find((c) => c.id === target.collection)?.name ?? null);
 
   const facts = $derived.by(() => {
     if (!form) return {};
@@ -96,7 +97,7 @@
     };
   });
   const errors = $derived<FormErrors>(form && tried ? validate(form, facts) : {});
-  const roots = $derived([...new Map(app.collections.map((c) => [c.root, rootName(c.root)])).entries()]);
+  const roots = $derived<[string, string][]>([...new Map(app.collections.map((c) => [c.root, rootName(c.root)])).entries()]);
 
   function rootName(root: string): string {
     // The root's own collection, if it is one, else the folder the collections were found in.
@@ -116,24 +117,16 @@
     if (!r || r.seq === seen) return;
     seen = r.seq;
     query = "";
-    current = 0;
     error = null;
     tried = false;
     busy = false;
     form = null;
+    current = filterTiles(tiles, "").best;
     if (r.kind && isNewItemKind(r.kind)) choose(r.kind);
     else if (r.kind) {
       const tile = tiles.find((t) => t.key === r.kind);
       if (tile) void pick(tile);
     }
-    void tick().then(() => {
-      if (!dialogEl || dialogEl.open || !app.newDialog) return;
-      dialogEl.showModal();
-      // showModal focuses the first control (the close button); start where typing belongs.
-      const first = dialogEl.querySelector<HTMLInputElement>("[data-autofocus]");
-      first?.focus();
-      first?.select();
-    });
   });
 
   // While open, Mod+Enter and Escape come here (the module's listener hands them over).
@@ -179,12 +172,23 @@
     form = null;
     error = null;
     await tick();
-    dialogEl?.querySelector<HTMLInputElement>("[data-testid=new-filter]")?.focus();
+    const filter = document.querySelector<HTMLInputElement>("[data-testid=new-filter]");
+    filter?.focus();
+    filter?.select();
   }
 
   function close() {
-    dialogEl?.close();
     app.closeNew();
+    // The next opening starts on the tiles (the frame focuses its first field when it mounts).
+    form = null;
+    query = "";
+    error = null;
+  }
+
+  /** Escape: from a form back to the tiles, from the tiles closed. */
+  function escape() {
+    if (form && !busy) void back();
+    else if (!form) close();
   }
 
   async function submit() {
@@ -192,7 +196,7 @@
     tried = true;
     if (Object.keys(validate(form, facts)).length > 0) {
       await tick();
-      dialogEl?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      document.querySelector<HTMLElement>(`#${FORM_ID} [aria-invalid="true"]`)?.focus();
       return;
     }
     busy = true;
@@ -210,122 +214,116 @@
       const boxes = [...(gridEl?.querySelectorAll<HTMLElement>("[data-tile]") ?? [])].map((el) => el.getBoundingClientRect());
       current = moveTile(boxes, current, e.key as MoveKey);
       e.preventDefault();
-      void tick().then(() => gridEl?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" }));
+      void tick().then(() => gridEl?.querySelector('[data-current="true"]')?.scrollIntoView({ block: "nearest" }));
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (currentTile) void pick(currentTile);
     }
   }
 
-  /** Escape: from a form back to the tiles, from the tiles closed. */
-  function escape() {
-    if (form && !busy) void back();
-    else if (!form) close();
-  }
-
   function onFilterInput(e: Event) {
     query = (e.currentTarget as HTMLInputElement).value;
     current = filterTiles(tiles, query).best;
+    error = null;
   }
-
-  const autofocus = (el: HTMLInputElement) => {
-    el.focus();
-  };
-
-  const modEnter = mac ? "⌘↩" : "Ctrl+Enter";
-  const tileId = (key: string) => `rt-new-tile-${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-  const collectionName = (id: string | null) => app.collections.find((c) => c.id === id)?.name ?? null;
 </script>
 
 {#if request}
-  <dialog
-    bind:this={dialogEl}
-    class="new-dialog"
-    data-testid="new-dialog"
-    aria-labelledby="rt-new-title"
-    oncancel={(e) => {
-      e.preventDefault();
-      escape();
-    }}
-    onclose={(e) => {
-      // The browser closed it by itself. A `close` of a dialog closed before (and gone since)
-      // arrives later, possibly after the next `openNew`: only this element's own counts.
-      if (e.currentTarget === dialogEl && app.newDialog) app.closeNew();
-    }}
+  <Dialog
+    title={form ? FORM_TITLES[form.kind] : "Create new"}
+    description={form
+      ? info?.description
+      : targetName
+        ? `Pick what to create in ${targetName}. Type to filter, arrows to move, Enter to choose.`
+        : "Start with a collection: the folder your requests live in."}
+    icon={form ? (info?.icon ?? "add") : "add"}
+    size="lg"
+    testid="new-dialog"
+    onclose={close}
   >
     {#if !form}
-      <header class="head">
-        <div class="titles">
-          <h2 id="rt-new-title">Create new</h2>
-          <p class="sub">
-            {collectionName(target.collection) ? `Pick what to create in ${collectionName(target.collection)}.` : "Start with a collection, the folder your requests live in."}
-          </p>
-        </div>
-        <button type="button" class="close" aria-label="Close" data-testid="new-close" onclick={close}>×</button>
-      </header>
       <div class="filter">
-        <input
-          data-testid="new-filter"
-          data-autofocus
-          type="search"
-          role="combobox"
-          aria-label="Filter"
-          aria-expanded="true"
-          aria-controls="rt-new-grid"
-          aria-activedescendant={currentTile ? tileId(currentTile.key) : undefined}
-          placeholder="Type to filter: request, folder, environment…"
+        <TextField
+          size="lg"
+          icon="search"
           value={query}
           oninput={onFilterInput}
           onkeydown={onFilterKeydown}
+          placeholder="Filter: request, GraphQL, folder, environment…"
+          aria-label="Filter what to create"
+          aria-controls="rt-new-grid"
+          aria-describedby="rt-new-current"
           autocomplete="off"
           spellcheck="false"
-          {@attach autofocus}
-        />
+          data-testid="new-filter"
+          data-autofocus
+        >
+          {#snippet trailing()}<Kbd keys="Enter" size="sm" />{/snippet}
+        </TextField>
       </div>
-      <div class="body" id="rt-new-grid" role="listbox" aria-label="What to create" bind:this={gridEl}>
+      <!-- Which tile Enter takes, for screen readers (focus stays in the filter). -->
+      <p class="sr-only" id="rt-new-current" aria-live="polite">
+        {currentTile ? `${currentTile.title}: ${currentTile.disabled ?? currentTile.description}` : "Nothing matches."}
+      </p>
+      <div class="groups" id="rt-new-grid" bind:this={gridEl}>
         {#each shown.groups as g (g.group)}
-          <div class="group" role="group" aria-label={g.group}>
+          <section class="group" aria-label={g.group}>
             <h3>{g.group}</h3>
             <div class="grid">
               {#each g.tiles as tile (tile.key)}
                 {@const i = shown.flat.indexOf(tile)}
+                <!-- Moving the pointer moves the keyboard's choice along (not a tile that only
+                     appears under a resting pointer); the card itself is the control. -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
-                  id={tileId(tile.key)}
                   class="tile"
-                  class:current={i === current}
-                  role="option"
-                  tabindex="-1"
-                  aria-selected={i === current}
-                  aria-disabled={tile.disabled ? "true" : undefined}
-                  title={tile.disabled}
+                  class:disabled={Boolean(tile.disabled)}
                   data-tile
                   data-testid="new-tile"
                   data-key={tile.key}
-                  onmouseenter={() => (current = i)}
-                  onclick={() => pick(tile)}
-                  onkeydown={(e) => e.key === "Enter" && pick(tile)}
+                  data-current={i === current}
+                  aria-disabled={tile.disabled ? "true" : undefined}
+                  onmousemove={() => current !== i && (current = i)}
                 >
-                  <TileIcon name={tile.icon} kind={tile.builtin ?? null} />
-                  <span class="text">
-                    <span class="name">{tile.title}</span>
-                    <span class="desc">{tile.description}</span>
-                  </span>
-                  {#if tile.badge}<span class="badge" data-testid="new-tile-badge">{tile.badge}</span>{/if}
+                  <Card
+                    icon={isNewIcon(tile.icon) ? tile.icon : "spark"}
+                    title={tile.title}
+                    description={tile.disabled ?? tile.description}
+                    padding="sm"
+                    selected={i === current}
+                    onclick={() => pick(tile)}
+                  >
+                    {#snippet actions()}
+                      {#if tile.badge}<span data-testid="new-tile-badge"><Badge value={tile.badge} tone="accent" solid /></span>{/if}
+                    {/snippet}
+                  </Card>
                 </div>
               {/each}
             </div>
-          </div>
+          </section>
         {:else}
-          <p class="empty" data-testid="new-empty">Nothing matches “{query}”. Try “request”, “folder” or “environment”.</p>
+          <div data-testid="new-empty">
+            <EmptyState icon="search" size="sm" title="Nothing matches “{query}”" text="Try “request”, “folder”, “environment” or “MCP”." />
+          </div>
         {/each}
       </div>
-      {#if error}<p class="error" role="alert" data-testid="new-error">{error}</p>{/if}
-      <footer class="foot">
-        <span class="keys"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> move · <kbd>↩</kbd> choose · <kbd>Esc</kbd> close</span>
-      </footer>
+      {#if error}<p class="error" role="alert" data-testid="new-error"><Icon name="error" size="sm" />{error}</p>{/if}
+      <DialogFooter>
+        {#snippet start()}
+          <span class="where">
+            <Icon name="collection" size="sm" />
+            {#if targetName}{targetName}{#if target.folder}<Icon name="chevron-right" size="sm" />{target.folder}{/if}{:else}No collection open{/if}
+          </span>
+        {/snippet}
+        <span class="keys">
+          <span><Kbd keys="ArrowUp" size="sm" /><Kbd keys="ArrowDown" size="sm" /><Kbd keys="ArrowLeft" size="sm" /><Kbd keys="ArrowRight" size="sm" /> move</span>
+          <span><Kbd keys="Enter" size="sm" /> choose</span>
+          <span><Kbd keys="Escape" size="sm" /> close</span>
+        </span>
+      </DialogFooter>
     {:else}
       <form
-        class="form"
+        id={FORM_ID}
         data-testid="new-form"
         data-kind={form.kind}
         novalidate
@@ -334,180 +332,114 @@
           void submit();
         }}
       >
-        <header class="head">
-          <button type="button" class="back" aria-label="Back to all kinds" data-testid="new-back" onclick={back}>←</button>
-          <TileIcon name={info?.icon ?? ""} kind={form.kind} />
-          <div class="titles">
-            <h2 id="rt-new-title">New {info?.title ?? ""}</h2>
-            <p class="sub">{info?.description}</p>
-          </div>
-          <button type="button" class="close" aria-label="Close" onclick={close}>×</button>
-        </header>
-        <div class="body">
-          <NewFields bind:form {errors} {desktop} pickRoot={roots} />
-        </div>
-        {#if error}<p class="error" role="alert" data-testid="new-error">{error}</p>{/if}
-        <footer class="foot">
-          <span class="keys"><kbd>Esc</kbd> back</span>
-          <span class="spacer"></span>
-          <button type="button" data-testid="new-cancel" onclick={close}>Cancel</button>
-          <button type="submit" class="primary" data-testid="new-create" disabled={busy}>
-            {busy ? "Creating…" : form.kind === "collection" && form.place === "elsewhere" ? "Choose folder and create" : "Create"}
-            <kbd>{modEnter}</kbd>
-          </button>
-        </footer>
+        <NewFields bind:form {errors} {desktop} {roots} />
       </form>
+      {#if error}<p class="error form-error" role="alert" data-testid="new-error"><Icon name="error" size="sm" />{error}</p>{/if}
+      <DialogFooter>
+        {#snippet start()}
+          <Button variant="ghost" icon="chevron-left" onclick={back} data-testid="new-back">All kinds</Button>
+        {/snippet}
+        <span class="keys"><Kbd keys="Mod+Enter" size="sm" /> create</span>
+        <Button onclick={close} data-testid="new-cancel">Cancel</Button>
+        <Button variant="primary" type="submit" form={FORM_ID} loading={busy} data-testid="new-create">
+          {form.kind === "collection" && form.place === "elsewhere" ? "Choose folder and create" : "Create"}
+        </Button>
+      </DialogFooter>
     {/if}
-  </dialog>
+  </Dialog>
 {/if}
 
 <style>
-  /* Structure only; the visual pass follows with the shared design primitives. */
-  .new-dialog {
-    width: min(760px, calc(100vw - 32px));
-    max-height: min(640px, calc(100vh - 48px));
-    box-sizing: border-box;
-    padding: 0;
-    flex-direction: column;
-    color: var(--rt-fg);
-    background: var(--rt-bg);
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    box-shadow: var(--rt-shadow);
-    overflow: hidden;
-  }
-  .new-dialog[open] {
-    display: flex;
-  }
-  .new-dialog::backdrop {
-    background: var(--rt-bg-overlay);
-  }
-  .form {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    flex: 1;
-  }
-  .head {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--rt-gap);
-    padding: 16px 16px 8px;
-  }
-  .titles {
-    flex: 1;
-    min-width: 0;
-  }
-  h2 {
-    margin: 0;
-    font-size: 15px;
-  }
-  .sub {
-    margin: 2px 0 0;
-    color: var(--rt-fg-muted);
-  }
-  .close,
-  .back {
-    flex: none;
-    background: none;
-    border: 0;
-    color: var(--rt-fg-muted);
-    font-size: 18px;
-    cursor: pointer;
-  }
+  /* The filter stays in view while the tiles scroll under it (the frame's body scrolls). */
   .filter {
-    padding: 0 16px 8px;
+    position: sticky;
+    top: calc(-1 * var(--rt-space-5));
+    z-index: 1;
+    margin: calc(-1 * var(--rt-space-5)) 0 0;
+    padding: var(--rt-space-5) 0 var(--rt-space-5);
+    background: var(--rt-surface-3);
   }
-  .filter input {
-    width: 100%;
-    box-sizing: border-box;
+  /* A steady height while filtering, so the dialog does not jump as tiles come and go. */
+  .groups {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: var(--rt-space-7);
+    min-height: min(420px, calc(100vh - 340px));
+    padding-top: var(--rt-space-2);
   }
-  .body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 8px 16px 16px;
-  }
-  .group + .group {
-    margin-top: 12px;
+  .groups > [data-testid="new-empty"] {
+    margin: auto 0;
   }
   h3 {
-    margin: 0 0 6px;
-    font-size: var(--rt-size-small);
+    margin: 0 0 var(--rt-space-4);
     color: var(--rt-fg-muted);
-    font-weight: 600;
+    font: var(--rt-font-caption);
+    letter-spacing: var(--rt-tracking-caps);
+    text-transform: uppercase;
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--rt-gap);
+    grid-template-columns: repeat(auto-fill, minmax(208px, 1fr));
+    gap: var(--rt-space-5);
   }
   .tile {
-    position: relative;
     display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    padding: 10px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    cursor: pointer;
     min-width: 0;
   }
-  .tile.current {
-    border-color: var(--rt-accent);
-    background: var(--rt-bg-selected);
+  .tile > :global(.rt-card) {
+    flex: 1;
   }
-  .tile[aria-disabled="true"] {
-    opacity: 0.5;
-    cursor: default;
-  }
-  .text {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  .name {
-    font-weight: 600;
-  }
-  .desc {
-    color: var(--rt-fg-muted);
-    font-size: var(--rt-size-small);
-  }
-  .badge {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    font-size: 11px;
-    padding: 0 6px;
-    border-radius: 999px;
-    border: 1px solid var(--rt-accent);
-    color: var(--rt-accent);
-  }
-  .empty {
-    color: var(--rt-fg-muted);
-    text-align: center;
-    padding: 24px 0;
-    margin: 0;
+  .tile.disabled {
+    opacity: 0.55;
   }
   .error {
-    margin: 0;
-    padding: 0 16px 8px;
-    color: var(--rt-danger);
-    overflow-wrap: anywhere;
-  }
-  .foot {
     display: flex;
     align-items: center;
-    gap: var(--rt-gap);
-    padding: 10px 16px;
-    border-top: 1px solid var(--rt-border);
-    background: var(--rt-bg-panel);
+    gap: var(--rt-space-3);
+    margin: var(--rt-space-5) 0 0;
+    padding: var(--rt-space-4) var(--rt-space-5);
+    border: 1px solid var(--rt-danger-border);
+    border-radius: var(--rt-radius-md);
+    background: var(--rt-danger-bg);
+    color: var(--rt-danger-fg);
+    font: var(--rt-font-small);
+    overflow-wrap: anywhere;
+  }
+  .form-error {
+    margin-top: var(--rt-space-6);
+  }
+  .where {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-2);
+    min-width: 0;
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .keys {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-5);
     color: var(--rt-fg-muted);
-    font-size: var(--rt-size-small);
+    font: var(--rt-font-small);
+    white-space: nowrap;
   }
-  .spacer {
-    flex: 1;
+  .keys > span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-2);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 </style>

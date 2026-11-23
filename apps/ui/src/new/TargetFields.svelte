@@ -4,8 +4,9 @@
      folder inside it. Collections come from the sidebar (`AppState.collections`); a tree that the
      sidebar has not read yet is read once with `collections.tree`. -->
 <script lang="ts">
-  import { getApp } from "../state/app.svelte";
   import type { TreeNode } from "../commands/types";
+  import { getApp } from "../state/app.svelte";
+  import { Select, type SelectOption } from "../ui";
   import { folderOptions } from "./forms";
 
   let {
@@ -20,7 +21,20 @@
 
   const tree = $derived(collection ? (app.trees[collection] ?? fetched[collection] ?? null) : null);
   const options = $derived(folderOptions(tree));
-  const collectionName = $derived(app.collections.find((c) => c.id === collection)?.name ?? "");
+  const collectionName = $derived(app.collections.find((c) => c.id === collection)?.name ?? "Collection");
+
+  const collectionOptions = $derived<SelectOption[]>(
+    app.collections.length === 0
+      ? [{ value: "", label: "No collection open", disabled: true }]
+      : app.collections.map((c) => ({ value: c.id, label: c.name })),
+  );
+  // An em space per level keeps the nesting readable in the native list.
+  const folderSelectOptions = $derived<SelectOption[]>(
+    options.map((o) => ({
+      value: o.path,
+      label: o.depth === 0 ? `${collectionName} (top level)` : `${" ".repeat(o.depth - 1)}${o.name}`,
+    })),
+  );
 
   $effect(() => {
     const id = collection;
@@ -38,47 +52,28 @@
   });
 </script>
 
-<div class="target">
-  <label class="field">
-    <span class="label">Collection</span>
-    <select data-testid="new-collection" bind:value={collection} disabled={app.collections.length === 0}>
-      {#if app.collections.length === 0}<option value={null}>No collection open</option>{/if}
-      {#each app.collections as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
-    </select>
-  </label>
+<div class="target" class:single={!folders}>
+  <Select
+    label="Collection"
+    icon="collection"
+    options={collectionOptions}
+    bind:value={() => collection ?? "", (v) => (collection = v === "" ? null : v)}
+    disabled={app.collections.length === 0}
+    error={error}
+    data-testid="new-collection"
+  />
   {#if folders}
-    <label class="field">
-      <span class="label">Folder</span>
-      <select data-testid="new-folder" bind:value={folder} disabled={!collection}>
-        {#each options as o (o.path)}
-          <option value={o.path}>{o.depth === 0 ? `${collectionName || "Collection"} (top level)` : `${" ".repeat(o.depth - 1)}${o.name}`}</option>
-        {/each}
-      </select>
-    </label>
+    <Select label="Folder" icon="folder" options={folderSelectOptions} bind:value={folder} disabled={!collection} data-testid="new-folder" />
   {/if}
-  {#if error}<p class="error" role="alert">{error}</p>{/if}
 </div>
 
 <style>
   .target {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: var(--rt-gap);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--rt-space-5);
   }
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
-  .label {
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
-  }
-  .error {
-    grid-column: 1 / -1;
-    margin: 0;
-    color: var(--rt-danger);
-    font-size: var(--rt-size-small);
+  .single {
+    grid-template-columns: minmax(0, 1fr);
   }
 </style>

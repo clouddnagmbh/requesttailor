@@ -88,6 +88,19 @@ export const DEFAULT_NAMES: Record<NewItemKind, string> = {
   "mcp-test": "New MCP test",
 };
 
+/** The heading of each kind's form. */
+export const FORM_TITLES: Record<NewItemKind, string> = {
+  http: "New HTTP request",
+  graphql: "New GraphQL request",
+  grpc: "New gRPC request",
+  websocket: "New WebSocket",
+  sse: "New event stream",
+  collection: "New collection",
+  folder: "New folder",
+  environment: "New environment",
+  "mcp-test": "New MCP server test",
+};
+
 /** Example addresses shown in the empty URL field. */
 export const URL_PLACEHOLDERS: Record<NewRequestKind, string> = {
   http: "https://api.example.com/users",

@@ -5,162 +5,217 @@
      form submits), like Mod+Enter anywhere in the dialog. -->
 <script lang="ts">
   import { getApp } from "../state/app.svelte";
-  import {
-    DEFAULT_ENVIRONMENT,
-    HTTP_METHODS,
-    URL_PLACEHOLDERS,
-    withName,
-    type FormErrors,
-    type NewForm,
-  } from "./forms";
+  import { SegmentedControl, Select, TextField, type SelectOption } from "../ui";
+  import { DEFAULT_ENVIRONMENT, HTTP_METHODS, URL_PLACEHOLDERS, withName, type FormErrors, type NewForm } from "./forms";
   import TargetFields from "./TargetFields.svelte";
 
   let {
     form = $bindable(),
     errors,
     desktop,
-    pickRoot,
+    roots,
   }: {
     form: NewForm;
     errors: FormErrors;
     desktop: boolean;
     /** Roots a collection can go into: `[id, name]`. */
-    pickRoot: [string, string][];
+    roots: [string, string][];
   } = $props();
 
   const app = getApp();
 
   /** Environments to copy from: those of the active collection (the only ones the shell lists). */
-  const environments = $derived(
-    form.kind === "environment" && form.collection === app.activeCollection ? app.environments.map((e) => e.name) : [],
-  );
+  const copyOptions = $derived<SelectOption[]>([
+    { value: "", label: "Empty environment" },
+    ...(form.kind === "environment" && form.collection === app.activeCollection
+      ? app.environments.map((e) => ({ value: e.name, label: `Copy of ${e.name}` }))
+      : []),
+  ]);
+  const methodOptions: SelectOption[] = HTTP_METHODS.map((m) => ({ value: m, label: m }));
+  const rootOptions = $derived<SelectOption[]>(roots.map(([value, label]) => ({ value, label })));
+  const rootName = $derived.by(() => {
+    const f = form;
+    return f.kind === "collection" ? (roots.find(([id]) => id === f.root)?.[1] ?? "") : "";
+  });
 
-  const focusName = (el: HTMLInputElement) => {
-    el.focus();
-    el.select();
+  const NAME_LABELS: Record<string, string> = {
+    collection: "Collection name",
+    folder: "Folder name",
+    environment: "Environment name",
+    "mcp-test": "Test name",
   };
 
-  function setName(e: Event) {
-    form = withName(form, (e.currentTarget as HTMLInputElement).value);
-  }
-
-  const nameLabel = $derived(
-    form.kind === "collection" ? "Collection name" : form.kind === "folder" ? "Folder name" : form.kind === "environment" ? "Environment name" : form.kind === "mcp-test" ? "Test name" : "Request name",
-  );
+  // The name field starts focused with its default selected (the dialog's frame focuses
+  // `data-autofocus` only when it opens, not when it moves from the tiles to a form).
+  const focusName = (el: HTMLElement) => {
+    const input = el.querySelector<HTMLInputElement>("[data-testid=new-name]");
+    input?.focus();
+    input?.select();
+  };
 </script>
 
 <div class="fields">
-  <label class="field">
-    <span class="label">{nameLabel}</span>
-    <input
-      data-testid="new-name"
-      data-autofocus
-      type="text"
+  <div class="name" {@attach focusName}>
+    <TextField
+      label={NAME_LABELS[form.kind] ?? "Request name"}
+      size="lg"
       value={form.name}
-      oninput={setName}
-      aria-invalid={errors.name ? "true" : undefined}
+      oninput={(e) => (form = withName(form, e.currentTarget.value))}
+      error={errors.name}
       autocomplete="off"
       spellcheck="false"
-      {@attach focusName}
+      data-testid="new-name"
+      data-autofocus
     />
-    {#if errors.name}<span class="error" role="alert">{errors.name}</span>{/if}
-  </label>
+  </div>
 
   {#if form.kind === "http" || form.kind === "graphql" || form.kind === "grpc" || form.kind === "websocket" || form.kind === "sse"}
-    <div class="url-row">
-      {#if form.kind === "http"}
-        <label class="field method">
-          <span class="label">Method</span>
-          <select data-testid="new-method" bind:value={form.method}>
-            {#each HTTP_METHODS as m (m)}<option value={m}>{m}</option>{/each}
-          </select>
-        </label>
+    {@const kind = form.kind}
+    <div class="row">
+      {#if kind === "http" && form.kind === "http"}
+        <div class="method">
+          <Select label="Method" options={methodOptions} bind:value={form.method} data-testid="new-method" />
+        </div>
       {/if}
-      <label class="field grow">
-        <span class="label">{form.kind === "grpc" ? "Server" : "URL"} <span class="optional">optional</span></span>
-        <input data-testid="new-url" type="text" bind:value={form.url} placeholder={URL_PLACEHOLDERS[form.kind]} autocomplete="off" spellcheck="false" />
-      </label>
+      <div class="grow">
+        <TextField
+          label={kind === "grpc" ? "Server" : "URL"}
+          hint="Optional. Variables like {'{{baseUrl}}'} work here too."
+          mono
+          bind:value={form.url}
+          placeholder={URL_PLACEHOLDERS[kind]}
+          autocomplete="off"
+          data-testid="new-url"
+        />
+      </div>
     </div>
-    {#if form.kind === "sse"}<p class="note">Sent as GET with <code>Accept: text/event-stream</code>; events show as they arrive.</p>{/if}
+    {#if kind === "sse"}
+      <p class="note">Sent as <code>GET</code> with <code>Accept: text/event-stream</code>; events appear as they arrive.</p>
+    {/if}
     <TargetFields bind:collection={form.collection} bind:folder={form.folder} error={errors.collection} />
   {:else if form.kind === "folder"}
     <TargetFields bind:collection={form.collection} bind:folder={form.folder} error={errors.collection} />
   {:else if form.kind === "environment"}
-    <TargetFields bind:collection={form.collection} folders={false} error={errors.collection} />
-    <label class="field">
-      <span class="label">Start from</span>
-      <select data-testid="new-copy-from" bind:value={form.copyFrom}>
-        <option value={null}>Empty environment</option>
-        {#each environments as name (name)}<option value={name}>Copy of {name}</option>{/each}
-      </select>
-      <span class="hint">Variables are copied; secret values never are. Set them after creating.</span>
-    </label>
+    <div class="row">
+      <div class="grow"><TargetFields bind:collection={form.collection} folders={false} error={errors.collection} /></div>
+      <div class="grow">
+        <Select
+          label="Start from"
+          icon="copy"
+          options={copyOptions}
+          bind:value={() => (form.kind === "environment" ? (form.copyFrom ?? "") : ""), (v) => form.kind === "environment" && (form.copyFrom = v === "" ? null : v)}
+          hint="Variables are copied; secret values never are."
+          data-testid="new-copy-from"
+        />
+      </div>
+    </div>
   {:else if form.kind === "collection"}
-    <fieldset class="field">
-      <legend class="label">Location</legend>
-      {#if pickRoot.length > 0}
-        <label class="choice">
-          <input type="radio" name="new-place" value="root" bind:group={form.place} data-testid="new-place-root" />
-          <span>In a new folder of</span>
-          <select data-testid="new-root" bind:value={form.root} disabled={form.place !== "root"} aria-label="Folder to create it in">
-            {#each pickRoot as [id, name] (id)}<option value={id}>{name}</option>{/each}
-          </select>
-        </label>
-        {#if form.place === "root"}
-          <label class="field indent">
-            <span class="label">Folder</span>
-            <input
-              data-testid="new-dir"
-              type="text"
+    <div class="group">
+      <span class="caption" id="rt-new-place">Location</span>
+      <SegmentedControl
+        label="Location"
+        options={[
+          { value: "root", label: roots.length > 0 ? "New folder here" : "New folder here (open a folder first)", icon: "folder", disabled: roots.length === 0 },
+          { value: "elsewhere", label: "Choose a folder…", icon: "folder-open" },
+        ]}
+        bind:value={form.place}
+      />
+      {#if form.place === "root"}
+        <div class="row">
+          {#if roots.length > 1}
+            <div class="grow">
+              <Select label="Inside" icon="folder-open" options={rootOptions} bind:value={() => (form.kind === "collection" ? (form.root ?? "") : ""), (v) => form.kind === "collection" && (form.root = v)} data-testid="new-root" />
+            </div>
+          {/if}
+          <div class="grow">
+            <TextField
+              label="Folder"
+              icon="folder"
+              mono
               value={form.dir}
               oninput={(e) => (form = { ...form, dir: e.currentTarget.value, dirEdited: true } as NewForm)}
-              aria-invalid={errors.dir ? "true" : undefined}
+              hint={roots.length > 1 ? "Named after the collection until you change it." : `Inside ${rootName}; named after the collection until you change it.`}
+              error={errors.dir}
               autocomplete="off"
-              spellcheck="false"
+              data-testid="new-dir"
             />
-            {#if errors.dir}<span class="error" role="alert">{errors.dir}</span>{/if}
-          </label>
-        {/if}
+          </div>
+        </div>
+      {:else}
+        <p class="note">After Create you choose the folder; it joins the sidebar as a new collection.</p>
       {/if}
-      <label class="choice">
-        <input type="radio" name="new-place" value="elsewhere" bind:group={form.place} data-testid="new-place-elsewhere" />
-        <span>Elsewhere… <span class="hint">choose a folder after Create</span></span>
-      </label>
-    </fieldset>
-    <div class="url-row">
-      <label class="field grow">
-        <span class="label">Base URL <span class="optional">optional</span></span>
-        <input data-testid="new-base-url" type="text" bind:value={form.baseUrl} placeholder="https://api.example.com" autocomplete="off" spellcheck="false" />
-      </label>
-      <label class="field">
-        <span class="label">First environment <span class="optional">optional</span></span>
-        <input data-testid="new-environment" type="text" bind:value={form.environment} placeholder={DEFAULT_ENVIRONMENT} autocomplete="off" />
-        {#if errors.environment}<span class="error" role="alert">{errors.environment}</span>{/if}
-      </label>
     </div>
-    <p class="note">The base URL becomes the variable <code>{"{{baseUrl}}"}</code>{form.environment.trim() ? ` of “${form.environment.trim()}”` : ""}.</p>
+    <div class="row">
+      <div class="grow">
+        <TextField
+          label="Base URL"
+          icon="http"
+          mono
+          bind:value={form.baseUrl}
+          placeholder="https://api.example.com"
+          hint={form.environment.trim() ? `Optional. Becomes {{baseUrl}} in “${form.environment.trim()}”.` : "Optional. Becomes {{baseUrl}}."}
+          autocomplete="off"
+          data-testid="new-base-url"
+        />
+      </div>
+      <div class="env">
+        <TextField
+          label="First environment"
+          icon="environment"
+          bind:value={form.environment}
+          placeholder={DEFAULT_ENVIRONMENT}
+          hint="Optional."
+          error={errors.environment}
+          autocomplete="off"
+          data-testid="new-environment"
+        />
+      </div>
+    </div>
   {:else if form.kind === "mcp-test"}
     <TargetFields bind:collection={form.collection} folders={false} error={errors.collection} />
-    <fieldset class="field">
-      <legend class="label">Server</legend>
-      <div class="segments" role="radiogroup" aria-label="How to reach the server">
-        <label class="choice"><input type="radio" value="http" bind:group={form.transport} data-testid="new-transport-http" /> Streamable HTTP</label>
-        <label class="choice" title={desktop ? "" : "Starting a local command needs the desktop app."}>
-          <input type="radio" value="stdio" bind:group={form.transport} disabled={!desktop} data-testid="new-transport-stdio" /> Local command (stdio)
-        </label>
-      </div>
+    <div class="group">
+      <span class="caption">Server</span>
+      <SegmentedControl
+        label="How to reach the server"
+        options={[
+          { value: "http", label: "Streamable HTTP", icon: "http" },
+          { value: "stdio", label: "Local command", icon: "code", disabled: !desktop, title: desktop ? undefined : "Starting a local command needs the desktop app." },
+        ]}
+        bind:value={form.transport}
+      />
       {#if form.transport === "http"}
-        <input data-testid="new-url" type="text" bind:value={form.url} placeholder="http://localhost:3001/mcp" aria-label="Server address" autocomplete="off" spellcheck="false" />
-        {#if errors.url}<span class="error" role="alert">{errors.url}</span>{/if}
+        <TextField
+          mono
+          bind:value={form.url}
+          placeholder="http://localhost:3001/mcp"
+          aria-label="Server address"
+          error={errors.url}
+          hint={desktop ? undefined : "Local commands (stdio) need the desktop app."}
+          autocomplete="off"
+          data-testid="new-url"
+        />
       {:else}
-        <input data-testid="new-command" type="text" bind:value={form.command} placeholder="npx -y @modelcontextprotocol/server-everything" aria-label="Command" autocomplete="off" spellcheck="false" />
-        {#if errors.command}<span class="error" role="alert">{errors.command}</span>{/if}
+        <TextField
+          mono
+          bind:value={form.command}
+          placeholder="npx -y @modelcontextprotocol/server-everything"
+          aria-label="Command"
+          error={errors.command}
+          autocomplete="off"
+          data-testid="new-command"
+        />
       {/if}
-    </fieldset>
-    <label class="field">
-      <span class="label">Tool <span class="optional">optional</span></span>
-      <input data-testid="new-tool" type="text" bind:value={form.tool} placeholder="Pick it after connecting" autocomplete="off" spellcheck="false" />
-    </label>
+    </div>
+    <TextField
+      label="Tool"
+      icon="zap"
+      mono
+      bind:value={form.tool}
+      placeholder="Pick it after connecting"
+      hint="Optional. The MCP client opens next, where you connect and choose."
+      autocomplete="off"
+      data-testid="new-tool"
+    />
   {/if}
 </div>
 
@@ -168,61 +223,47 @@
   .fields {
     display: flex;
     flex-direction: column;
-    gap: calc(var(--rt-gap) * 1.5);
+    gap: var(--rt-space-6);
   }
-  .field {
+  .row {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-  .label {
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
-  }
-  .optional,
-  .hint {
-    color: var(--rt-fg-muted);
-    font-size: var(--rt-size-small);
-  }
-  .optional {
-    opacity: 0.8;
-  }
-  .url-row {
-    display: flex;
-    gap: var(--rt-gap);
+    align-items: flex-start;
+    gap: var(--rt-space-5);
     min-width: 0;
   }
   .grow {
     flex: 1;
+    min-width: 0;
   }
   .method {
     flex: none;
+    width: 120px;
   }
-  .choice {
+  .env {
+    flex: none;
+    width: 200px;
+  }
+  .group {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--rt-space-4);
     min-width: 0;
   }
-  .indent {
-    padding-left: 22px;
+  .group > :global(*:not(.rt-segmented)) {
+    align-self: stretch;
   }
-  .segments {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--rt-gap) calc(var(--rt-gap) * 2);
+  .caption {
+    color: var(--rt-fg);
+    font: var(--rt-weight-medium) var(--rt-text-small) / var(--rt-leading-small) var(--rt-font-ui);
   }
   .note {
     margin: 0;
     color: var(--rt-fg-muted);
-    font-size: var(--rt-size-small);
+    font: var(--rt-font-small);
   }
-  .error {
-    color: var(--rt-danger);
-    font-size: var(--rt-size-small);
+  code {
+    font-family: var(--rt-font-mono);
+    font-size: var(--rt-text-small);
   }
 </style>
