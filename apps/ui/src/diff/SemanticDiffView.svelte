@@ -22,12 +22,6 @@
   let diff = $state<CollectionDiff | null>(null);
   let error = $state<string | null>(null);
   let mode = $state("fields");
-  let segments = $state<HTMLElement>();
-
-  // The primitive does not forward test ids to its segments; the e2e tests address them.
-  $effect(() => {
-    segments?.querySelectorAll<HTMLElement>('[role="radio"]').forEach((el, i) => el.setAttribute("data-testid", i === 0 ? "sd-mode-fields" : "sd-mode-lines"));
-  });
 
   const title = $derived(
     scope.kind === "working"
@@ -71,17 +65,15 @@
         {@const s = scope}
         <Button size="sm" icon="compare" data-testid="sd-compare" onclick={() => views.open({ kind: "compare", from: s.from, to: s.to })}>Compare side by side</Button>
       {/if}
-      <div bind:this={segments}>
-        <SegmentedControl
-          size="sm"
-          label="Diff display"
-          bind:value={mode}
-          options={[
-            { value: "fields", label: "By field" },
-            { value: "lines", label: "Lines" },
-          ]}
-        />
-      </div>
+      <SegmentedControl
+        size="sm"
+        label="Diff display"
+        bind:value={mode}
+        options={[
+          { value: "fields", label: "By field", testid: "sd-mode-fields" },
+          { value: "lines", label: "Lines", testid: "sd-mode-lines" },
+        ]}
+      />
     </div>
   </div>
 

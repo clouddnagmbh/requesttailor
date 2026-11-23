@@ -21,13 +21,8 @@
   const LIMIT = 100;
 
   let mode = $state("history");
-  let segments = $state<HTMLElement>();
-  const CHANGE_TONE = { added: "ok", deleted: "danger", modified: "warn", renamed: "info" } as const;
-
-  // The primitive does not forward test ids to its segments; the e2e tests address them.
-  $effect(() => {
-    segments?.querySelectorAll<HTMLElement>('[role="radio"]').forEach((el, i) => el.setAttribute("data-testid", i === 0 ? "tl-mode-history" : "tl-mode-blame"));
-  });
+  /** Git status letters of a file change, shown as the word by the status Badge. */
+  const CHANGE_STATUS = { added: "A", deleted: "D", modified: "M", renamed: "R" } as const;
   let timeline = $state<RequestTimeline | null>(null);
   let blame = $state<FieldBlame[] | null>(null);
   let error = $state<string | null>(null);
@@ -117,17 +112,15 @@
       <span class="title" data-testid="tl-title">{path}</span>
       {#if timeline}<span class="summary" data-testid="tl-summary">{headline(timeline.entries.length)}</span>{/if}
     </div>
-    <div bind:this={segments}>
-      <SegmentedControl
-        size="sm"
-        label="Show"
-        bind:value={mode}
-        options={[
-          { value: "history", label: "History", icon: "history" },
-          { value: "blame", label: "Blame", icon: "user" },
-        ]}
-      />
-    </div>
+    <SegmentedControl
+      size="sm"
+      label="Show"
+      bind:value={mode}
+      options={[
+        { value: "history", label: "History", icon: "history", testid: "tl-mode-history" },
+        { value: "blame", label: "Blame", icon: "user", testid: "tl-mode-blame" },
+      ]}
+    />
   </div>
 
   {#if notice}<div class="banner" data-testid="tl-notice"><Banner tone="ok">{notice}</Banner></div>{/if}
@@ -171,7 +164,7 @@
           <span class="dot {entry.commit.change}" aria-hidden="true"></span>
           <div class="card">
             <div class="head">
-              <span class="change" data-testid="tl-change"><Badge value={entry.commit.change} tone={CHANGE_TONE[entry.commit.change as keyof typeof CHANGE_TONE] ?? "neutral"} /></span>
+              <span class="change" data-testid="tl-change"><Badge kind="status" long value={CHANGE_STATUS[entry.commit.change] ?? entry.commit.change} /></span>
               <span class="commit" data-testid="tl-commit">{entry.commit.commit.summary}</span>
               {#if i === 0}<Badge value="latest" tone="accent" />{/if}
             </div>

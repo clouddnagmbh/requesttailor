@@ -9,7 +9,7 @@
 <script lang="ts">
   import type { HistoryFinding, HistoryScan, RescueResult, ScanProgress } from "../commands/types";
   import { getApp } from "../state/app.svelte";
-  import { Badge, Banner, Button, Card, Checkbox, EmptyState, Select, TextField } from "../ui";
+  import { Badge, Banner, Button, Card, Checkbox, EmptyState, Progress, Select, TextField } from "../ui";
   import {
     canRescue,
     deleteBackupCommands,
@@ -130,7 +130,7 @@
             {step === "scanning" ? "Scanning…" : "Scan history"}
           </Button>
           {#if step === "scanning" && progress}
-            <progress max={Math.max(progress.total, 1)} value={progress.scanned}></progress>
+            <span class="scan-progress"><Progress max={Math.max(progress.total, 1)} value={progress.scanned} label="Scanning the history" /></span>
             <span class="muted" data-testid="rescue-progress">Commit {progress.scanned} of {progress.total}</span>
           {/if}
         </div>
@@ -390,7 +390,8 @@
   .backups summary {
     cursor: pointer;
   }
-  progress {
-    accent-color: var(--rt-accent);
+  .scan-progress {
+    flex: 0 1 16rem;
+    min-width: 8rem;
   }
 </style>

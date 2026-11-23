@@ -26,6 +26,8 @@
   } = $props();
 
   const TONE = { added: "ok", removed: "danger", modified: "warn", moved: "info" } as const;
+  /** Git status letters of a changed file, shown as the word by the status Badge. */
+  const FILE_STATUS = { added: "A", removed: "D", modified: "M" } as const;
   const uncovered = $derived(diff.files.filter((f) => !f.covered));
 
   function key(c: ModelChange): string {
@@ -96,7 +98,7 @@
       <ul>
         {#each uncovered as f (f.path)}
           <li data-testid="sd-uncovered-file">
-            <div class="uncovered-head"><span class="file">{f.path}</span> <Badge value={f.status} /></div>
+            <div class="uncovered-head"><span class="file">{f.path}</span> <Badge kind="status" long value={FILE_STATUS[f.status]} /></div>
             {#if fileDetail}{@render fileDetail(f)}{/if}
           </li>
         {/each}
