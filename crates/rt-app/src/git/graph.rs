@@ -121,3 +121,93 @@ pub struct GitChangedFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub collection: Option<String>,
 }
+
+/// A collection of the set by where it sits in the repository, for [`assign_collections`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CollectionAt {
+    /// [`CollectionEntry::id`](crate::collections::CollectionEntry::id).
+    pub id: String,
+    /// Its folder relative to the repository root: `""` at the root, else `a/b` (no slashes
+    /// around).
+    pub dir: String,
+}
+
+/// The collection whose file `path` (repository-relative, leading `/` optional) is: the
+/// deepest collection folder that holds it, if the rest of the path is a collection file
+/// ([`super::tree_path`]). Nested collections win over their parents, as they are separate
+/// collections.
+pub fn collection_of<'a>(path: &str, collections: &'a [CollectionAt]) -> Option<&'a str> {
+    let path = path.strip_prefix('/').unwrap_or(path);
+    collections
+        .iter()
+        .filter_map(|c| {
+            let rest = if c.dir.is_empty() {
+                Some(path)
+            } else {
+                path.strip_prefix(c.dir.as_str())
+                    .and_then(|r| r.strip_prefix('/'))
+            }?;
+            Some((c, rest))
+        })
+        .max_by_key(|(c, _)| c.dir.len() + usize::from(!c.dir.is_empty()))
+        .filter(|(_, rest)| super::tree_path(rest))
+        .map(|(c, _)| c.id.as_str())
+}
+
+/// Fills [`GitChangedFile::collection`] for every file that belongs to one of `collections`.
+pub fn assign_collections(files: &mut [GitChangedFile], collections: &[CollectionAt]) {
+    for f in files {
+        f.collection = collection_of(&f.path, collections).map(str::to_owned);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn at(id: &str, dir: &str) -> CollectionAt {
+        CollectionAt {
+            id: id.into(),
+            dir: dir.into(),
+        }
+    }
+
+    #[test]
+    fn files_belong_to_the_deepest_collection_that_holds_them() {
+        let set = [at("root", ""), at("api", "apis/billing"), at("inner", "apis/billing/v2")];
+        assert_eq!(collection_of("/users/get.yml", &set), Some("root"));
+        assert_eq!(collection_of("/apis/billing/pay.yml", &set), Some("api"));
+        assert_eq!(collection_of("apis/billing/v2/x/a.yml", &set), Some("inner"));
+        // Not collection files: line diffs.
+        assert_eq!(collection_of("/README.md", &set), None);
+        assert_eq!(collection_of("/apis/billing/.github/ci.yml", &set), None);
+        assert_eq!(collection_of("/apis/billing/node_modules/x.yml", &set), None);
+        // `apis/billingx` is not inside `apis/billing`.
+        let only = [at("api", "apis/billing")];
+        assert_eq!(collection_of("/apis/billingx/a.yml", &only), None);
+        assert_eq!(collection_of("/top.yml", &only), None);
+    }
+
+    #[test]
+    fn assign_fills_the_field() {
+        let mut files = vec![
+            GitChangedFile {
+                path: "/a.yml".into(),
+                change: crate::git::GitFileChange::Added,
+                from: None,
+                binary: false,
+                collection: None,
+            },
+            GitChangedFile {
+                path: "/logo.png".into(),
+                change: crate::git::GitFileChange::Added,
+                from: None,
+                binary: true,
+                collection: Some("stale".into()),
+            },
+        ];
+        assign_collections(&mut files, &[at("c", "")]);
+        assert_eq!(files[0].collection.as_deref(), Some("c"));
+        assert_eq!(files[1].collection, None);
+    }
+}
