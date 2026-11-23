@@ -620,16 +620,15 @@
   .row {
     --row-bg: var(--rt-bg-panel);
   }
-  .row[role="treeitem"]:hover,
-  .row:focus-within {
+  .row[role="treeitem"]:hover {
     --row-bg: var(--rt-bg-hover);
   }
   .row.active {
     --row-bg: var(--rt-accent-subtle);
   }
   .row:hover .actions,
-  .row:focus-within .actions,
-  .row:focus .actions {
+  .row:focus-visible .actions,
+  .row:has(.actions :focus-visible) .actions {
     opacity: 1;
   }
   .hint {

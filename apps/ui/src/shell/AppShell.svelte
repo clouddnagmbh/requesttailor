@@ -710,7 +710,7 @@
     flex: none;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: var(--rt-space-2);
     height: var(--rt-bar-height);
     padding: 0 var(--rt-side-inset);
     border-bottom: 1px solid var(--rt-border);
