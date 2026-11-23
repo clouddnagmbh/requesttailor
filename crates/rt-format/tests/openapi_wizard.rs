@@ -460,8 +460,8 @@ fn a_kept_multi_file_spec_is_bundled_into_one_json_file() {
     }
     walk(&bundled, &mut refs);
     for r in &refs {
-        if r.starts_with('#') {
-            assert!(bundled.pointer(&r[1..]).is_some(), "{r} does not resolve");
+        if let Some(local) = r.strip_prefix('#') {
+            assert!(bundled.pointer(local).is_some(), "{r} does not resolve");
         } else {
             assert!(
                 r == "schemas/owner.yaml" || r.starts_with("https://"),

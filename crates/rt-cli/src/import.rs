@@ -6,17 +6,26 @@
 //! Owner: wave 4, strand B.
 //!
 //! Several files form one collection: a Postman collection with its environment and globals
-//! files, `.http` files with `http-client.env.json`, several cURL files. `--out` must not exist
-//! or be an empty folder. Exit code 0 when the collection was written, even with losses.
+//! files, `.http` files with `http-client.env.json`, several cURL files, a multi-file OpenAPI
+//! spec. `--out` must not exist or be an empty folder. Exit code 0 when the collection was
+//! written, even with losses.
+//!
+//! `rt import openapi <file|url>... --out <dir> [--names operation-id] [--group tag|path|flat]
+//! [--keep-spec] [--json]` is the OpenAPI import wizard's choices on the command line
+//! (`rt_format::import::import_openapi`): several files are one multi-file spec (named by
+//! their paths relative to the folder they share, as the `$ref`s name them), a `.zip` holds
+//! one, a URL is fetched with the files its relative `$ref`s name
+//! (`rt_app::openapi::fetch_spec`, over the transport `rt send` uses).
 
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
 use rt_format::import::{
-    Import, ImportFormat, LossEffect, LossKind, MAX_INPUT_BYTES, SourceFile, import_files,
+    Import, ImportFormat, LossEffect, LossKind, MAX_INPUT_BYTES, OpenApiGrouping, OpenApiNaming,
+    OpenApiOptions, SourceFile, import_files, import_openapi,
 };
 
-use crate::{EXIT_OK, EXIT_USAGE};
+use crate::{EXIT_OK, EXIT_TRANSPORT, EXIT_USAGE};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportArgs {
@@ -24,6 +33,13 @@ pub struct ImportArgs {
     pub format: Option<ImportFormat>,
     pub out: PathBuf,
     pub json: bool,
+    /// `rt import openapi …`: the wizard's choices (`files` may hold one URL).
+    pub openapi: Option<OpenApiOptions>,
+}
+
+fn is_url(arg: &Path) -> bool {
+    let s = arg.to_string_lossy();
+    s.starts_with("http://") || s.starts_with("https://")
 }
 
 pub(crate) fn parse(parser: &mut lexopt::Parser) -> Result<Option<ImportArgs>, String> {
@@ -34,6 +50,9 @@ pub(crate) fn parse(parser: &mut lexopt::Parser) -> Result<Option<ImportArgs>, S
     let mut format = None;
     let mut out = None;
     let mut json = false;
+    let mut openapi: Option<OpenApiOptions> = None;
+    let mut wizard_flag = None;
+    let mut wizard = false;
     while let Some(arg) = parser.next().map_err(err)? {
         match arg {
             Short('h') | Long("help") => return Ok(None),
@@ -43,12 +62,55 @@ pub(crate) fn parse(parser: &mut lexopt::Parser) -> Result<Option<ImportArgs>, S
             }
             Short('o') | Long("out") => out = Some(PathBuf::from(parser.value().map_err(err)?)),
             Long("json") => json = true,
+            Long("names") => {
+                let v = parser.value().map_err(err)?.string().map_err(err)?;
+                let naming = match v.as_str() {
+                    "summary" => OpenApiNaming::Summary,
+                    "operation-id" => OpenApiNaming::OperationId,
+                    _ => return Err(format!("unknown --names {v:?}; summary or operation-id")),
+                };
+                openapi.get_or_insert_default().naming = naming;
+                wizard_flag.get_or_insert("--names");
+            }
+            Long("group") => {
+                let v = parser.value().map_err(err)?.string().map_err(err)?;
+                let grouping = match v.as_str() {
+                    "tag" => OpenApiGrouping::Tag,
+                    "path" => OpenApiGrouping::Path,
+                    "flat" => OpenApiGrouping::Flat,
+                    _ => return Err(format!("unknown --group {v:?}; tag, path or flat")),
+                };
+                openapi.get_or_insert_default().grouping = grouping;
+                wizard_flag.get_or_insert("--group");
+            }
+            Long("keep-spec") => {
+                openapi.get_or_insert_default().keep_spec = true;
+                wizard_flag.get_or_insert("--keep-spec");
+            }
+            Value(v) if files.is_empty() && !wizard && v == "openapi" => wizard = true,
             Value(v) => files.push(PathBuf::from(v)),
             other => return Err(other.unexpected().to_string()),
         }
     }
+    if let Some(flag) = wizard_flag.filter(|_| !wizard) {
+        return Err(format!("import: {flag} needs `rt import openapi`"));
+    }
+    if wizard && format.is_some() {
+        return Err("import openapi: --format does not apply".into());
+    }
     if files.is_empty() {
-        return Err("import: missing <file>".into());
+        return Err(if wizard {
+            "import openapi: missing <file> or <url>".into()
+        } else {
+            "import: missing <file>".into()
+        });
+    }
+    if files.iter().any(|f| is_url(f)) && (!wizard || files.len() > 1) {
+        return Err(if wizard {
+            "import openapi: give one URL, or files".into()
+        } else {
+            "import: URLs are imported with `rt import openapi <url>`".into()
+        });
     }
     let out = out.ok_or("import: missing --out <dir>")?;
     Ok(Some(ImportArgs {
@@ -56,6 +118,7 @@ pub(crate) fn parse(parser: &mut lexopt::Parser) -> Result<Option<ImportArgs>, S
         format,
         out,
         json,
+        openapi: wizard.then(|| openapi.unwrap_or_default()),
     }))
 }
 
@@ -170,6 +233,45 @@ pub(crate) fn run(args: ImportArgs, stdout: &mut dyn Write, stderr: &mut dyn Wri
         let _ = writeln!(stderr, "rt import: {msg}");
         EXIT_USAGE
     };
+    if let Some(options) = &args.openapi
+        && let [url] = args.files.as_slice()
+        && is_url(url)
+    {
+        if let Err(e) = check_out(&args.out) {
+            return fail(stderr, &e);
+        }
+        let fetched = match fetch(&url.to_string_lossy()) {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = writeln!(stderr, "rt import: {e}");
+                return EXIT_TRANSPORT;
+            }
+        };
+        let sources: Vec<SourceFile<'_>> = fetched
+            .files
+            .iter()
+            .map(|f| SourceFile {
+                name: &f.name,
+                data: f.text.as_bytes(),
+            })
+            .collect();
+        let mut import = match import_openapi(&sources, options) {
+            Ok(i) => i,
+            Err(e) => return fail(stderr, &e.to_string()),
+        };
+        // What could not be fetched belongs to the report, with the collection's losses.
+        let losses = &mut import.report.losses;
+        losses.extend(fetched.losses);
+        losses.sort_by(|a, b| {
+            let rank = |l: &str| u8::from(l != "collection");
+            rank(&a.location)
+                .cmp(&rank(&b.location))
+                .then_with(|| a.location.cmp(&b.location))
+                .then(a.kind.cmp(&b.kind))
+        });
+        losses.dedup();
+        return finish(&args, &import, stdout, stderr);
+    }
     let mut data = Vec::with_capacity(args.files.len());
     let mut total = 0usize;
     for path in &args.files {
@@ -193,6 +295,12 @@ pub(crate) fn run(args: ImportArgs, stdout: &mut dyn Write, stderr: &mut dyn Wri
             .unwrap_or_default();
         data.push((name, bytes));
     }
+    if args.openapi.is_some() {
+        // A multi-file spec: the files' paths relative to the folder they share.
+        for ((name, _), relative) in data.iter_mut().zip(relative_names(&args.files)) {
+            *name = relative;
+        }
+    }
     if let Err(e) = check_out(&args.out) {
         return fail(stderr, &e);
     }
@@ -200,17 +308,79 @@ pub(crate) fn run(args: ImportArgs, stdout: &mut dyn Write, stderr: &mut dyn Wri
         .iter()
         .map(|(name, bytes)| SourceFile { name, data: bytes })
         .collect();
-    let import = match import_files(args.format, &sources) {
+    let result = match &args.openapi {
+        Some(options) => import_openapi(&sources, options),
+        None => import_files(args.format, &sources),
+    };
+    let import = match result {
         Ok(i) => i,
         Err(e) => return fail(stderr, &e.to_string()),
     };
-    if let Err(e) = write(&args.out, &import) {
-        return fail(stderr, &e);
+    finish(&args, &import, stdout, stderr)
+}
+
+/// Fetches a spec from a URL over the native transport.
+fn fetch(url: &str) -> Result<rt_app::openapi::FetchedSpec, String> {
+    let transport =
+        rt_core::transport::native::NativeTransport::new().map_err(|e| e.to_string())?;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| format!("cannot start runtime: {e}"))?;
+    runtime
+        .block_on(rt_app::openapi::fetch_spec(&transport, url))
+        .map_err(|e| match e {
+            rt_app::AppError::Import(m) => m,
+            other => other.to_string(),
+        })
+}
+
+/// Each path relative to the deepest folder all of them are in, `/`-separated.
+fn relative_names(paths: &[PathBuf]) -> Vec<String> {
+    let absolute: Vec<PathBuf> = paths
+        .iter()
+        .map(|p| std::path::absolute(p).unwrap_or_else(|_| p.clone()))
+        .collect();
+    let dirs: Vec<Vec<Component<'_>>> = absolute
+        .iter()
+        .map(|p| {
+            p.parent()
+                .map(|d| d.components().collect())
+                .unwrap_or_default()
+        })
+        .collect();
+    let mut common = dirs.first().cloned().unwrap_or_default();
+    for d in &dirs[1.min(dirs.len())..] {
+        let n = common.iter().zip(d).take_while(|(a, b)| a == b).count();
+        common.truncate(n);
+    }
+    absolute
+        .iter()
+        .map(|p| {
+            p.components()
+                .skip(common.len())
+                .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .collect()
+}
+
+/// Writes the collection and prints the report.
+fn finish(
+    args: &ImportArgs,
+    import: &Import,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
+    if let Err(e) = write(&args.out, import) {
+        let _ = writeln!(stderr, "rt import: {e}");
+        return EXIT_USAGE;
     }
     let text = if args.json {
-        render_json(&import, &args.out)
+        render_json(import, &args.out)
     } else {
-        render_text(&import, &args.out)
+        render_text(import, &args.out)
     };
     let _ = stdout.write_all(text.as_bytes());
     let _ = stdout.flush();
@@ -248,5 +418,80 @@ mod tests {
         }
         let e = parse_import(&["a", "--out", "o", "-f", "nope"]).unwrap_err();
         assert!(e.contains("postman, insomnia"), "{e}");
+        assert_eq!(a.openapi, None);
+    }
+
+    #[test]
+    fn openapi_arguments() {
+        let a = parse_import(&[
+            "openapi",
+            "api/openapi.yaml",
+            "api/schemas/pet.yaml",
+            "--names",
+            "operation-id",
+            "--group",
+            "path",
+            "--keep-spec",
+            "-o",
+            "out",
+        ])
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            a.files,
+            [
+                PathBuf::from("api/openapi.yaml"),
+                PathBuf::from("api/schemas/pet.yaml")
+            ]
+        );
+        let o = a.openapi.unwrap();
+        assert_eq!(
+            (o.naming, o.grouping, o.keep_spec),
+            (OpenApiNaming::OperationId, OpenApiGrouping::Path, true)
+        );
+        let url = parse_import(&["openapi", "https://x.example.com/a.yaml", "-o", "o"])
+            .unwrap()
+            .unwrap();
+        assert_eq!(url.openapi, Some(OpenApiOptions::default()));
+        // A file named `openapi` after the first file is a file.
+        let f = parse_import(&["a.yaml", "openapi", "-o", "o"])
+            .unwrap()
+            .unwrap();
+        assert_eq!(f.files.len(), 2);
+        for bad in [
+            &["openapi", "-o", "o"][..],
+            &["a.yaml", "--keep-spec", "-o", "o"],
+            &["openapi", "a.yaml", "--group", "tags", "-o", "o"],
+            &["openapi", "a.yaml", "--names", "id", "-o", "o"],
+            &["openapi", "a.yaml", "-f", "postman", "-o", "o"],
+            &["openapi", "https://a", "https://b", "-o", "o"],
+            &["https://a.example.com/x.yaml", "-o", "o"],
+        ] {
+            assert!(parse_import(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn names_relative_to_the_shared_folder() {
+        let paths = [
+            PathBuf::from("/x/api/openapi.yaml"),
+            PathBuf::from("/x/api/schemas/pet.yaml"),
+            PathBuf::from("/x/api/parameters.yaml"),
+        ];
+        assert_eq!(
+            relative_names(&paths),
+            ["openapi.yaml", "schemas/pet.yaml", "parameters.yaml"]
+        );
+        assert_eq!(
+            relative_names(&[PathBuf::from("/x/api/openapi.yaml")]),
+            ["openapi.yaml"]
+        );
+        assert_eq!(
+            relative_names(&[
+                PathBuf::from("/x/spec/main.yaml"),
+                PathBuf::from("/x/common/a.yaml")
+            ]),
+            ["spec/main.yaml", "common/a.yaml"]
+        );
     }
 }
