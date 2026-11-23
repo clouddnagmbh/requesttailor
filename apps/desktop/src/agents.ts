@@ -58,6 +58,7 @@ export function tauriAgents(
         }
       };
     },
+    check: (path, environment) => call("agents_check", { path, environment }),
     audit: (limit) => call("agents_audit", { limit }),
   };
 }

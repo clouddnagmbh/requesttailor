@@ -182,6 +182,7 @@ describe("TauriBackend", () => {
     await b.agents.pending();
     await b.agents.decide("abc", "denied");
     await b.agents.audit(10);
+    await b.agents.check("orders/create.yml", "PRD");
     // Wave 8, strand B: secret values never go to the Rust side from the webview.
     const local = { environment: "Local", vars: [] as [string, string][], secrets: [["t", "x"]] } as never;
     await b.grpc.services("g.yml", local);
@@ -395,6 +396,7 @@ describe("TauriBackend", () => {
       ["agents_decide", { id: "abc", decision: "denied" }],
       ["agents_pending", undefined],
       ["agents_audit", { limit: 10 }],
+      ["agents_check", { path: "orders/create.yml", environment: "PRD" }],
       ["grpc_services", { path: "g.yml", input: { environment: "Local", vars: [] } }],
       ["grpc_template", { path: "g.yml", method: "/a.B/C", input: { environment: "Local", vars: [] } }],
       ["graphql_schema", { path: "q.yml", input: { environment: "Local", vars: [] }, refresh: true }],

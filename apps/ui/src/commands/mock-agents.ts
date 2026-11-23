@@ -8,7 +8,49 @@
 
 import type { AgentsApi } from "./backend";
 import { BackendError } from "./backend";
-import type { AgentPolicy, AuditEntry, PendingApproval } from "./types";
+import type { AgentCheck, AgentPolicy, AuditEntry, Effect, PendingApproval, RequestSpec, Verdict } from "./types";
+
+const READING = ["GET", "HEAD", "OPTIONS", "TRACE"];
+
+/** A mirror of `rt_core::guard::effect` for the mock only (the real shells call Rust). The
+ *  GraphQL check is the keyword at the top level, enough for the mock's sample requests. */
+export function mockEffect(spec: RequestSpec): Effect {
+  const protocol = spec.protocol;
+  if (protocol?.type === "grpc") return "write";
+  if (protocol?.type === "websocket") return protocol.messages.length === 0 ? "read" : "write";
+  const method = spec.method.trim().toUpperCase();
+  const reading = READING.includes(method);
+  if (spec.body.type === "graphql" && (method === "POST" || reading)) {
+    return /(^|[}\s])mutation\b/.test(spec.body.query.replace(/#.*$/gm, "")) ? "write" : "read";
+  }
+  return reading ? "read" : "write";
+}
+
+/** A mirror of `rt_app::agents::verdict` for the mock only. */
+export function mockVerdict(policy: AgentPolicy, environment: string | null, effect: Effect): Verdict {
+  const rule = policy.environments.find((e) => e.environment === environment);
+  const access = rule ? rule.access : policy.access;
+  const production = rule?.production ?? false;
+  const where = environment === null ? "sending without an environment" : `environment ${environment}`;
+  if (access === "none") {
+    return {
+      decision: "refused",
+      reason:
+        environment === null
+          ? "agents may not send without an environment in this collection"
+          : `environment ${environment} is not available to agents`,
+    };
+  }
+  if (access === "read" && effect === "write") {
+    return {
+      decision: "refused",
+      reason: `${where} allows agents only reading requests (GET, HEAD, OPTIONS, GraphQL queries)`,
+    };
+  }
+  return access === "write" && effect === "write" && production
+    ? { decision: "needs-approval" }
+    : { decision: "allowed" };
+}
 
 export interface MockAgents extends AgentsApi {
   /** Lets an approval wait, as an `rt mcp` process would. */
@@ -39,7 +81,9 @@ export const MOCK_APPROVAL: PendingApproval = {
   reason: "writing request against the production environment PRD",
 };
 
-export function mockAgents(options: { scripted?: boolean } = {}): MockAgents {
+export function mockAgents(
+  options: { scripted?: boolean; getRequest?: (path: string) => Promise<RequestSpec> | RequestSpec } = {},
+): MockAgents {
   let policy: AgentPolicy = { access: "read", environments: [] };
   let pending: PendingApproval[] = (options.scripted ?? agentsParam()) ? [{ ...MOCK_APPROVAL }] : [];
   const audit: AuditEntry[] = [];
@@ -98,6 +142,11 @@ export function mockAgents(options: { scripted?: boolean } = {}): MockAgents {
       listeners.add(handler);
       handler(pending.map((p) => ({ ...p })));
       return () => listeners.delete(handler);
+    },
+    async check(path, environment) {
+      if (!options.getRequest) throw new BackendError("request-not-found", path);
+      const effect = mockEffect(await options.getRequest(path));
+      return { effect, verdict: mockVerdict(policy, environment, effect) } satisfies AgentCheck;
     },
     async audit(limit) {
       return [...audit].reverse().slice(0, limit);

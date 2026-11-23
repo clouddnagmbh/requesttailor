@@ -120,6 +120,7 @@
     "allow-agents-pending",
     "allow-agents-decide",
     "allow-agents-audit",
+    "allow-agents-check",
     "allow-grpc-services",
     "allow-grpc-template",
     "allow-graphql-schema",

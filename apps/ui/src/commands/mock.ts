@@ -316,7 +316,7 @@ export class MockBackend implements Backend {
   readonly streams = mockStreams({ getRequest: (path) => this.getRequest(path) });
   readonly grpc = mockGrpc();
   readonly graphql = mockGraphQl();
-  readonly agents = mockAgents();
+  readonly agents = mockAgents({ getRequest: (path) => this.getRequest(path) });
   readonly mcp = mockMcp({
     lookup: (input, name) =>
       input.vars.find(([n]) => n === name)?.[1] ??

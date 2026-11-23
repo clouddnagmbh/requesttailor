@@ -80,6 +80,7 @@ import type {
   AiTask,
   ChangelogFacts,
   ApprovalDecision,
+  AgentCheck,
   AuditEntry,
   GrpcService,
   McpCallResult,
@@ -575,6 +576,15 @@ export interface AgentsApi {
   onPending(handler: (pending: PendingApproval[]) => void): () => void;
   /** Newest first. */
   audit(limit: number): Promise<AuditEntry[]>;
+  /**
+   * What the agent rules (the ones `rt mcp` applies) say about sending the request at `path`
+   * in `environment` (`null`: none): its effect and the verdict of the collection's current
+   * policy. Evaluated on the request as it is in memory, unsaved edits included, in the
+   * active collection (`rt_app::agents::check`). Unknown request: kind `request-not-found`.
+   * For extensions that send on a model's behalf: `refused` means do not send,
+   * `needs-approval` means ask the user first.
+   */
+  check(path: string, environment: string | null): Promise<AgentCheck>;
 }
 
 /** Wave 8, strand E: the AI assistant. Off until configured; keys never leave the keychain

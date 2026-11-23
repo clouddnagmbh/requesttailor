@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -2961,6 +2961,13 @@ export const verdicts: Verdict[] = [
     "reason": "environment PRD allows only reading"
   }
 ];
+
+export const agentCheck: AgentCheck = {
+  "effect": "write",
+  "verdict": {
+    "decision": "needs-approval"
+  }
+};
 
 export const pendingApproval: PendingApproval = {
   "agent": "claude-code",
