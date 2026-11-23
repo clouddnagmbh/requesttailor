@@ -348,3 +348,24 @@ test("a very long URL scrolls inside its field; Send stays visible at the end of
     expect(scrollWidth).toBeLessThanOrEqual(width);
   }
 });
+
+// The editor fields put their tooltip containers into <body> (one per field). They must take no
+// room: with the editor's border on them they once stacked up into a band over the header.
+test("editor fields leave nothing over the header", async ({ page }) => {
+  await openRequest(page, "Create user");
+  for (const tab of [/^Headers/, /^Body/, /^Scripts/]) await page.getByRole("tab", { name: tab }).first().click();
+  const covered = await page.evaluate(() => {
+    const header = document.querySelector("header")!;
+    const width = document.documentElement.clientWidth;
+    const out: string[] = [];
+    for (const x of [5, Math.round(width / 2), width - 5]) {
+      for (const y of [1, 3, 6]) {
+        const top = document.elementFromPoint(x, y);
+        if (top && !header.contains(top)) out.push(`${x},${y}: ${top.tagName.toLowerCase()}.${String(top.className)}`);
+      }
+    }
+    const extra = [...document.body.children].filter((c) => c.getBoundingClientRect().height > 0 && !c.contains(header));
+    return [...out, ...extra.map((c) => `body child ${c.tagName.toLowerCase()} ${c.getBoundingClientRect().height}px`)];
+  });
+  expect(covered).toEqual([]);
+});

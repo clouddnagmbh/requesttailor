@@ -223,7 +223,9 @@ export const tokenHighlight = HighlightStyle.define([
 ]);
 
 export const theme = EditorView.theme({
-  "&": {
+  // `&.cm-editor`, not `&`: the theme class also sits on the containers that `tooltips({ parent })`
+  // appends to <body> (one per editor); a border there stacks up as a band over the header.
+  "&.cm-editor": {
     color: "var(--rt-fg)",
     backgroundColor: "var(--rt-bg)",
     border: "1px solid var(--rt-border)",
