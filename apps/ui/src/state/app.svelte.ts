@@ -246,11 +246,16 @@ export class AppState {
 
   /** Wave 14: makes collection `id` active (its tabs, environments, Git, ...). */
   async activate(id: string): Promise<void> {
-    if (id === this.collection?.id && id === this.backendActive) return;
+    // Wave 15: a collection chosen in the sidebar brings Git back to its repository, also when
+    // another repository was chosen meanwhile.
+    const repo = this.collections.find((c) => c.id === id)?.repo ?? null;
+    const followed = this.activeRepository === null || this.activeRepository === repo;
+    if (id === this.collection?.id && id === this.backendActive && followed) return;
     await this.guard(() =>
       this.enqueue(async () => {
         const info = await this.backendTo(id);
         await this.show_(info);
+        await this.refreshSet();
       }),
     );
   }
