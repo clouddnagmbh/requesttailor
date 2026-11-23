@@ -565,6 +565,18 @@ fn multi_file_specs_find_their_main_file_and_report_what_is_missing() {
             .collection_name,
         "B"
     );
+    // A given file the spec does not use is reported.
+    let mut extra = read(KENNEL);
+    extra.push(("README.md".into(), b"# Kennel\n".to_vec()));
+    let k = import_openapi(&sources(&extra), &OpenApiOptions::default()).unwrap();
+    assert!(
+        k.report
+            .losses
+            .iter()
+            .any(|l| l.detail == "`README.md` is not referenced by the spec; not imported"),
+        "{:?}",
+        k.report.losses
+    );
     // Several files without a spec.
     let none = [
         SourceFile {

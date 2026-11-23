@@ -19,6 +19,7 @@
 //!   (dropped, kind other) by name; so are URL references (`https://…`, never fetched here)
 //!   and files that are no JSON or YAML. A path that is not found exactly is looked up by
 //!   its file name if exactly one given file has that name (browsers hand over names only).
+//!   Given files the spec does not reference are reported too.
 //! - Bounds: the input size ([`MAX_INPUT_BYTES`]), at most [`MAX_FILES`] files hoisted; every
 //!   file is hoisted once, so reference cycles end.
 
@@ -304,6 +305,29 @@ pub(super) fn load(files: &[SourceFile<'_>]) -> Result<Loaded, ImportError> {
         }
         loaded.root = root;
         loaded.losses = b.losses();
+        // Nothing is dropped silently: given files the spec does not use.
+        let unused: Vec<String> = files
+            .iter()
+            .map(|(n, _)| n)
+            .filter(|n| **n != b.main && !b.keys.contains_key(*n))
+            .filter(|n| !b.unreadable.iter().any(|(p, _)| p == *n))
+            .map(|n| format!("`{}`", b.shown(n)))
+            .collect();
+        if !unused.is_empty() {
+            let more = unused.len() > 5;
+            loaded.losses.push(dropped(format!(
+                "{} not referenced by the spec; not imported",
+                if unused.len() == 1 {
+                    format!("{} is", unused[0])
+                } else {
+                    format!(
+                        "{}{} are",
+                        unused[..unused.len().min(5)].join(", "),
+                        if more { ", ..." } else { "" }
+                    )
+                }
+            )));
+        }
     }
     Ok(loaded)
 }
