@@ -29,7 +29,6 @@ import {
   stubGitHistory,
   stubGitIndex,
   stubGitPlumbing,
-  stubGitWorking,
 } from "@requesttailor/ui";
 
 import type { WebHost } from "../web-backend";
@@ -38,6 +37,7 @@ import { companionHttp, NO_COMPANION_MESSAGE } from "./http";
 import type { Network, Repo } from "./repo";
 import { refuseSecrets, scanPaths } from "./scan";
 import { webGitActions } from "./actions";
+import { webGitFiles } from "./files";
 import { webGitGraph, type WebGitContext } from "./graph";
 
 type RepoModule = typeof import("./repo");
@@ -362,7 +362,7 @@ export function webGit(host: WebHost): GitApi & ChangelogCommitSource & Reposito
     ...webGitActions({ ...wave14, network, identity: () => identity.get() }),
     // Wave 15 (interface): placeholders until strands B (working copy), C (history), D (building
     // blocks) and F (index) add their own files here.
-    ...stubGitWorking(),
+    ...webGitFiles(wave14),
     ...stubGitHistory(),
     ...stubGitPlumbing(),
     ...stubGitIndex(),
