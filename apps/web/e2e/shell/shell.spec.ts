@@ -19,7 +19,7 @@ const tab = (page: Page, name: string) => page.getByTestId("tab").filter({ hasTe
 
 test("tree shows folders and requests and opens a tab", async ({ page }) => {
   await openCollection(page);
-  const tree = page.getByRole("tree", { name: "Requests" });
+  const tree = page.getByRole("tree", { name: "Collections" });
   await expect(tree.getByTestId("tree-folder")).toHaveText([/demo/, /users/]);
   await expect(tree.getByTestId("tree-request")).toHaveCount(5);
   await expect(treeRequest(page, "List users")).toContainText("GET");
@@ -51,25 +51,27 @@ test("create a request in a folder via the UI", async ({ page }) => {
   await name.fill("Delete user");
   await name.press("Enter");
 
-  // It sits inside the "users" folder (the tree is a flat list of rows with aria-level).
+  // It sits inside the "users" folder (the tree is a flat list of rows with aria-level; level 1 is the collection).
   const created = treeRequest(page, "Delete user");
   await expect(created).toContainText("GET");
   await expect(created).toHaveAttribute("data-path", "users/delete-user.yml");
-  await expect(created).toHaveAttribute("aria-level", "2");
+  await expect(created).toHaveAttribute("aria-level", "3");
   await expect(created).toHaveAttribute("aria-selected", "true");
   await expect(tab(page, "Delete user")).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("new-request-name")).toHaveCount(0);
 
-  // Escape cancels; Mod+N asks for a name at the root.
+  // Mod+N opens the "New…" dialog (wave 14): Escape closes it; Enter takes the HTTP tile, then
+  // the name and Enter create the request at the root.
   await page.keyboard.press(`${MOD}+n`);
-  await expect(page.getByTestId("new-request-name")).toBeFocused();
+  await expect(page.getByTestId("new-filter")).toBeFocused();
   await page.keyboard.press("Escape");
-  await expect(page.getByTestId("new-request-name")).toHaveCount(0);
+  await expect(page.getByTestId("new-dialog")).toHaveCount(0);
   await page.keyboard.press(`${MOD}+n`);
+  await page.keyboard.press("Enter");
   await page.keyboard.type("Ping");
   await page.keyboard.press("Enter");
   await expect(treeRequest(page, "Ping")).toHaveAttribute("data-path", "ping.yml");
-  await expect(treeRequest(page, "Ping")).toHaveAttribute("aria-level", "1");
+  await expect(treeRequest(page, "Ping")).toHaveAttribute("aria-level", "2");
   await expect(tab(page, "Ping")).toHaveAttribute("aria-selected", "true");
 });
 

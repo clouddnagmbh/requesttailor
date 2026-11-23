@@ -94,6 +94,16 @@ describe("TauriBackend", () => {
     await b.imports.write(1);
     await b.imports.discard(1);
     await b.imports.writeInto(2, "Shop");
+    await b.collections.current();
+    await b.collections.add();
+    await b.collections.removeRoot("/r");
+    await b.collections.activate("/r/a");
+    await b.collections.tree("/r/a");
+    await b.collections.dirty("/r/a");
+    await b.collections.saveAll();
+    await b.collections.search("users", 20);
+    await b.collections.create({ name: "N", root: "/r", dir: "n", base_url: null, environment: "Local" });
+    await b.collections.reveal!("/r/a");
     await b.companions.list("orders");
     await b.companions.read("orders/metadata.xml");
     await b.companions.stage("orders/metadata.xml", "<edmx/>");
@@ -198,6 +208,8 @@ describe("TauriBackend", () => {
     const choice = { kind: "file", path: "a.yml", side: "theirs" } as const;
     await b.merges.conflicts();
     await b.merges.resolve([choice]);
+    await b.variables.scope("users/list.yml", { environment: "Local", vars: [] });
+    await b.variables.define("users", { name: "tenant", value: "acme", enabled: true, secret: false });
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -267,6 +279,16 @@ describe("TauriBackend", () => {
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],
       ["import_write_into", { id: 2, name: "Shop" }],
+      ["collections_current", undefined],
+      ["collections_add", undefined],
+      ["collections_remove_root", { root: "/r" }],
+      ["collections_activate", { id: "/r/a" }],
+      ["collections_tree", { id: "/r/a" }],
+      ["collections_dirty", { id: "/r/a" }],
+      ["collections_save_all", undefined],
+      ["collections_search", { query: "users", limit: 20 }],
+      ["collections_create", { spec: { name: "N", root: "/r", dir: "n", base_url: null, environment: "Local" } }],
+      ["collections_reveal", { id: "/r/a" }],
       ["companion_list", { prefix: "orders" }],
       ["companion_read", { path: "orders/metadata.xml" }],
       ["companion_stage", { path: "orders/metadata.xml", text: "<edmx/>" }],
@@ -361,6 +383,8 @@ describe("TauriBackend", () => {
       ["rescue_rewrite", { plan: { findings: ["a:b.yml:1"], variable: "apiToken", environment: "Local" } }],
       ["merge_conflicts", undefined],
       ["merge_resolve", { choices: [choice] }],
+      ["variables_scope", { path: "users/list.yml", input: { environment: "Local", vars: [] } }],
+      ["variables_define", { folder: "users", variable: { name: "tenant", value: "acme", enabled: true, secret: false } }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

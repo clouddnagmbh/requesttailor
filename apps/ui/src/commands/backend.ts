@@ -114,6 +114,8 @@ import type {
   ScanProgress,
   SpecChanges,
   TestRecord,
+  Variable,
+  VariableScope,
 } from "./types";
 
 export interface CollectionInfo {
@@ -589,6 +591,9 @@ export interface CollectionSetApi {
    *  `baseUrl`), unsaved like any edit until `save`/`saveAll`, adds it to the set and makes
    *  it active. `spec.root: null` asks for a folder first (`null` if cancelled). */
   create(spec: NewCollection): Promise<CollectionInfo | null>;
+  /** Shows the folder of collection `id` in the platform's file manager ("Show in Finder").
+   *  Only shells that can do that have it (desktop); the sidebar offers it where it exists. */
+  reveal?(id: string): Promise<void>;
 }
 
 export interface Backend {
@@ -673,6 +678,22 @@ export interface Backend {
   readonly rescue: RescueApi;
   /** Wave 13: companion files for extensions. */
   readonly companions: CompanionApi;
+  /** Wave 14: variable completion. */
+  readonly variables: VariablesApi;
+}
+
+/**
+ * Variable completion (since wave 14, `rt_app::variables`): the `{{` list of the editor.
+ */
+export interface VariablesApi {
+  /** Every variable `path` sees: `path` is a request path, a folder path, or `""` for the
+   *  collection (environment values). With the session's variables in the runtime layer, like
+   *  `preview`; secret values never (secrets have `value: null`). */
+  scope(path: string, input: SendInput): Promise<VariableScope>;
+  /** Adds a plain variable to the collection (`folder` is `""`) or a folder, or replaces the
+   *  one of that name there. Unsaved, like any edit (`dirty` lists the file). Secret
+   *  variables are refused (kind `unsupported`): they belong in an environment. */
+  define(folder: string, variable: Variable): Promise<void>;
 }
 
 /**

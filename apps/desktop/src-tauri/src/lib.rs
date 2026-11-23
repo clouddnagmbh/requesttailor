@@ -14,6 +14,8 @@ mod agents;
 /// Wave 8, strand E.
 mod ai;
 mod auth;
+/// Wave 14, strand A: several collections in the sidebar.
+pub mod collections;
 mod commands;
 /// Wave 13: companion files for extensions.
 mod companions;
@@ -26,6 +28,8 @@ pub mod core;
 /// Wave 12, strand A: semantic diff.
 mod diffs;
 pub mod files;
+/// Wave 14: variable completion.
+mod variables;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
 /// Wave 8, strand B.
@@ -125,6 +129,16 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::secret_get,
             commands::secret_set,
             commands::secret_delete,
+            collections::collections_current,
+            collections::collections_add,
+            collections::collections_remove_root,
+            collections::collections_activate,
+            collections::collections_tree,
+            collections::collections_dirty,
+            collections::collections_save_all,
+            collections::collections_search,
+            collections::collections_create,
+            collections::collections_reveal,
             git::git_status,
             git::git_diff,
             git::git_commit,
@@ -152,6 +166,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             companions::companion_list,
             companions::companion_read,
             companions::companion_stage,
+            variables::variables_scope,
+            variables::variables_define,
             history::history_list,
             history::history_clear,
             search::search,

@@ -7,7 +7,6 @@
 
 import {
   BackendError,
-  stubCollections,
   type AuthApi,
   type Backend,
   type CollectionInfo,
@@ -46,6 +45,7 @@ import { tauriGraphQl } from "./graphql";
 import { tauriAgents } from "./agents";
 import { tauriMcp } from "./mcp-client";
 import { tauriCompanions } from "./companions";
+import { tauriVariables } from "./variables";
 import { tauriAi } from "./ai";
 // Wave 12: one file per strand.
 import { tauriCompare, type MakeStepChannel } from "./compare";
@@ -57,6 +57,7 @@ import { tauriReview } from "./review";
 import { tauriTimeline } from "./timeline";
 import { tauriScripts } from "./scripts";
 import { tauriGit } from "./git";
+import { tauriCollections } from "./collections";
 import { tauriHistory } from "./history";
 import { tauriImports } from "./import";
 import { tauriPlugins } from "./plugins";
@@ -84,6 +85,16 @@ export const COMMANDS = [
   "secret_get",
   "secret_set",
   "secret_delete",
+  "collections_current",
+  "collections_add",
+  "collections_remove_root",
+  "collections_activate",
+  "collections_tree",
+  "collections_dirty",
+  "collections_save_all",
+  "collections_search",
+  "collections_create",
+  "collections_reveal",
   "git_status",
   "git_diff",
   "git_commit",
@@ -111,6 +122,8 @@ export const COMMANDS = [
   "companion_list",
   "companion_read",
   "companion_stage",
+  "variables_scope",
+  "variables_define",
   "history_list",
   "history_clear",
   "search",
@@ -261,8 +274,8 @@ const NO_COMPANION: CompanionStatus = {
 
 export class TauriBackend implements Backend {
   readonly kind = "tauri" as const;
-  /** Wave 14 interface: one collection until strand A (`collections.ts`). */
-  readonly collections = stubCollections(this);
+  /** Wave 14: the collections in the sidebar (`collections.ts`). */
+  readonly collections = tauriCollections((cmd, args) => this.call(cmd, args));
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
   readonly git: GitApi;
@@ -289,6 +302,8 @@ export class TauriBackend implements Backend {
   readonly contract = tauriContract((cmd, args) => this.call(cmd, args));
   /** Wave 13. */
   readonly companions = tauriCompanions((cmd, args) => this.call(cmd, args));
+  /** Wave 14: variable completion. */
+  readonly variables = tauriVariables((cmd, args) => this.call(cmd, args), sendInput);
   readonly rescue: RescueApi;
 
   constructor(

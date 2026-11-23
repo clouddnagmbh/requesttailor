@@ -11,6 +11,7 @@ and how.
 | `large_response_frame` | ≤ 20 ms | p95 frame interval while scrolling a 100 MB body, Chrome |
 | `send_keystrokes` | ≤ 2 | keystrokes from app start to a sent request, Chrome |
 | `semantic_diff` | ≤ 200 ms | semantic diff of 1000 requests (100 changed), release build, median of 9 |
+| `compare_view` | ≤ 1000 ms | comparison view of 1000 requests (100 changed) with both runs' answers, mock backend, Chrome, median of 5 |
 
 ```sh
 npm run build -w apps/desktop          # the release binary the desktop part starts
@@ -54,11 +55,15 @@ main thread is free to handle input.
 
 ## Idle memory (`idle_memory`)
 
-**Memory of the app and its webview processes, idle, with one collection open.**
+**Memory of the app and its webview processes, idle, with a folder of ten collections in the
+sidebar.**
 
-- The app reopens a fixed sample collection, [`testdata/conformance/collection`](../testdata/conformance/collection),
+- Since wave 14 the app reopens a temporary folder with ten copies (`c01` … `c10`) of a fixed
+  sample collection, [`testdata/conformance/collection`](../testdata/conformance/collection),
   from a recent list that the measurement writes into `RT_PERF_DIR` (the user's own list is not
-  touched). Measured in the last 3 of the 10 starts: at least 3 s after `collection-open`, then
+  touched). The app finds all ten for the sidebar and reads the first; `--collections 1` measures
+  the collection alone (`scripts/perf/desktop.mjs`, `collectionRoot`). The cold start uses the
+  same folder. Measured in the last 3 of the 10 starts: at least 3 s after `collection-open`, then
   sampled every second until three samples differ by less than 2 % (at most 20 s). The result is
   the median of the 3 starts.
 - Counted processes and the number the gate uses, per OS (`scripts/perf/memory.mjs`):
@@ -141,3 +146,16 @@ is gated before strand A lands and stays gated after. The WASM build of the same
 - `perf`: requires the results of all three OSes (a missing one fails), merges them with the
   worst value per metric (`scripts/perf/merge.mjs`) and runs the gate with `--require-all`. A
   metric no OS measured fails the build; nothing is skipped silently. `ci-ok` depends on both.
+
+## Comparison view (`compare_view`, wave 14)
+
+`node scripts/perf/run.mjs --only compare` runs `apps/web/e2e/perf/compare.measure.ts`
+(config `compare.perf.config.ts`, Vite on `RT_PERF_COMPARE_PORT`, default 48274) against the
+mock backend: a collection of 1000 requests in 20 folders, a commit, 100 requests changed, a
+second commit; then the comparison view compares `HEAD~1` with `HEAD`. One sample is the time
+from the click on "Compare" until the numbers show 100 changes, both runs' answers are in, the
+list shows rows and the first change is shown side by side. One warm-up (reported as `first`),
+then the median of five. The list is virtualized: the measurement also checks that fewer than 80
+rows are in the DOM while all 1005 are listed. The mock measures the view, not a network or the
+Rust core (the semantic diff in Rust has its own budget, `semantic_diff`).
+

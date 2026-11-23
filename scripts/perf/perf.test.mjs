@@ -6,11 +6,12 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { isSettled, median, parseMarks, recentFile } from "./desktop.mjs";
+import { collectionRoot, isSettled, median, parseMarks, recentFile } from "./desktop.mjs";
 import {
   descendants,
   newWebKitPids,
@@ -49,6 +50,20 @@ test("the recent list for the measured start names the canonical collection fold
     assert.equal(typeof f.collections[0].openedAt, "number");
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the measured folder holds the sample collection ten times, each named apart", () => {
+  const source = fileURLToPath(new URL("../../testdata/conformance/collection", import.meta.url));
+  const root = collectionRoot(source, 10);
+  try {
+    const dirs = readdirSync(root).sort();
+    assert.deepEqual(dirs, ["c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10"]);
+    const names = dirs.map((d) => readFileSync(join(root, d, "opencollection.yml"), "utf8").match(/^\s+name:\s*(.*)$/m)[1]);
+    assert.equal(new Set(names).size, 10);
+    assert.ok(names[9].endsWith(" 10"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 

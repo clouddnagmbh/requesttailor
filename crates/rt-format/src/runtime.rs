@@ -27,7 +27,7 @@ const ACTION_ORDER: &[&str] = &["type", "phase", "selector", "variable", "disabl
 const SELECTOR_ORDER: &[&str] = &["expression", "method"];
 const VARIABLE_ORDER: &[&str] = &["name", "scope"];
 /// Keys of `request` in `opencollection.yml` and `folder.yml`.
-const DEFAULTS_ORDER: &[&str] = &["auth", "headers", "variables", "scripts", "settings"];
+pub(crate) const DEFAULTS_ORDER: &[&str] = &["auth", "headers", "variables", "scripts", "settings"];
 const COLLECTION_ORDER: &[&str] = &[
     "opencollection",
     "info",
@@ -479,7 +479,44 @@ pub(crate) fn apply_default_scripts(
     collection: bool,
     new: &[Script],
 ) -> Result<Document> {
-    if default_scripts(doc) == new {
+    apply_request_defaults(
+        doc,
+        collection,
+        &RequestPart {
+            what: "scripts",
+            new_is_empty: new.is_empty(),
+            write: &|request, nl| write_scripts(request, DEFAULTS_ORDER, new, nl),
+            fresh: &|| scripts_val(new).expect("not empty"),
+            same: &|doc| default_scripts(doc) == new,
+            describe: &|doc| format!("wanted {new:?}, got {:?}", default_scripts(doc)),
+        },
+    )
+}
+
+/// One part of `request` in a collection or folder file (scripts, variables), for
+/// [`apply_request_defaults`].
+pub(crate) struct RequestPart<'a> {
+    /// The key under `request`.
+    pub what: &'static str,
+    pub new_is_empty: bool,
+    /// Makes the part of an existing `request` block mapping read as the new value.
+    pub write: &'a dyn Fn(&mut Map, &str) -> Result<()>,
+    /// The new value, for a file without `request` (only called if not empty).
+    pub fresh: &'a dyn Fn() -> Val,
+    /// Whether `doc` already reads as the new value.
+    pub same: &'a dyn Fn(&Document) -> bool,
+    /// Wanted and got, for the read-back error.
+    pub describe: &'a dyn Fn(&Document) -> String,
+}
+
+/// Edits one part of `request` of a collection (`collection`) or folder file. Everything
+/// else in the file stays as it was; the edit is read back and must give the new value.
+pub(crate) fn apply_request_defaults(
+    doc: &Document,
+    collection: bool,
+    part: &RequestPart<'_>,
+) -> Result<Document> {
+    if (part.same)(doc) {
         return Ok(doc.clone());
     }
     let mut doc = doc.clone();
@@ -494,12 +531,12 @@ pub(crate) fn apply_default_scripts(
         .is_some_and(|n| has_content(n) && !matches!(n, Node::Map(m) if !m.flow));
     match root.get_mut("request").and_then(Node::block_map_mut) {
         Some(request) => {
-            write_scripts(request, DEFAULTS_ORDER, new, nl)?;
+            (part.write)(request, nl)?;
             if request.is_empty() {
                 root.remove("request");
             }
         }
-        None if new.is_empty() => {}
+        None if part.new_is_empty => {}
         None if fixed => {
             return Err("`request` is not a block mapping; it cannot be edited".into());
         }
@@ -509,10 +546,9 @@ pub(crate) fn apply_default_scripts(
             } else {
                 FOLDER_ORDER
             };
-            let scripts = scripts_val(new).expect("not empty");
             root.put(
                 "request",
-                &Val::Map(vec![("scripts", scripts)]),
+                &Val::Map(vec![(part.what, (part.fresh)())]),
                 order,
                 true,
                 nl,
@@ -520,11 +556,11 @@ pub(crate) fn apply_default_scripts(
         }
     }
     let doc = reparse(&doc)?;
-    let got = default_scripts(&doc);
-    if got != new {
+    if !(part.same)(&doc) {
         return Err(format!(
-            "internal error: the edited file does not read back as the scripts \
-             (wanted {new:?}, got {got:?})"
+            "internal error: the edited file does not read back as the {} ({})",
+            part.what,
+            (part.describe)(&doc)
         ));
     }
     Ok(doc)
@@ -544,6 +580,19 @@ impl CollectionDoc {
         folder: &str,
         new: &[Script],
     ) -> std::result::Result<(), FormatError> {
+        self.edit_request_defaults(folder, new.is_empty(), &|doc, collection| {
+            apply_default_scripts(doc, collection, new)
+        })
+    }
+
+    /// Applies `apply` to the collection file (`folder` is `""`) or to the `folder.yml` of
+    /// `folder` (created if the folder has none and `new_is_empty` is false).
+    pub(crate) fn edit_request_defaults(
+        &mut self,
+        folder: &str,
+        new_is_empty: bool,
+        apply: &dyn Fn(&Document, bool) -> Result<Document>,
+    ) -> std::result::Result<(), FormatError> {
         let invalid = |path: &str, message: String| FormatError::Invalid {
             path: path.to_owned(),
             message,
@@ -562,7 +611,7 @@ impl CollectionDoc {
             Some(Source::Unparsed(_)) => {
                 return Err(invalid(&path, "the file could not be parsed".into()));
             }
-            None if new.is_empty() => return Ok(()),
+            None if new_is_empty => return Ok(()),
             None if folder.is_empty() => {
                 return Err(invalid(&path, "no collection file".into()));
             }
@@ -574,8 +623,7 @@ impl CollectionDoc {
                 &created
             }
         };
-        let edited =
-            apply_default_scripts(doc, folder.is_empty(), new).map_err(|e| invalid(&path, e))?;
+        let edited = apply(doc, folder.is_empty()).map_err(|e| invalid(&path, e))?;
         self.files.insert(path, Source::Yaml(edited));
         self.rebuild();
         Ok(())

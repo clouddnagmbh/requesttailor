@@ -28,23 +28,27 @@ export function segments(snippet: string, ranges: readonly [number, number][]): 
   return out;
 }
 
-export interface HitGroup {
+export interface HitGroup<H extends SearchHit = SearchHit> {
+  /** Wave 14: the collection of the request (hits of `collections.search`). */
+  collection?: string;
   path: string;
   name: string;
   method: string;
   /** Hits with their position in display order (for keyboard navigation). */
-  hits: { hit: SearchHit; index: number }[];
+  hits: { hit: H; index: number }[];
 }
 
 /** Hits grouped by request, groups in the order of their first (best) hit. `index` counts
  *  hits in display order: group by group. */
-export function groupHits(hits: readonly SearchHit[]): HitGroup[] {
-  const groups = new Map<string, HitGroup>();
+export function groupHits<H extends SearchHit & { collection?: string }>(hits: readonly H[]): HitGroup<H>[] {
+  const groups = new Map<string, HitGroup<H>>();
   for (const hit of hits) {
-    let g = groups.get(hit.path);
+    const key = `${hit.collection ?? ""}\u0000${hit.path}`;
+    let g = groups.get(key);
     if (!g) {
       g = { path: hit.path, name: hit.name, method: hit.method, hits: [] };
-      groups.set(hit.path, g);
+      if (hit.collection !== undefined) g.collection = hit.collection;
+      groups.set(key, g);
     }
     g.hits.push({ hit, index: -1 });
   }

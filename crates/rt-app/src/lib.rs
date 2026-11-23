@@ -21,7 +21,8 @@
 //! Wave 12 (Git for APIs): `diffs` (strand A), `merges` (strand B), `compare` and `bisect`
 //! (strand C), `timeline` (strand D), `review` (strand E), `contract` (strand F), `rescue`
 //! (strand G); revisions in `git` (interface).
-//! Wave 14: `collections` (strand A): the collection set of the sidebar.
+//! Wave 14: `collections` (strand A): the collection set of the sidebar; `variables`
+//! (variable completion).
 //! Changes to the public types here are interface changes (working rule 1).
 
 pub mod agents;
@@ -55,6 +56,9 @@ pub mod secret_scan;
 pub mod secret_sources;
 pub mod secrets;
 pub mod timeline;
+/// Variable completion (wave 14): the variables a request sees, new collection and folder
+/// variables.
+pub mod variables;
 mod workspace;
 
 pub use history::{History, HistoryEntry};

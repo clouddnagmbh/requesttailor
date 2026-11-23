@@ -182,6 +182,8 @@ fn save(file: &Path, entries: &[Stored]) -> std::io::Result<()> {
 
 /// Opens the recent collection `id`. `None` if `id` is not on the list or its folder is gone
 /// (then it is dropped from the list). Errors reading an existing folder are returned.
+/// Wave 14: entries are the folders the user opened or added (roots); if `id` is a root of
+/// the set remembered last, that whole set is restored with its active collection.
 pub fn open_recent_in<S: SecretStore>(
     core: &Core<S>,
     id: &str,
@@ -193,6 +195,10 @@ pub fn open_recent_in<S: SecretStore>(
     if !root.is_dir() {
         core.recent.forget(id);
         return Ok(None);
+    }
+    // Wave 14: a folder of the remembered collection set brings the whole set back.
+    if let Some(info) = core.restore(&root)? {
+        return Ok(Some(info));
     }
     core.open(&root).map(Some)
 }

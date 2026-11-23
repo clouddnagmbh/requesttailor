@@ -511,6 +511,25 @@ impl Workspace {
         Ok(())
     }
 
+    /// Every variable `path` (a request, a folder, `""` for the collection) sees with
+    /// `input`, for variable completion ([`crate::variables::scope`]).
+    pub fn variables(
+        &self,
+        path: &str,
+        input: &SendInput,
+    ) -> Result<crate::variables::VariableScope, AppError> {
+        crate::variables::scope(self.doc.model(), path, input)
+    }
+
+    /// Adds or replaces a plain variable of the collection (`folder` is `""`) or a folder
+    /// ([`crate::variables::define`]). Not on disk until `save`.
+    pub fn define_variable(&mut self, folder: &str, variable: &Variable) -> Result<(), AppError> {
+        let vars = crate::variables::define(self.doc.model(), folder, variable)?;
+        self.doc.set_folder_vars(folder, &vars)?;
+        self.refresh_dirty();
+        Ok(())
+    }
+
     pub fn delete_environment(&mut self, name: &str) -> Result<(), AppError> {
         if self.doc.model().environment(name).is_none() {
             return Err(AppError::EnvironmentNotFound(name.to_owned()));
@@ -882,7 +901,7 @@ fn secret_values(
 }
 
 /// Replaces every secret, raw, percent-encoded or Debug-escaped, with [`MASK`].
-fn mask(text: &str, secrets: &[String]) -> String {
+pub(crate) fn mask(text: &str, secrets: &[String]) -> String {
     let mut out = text.to_owned();
     for secret in secrets {
         for form in [

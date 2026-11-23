@@ -17,10 +17,23 @@
 //!   `external_secrets` are read with the managers' CLIs (`external_secrets`, cached in memory
 //!   for the session) and join the keychain values; a keychain value of the same name wins.
 //!   Preview uses only what is cached, so it never runs a CLI.
+//! - Wave 14 (strand A): several collections. The core holds a *collection set*
+//!   (`rt_app::collections`): the roots the user opened or added, the collections found in
+//!   them (`collections.rs` walks the folders), one session per collection that was read, and
+//!   the active one. Every command above acts on the active collection when it is called; a
+//!   collection that is not active is read only when something asks for it (its tree when the
+//!   sidebar node opens, search, save). Ids are canonical collection paths, so a collection
+//!   has the same id (and secrets) whether it is opened alone or through a parent folder.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
+use std::collections::HashMap;
+
+use rt_app::collections::{
+    CollectionChanges, CollectionEntry, CollectionRoot, CollectionSearchHit, CollectionSet,
+    NewCollection,
+};
 use rt_app::{
     AppError, FileChange, Imports, LineSlice, Preview, ResponseStore, SecretKey, SecretStore,
     SendInput, StoredResponse, TreeNode, Workspace,
@@ -30,6 +43,7 @@ use rt_core::send::SendOptions;
 use rt_core::transport::native::NativeTransport;
 use serde::Serialize;
 
+use crate::collections::{self as set_files, Found};
 use crate::files;
 use crate::history::DesktopHistory;
 use crate::recent::Recent;
@@ -51,10 +65,220 @@ struct Session {
     id: String,
     root: PathBuf,
     workspace: Workspace,
+    /// A new collection (wave 14, `create_collection`): its files, written on the first save
+    /// (until then the folder does not exist).
+    created: Vec<FileChange>,
+}
+
+impl Session {
+    fn read(id: &str, root: &Path) -> Result<Self, AppError> {
+        let fileset = files::read_folder(root)
+            .map_err(|e| AppError::Shell(format!("cannot read {}: {e}", root.display())))?;
+        Ok(Self {
+            id: id.to_owned(),
+            root: root.to_path_buf(),
+            workspace: Workspace::open(fileset)?,
+            created: Vec::new(),
+        })
+    }
+
+    fn dirty(&self) -> Vec<String> {
+        let mut dirty = self.workspace.dirty();
+        for c in &self.created {
+            if !dirty.contains(&c.path) {
+                dirty.push(c.path.clone());
+            }
+        }
+        dirty.sort();
+        dirty
+    }
+
+    /// Writes unsaved changes. The workspace only forgets its dirty state when every file
+    /// was written; on an I/O error the changes stay unsaved and can be saved again.
+    fn save(&mut self) -> Result<Vec<FileChange>, AppError> {
+        let mut next = self.workspace.clone();
+        let mut changes = next.save()?;
+        if !self.created.is_empty() {
+            std::fs::create_dir_all(&self.root)
+                .map_err(|e| AppError::Shell(format!("cannot save: {e}")))?;
+            for c in &self.created {
+                if !changes.iter().any(|x| x.path == c.path) {
+                    changes.push(c.clone());
+                }
+            }
+            changes.sort_by(|a, b| a.path.cmp(&b.path));
+        }
+        files::write_changes(&self.root, &changes)
+            .map_err(|e| AppError::Shell(format!("cannot save: {e}")))?;
+        self.workspace = next;
+        self.created.clear();
+        Ok(changes)
+    }
+
+    fn name(&self) -> Option<String> {
+        Some(self.workspace.collection().name.trim().to_owned()).filter(|n| !n.is_empty())
+    }
+}
+
+/// A folder the user opened or added.
+#[derive(Debug, Clone)]
+struct Root {
+    id: String,
+    path: PathBuf,
+    name: String,
+    collections: Vec<String>,
+    truncated: bool,
+}
+
+/// One collection of the set.
+#[derive(Debug, Clone)]
+struct Entry {
+    id: String,
+    name: String,
+    path: PathBuf,
+    root: String,
+    dir: String,
+    repo: Option<String>,
+}
+
+/// The collection set (wave 14): roots in order, their collections, the sessions read so far.
+#[derive(Default)]
+struct Sets {
+    roots: Vec<Root>,
+    entries: Vec<Entry>,
+    sessions: HashMap<String, Session>,
+    active: Option<String>,
+}
+
+impl Sets {
+    fn entry(&self, id: &str) -> Result<&Entry, AppError> {
+        self.entries
+            .iter()
+            .find(|e| e.id == id)
+            .ok_or_else(|| AppError::Shell(format!("no collection {id} in the sidebar")))
+    }
+
+    /// The session of collection `id`, read from disk on first use.
+    fn session(&mut self, id: &str) -> Result<&mut Session, AppError> {
+        if !self.sessions.contains_key(id) {
+            let path = self.entry(id)?.path.clone();
+            let session = Session::read(id, &path)?;
+            self.sessions.insert(id.to_owned(), session);
+        }
+        Ok(self.sessions.get_mut(id).expect("just inserted"))
+    }
+
+    fn active_session(&mut self) -> Result<&mut Session, AppError> {
+        let id = self
+            .active
+            .clone()
+            .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
+        self.session(&id)
+    }
+
+    fn info(&self, id: &str) -> Result<CollectionInfo, AppError> {
+        let entry = self.entry(id)?;
+        let name = self
+            .sessions
+            .get(id)
+            .and_then(Session::name)
+            .unwrap_or_else(|| entry.name.clone());
+        Ok(CollectionInfo {
+            id: entry.id.clone(),
+            name,
+            location: entry.id.clone(),
+        })
+    }
+
+    /// Adds the collections `found` in a root (those not in the set yet).
+    fn push_root(&mut self, found: Found) -> &Root {
+        let Found {
+            id,
+            path,
+            name,
+            collections,
+            truncated,
+        } = found;
+        let mut ids = Vec::new();
+        for c in collections {
+            if self.entries.iter().any(|e| e.id == c.id) {
+                continue;
+            }
+            ids.push(c.id.clone());
+            self.entries.push(Entry {
+                id: c.id,
+                name: c.name,
+                path: c.path,
+                root: id.clone(),
+                dir: c.dir,
+                repo: c.repo,
+            });
+        }
+        self.roots.push(Root {
+            id,
+            path,
+            name,
+            collections: ids,
+            truncated,
+        });
+        self.roots.last().expect("just pushed")
+    }
+
+    fn set(&self) -> CollectionSet {
+        CollectionSet {
+            roots: self
+                .roots
+                .iter()
+                .map(|r| CollectionRoot {
+                    id: r.id.clone(),
+                    name: r.name.clone(),
+                    location: r.id.clone(),
+                    collections: r.collections.clone(),
+                    truncated: r.truncated,
+                })
+                .collect(),
+            collections: self
+                .entries
+                .iter()
+                .map(|e| CollectionEntry {
+                    id: e.id.clone(),
+                    name: self
+                        .sessions
+                        .get(&e.id)
+                        .and_then(Session::name)
+                        .unwrap_or_else(|| e.name.clone()),
+                    location: e.id.clone(),
+                    root: e.root.clone(),
+                    dir: e.dir.clone(),
+                    repo: e.repo.clone(),
+                    dirty: self.sessions.get(&e.id).map_or(0, |s| s.dirty().len()),
+                })
+                .collect(),
+            active: self.active.clone(),
+        }
+    }
+
+    /// Ids of the collections in the active collection's repository (just the active one
+    /// outside Git).
+    fn repo_mates(&self) -> Vec<String> {
+        let Some(active) = self.active.as_deref() else {
+            return Vec::new();
+        };
+        let repo = self.entry(active).ok().and_then(|e| e.repo.clone());
+        match repo {
+            None => vec![active.to_owned()],
+            Some(repo) => self
+                .entries
+                .iter()
+                .filter(|e| e.repo.as_deref() == Some(repo.as_str()))
+                .map(|e| e.id.clone())
+                .collect(),
+        }
+    }
 }
 
 pub struct Core<S> {
-    session: Mutex<Option<Session>>,
+    session: Mutex<Sets>,
     responses: Mutex<ResponseStore>,
     transport: NativeTransport,
     secrets: S,
@@ -87,7 +311,7 @@ impl<S: SecretStore> Core<S> {
     /// A core that keeps history and recent collections in `data_dir`.
     pub fn with_data_dir(secrets: S, data_dir: Option<PathBuf>) -> Result<Self, AppError> {
         Ok(Self {
-            session: Mutex::new(None),
+            session: Mutex::new(Sets::default()),
             responses: Mutex::new(ResponseStore::new()),
             transport: NativeTransport::new().map_err(shell)?,
             history: DesktopHistory::new(data_dir.as_deref()),
@@ -116,14 +340,16 @@ impl<S: SecretStore> Core<S> {
         &self.secrets
     }
 
-    /// Root folder of the open collection.
+    /// Root folder of the open (active) collection.
     pub fn root(&self) -> Option<PathBuf> {
-        lock(&self.session).as_ref().map(|s| s.root.clone())
+        let sets = lock(&self.session);
+        let id = sets.active.as_deref()?;
+        sets.entry(id).ok().map(|e| e.path.clone())
     }
 
-    /// Id (`CollectionInfo::id`) of the open collection.
+    /// Id (`CollectionInfo::id`) of the open (active) collection.
     pub fn collection_id(&self) -> Option<String> {
-        lock(&self.session).as_ref().map(|s| s.id.clone())
+        lock(&self.session).active.clone()
     }
 
     /// Whether the open collection (with unsaved changes) has any script (wave 7).
@@ -142,19 +368,71 @@ impl<S: SecretStore> Core<S> {
         self.with_session(|s| s.workspace.set_agent_policy(policy))
     }
 
-    /// Whether the open collection has unsaved changes (Git refuses to change files then).
+    /// Whether a collection in the active collection's repository has unsaved changes (Git
+    /// refuses to change files then; wave 14: every collection of the repository counts).
     pub fn has_unsaved_changes(&self) -> bool {
-        lock(&self.session)
-            .as_ref()
-            .is_some_and(|s| !s.workspace.dirty().is_empty())
+        let sets = lock(&self.session);
+        sets.repo_mates()
+            .iter()
+            .any(|id| sets.sessions.get(id).is_some_and(|s| !s.dirty().is_empty()))
     }
 
-    /// Reads the open collection's folder again (after Git changed its files).
+    /// Reads the files again after Git changed them: every collection of the active
+    /// collection's repository that was read (wave 14), after finding the roots' collections
+    /// again (a checkout may add or remove some). Returns the active collection.
     pub fn reload(&self) -> Result<CollectionInfo, AppError> {
-        let root = self
-            .root()
+        let mut sets = lock(&self.session);
+        let active = sets
+            .active
+            .clone()
             .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
-        self.open(&root)
+        let mates = sets.repo_mates();
+        let mut next = Sets::default();
+        for root in &sets.roots {
+            match set_files::find(&root.path) {
+                Ok(found) => {
+                    next.push_root(found);
+                }
+                Err(e) => {
+                    // Keep what the sidebar showed for a root that cannot be read now.
+                    eprintln!("RequestTailor: cannot read {}: {e}", root.path.display());
+                    next.roots.push(root.clone());
+                    next.entries
+                        .extend(sets.entries.iter().filter(|e| e.root == root.id).cloned());
+                }
+            }
+        }
+        // New collections not saved yet are not on disk: they stay.
+        for entry in &sets.entries {
+            let unsaved_new = sets
+                .sessions
+                .get(&entry.id)
+                .is_some_and(|s| !s.created.is_empty());
+            if unsaved_new && !next.entries.iter().any(|e| e.id == entry.id) {
+                if let Some(r) = next.roots.iter_mut().find(|r| r.id == entry.root) {
+                    r.collections.push(entry.id.clone());
+                }
+                next.entries.push(entry.clone());
+            }
+        }
+        // Collections of the repository are read again; the others keep their state.
+        for (id, session) in std::mem::take(&mut sets.sessions) {
+            let present = next.entries.iter().any(|e| e.id == id);
+            if present && (!mates.contains(&id) || !session.created.is_empty()) {
+                next.sessions.insert(id, session);
+            }
+        }
+        next.active = Some(active)
+            .filter(|a| next.entries.iter().any(|e| e.id == *a))
+            .or_else(|| next.entries.first().map(|e| e.id.clone()));
+        let id = next
+            .active
+            .clone()
+            .ok_or_else(|| AppError::Shell("no collection is left in the sidebar".into()))?;
+        next.session(&id)?;
+        let info = next.info(&id)?;
+        *sets = next;
+        Ok(info)
     }
 
     /// The open workspace and the collection id, for the per-strand modules (wave 8: saved
@@ -171,41 +449,344 @@ impl<S: SecretStore> Core<S> {
         f: impl FnOnce(&mut Session) -> Result<T, AppError>,
     ) -> Result<T, AppError> {
         let mut guard = lock(&self.session);
-        let session = guard
-            .as_mut()
-            .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
-        f(session)
+        f(guard.active_session()?)
     }
 
-    /// Opens the collection in `root` (the folder the user picked).
+    /// Opens what the folder `root` holds as the only root of the collection set (the folder
+    /// the user picked): the collection itself, or every collection in its subfolders. The
+    /// first one becomes active (wave 14). The set stays as it was if that one cannot be read.
     pub fn open(&self, root: &Path) -> Result<CollectionInfo, AppError> {
-        let (root, id) = files::collection_id(root)
+        let mut found = set_files::find(root)
             .map_err(|e| AppError::Shell(format!("cannot open {}: {e}", root.display())))?;
-        let fileset = files::read_folder(&root)
-            .map_err(|e| AppError::Shell(format!("cannot read {}: {e}", root.display())))?;
-        let workspace = Workspace::open(fileset)?;
-        let folder_name = root
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| id.clone());
-        let name = match workspace.collection().name.trim() {
-            "" => folder_name,
-            name => name.to_owned(),
-        };
-        let info = CollectionInfo {
-            id: id.clone(),
-            name,
-            location: id.clone(),
-        };
-        *lock(&self.session) = Some(Session {
-            id,
-            root,
-            workspace,
-        });
-        // Bodies of the previous collection are no longer reachable from the UI.
+        if found.collections.is_empty() {
+            // No collection anywhere below: the folder is tried as one (as before wave 14).
+            found.collections.push(set_files::FoundCollection {
+                id: found.id.clone(),
+                name: found.name.clone(),
+                path: found.path.clone(),
+                dir: String::new(),
+                repo: set_files::repo_of(&found.path),
+            });
+        }
+        let first = found
+            .collections
+            .first()
+            .map(|c| (c.id.clone(), c.path.clone()))
+            .ok_or_else(|| AppError::Shell(format!("cannot open {}", root.display())))?;
+        let session = Session::read(&first.0, &first.1)?;
+        let mut sets = Sets::default();
+        let root_info = root_info(&found, Some(&session));
+        sets.push_root(found);
+        sets.sessions.insert(first.0.clone(), session);
+        sets.active = Some(first.0.clone());
+        let info = sets.info(&first.0)?;
+        let set = sets.set();
+        *lock(&self.session) = sets;
+        // Bodies of the previous collections are no longer reachable from the UI.
         *lock(&self.responses) = ResponseStore::new();
-        self.recent.opened(&info);
+        self.recent.opened(&root_info);
+        self.remember(&set);
         Ok(info)
+    }
+
+    // ---- wave 14: the collection set ----
+
+    /// The collection set as the sidebar shows it.
+    pub fn collection_set(&self) -> CollectionSet {
+        lock(&self.session).set()
+    }
+
+    /// Number of collections read so far (the others are read when something asks).
+    pub fn loaded_collections(&self) -> usize {
+        lock(&self.session).sessions.len()
+    }
+
+    /// "Add collection…": adds the folder `root` as another root (its collections after the
+    /// existing ones; collections already in the set are not added twice) and makes its first
+    /// new collection active. An empty set is opened as by [`Core::open`].
+    pub fn add_root(&self, root: &Path) -> Result<CollectionSet, AppError> {
+        if lock(&self.session).roots.is_empty() {
+            self.open(root)?;
+            return Ok(self.collection_set());
+        }
+        let found = set_files::find(root)
+            .map_err(|e| AppError::Shell(format!("cannot open {}: {e}", root.display())))?;
+        if found.collections.is_empty() {
+            return Err(AppError::Shell(format!(
+                "there is no collection in {}; create one with New… → Collection",
+                root.display()
+            )));
+        }
+        let root_info = root_info(&found, None);
+        let set = {
+            let mut sets = lock(&self.session);
+            // The same folder again, or one whose collections are all in the set already.
+            let known = |c: &set_files::FoundCollection| sets.entries.iter().any(|e| e.id == c.id);
+            if sets.roots.iter().any(|r| r.id == found.id) || found.collections.iter().all(known) {
+                return Ok(sets.set());
+            }
+            let added = sets.push_root(found).collections.clone();
+            if let Some(first) = added.first() {
+                // Read it now: a folder that is no collection fails here, not later.
+                if let Err(e) = sets.session(first) {
+                    sets.roots.pop();
+                    sets.entries.retain(|e| !added.contains(&e.id));
+                    return Err(e);
+                }
+                sets.active = Some(first.clone());
+            }
+            sets.set()
+        };
+        self.recent.opened(&root_info);
+        self.remember(&set);
+        Ok(set)
+    }
+
+    /// Adds the folder `root` as a root for a new collection (`create_collection`), also
+    /// when it holds none yet; the collections it holds join the set. Returns the root's id.
+    pub fn add_folder_root(&self, root: &Path) -> Result<String, AppError> {
+        let found = set_files::find(root)
+            .map_err(|e| AppError::Shell(format!("cannot open {}: {e}", root.display())))?;
+        let id = found.id.clone();
+        let root_info = root_info(&found, None);
+        let set = {
+            let mut sets = lock(&self.session);
+            if sets.roots.iter().any(|r| r.id == id) {
+                return Ok(id);
+            }
+            sets.push_root(found);
+            sets.set()
+        };
+        self.recent.opened(&root_info);
+        self.remember(&set);
+        Ok(id)
+    }
+
+    /// Takes the root `root` and its collections out of the set (files untouched). Refused
+    /// while one of them has unsaved changes.
+    pub fn remove_root(&self, root: &str) -> Result<CollectionSet, AppError> {
+        let set = {
+            let mut sets = lock(&self.session);
+            let Some(index) = sets.roots.iter().position(|r| r.id == root) else {
+                return Ok(sets.set());
+            };
+            let ids = sets.roots[index].collections.clone();
+            if let Some(dirty) = ids.iter().find(|id| {
+                sets.sessions
+                    .get(*id)
+                    .is_some_and(|s| !s.dirty().is_empty())
+            }) {
+                let name = sets.info(dirty).map(|i| i.name).unwrap_or_default();
+                return Err(AppError::Shell(format!(
+                    "\"{name}\" has unsaved changes; save them before removing the folder"
+                )));
+            }
+            sets.roots.remove(index);
+            sets.entries.retain(|e| !ids.contains(&e.id));
+            for id in &ids {
+                sets.sessions.remove(id);
+            }
+            if sets.active.as_ref().is_some_and(|a| ids.contains(a)) {
+                sets.active = sets.entries.first().map(|e| e.id.clone());
+            }
+            sets.set()
+        };
+        self.remember(&set);
+        Ok(set)
+    }
+
+    /// Makes collection `id` the active one (read from disk if it was not yet).
+    pub fn activate(&self, id: &str) -> Result<CollectionInfo, AppError> {
+        let (info, set) = {
+            let mut sets = lock(&self.session);
+            sets.session(id)?;
+            sets.active = Some(id.to_owned());
+            (sets.info(id)?, sets.set())
+        };
+        self.remember(&set);
+        Ok(info)
+    }
+
+    /// The folder of collection `id` (a new, unsaved collection's folder may not exist yet).
+    pub fn path_of(&self, id: &str) -> Result<PathBuf, AppError> {
+        Ok(lock(&self.session).entry(id)?.path.clone())
+    }
+
+    /// The tree of any collection of the set, unsaved changes included.
+    pub fn tree_of(&self, id: &str) -> Result<TreeNode, AppError> {
+        Ok(lock(&self.session).session(id)?.workspace.tree())
+    }
+
+    /// Unsaved paths of any collection of the set.
+    pub fn dirty_of(&self, id: &str) -> Result<Vec<String>, AppError> {
+        Ok(lock(&self.session).session(id)?.dirty())
+    }
+
+    /// Writes the unsaved changes of every collection, in sidebar order; stops at the first
+    /// collection that cannot be written (the others before it are written).
+    pub fn save_all(&self) -> Result<Vec<CollectionChanges>, AppError> {
+        let mut sets = lock(&self.session);
+        let ids: Vec<String> = sets.entries.iter().map(|e| e.id.clone()).collect();
+        let mut written = Vec::new();
+        for id in ids {
+            let Some(session) = sets.sessions.get_mut(&id) else {
+                continue;
+            };
+            if session.dirty().is_empty() {
+                continue;
+            }
+            let changes = session.save()?;
+            written.push(CollectionChanges {
+                collection: id,
+                changes,
+            });
+        }
+        Ok(written)
+    }
+
+    /// Full-text search over every collection of the set (each read if it was not yet).
+    pub fn search_all(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<CollectionSearchHit>, AppError> {
+        let mut sets = lock(&self.session);
+        let ids: Vec<String> = sets.entries.iter().map(|e| e.id.clone()).collect();
+        let mut per = Vec::new();
+        for id in ids {
+            // A collection that cannot be read has no hits; its node shows the error.
+            let Ok(session) = sets.session(&id) else {
+                continue;
+            };
+            per.push((id, rt_app::search::search(&session.workspace, query, limit)));
+        }
+        Ok(rt_app::collections::merge_hits(per, limit))
+    }
+
+    /// Creates a collection in a root of the set (`spec.root` must name one; the shell asks
+    /// for a folder first otherwise): unsaved until saved, like any edit; it joins the set and
+    /// becomes active. The folder must not exist yet or be empty.
+    pub fn create_collection(&self, spec: &NewCollection) -> Result<CollectionInfo, AppError> {
+        let dir = rt_app::collections::check_new_dir(&spec.dir)?;
+        let files = rt_app::collections::scaffold(spec)?;
+        let set = {
+            let mut sets = lock(&self.session);
+            let root_id = spec
+                .root
+                .clone()
+                .ok_or_else(|| AppError::Shell("choose a folder for the new collection".into()))?;
+            let root = sets
+                .roots
+                .iter()
+                .find(|r| r.id == root_id)
+                .cloned()
+                .ok_or_else(|| AppError::Shell(format!("no folder {root_id} in the sidebar")))?;
+            let path = if dir.is_empty() {
+                root.path.clone()
+            } else {
+                root.path.join(&dir)
+            };
+            if !set_files::is_free(&path) {
+                return Err(AppError::Shell(format!(
+                    "{} already has files in it; choose another folder",
+                    path.display()
+                )));
+            }
+            let id = path.to_string_lossy().into_owned();
+            if sets.entries.iter().any(|e| e.id == id) {
+                return Err(AppError::Shell(format!("{id} is a collection already")));
+            }
+            let fileset = rt_format::FileSet {
+                files: files
+                    .iter()
+                    .map(|c| (c.path.clone(), c.text.clone().into_bytes()))
+                    .collect(),
+            };
+            let session = Session {
+                id: id.clone(),
+                root: path.clone(),
+                workspace: Workspace::open(fileset)?,
+                created: files,
+            };
+            sets.entries.push(Entry {
+                id: id.clone(),
+                name: spec.name.trim().to_owned(),
+                path: path.clone(),
+                root: root.id.clone(),
+                dir,
+                repo: set_files::repo_of(&path),
+            });
+            // In sidebar order: after the root's other collections.
+            let order: Vec<String> = sets
+                .roots
+                .iter()
+                .flat_map(|r| {
+                    let mut ids = r.collections.clone();
+                    if r.id == root.id {
+                        ids.push(id.clone());
+                    }
+                    ids
+                })
+                .collect();
+            sets.entries
+                .sort_by_key(|e| order.iter().position(|o| *o == e.id).unwrap_or(usize::MAX));
+            if let Some(r) = sets.roots.iter_mut().find(|r| r.id == root.id) {
+                r.collections.push(id.clone());
+            }
+            sets.sessions.insert(id.clone(), session);
+            sets.active = Some(id.clone());
+            (sets.info(&id)?, sets.set())
+        };
+        let (info, set) = set;
+        self.remember(&set);
+        Ok(info)
+    }
+
+    /// Restores the set remembered on this device if `root` is one of its roots (all its
+    /// roots that still exist, and its active collection); else opens `root` alone. `None`
+    /// if nothing was remembered for it.
+    pub fn restore(&self, root: &Path) -> Result<Option<CollectionInfo>, AppError> {
+        let Some(saved) = self.data_dir.as_deref().and_then(set_files::load_roots) else {
+            return Ok(None);
+        };
+        let (_, wanted) = files::collection_id(root).map_err(shell)?;
+        if !saved.roots.contains(&wanted) {
+            return Ok(None);
+        }
+        let mut first = true;
+        for path in &saved.roots {
+            let path = PathBuf::from(path);
+            if !path.is_dir() {
+                continue;
+            }
+            let opened = if first {
+                self.open(&path).map(|_| ())
+            } else {
+                self.add_root(&path).map(|_| ())
+            };
+            match opened {
+                Ok(()) => first = false,
+                Err(e) => eprintln!("RequestTailor: cannot reopen {}: {e}", path.display()),
+            }
+        }
+        if first {
+            return Ok(None);
+        }
+        let active = saved
+            .active
+            .filter(|a| lock(&self.session).entries.iter().any(|e| e.id == *a))
+            .or_else(|| lock(&self.session).entries.first().map(|e| e.id.clone()));
+        match active {
+            Some(id) => self.activate(&id).map(Some),
+            None => Ok(None),
+        }
+    }
+
+    /// Remembers the roots and the active collection in the data folder (nothing in tests).
+    fn remember(&self, set: &CollectionSet) {
+        if let Some(dir) = &self.data_dir {
+            set_files::save_roots(dir, set);
+        }
     }
 
     pub fn tree(&self) -> Result<TreeNode, AppError> {
@@ -246,20 +827,13 @@ impl<S: SecretStore> Core<S> {
     }
 
     pub fn dirty(&self) -> Result<Vec<String>, AppError> {
-        self.with_session(|s| Ok(s.workspace.dirty()))
+        self.with_session(|s| Ok(s.dirty()))
     }
 
-    /// Writes unsaved changes. The workspace only forgets its dirty state when every file
-    /// was written; on an I/O error the changes stay unsaved and can be saved again.
+    /// Writes the active collection's unsaved changes. The workspace only forgets its dirty
+    /// state when every file was written; on an I/O error the changes stay unsaved.
     pub fn save(&self) -> Result<Vec<FileChange>, AppError> {
-        self.with_session(|s| {
-            let mut next = s.workspace.clone();
-            let changes = next.save()?;
-            files::write_changes(&s.root, &changes)
-                .map_err(|e| AppError::Shell(format!("cannot save: {e}")))?;
-            s.workspace = next;
-            Ok(changes)
-        })
+        self.with_session(Session::save)
     }
 
     pub fn environments(&self) -> Result<Vec<Environment>, AppError> {
@@ -280,6 +854,20 @@ impl<S: SecretStore> Core<S> {
             let input = self.services.session.input_for(&s.id, input);
             let input = self.with_secrets(s, input)?;
             s.workspace.preview(path, input)
+        })
+    }
+
+    /// Every variable `path` sees, for variable completion (`variables.rs`): the session's
+    /// variables in the runtime layer and the secret values only to mask, as for `preview`.
+    pub fn variables(
+        &self,
+        path: &str,
+        input: SendInput,
+    ) -> Result<rt_app::variables::VariableScope, AppError> {
+        self.with_session(|s| {
+            let input = self.services.session.input_for(&s.id, input);
+            let input = self.with_secrets(s, input)?;
+            s.workspace.variables(path, &input)
         })
     }
 
@@ -528,6 +1116,22 @@ impl<S: SecretStore> Core<S> {
         .map(|(name, _)| name)
         .collect();
         Ok(Some((external, skip)))
+    }
+}
+
+/// What the recent list keeps for a root: the collection's name if the root is one, else the
+/// folder's name.
+fn root_info(found: &Found, session: Option<&Session>) -> CollectionInfo {
+    let is_collection = found.collections.len() == 1 && found.collections[0].dir.is_empty();
+    let name = match (is_collection, session) {
+        (true, Some(s)) => s.name().unwrap_or_else(|| found.name.clone()),
+        (true, None) => found.collections[0].name.clone(),
+        (false, _) => found.name.clone(),
+    };
+    CollectionInfo {
+        id: found.id.clone(),
+        name,
+        location: found.id.clone(),
     }
 }
 

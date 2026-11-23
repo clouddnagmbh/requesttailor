@@ -3,11 +3,19 @@
 
 // Strand D acceptance: environment switcher, environment manager, secrets never in files.
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import { environments, files, openDemo, openManager, secret, sendAndReport, type TestWindow } from "./helpers";
 
 const SECRET = "s3cr3t-Staging-Token-42";
+
+/** Plain values are CodeFields (wave 14: `{{` completion): type into the editor, then leave. */
+async function typeValue(row: Locator, text: string) {
+  const content = row.getByTestId("var-value").locator(".cm-content");
+  await content.click();
+  await content.page().keyboard.type(text);
+  await content.press("Tab");
+}
 
 test("switching the environment changes the next send", async ({ page }) => {
   await openDemo(page);
@@ -61,8 +69,7 @@ test("create an environment with a secret: saved files never hold the value, sen
   let row = manager.getByTestId("env-var").nth(0);
   await row.getByTestId("var-name").fill("baseUrl");
   await row.getByTestId("var-name").press("Tab");
-  await row.getByTestId("var-value").fill("http://127.0.0.1:47811");
-  await row.getByTestId("var-value").press("Tab");
+  await typeValue(row, "http://127.0.0.1:47811");
 
   await manager.getByTestId("var-add").click();
   row = manager.getByTestId("env-var").nth(1);
@@ -150,8 +157,7 @@ test("plain to secret moves the value; secret to plain needs confirmation", asyn
   const row = manager.getByTestId("env-var").nth(2);
   await row.getByTestId("var-name").fill("apiKey");
   await row.getByTestId("var-name").press("Tab");
-  await row.getByTestId("var-value").fill("plain-key-123");
-  await row.getByTestId("var-value").press("Tab");
+  await typeValue(row, "plain-key-123");
   await expect
     .poll(async () => (await environments(page))[0].variables.find((v) => v.name === "apiKey")?.value)
     .toBe("plain-key-123");
@@ -174,7 +180,7 @@ test("plain to secret moves the value; secret to plain needs confirmation", asyn
   await expect.poll(() => secret(page, "Local", "apiKey")).toBeNull();
   v = (await environments(page))[0].variables.find((x) => x.name === "apiKey")!;
   expect(v).toMatchObject({ value: "plain-key-123", secret: false });
-  await expect(row.getByTestId("var-value")).toHaveValue("plain-key-123");
+  await expect(row.getByTestId("var-value").locator(".cm-content")).toHaveText("plain-key-123");
 });
 
 test("rename and duplicate keep secret values", async ({ page }) => {

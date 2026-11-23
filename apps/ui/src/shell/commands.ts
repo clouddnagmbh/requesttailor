@@ -23,7 +23,7 @@ export type Actions = Record<CommandId, () => unknown>;
 
 export const LABELS: Record<CommandId, string> = {
   "open-folder": "Open folder",
-  "new-request": "New request",
+  "new-request": "New…",
   send: "Send request",
   save: "Save",
   "close-tab": "Close tab",
@@ -49,7 +49,7 @@ export function buildCommands(app: AppState, actions: Actions, mac: boolean): Co
   const open = app.collection !== null;
   return [
     cmd("open-folder"),
-    ...(open ? [cmd("new-request")] : []),
+    cmd("new-request"),
     ...(app.active ? [cmd("send")] : []),
     ...(app.active && canFormat(app.drafts[app.active]?.body) ? [cmd("format-body")] : []),
     ...(app.dirty.length > 0 ? [cmd("save")] : []),

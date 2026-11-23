@@ -52,13 +52,13 @@ test("the history lists versions with their field changes and blame names the co
   const entries = page.getByTestId("tl-entry");
   await expect(entries).toHaveCount(2);
   await expect(entries.first().getByTestId("tl-commit")).toHaveText("Health is a POST");
-  await expect(entries.first().getByTestId("tl-change")).toHaveText("modified");
+  await expect(entries.first().getByTestId("tl-change")).toHaveText("Modified");
   const changed = entries.first().getByTestId("tl-field");
   await expect(changed).toHaveCount(1);
   await expect(changed).toHaveAttribute("data-path", "method");
   await expect(changed).toContainText("GET");
   await expect(changed).toContainText("POST");
-  await expect(entries.last().getByTestId("tl-change")).toHaveText("added");
+  await expect(entries.last().getByTestId("tl-change")).toHaveText("Added");
 
   // Nothing overflows the view.
   const view = await page.getByTestId("request-timeline").boundingBox();

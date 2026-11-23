@@ -8,17 +8,20 @@
   import ContractNotes from "../contract/ContractNotes.svelte";
   import ExtensionDiffNotes from "../shell/ExtensionDiffNotes.svelte";
   import type { CollectionDiff, DiffScope } from "../commands/types";
+  import { getGitViews } from "../git/views.svelte";
   import { getApp } from "../state/app.svelte";
+  import { Button, EmptyState, SegmentedControl, Spinner } from "../ui";
   import { summary } from "./format";
   import LineDiff from "./LineDiff.svelte";
   import SemanticDiff from "./SemanticDiff.svelte";
 
   let { scope }: { scope: DiffScope } = $props();
   const app = getApp();
+  const views = getGitViews();
 
   let diff = $state<CollectionDiff | null>(null);
   let error = $state<string | null>(null);
-  let mode = $state<"fields" | "lines">("fields");
+  let mode = $state("fields");
 
   const title = $derived(
     scope.kind === "working"
@@ -53,23 +56,38 @@
 
 <div class="view" data-testid="semantic-diff-view" data-scope={scope.kind}>
   <div class="bar">
-    <span class="title" data-testid="sd-title">{title}</span>
-    {#if diff}<span class="summary" data-testid="sd-summary">{summary(diff.changes)}</span>{/if}
-    <div class="toggle" role="group" aria-label="Diff display">
-      <button class="button" data-testid="sd-mode-fields" aria-pressed={mode === "fields"} onclick={() => (mode = "fields")}>By field</button>
-      <button class="button" data-testid="sd-mode-lines" aria-pressed={mode === "lines"} onclick={() => (mode = "lines")}>Lines</button>
+    <div class="heading">
+      <span class="title" data-testid="sd-title">{title}</span>
+      {#if diff}<span class="summary" data-testid="sd-summary">{summary(diff.changes)}</span>{/if}
+    </div>
+    <div class="actions">
+      {#if scope.kind === "between"}
+        {@const s = scope}
+        <Button size="sm" icon="compare" data-testid="sd-compare" onclick={() => views.open({ kind: "compare", from: s.from, to: s.to })}>Compare side by side</Button>
+      {/if}
+      <SegmentedControl
+        size="sm"
+        label="Diff display"
+        bind:value={mode}
+        options={[
+          { value: "fields", label: "By field", testid: "sd-mode-fields" },
+          { value: "lines", label: "Lines", testid: "sd-mode-lines" },
+        ]}
+      />
     </div>
   </div>
 
   {#if scope.kind === "between"}
-    <ContractNotes from={scope.from} to={scope.to} />
-    <ExtensionDiffNotes from={scope.from} to={scope.to} />
+    <div class="notes">
+      <ContractNotes from={scope.from} to={scope.to} />
+      <ExtensionDiffNotes from={scope.from} to={scope.to} />
+    </div>
   {/if}
 
   {#if error}
     <p class="error" role="alert" data-testid="sd-error">{error}</p>
   {:else if !diff}
-    <p class="hint">Reading the changes…</p>
+    <p class="hint"><Spinner size="sm" label="Reading the changes" /> Reading the changes…</p>
   {:else if mode === "fields"}
     <SemanticDiff {diff}>
       {#snippet fileDetail(file)}
@@ -77,9 +95,9 @@
       {/snippet}
     </SemanticDiff>
   {:else if diff.files.length === 0}
-    <p class="hint" data-testid="sd-empty">No changes.</p>
+    <div class="body" data-testid="sd-empty"><EmptyState icon="compare" title="No changes" text="Nothing differs in this comparison." size="sm" /></div>
   {:else}
-    <div data-testid="sd-lines">
+    <div class="body" data-testid="sd-lines">
       {#each diff.files as f (f.path)}
         <LineDiff {scope} path={f.path} />
       {/each}
@@ -92,35 +110,57 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--rt-gap);
-    padding: var(--rt-gap) calc(var(--rt-gap) * 2);
+    justify-content: space-between;
+    gap: var(--rt-space-5) var(--rt-space-6);
+    padding: var(--rt-space-5) var(--rt-space-6);
     border-bottom: 1px solid var(--rt-border);
+    background: var(--rt-surface-1);
+  }
+  .heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--rt-space-2) var(--rt-space-5);
+    min-width: 0;
   }
   .title {
-    font-weight: 600;
+    font: var(--rt-font-title);
     overflow-wrap: anywhere;
   }
   .summary {
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
-  .toggle {
+  .actions {
     display: flex;
-    gap: 2px;
-    margin-left: auto;
+    align-items: center;
+    gap: var(--rt-space-4);
   }
-  .toggle button[aria-pressed="true"] {
-    background: var(--rt-bg-selected);
-    font-weight: 600;
+  .notes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-4);
+    padding: var(--rt-space-6) var(--rt-space-6) 0;
+  }
+  .notes:empty {
+    display: none;
+  }
+  .body {
+    padding: var(--rt-space-6);
   }
   .hint,
   .error {
+    display: flex;
+    align-items: center;
+    gap: var(--rt-space-4);
     margin: 0;
-    padding: var(--rt-gap) calc(var(--rt-gap) * 2);
+    padding: var(--rt-space-6);
+    font: var(--rt-font-body);
   }
   .hint {
     color: var(--rt-fg-muted);
   }
   .error {
-    color: var(--rt-danger);
+    color: var(--rt-danger-fg);
   }
 </style>

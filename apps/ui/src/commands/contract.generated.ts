@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -1313,6 +1313,46 @@ export const preview: Preview = {
         "name": "Local"
       },
       "value": null
+    }
+  ]
+};
+
+export const variableScope: VariableScope = {
+  "undefined": [
+    "missing"
+  ],
+  "variables": [
+    {
+      "external": null,
+      "name": "baseUrl",
+      "overridden": true,
+      "secret": false,
+      "source": {
+        "layer": "collection"
+      },
+      "value": "http://c"
+    },
+    {
+      "external": "one-password",
+      "name": "dbPassword",
+      "overridden": false,
+      "secret": true,
+      "source": {
+        "layer": "environment",
+        "name": "Local"
+      },
+      "value": null
+    },
+    {
+      "external": null,
+      "name": "userId",
+      "overridden": false,
+      "secret": false,
+      "source": {
+        "layer": "folder",
+        "path": "users"
+      },
+      "value": "42"
     }
   ]
 };

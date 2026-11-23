@@ -171,13 +171,181 @@ pub struct NewCollection {
     pub environment: Option<String>,
 }
 
+/// Search hits of several collections as one list, best first: names, then URLs, then the
+/// rest (as [`crate::search::search`] ranks one collection), each kind in the order of
+/// `per_collection` (sidebar order) and then of each collection's own ranking. At most
+/// `limit`.
+pub fn merge_hits(
+    per_collection: Vec<(String, Vec<SearchHit>)>,
+    limit: usize,
+) -> Vec<CollectionSearchHit> {
+    let rank = |hit: &SearchHit| match hit.field {
+        crate::SearchField::Name => 0,
+        crate::SearchField::Url => 1,
+        _ => 2,
+    };
+    let mut all: Vec<(usize, CollectionSearchHit)> = per_collection
+        .into_iter()
+        .flat_map(|(collection, hits)| {
+            hits.into_iter().map(move |hit| {
+                (
+                    rank(&hit),
+                    CollectionSearchHit {
+                        collection: collection.clone(),
+                        hit,
+                    },
+                )
+            })
+        })
+        .collect();
+    // Stable: collections and their own order stay within a kind.
+    all.sort_by_key(|(rank, _)| *rank);
+    all.into_iter().take(limit).map(|(_, hit)| hit).collect()
+}
+
+/// The folder of a new collection inside its root, normalized (`/`-separated, no leading or
+/// trailing `/`; `""` is the root itself). Refused: anything that leaves the root or that
+/// discovery would never find (hidden folders, `node_modules`, `target`, deeper than
+/// [`MAX_DEPTH`]), and names not allowed in file names on any platform. Whether the folder
+/// is free (missing or empty) is for the shell to check.
+pub fn check_new_dir(dir: &str) -> Result<String, AppError> {
+    let trimmed = dir.trim().trim_matches('/');
+    if trimmed.is_empty() {
+        return Ok(String::new());
+    }
+    let refuse = |why: &str| {
+        Err(AppError::Shell(format!(
+            "cannot create a collection in \"{dir}\": {why}"
+        )))
+    };
+    let parts: Vec<&str> = trimmed.split('/').collect();
+    for (i, part) in parts.iter().enumerate() {
+        if part.is_empty() || *part == "." || *part == ".." {
+            return refuse("use a plain folder path inside the root");
+        }
+        if part.contains(['\\', ':', '*', '?', '"', '<', '>', '|']) || part.trim() != *part {
+            return refuse("the folder name has characters that are not allowed in file names");
+        }
+        if !enter(part, i + 1) {
+            return if i + 1 > MAX_DEPTH {
+                refuse(&format!(
+                    "folders deeper than {MAX_DEPTH} levels are not searched for collections"
+                ))
+            } else {
+                refuse("hidden folders, node_modules and target are not searched for collections")
+            };
+        }
+    }
+    Ok(parts.join("/"))
+}
+
+/// [`discover`] over the files of a folder read in full (paths relative to it, as a
+/// [`FileSet`] holds them): the directories of its `opencollection.yml` files.
+pub fn discover_files(files: &rt_format::FileSet) -> Discovery {
+    discover(files.files.keys().filter_map(|path| {
+        if path == rt_format::COLLECTION_FILE {
+            Some("")
+        } else {
+            path.strip_suffix(rt_format::COLLECTION_FILE)
+                .and_then(|dir| dir.strip_suffix('/'))
+        }
+    }))
+}
+
 /// The files of a new collection, relative to its folder, written through `rt-format` (only
-/// `rt-format` knows OpenCollection). Strand A implements it.
+/// `rt-format` knows OpenCollection): `opencollection.yml` named `spec.name`, and the first
+/// environment if `spec.environment` names one. `spec.base_url` becomes a `baseUrl` variable
+/// of that environment, or of the collection without one. Every file is read back: the
+/// collection must open without issues and give exactly what was asked for.
+///
+/// The collection file comes from rt-format's importer (an empty Postman collection: name and
+/// collection variables), so the layout is the one every imported collection has; the
+/// environment from `CollectionDoc::set_environment`, as the environment editor writes it.
 pub fn scaffold(spec: &NewCollection) -> Result<Vec<FileChange>, AppError> {
-    let _ = spec;
-    Err(AppError::Unsupported(
-        "new collections arrive in wave 14 (strand A)".into(),
-    ))
+    use rt_core::model::{Environment, Variable};
+
+    let name = spec.name.trim();
+    if name.is_empty() {
+        return Err(AppError::Shell("a new collection needs a name".into()));
+    }
+    let environment = match spec.environment.as_deref().map(str::trim) {
+        Some("") => {
+            return Err(AppError::Shell("the first environment needs a name".into()));
+        }
+        other => other,
+    };
+    let base_url = spec
+        .base_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|u| !u.is_empty());
+    let collection_vars: Vec<serde_json::Value> = match (base_url, environment) {
+        (Some(url), None) => vec![serde_json::json!({ "key": "baseUrl", "value": url })],
+        _ => Vec::new(),
+    };
+    let description = serde_json::json!({
+        "info": {
+            "name": name,
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        },
+        "item": [],
+        "variable": collection_vars,
+    });
+    let data = serde_json::to_vec(&description).map_err(|e| AppError::Shell(e.to_string()))?;
+    let imported = rt_format::import::import(
+        Some(rt_format::import::ImportFormat::Postman),
+        "collection.json",
+        &data,
+    )
+    .map_err(|e| AppError::Shell(format!("cannot create the collection: {e}")))?;
+    let mut doc = rt_format::read_collection(&imported.files)?;
+    let mut wanted_env = None;
+    if let Some(env_name) = environment {
+        let env = Environment {
+            name: env_name.to_owned(),
+            variables: base_url
+                .map(|url| vec![Variable::new("baseUrl", url)])
+                .unwrap_or_default(),
+            client_certificates: Vec::new(),
+            external_secrets: None,
+        };
+        doc.set_environment(&env)?;
+        wanted_env = Some(env);
+    }
+    let files = doc.write();
+
+    // Read back: what a shell writes must open as exactly this collection.
+    let back = rt_format::read_collection(&files)?;
+    if let Some(issue) = back.issues().first() {
+        return Err(AppError::Format(issue.to_string()));
+    }
+    let model = back.model();
+    let vars_ok = match (base_url, environment) {
+        (Some(url), None) => {
+            model.defaults.vars.len() == 1
+                && model.defaults.vars[0].name == "baseUrl"
+                && model.defaults.vars[0].value.as_deref() == Some(url)
+        }
+        _ => model.defaults.vars.is_empty(),
+    };
+    let envs_ok = match &wanted_env {
+        Some(env) => model.environments.len() == 1 && model.environments[0] == *env,
+        None => model.environments.is_empty(),
+    };
+    if model.name != name || !model.items.is_empty() || !vars_ok || !envs_ok {
+        return Err(AppError::Format(format!(
+            "the new collection \"{name}\" does not read back as created"
+        )));
+    }
+    Ok(files
+        .files
+        .into_iter()
+        .map(|(path, bytes)| FileChange {
+            path,
+            text: String::from_utf8_lossy(&bytes).into_owned(),
+            deleted: false,
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -218,6 +386,42 @@ mod tests {
         let found = discover(&dirs);
         assert_eq!(found.dirs.len(), MAX_COLLECTIONS);
         assert!(found.truncated);
+    }
+
+    #[test]
+    fn merged_hits_rank_names_first_across_collections() {
+        let hit = |path: &str, field| SearchHit {
+            path: path.into(),
+            name: path.into(),
+            method: "GET".into(),
+            field,
+            snippet: String::new(),
+            ranges: Vec::new(),
+        };
+        let merged = merge_hits(
+            vec![
+                (
+                    "a".into(),
+                    vec![
+                        hit("a1", crate::SearchField::Name),
+                        hit("a2", crate::SearchField::Body),
+                    ],
+                ),
+                (
+                    "b".into(),
+                    vec![
+                        hit("b1", crate::SearchField::Url),
+                        hit("b2", crate::SearchField::Name),
+                    ],
+                ),
+            ],
+            3,
+        );
+        let got: Vec<_> = merged
+            .iter()
+            .map(|h| format!("{}:{}", h.collection, h.hit.path))
+            .collect();
+        assert_eq!(got, ["a:a1", "b:b2", "b:b1"]);
     }
 
     #[test]

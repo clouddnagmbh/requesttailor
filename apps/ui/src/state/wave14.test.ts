@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// Wave 14 interface: the collection set as `AppState` exposes it (until strand A: the open
-// collection).
+// Wave 14: the collection set as `AppState` exposes it (more in ./collections.test.ts).
 
 import { describe, expect, it } from "vitest";
 
@@ -10,12 +9,15 @@ import { MockBackend } from "../commands/mock";
 import { AppState } from "./app.svelte";
 
 describe("AppState collections (wave 14 interface)", () => {
-  it("lists the open collection as the sidebar's only collection, with its tree", async () => {
+  it("lists the folder's collections, the active one with its tree", async () => {
     const app = new AppState(new MockBackend());
     expect(app.collections).toEqual([]);
     await app.open();
     const id = app.collection!.id;
-    expect(app.collections.map((c) => [c.id, c.root, c.dir])).toEqual([[id, id, ""]]);
+    expect(app.collections.map((c) => [c.id, c.root, c.dir])).toEqual([
+      [id, "mock://demo", ""],
+      ["mock-collection/billing", "mock://demo", "billing"],
+    ]);
     expect(app.trees[id]).toEqual(app.tree);
     expect(app.activeCollection).toBe(id);
     await app.select("users/list-users.yml");

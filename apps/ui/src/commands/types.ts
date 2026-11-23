@@ -314,6 +314,29 @@ export type VarSource =
   | { layer: "request" }
   | { layer: "runtime" };
 
+/** Wave 14 (variable completion, `rt_app::variables`): one variable a request, folder or the
+ *  collection sees. Never carries a secret value. */
+export interface ScopeVar {
+  name: string;
+  /** As defined (not resolved), secret values masked; `null` for secrets and value-less
+   *  variables. */
+  value: string | null;
+  source: VarSource;
+  secret: boolean;
+  /** The secret manager of an external secret of the environment. */
+  external: SecretProvider | null;
+  /** A higher layer (or a later definition in the same layer) defines the same name. */
+  overridden: boolean;
+}
+
+export interface VariableScope {
+  /** Lowest precedence first (global, collection, environment, folders outer to inner,
+   *  request, runtime); within a layer in file order. */
+  variables: ScopeVar[];
+  /** `{{names}}` used somewhere in the collection that no layer here defines (sorted). */
+  undefined: string[];
+}
+
 export interface VarUse {
   name: string;
   source: VarSource;

@@ -10,6 +10,7 @@
   import { ago } from "../git/format";
   import type { DiffValue, FieldBlame, FieldPath, RequestSpec, RequestTimeline, TestRecord, TimelineEntry } from "../commands/types";
   import { getApp } from "../state/app.svelte";
+  import { Avatar, Badge, Banner, Button, EmptyState, Icon, SegmentedControl, Skeleton } from "../ui";
   import { headline, restoreNote, shortOid, testSummary } from "./format";
 
   let { path }: { path: string } = $props();
@@ -19,7 +20,9 @@
   /** Versions read for the history; the blame always reads the whole history it can. */
   const LIMIT = 100;
 
-  let mode = $state<"history" | "blame">("history");
+  let mode = $state("history");
+  /** Git status letters of a file change, shown as the word by the status Badge. */
+  const CHANGE_STATUS = { added: "A", deleted: "D", modified: "M", renamed: "R" } as const;
   let timeline = $state<RequestTimeline | null>(null);
   let blame = $state<FieldBlame[] | null>(null);
   let error = $state<string | null>(null);
@@ -105,120 +108,143 @@
 
 <div class="view" data-testid="request-timeline" data-path={path}>
   <div class="bar">
-    <span class="title" data-testid="tl-title">{path}</span>
-    {#if timeline}<span class="summary" data-testid="tl-summary">{headline(timeline.entries.length)}</span>{/if}
-    <div class="toggle" role="group" aria-label="Show">
-      <button class="button" data-testid="tl-mode-history" aria-pressed={mode === "history"} onclick={() => (mode = "history")}>History</button>
-      <button class="button" data-testid="tl-mode-blame" aria-pressed={mode === "blame"} onclick={() => (mode = "blame")}>Blame</button>
+    <div class="heading">
+      <span class="title" data-testid="tl-title">{path}</span>
+      {#if timeline}<span class="summary" data-testid="tl-summary">{headline(timeline.entries.length)}</span>{/if}
     </div>
+    <SegmentedControl
+      size="sm"
+      label="Show"
+      bind:value={mode}
+      options={[
+        { value: "history", label: "History", icon: "history", testid: "tl-mode-history" },
+        { value: "blame", label: "Blame", icon: "user", testid: "tl-mode-blame" },
+      ]}
+    />
   </div>
 
-  {#if notice}<p class="notice" role="status" data-testid="tl-notice">{notice}</p>{/if}
+  {#if notice}<div class="banner" data-testid="tl-notice"><Banner tone="ok">{notice}</Banner></div>{/if}
 
   {#if error}
-    <p class="error" role="alert" data-testid="tl-error">{error}</p>
+    <div class="banner" data-testid="tl-error"><Banner tone="danger">{error}</Banner></div>
   {:else if !timeline || !blame}
-    <p class="hint">Reading the history…</p>
+    <div class="loading" aria-busy="true">
+      <Skeleton height="64px" />
+      <Skeleton height="64px" />
+    </div>
   {:else if timeline.entries.length === 0}
-    <p class="hint" data-testid="tl-empty">No commit has touched this request yet. Commit it to start its history.</p>
+    <div data-testid="tl-empty">
+      <EmptyState icon="history" title="No history yet" text="No commit has touched this request yet. Commit it to start its history." />
+    </div>
   {:else if mode === "blame"}
-    <table class="blame" data-testid="tl-blame">
-      <thead><tr><th>Field</th><th>Value</th><th>Last changed</th></tr></thead>
-      <tbody>
-        {#each blame as b (b.field.join("\u0000"))}
-          <tr data-testid="tl-blame-row" data-path={b.field.join("/")}>
-            <td class="path" data-testid="tl-blame-field">{fieldLabel(b.field)}</td>
-            <td class="value">
-              {#if b.value?.kind === "secret"}<span class="secret">secret value hidden</span>{:else}{text(b.value, b.field) || "(empty)"}{/if}
-            </td>
-            <td class="who" data-testid="tl-blame-commit" data-oid={b.commit.oid}>
-              <span>{b.commit.summary}</span>
-              <span class="meta">{shortOid(b.commit.oid)} · {b.commit.author} · {ago(b.commit.time)}</span>
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+    <div class="blame-wrap">
+      <table class="blame" data-testid="tl-blame">
+        <thead><tr><th>Field</th><th>Value</th><th>Last changed</th></tr></thead>
+        <tbody>
+          {#each blame as b (b.field.join("\u0000"))}
+            <tr data-testid="tl-blame-row" data-path={b.field.join("/")}>
+              <td class="path" data-testid="tl-blame-field">{fieldLabel(b.field)}</td>
+              <td class="value">
+                {#if b.value?.kind === "secret"}<span class="secret"><Icon name="lock" size="sm" /> secret value hidden</span>{:else}{text(b.value, b.field) || "(empty)"}{/if}
+              </td>
+              <td class="who" data-testid="tl-blame-commit" data-oid={b.commit.oid}>
+                <span class="summary-line">{b.commit.summary}</span>
+                <span class="meta"><Avatar name={b.commit.author} size="sm" /> {b.commit.author} · <code>{shortOid(b.commit.oid)}</code> · {ago(b.commit.time)}</span>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
   {:else}
     <ol class="entries">
       {#each timeline.entries as entry, i (entry.commit.commit.oid)}
         {@const record = latest(entry)}
         <li class="entry" data-testid="tl-entry" data-oid={entry.commit.commit.oid} data-change={entry.commit.change}>
-          <div class="head">
-            <span class="badge {entry.commit.change}" data-testid="tl-change">{entry.commit.change}</span>
-            <span class="commit" data-testid="tl-commit">{entry.commit.commit.summary}</span>
-            {#if i === 0}<span class="current">latest</span>{/if}
-            <span class="meta">{shortOid(entry.commit.commit.oid)} · {entry.commit.commit.author} · {ago(entry.commit.commit.time)}</span>
-          </div>
-          {#if entry.commit.from}
-            <div class="rename" data-testid="tl-rename">moved from <code>{entry.commit.from}</code> to <code>{entry.commit.path}</code></div>
-          {/if}
-          {#if record}
-            <details class="tests" data-testid="tl-tests" data-passed={record.passed}>
-              <summary>
-                <span class="result {record.passed ? 'ok' : 'bad'}" data-testid="tl-result">{record.passed ? "Passed" : "Failed"}</span>
-                <span class="meta">{testSummary(record)}{entry.tests.length > 1 ? ` · ${entry.tests.length} runs recorded` : ""}</span>
-              </summary>
-              <ul>
-                {#each entry.tests as r, n (n)}
-                  <li data-testid="tl-run">
-                    <span class="result {r.passed ? 'ok' : 'bad'}">{r.passed ? "Passed" : "Failed"}</span>
-                    <span class="meta">{ago(r.time)}{r.environment ? ` · ${r.environment}` : ""}{r.status ? ` · HTTP ${r.status}` : ""} · {r.source}</span>
-                    <ul class="names">
-                      {#each r.tests as t, k (k)}
-                        <li class={t.passed ? "ok" : "bad"}>{t.passed ? "pass" : "fail"}: {t.name}</li>
-                      {/each}
-                    </ul>
+          <span class="dot {entry.commit.change}" aria-hidden="true"></span>
+          <div class="card">
+            <div class="head">
+              <span class="change" data-testid="tl-change"><Badge kind="status" long value={CHANGE_STATUS[entry.commit.change] ?? entry.commit.change} /></span>
+              <span class="commit" data-testid="tl-commit">{entry.commit.commit.summary}</span>
+              {#if i === 0}<Badge value="latest" tone="accent" />{/if}
+            </div>
+            <div class="byline">
+              <Avatar name={entry.commit.commit.author} size="sm" />
+              <span>{entry.commit.commit.author}</span>
+              <span aria-hidden="true">·</span>
+              <span>{ago(entry.commit.commit.time)}</span>
+              <code class="oid">{shortOid(entry.commit.commit.oid)}</code>
+            </div>
+            {#if entry.commit.from}
+              <div class="rename" data-testid="tl-rename">moved from <code>{entry.commit.from}</code> to <code>{entry.commit.path}</code></div>
+            {/if}
+            {#if record}
+              <details class="tests" data-testid="tl-tests" data-passed={record.passed}>
+                <summary>
+                  <span data-testid="tl-result"><Badge value={record.passed ? "Passed" : "Failed"} tone={record.passed ? "ok" : "danger"} /></span>
+                  <span class="meta">{testSummary(record)}{entry.tests.length > 1 ? ` · ${entry.tests.length} runs recorded` : ""}</span>
+                </summary>
+                <ul>
+                  {#each entry.tests as r, n (n)}
+                    <li data-testid="tl-run">
+                      <Badge value={r.passed ? "Passed" : "Failed"} tone={r.passed ? "ok" : "danger"} />
+                      <span class="meta">{ago(r.time)}{r.environment ? ` · ${r.environment}` : ""}{r.status ? ` · HTTP ${r.status}` : ""} · {r.source}</span>
+                      <ul class="names">
+                        {#each r.tests as t, k (k)}
+                          <li class={t.passed ? "ok" : "bad"}>{t.passed ? "pass" : "fail"}: {t.name}</li>
+                        {/each}
+                      </ul>
+                    </li>
+                  {/each}
+                </ul>
+              </details>
+            {/if}
+            {#if entry.fields.length > 0}
+              <ul class="fields">
+                {#each entry.fields as f (f.path.join("\u0000"))}
+                  <li data-testid="tl-field" data-path={f.path.join("/")}>
+                    <span class="path">{fieldLabel(f.path)}</span>
+                    {#if f.old?.kind === "secret" || f.new?.kind === "secret"}
+                      <span class="secret"><Icon name="lock" size="sm" /> secret value hidden</span>
+                    {:else if isMultiline(f.old, f.new)}
+                      <span class="note">{f.old && f.new ? "changed" : f.new ? "added" : "removed"} (multi-line)</span>
+                    {:else}
+                      {#if f.old}<del class="old">{text(f.old, f.path) || "(empty)"}</del>{/if}
+                      {#if f.old && f.new}<span class="arrow" aria-hidden="true"><Icon name="chevron-right" size="sm" /></span>{/if}
+                      {#if f.new}<ins class="new">{text(f.new, f.path) || "(empty)"}</ins>{/if}
+                    {/if}
                   </li>
                 {/each}
               </ul>
-            </details>
-          {/if}
-          {#if entry.fields.length > 0}
-            <ul class="fields">
-              {#each entry.fields as f (f.path.join("\u0000"))}
-                <li data-testid="tl-field" data-path={f.path.join("/")}>
-                  <span class="path">{fieldLabel(f.path)}</span>
-                  {#if f.old?.kind === "secret" || f.new?.kind === "secret"}
-                    <span class="secret">secret value hidden</span>
-                  {:else if isMultiline(f.old, f.new)}
-                    <span class="note">{f.old && f.new ? "changed" : f.new ? "added" : "removed"} (multi-line)</span>
-                  {:else}
-                    {#if f.old}<del class="old">{text(f.old, f.path) || "(empty)"}</del>{/if}
-                    {#if f.old && f.new}<span class="arrow" aria-hidden="true">→</span>{/if}
-                    {#if f.new}<ins class="new">{text(f.new, f.path) || "(empty)"}</ins>{/if}
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-          {:else if entry.commit.change !== "deleted"}
-            <p class="note">No field changed.</p>
-          {/if}
-          {#if entry.commit.change !== "deleted"}
-            {#if confirming?.entry === entry}
-              <div class="confirm" role="alertdialog" aria-label="Replace unsaved edits" data-testid="tl-confirm">
-                <span>This request has unsaved edits. Replace them with this version?</span>
-                <button class="button" data-testid="tl-confirm-yes" onclick={() => use(entry, confirming!.action, true)}>Replace</button>
-                <button class="button" data-testid="tl-confirm-no" onclick={() => (confirming = null)}>Cancel</button>
-              </div>
-            {:else}
-              <div class="actions">
-                <button class="button" data-testid="tl-view" disabled={busy} onclick={() => view(entry)}>View</button>
-                <button class="button" data-testid="tl-send" disabled={busy} onclick={() => use(entry, "send")}>Send this version</button>
-                <button class="button" data-testid="tl-restore" disabled={busy} onclick={() => use(entry, "restore")}>Restore</button>
+            {:else if entry.commit.change !== "deleted"}
+              <p class="note">No field changed.</p>
+            {/if}
+            {#if entry.commit.change !== "deleted"}
+              {#if confirming?.entry === entry}
+                <div class="confirm" role="alertdialog" aria-label="Replace unsaved edits" data-testid="tl-confirm">
+                  <span>This request has unsaved edits. Replace them with this version?</span>
+                  <Button size="sm" variant="danger" data-testid="tl-confirm-yes" onclick={() => use(entry, confirming!.action, true)}>Replace</Button>
+                  <Button size="sm" variant="ghost" data-testid="tl-confirm-no" onclick={() => (confirming = null)}>Cancel</Button>
+                </div>
+              {:else}
+                <div class="actions">
+                  <Button size="sm" variant="ghost" icon="eye" data-testid="tl-view" disabled={busy} onclick={() => view(entry)}>View</Button>
+                  <Button size="sm" variant="secondary" icon="send" data-testid="tl-send" disabled={busy} onclick={() => use(entry, "send")}>Send this version</Button>
+                  <Button size="sm" variant="secondary" icon="undo" data-testid="tl-restore" disabled={busy} onclick={() => use(entry, "restore")}>Restore</Button>
+                </div>
+              {/if}
+            {/if}
+            {#if shown?.entry === entry}
+              <div class="version" data-testid="tl-version">
+                <div class="request-line"><Badge kind="method" value={shown.spec.method} /> <span data-testid="tl-version-url">{shown.spec.url}</span></div>
+                {#each shown.spec.headers as h (h.name + h.value)}
+                  <div class="header"><span class="path">{h.name}</span> {h.enabled ? "" : "(off) "}{h.value}</div>
+                {/each}
+                {#if shown.spec.body.type !== "none"}<div class="note">Body: {shown.spec.body.type}</div>{/if}
+                <Button size="sm" variant="ghost" icon="close" data-testid="tl-version-close" onclick={() => (shown = null)}>Hide</Button>
               </div>
             {/if}
-          {/if}
-          {#if shown?.entry === entry}
-            <div class="version" data-testid="tl-version">
-              <div class="request-line"><strong>{shown.spec.method}</strong> <span data-testid="tl-version-url">{shown.spec.url}</span></div>
-              {#each shown.spec.headers as h (h.name + h.value)}
-                <div class="header"><span class="path">{h.name}</span> {h.enabled ? "" : "(off) "}{h.value}</div>
-              {/each}
-              {#if shown.spec.body.type !== "none"}<div class="note">Body: {shown.spec.body.type}</div>{/if}
-              <button class="button" data-testid="tl-version-close" onclick={() => (shown = null)}>Hide</button>
-            </div>
-          {/if}
+          </div>
         </li>
       {/each}
     </ol>
@@ -230,107 +256,126 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--rt-gap);
-    padding: var(--rt-gap) calc(var(--rt-gap) * 2);
+    justify-content: space-between;
+    gap: var(--rt-space-5) var(--rt-space-6);
+    padding: var(--rt-space-5) var(--rt-space-6);
     border-bottom: 1px solid var(--rt-border);
+    background: var(--rt-surface-1);
+  }
+  .heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--rt-space-2) var(--rt-space-5);
+    min-width: 0;
   }
   .title {
-    font-weight: 600;
+    font: var(--rt-font-title);
     font-family: var(--rt-font-mono);
     overflow-wrap: anywhere;
   }
-  .summary,
-  .meta,
-  .note,
-  .hint {
+  .summary {
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
   .meta,
   .note {
-    font-size: var(--rt-size-small);
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
-  .toggle {
+  .banner,
+  .loading {
+    padding: var(--rt-space-6) var(--rt-space-6) 0;
+  }
+  .loading {
     display: flex;
-    gap: 2px;
-    margin-left: auto;
-  }
-  .toggle button[aria-pressed="true"] {
-    background: var(--rt-bg-selected);
-    font-weight: 600;
-  }
-  .hint,
-  .error,
-  .notice {
-    margin: 0;
-    padding: var(--rt-gap) calc(var(--rt-gap) * 2);
-  }
-  .notice {
-    background: var(--rt-bg-panel);
-    border-bottom: 1px solid var(--rt-border);
-  }
-  .error {
-    color: var(--rt-danger);
+    flex-direction: column;
+    gap: var(--rt-space-5);
   }
   .entries {
     list-style: none;
     margin: 0;
-    padding: var(--rt-gap) calc(var(--rt-gap) * 2);
+    padding: var(--rt-space-6);
     display: flex;
     flex-direction: column;
-    gap: var(--rt-gap);
   }
   .entry {
+    position: relative;
+    padding: 0 0 var(--rt-space-6) var(--rt-space-7);
+  }
+  .entry:last-child {
+    padding-bottom: 0;
+  }
+  /* The rail: one line through the dots of every commit. */
+  .entry::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: var(--rt-space-6);
+    bottom: calc(-1 * var(--rt-space-2));
+    width: 2px;
+    background: var(--rt-border-strong);
+  }
+  .entry:last-child::before {
+    display: none;
+  }
+  .dot {
+    position: absolute;
+    left: 0;
+    top: var(--rt-space-5);
+    box-sizing: border-box;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--rt-accent);
+    border-radius: var(--rt-radius-pill);
+    background: var(--rt-surface-1);
+  }
+  .dot.added {
+    border-color: var(--rt-ok-fg);
+  }
+  .dot.deleted {
+    border-color: var(--rt-danger-fg);
+  }
+  .dot.modified {
+    border-color: var(--rt-warn-fg);
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-4);
+    padding: var(--rt-space-5) var(--rt-space-6);
     border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    overflow: hidden;
+    border-radius: var(--rt-radius-lg);
+    background: var(--rt-surface-2);
+    box-shadow: var(--rt-elev-1);
+    min-width: 0;
   }
   .head {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--rt-gap);
-    padding: calc(var(--rt-gap) / 2) var(--rt-gap);
-    background: var(--rt-bg-panel);
+    align-items: center;
+    gap: var(--rt-space-4);
+  }
+  .change {
+    text-transform: capitalize;
   }
   .commit {
-    font-weight: 600;
+    font: var(--rt-font-title);
     overflow-wrap: anywhere;
+    min-width: 0;
   }
-  .current {
-    font-size: var(--rt-size-small);
-    color: var(--rt-accent);
+  .byline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--rt-space-4);
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
-  .badge {
-    padding: 0 6px;
-    border-radius: var(--rt-radius);
-    font-size: var(--rt-size-small);
-    font-weight: 600;
-    text-transform: capitalize;
-    border: 1px solid currentcolor;
-  }
-  .badge.added {
-    color: var(--rt-ok);
-  }
-  .badge.deleted {
-    color: var(--rt-danger);
-  }
-  .badge.modified,
-  .badge.renamed {
-    color: var(--rt-warn);
-  }
-  .rename,
-  .tests,
-  .fields,
-  .actions,
-  .confirm,
-  .version,
-  .entry > .note {
-    padding: calc(var(--rt-gap) / 2) var(--rt-gap);
-    border-top: 1px solid var(--rt-border);
-  }
-  .entry > .note {
-    margin: 0;
+  .oid {
+    padding: 0 var(--rt-space-3);
+    border-radius: var(--rt-radius-sm);
+    background: var(--rt-surface-sunken);
   }
   code,
   .path,
@@ -338,103 +383,165 @@
   .header,
   .request-line {
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
+    font-size: var(--rt-text-small);
     overflow-wrap: anywhere;
   }
   .path {
-    font-weight: 600;
+    font-weight: var(--rt-weight-semibold);
+  }
+  .rename,
+  .tests,
+  .fields,
+  .actions,
+  .confirm,
+  .version {
+    padding-top: var(--rt-space-4);
+    border-top: 1px solid var(--rt-border);
+  }
+  .note {
+    margin: 0;
   }
   .fields {
     list-style: none;
     margin: 0;
+    padding-left: 0;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-4);
   }
   .fields li {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--rt-gap);
-    font-size: var(--rt-size-small);
+    align-items: center;
+    gap: var(--rt-space-4);
+  }
+  .fields .path {
+    min-width: 8ch;
   }
   del,
   ins {
     text-decoration: none;
-    padding: 0 4px;
-    border-radius: var(--rt-radius);
+    padding: var(--rt-space-1) var(--rt-space-4);
+    border-radius: var(--rt-radius-sm);
     font-family: var(--rt-font-mono);
+    font-size: var(--rt-text-small);
     overflow-wrap: anywhere;
+    min-width: 0;
   }
   del {
-    color: var(--rt-danger);
+    background: var(--rt-diff-del-bg);
+    color: var(--rt-danger-fg);
+    text-decoration: line-through;
+    text-decoration-color: var(--rt-danger-fg);
   }
   ins {
-    color: var(--rt-ok);
+    background: var(--rt-diff-add-bg);
+    color: var(--rt-ok-fg);
+  }
+  .arrow {
+    display: inline-flex;
+    color: var(--rt-fg-subtle);
   }
   .secret {
-    color: var(--rt-var-secret);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-3);
+    color: var(--rt-fg-muted);
     font-style: italic;
-  }
-  .result {
-    font-size: var(--rt-size-small);
-    font-weight: 600;
-    padding: 0 6px;
-    border-radius: var(--rt-radius);
-    border: 1px solid currentcolor;
-  }
-  .result.ok,
-  .names .ok {
-    color: var(--rt-ok);
-  }
-  .result.bad,
-  .names .bad {
-    color: var(--rt-danger);
   }
   .tests summary {
     cursor: pointer;
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--rt-gap);
+    align-items: center;
+    gap: var(--rt-space-4);
   }
   .tests ul {
     list-style: none;
-    margin: calc(var(--rt-gap) / 2) 0 0;
+    margin: var(--rt-space-4) 0 0;
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-4);
+  }
+  .tests li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--rt-space-4);
   }
   .names {
-    padding-left: var(--rt-gap);
-    font-size: var(--rt-size-small);
+    flex-basis: 100%;
+    margin: 0;
+    padding-left: var(--rt-space-5);
+    font: var(--rt-font-small);
+    font-family: var(--rt-font-mono);
+  }
+  .names .ok {
+    color: var(--rt-ok-fg);
+  }
+  .names .bad {
+    color: var(--rt-danger-fg);
   }
   .actions,
   .confirm {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--rt-gap);
+    gap: var(--rt-space-4);
   }
   .version {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--rt-space-2);
     align-items: flex-start;
+  }
+  .request-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--rt-space-4);
+  }
+  .blame-wrap {
+    padding: var(--rt-space-6);
   }
   .blame {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius-lg);
+    background: var(--rt-surface-2);
+    box-shadow: var(--rt-elev-1);
+    overflow: hidden;
   }
   .blame th,
   .blame td {
     text-align: left;
-    padding: calc(var(--rt-gap) / 2) calc(var(--rt-gap) * 2);
+    padding: var(--rt-space-4) var(--rt-space-6);
     border-bottom: 1px solid var(--rt-border);
     vertical-align: top;
   }
-  .blame th {
-    color: var(--rt-fg-muted);
-    font-weight: 600;
-    font-size: var(--rt-size-small);
+  .blame tr:last-child td {
+    border-bottom: none;
   }
-  .who {
+  .blame th {
+    background: var(--rt-surface-sunken);
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .summary-line {
+    display: block;
+    margin-bottom: var(--rt-space-2);
+    font: var(--rt-font-body);
+  }
+  .who .meta {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--rt-space-3);
   }
 </style>

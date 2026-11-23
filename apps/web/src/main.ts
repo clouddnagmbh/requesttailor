@@ -6,7 +6,7 @@
 // (rt-wasm). Owner of the real backend: wave 3, strand E. `?gallery=1` shows the UI primitive
 // gallery instead of the app, in the dev server only (production builds drop the branch).
 
-import { MockBackend, startApp, type Backend } from "@requesttailor/ui";
+import { MockBackend, startApp, type AppExtension, type Backend } from "@requesttailor/ui";
 
 import { createWebBackend } from "./web-backend";
 
@@ -26,5 +26,11 @@ async function startShell() {
   // Exposed for Playwright assertions only.
   (window as unknown as { __rt: { backend: Backend } }).__rt = { backend };
 
-  startApp(document.getElementById("app")!, backend);
+  // The demo extension exists only in the dev server (`?extensions=demo`); a build drops this branch.
+  const extensions: AppExtension[] = [];
+  if (import.meta.env.DEV && params.get("extensions") === "demo") {
+    extensions.push((await import("./dev-extensions")).demoExtension);
+  }
+
+  startApp(document.getElementById("app")!, backend, { extensions });
 }
