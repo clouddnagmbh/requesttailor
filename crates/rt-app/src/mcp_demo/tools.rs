@@ -355,7 +355,7 @@ pub(super) fn weather(city: &str, units: &str) -> Value {
     let city = city.trim();
     let h = fnv(&city.to_lowercase());
     let celsius = (h % 36) as i64 - 5;
-    let conditions = if celsius <= 1 && (h >> 40) % 2 == 0 {
+    let conditions = if celsius <= 1 && (h >> 40).is_multiple_of(2) {
         "snow"
     } else {
         CONDITIONS[((h >> 8) % CONDITIONS.len() as u64) as usize]
