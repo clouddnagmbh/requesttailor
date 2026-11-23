@@ -9,6 +9,7 @@
 <script lang="ts">
   import type { HistoryFinding, HistoryScan, RescueResult, ScanProgress } from "../commands/types";
   import { getApp } from "../state/app.svelte";
+  import { Badge, Banner, Button, Card, Checkbox, EmptyState, Select, TextField } from "../ui";
   import {
     canRescue,
     deleteBackupCommands,
@@ -112,158 +113,175 @@
 </script>
 
 <section class="rescue" data-testid="rescue-wizard" aria-label="Secret rescue">
+  <header>
+    <p class="muted">Find credentials in the Git history and replace them with a secret variable.</p>
+  </header>
+
   {#if step === "start" || step === "scanning"}
-    <p class="lead">
-      Scans every commit of <code>HEAD</code> and your local branches for credentials committed in clear text: tokens,
-      keys, passwords. A commit that removed a secret does not remove it from the history.
-    </p>
-    <p class="hint">The values stay on this device; you only see masked snippets.</p>
-    <div class="actions">
-      <button
-        class="button primary"
-        data-testid="rescue-scan"
-        disabled={step === "scanning"}
-        onclick={() => void startScan()}
-      >
-        {step === "scanning" ? "Scanning…" : "Scan history"}
-      </button>
-      {#if step === "scanning" && progress}
-        <progress max={Math.max(progress.total, 1)} value={progress.scanned}></progress>
-        <span class="muted" data-testid="rescue-progress">Commit {progress.scanned} of {progress.total}</span>
-      {/if}
-    </div>
+    <Card icon="shield-secret" title="Scan the history">
+      <div class="stack">
+        <p>
+          Scans every commit of <code>HEAD</code> and your local branches for credentials committed in clear text: tokens,
+          keys, passwords. A commit that removed a secret does not remove it from the history.
+        </p>
+        <p class="hint">The values stay on this device; you only see masked snippets.</p>
+        <div class="actions">
+          <Button variant="primary" data-testid="rescue-scan" loading={step === "scanning"} disabled={step === "scanning"} onclick={() => void startScan()}>
+            {step === "scanning" ? "Scanning…" : "Scan history"}
+          </Button>
+          {#if step === "scanning" && progress}
+            <progress max={Math.max(progress.total, 1)} value={progress.scanned}></progress>
+            <span class="muted" data-testid="rescue-progress">Commit {progress.scanned} of {progress.total}</span>
+          {/if}
+        </div>
+      </div>
+    </Card>
   {:else if step === "results" && scan}
     {#if scan.findings.length === 0}
-      <p class="ok" data-testid="rescue-clean">
-        No credentials found in {scan.commits} commit{scan.commits === 1 ? "" : "s"}.
-      </p>
+      <div data-testid="rescue-clean">
+        <EmptyState icon="success" title="No credentials found in {scan.commits} commit{scan.commits === 1 ? '' : 's'}.">
+          {#snippet actions()}
+            <Button data-testid="rescue-rescan" onclick={() => void startScan()}>Scan again</Button>
+          {/snippet}
+        </EmptyState>
+      </div>
     {:else}
-      <p>
-        Found {scan.findings.length} credential{scan.findings.length === 1 ? "" : "s"} in {scan.commits} commit{scan.commits ===
-        1
-          ? ""
-          : "s"}:
-      </p>
+      <div class="head">
+        <h3>
+          Found {scan.findings.length} credential{scan.findings.length === 1 ? "" : "s"} in {scan.commits} commit{scan.commits ===
+          1
+            ? ""
+            : "s"}
+        </h3>
+        <span class="spacer"></span>
+        <Button variant="ghost" data-testid="rescue-rescan" icon="sync" onclick={() => void startScan()}>Scan again</Button>
+      </div>
       <ul class="findings">
         {#each scan.findings as f (f.id)}
-          <li class="finding" data-testid="rescue-finding">
-            <div class="head">
-              <span class="kind">{f.finding.kind}</span>
-              <span class="path">{f.finding.path}:{f.finding.line}</span>
-              {#if f.in_head}<span class="badge" title="The current files still contain it">in HEAD</span>{/if}
-            </div>
-            <code class="snippet">{f.finding.snippet}</code>
-            <p class="hint">
-              Since <span class="rev">{shortOid(f.first.oid)}</span>
-              {where(f)}
-            </p>
-            {#if canRescue(f)}
-              <button class="button" data-testid="rescue-choose" onclick={() => choose(f)}>Rescue…</button>
-            {:else}
-              <p class="hint">
-                A private key cannot become a variable: remove the key file from the history with a tool such as
-                <code>git filter-repo</code>, and replace the key.
-              </p>
-            {/if}
+          <li data-testid="rescue-finding">
+            <Card padding="md">
+              <div class="stack">
+                <div class="head">
+                  <strong class="kind">{f.finding.kind}</strong>
+                  <span class="path">{f.finding.path}:{f.finding.line}</span>
+                  {#if f.in_head}<Badge tone="warn" value="in HEAD" title="The current files still contain it" />{/if}
+                </div>
+                <code class="snippet">{f.finding.snippet}</code>
+                <p class="hint">
+                  Since <span class="rev">{shortOid(f.first.oid)}</span>
+                  {where(f)}
+                </p>
+                {#if canRescue(f)}
+                  <div class="actions">
+                    <Button variant="primary" data-testid="rescue-choose" onclick={() => choose(f)}>Rescue…</Button>
+                  </div>
+                {:else}
+                  <p class="hint">
+                    A private key cannot become a variable: remove the key file from the history with a tool such as
+                    <code>git filter-repo</code>, and replace the key.
+                  </p>
+                {/if}
+              </div>
+            </Card>
           </li>
         {/each}
       </ul>
     {/if}
-    <div class="actions">
-      <button class="button" data-testid="rescue-rescan" onclick={() => void startScan()}>Scan again</button>
-    </div>
   {:else if (step === "plan" || step === "rewriting") && chosen}
-    <h3>Replace the {chosen.finding.kind} in the history</h3>
-    <code class="snippet">{chosen.finding.path}:{chosen.finding.line} · {chosen.finding.snippet}</code>
-    <div class="fields">
-      <label>
-        Variable
-        <input
-          data-testid="rescue-variable"
-          bind:value={variable}
-          spellcheck="false"
-          aria-invalid={!validVariable(variable)}
+    <Card title="Replace the {chosen.finding.kind} in the history">
+      <div class="stack">
+        <code class="snippet">{chosen.finding.path}:{chosen.finding.line} · {chosen.finding.snippet}</code>
+        <div class="fields">
+          <TextField
+            label="Variable"
+            mono
+            data-testid="rescue-variable"
+            bind:value={variable}
+            error={validVariable(variable) ? undefined : "Use letters, digits, _, - and . for the variable."}
+            disabled={step === "rewriting"}
+          />
+          <Select
+            label="Environment"
+            data-testid="rescue-environment"
+            bind:value={environment}
+            disabled={step === "rewriting"}
+            options={[...app.environments.map((e) => ({ value: e.name, label: e.name })), { value: NEW_ENV, label: "New environment…" }]}
+          />
+          {#if environment === NEW_ENV}
+            <TextField label="Name" data-testid="rescue-new-environment" bind:value={newEnvironment} disabled={step === "rewriting"} />
+          {/if}
+        </div>
+        <ul class="what" data-testid="rescue-explain">
+          <li>
+            Every file of every commit on
+            <strong>{chosen.branches.length > 0 ? chosen.branches.join(", ") : "the local branches"}</strong>
+            that holds the value gets <code>{`{{${variable || "…"}}}`}</code> instead. Other files, trees and commit messages
+            stay as they are; the commit ids change.
+          </li>
+          <li>
+            The value is kept as a secret of <strong>{envName || "…"}</strong> (OS keychain, or encrypted browser storage), never
+            in a file.
+          </li>
+          <li>
+            First each branch is saved under <code>refs/requesttailor/backup/&lt;time&gt;/&lt;branch&gt;</code>. These hidden
+            refs still hold the secret: delete them once you are sure.
+          </li>
+          <li>Tags and remote branches are not changed. Anyone who cloned the repository keeps the old commits.</li>
+        </ul>
+        {#if unsaved}
+          <div data-testid="rescue-unsaved"><Banner tone="warn">Save or discard your changes first.</Banner></div>
+        {/if}
+        <Checkbox
+          data-testid="rescue-confirm"
+          bind:checked={confirmed}
           disabled={step === "rewriting"}
+          label="I understand that this rewrites the history of these branches."
         />
-      </label>
-      <label>
-        Environment
-        <select data-testid="rescue-environment" bind:value={environment} disabled={step === "rewriting"}>
-          {#each app.environments as e (e.name)}
-            <option value={e.name}>{e.name}</option>
-          {/each}
-          <option value={NEW_ENV}>New environment…</option>
-        </select>
-      </label>
-      {#if environment === NEW_ENV}
-        <label>
-          Name
-          <input data-testid="rescue-new-environment" bind:value={newEnvironment} disabled={step === "rewriting"} />
-        </label>
-      {/if}
-    </div>
-    {#if !validVariable(variable)}
-      <p class="error">Use letters, digits, <code>_</code>, <code>-</code> and <code>.</code> for the variable.</p>
-    {/if}
-    <ul class="what" data-testid="rescue-explain">
-      <li>
-        Every file of every commit on
-        <strong>{chosen.branches.length > 0 ? chosen.branches.join(", ") : "the local branches"}</strong>
-        that holds the value gets <code>{`{{${variable || "…"}}}`}</code> instead. Other files, trees and commit messages
-        stay as they are; the commit ids change.
-      </li>
-      <li>
-        The value is kept as a secret of <strong>{envName || "…"}</strong> (OS keychain, or encrypted browser storage), never
-        in a file.
-      </li>
-      <li>
-        First each branch is saved under <code>refs/requesttailor/backup/&lt;time&gt;/&lt;branch&gt;</code>. These hidden
-        refs still hold the secret: delete them once you are sure.
-      </li>
-      <li>Tags and remote branches are not changed. Anyone who cloned the repository keeps the old commits.</li>
-    </ul>
-    {#if unsaved}
-      <p class="error" data-testid="rescue-unsaved">Save or discard your changes first.</p>
-    {/if}
-    <label class="confirm">
-      <input type="checkbox" data-testid="rescue-confirm" bind:checked={confirmed} disabled={step === "rewriting"} />
-      I understand that this rewrites the history of these branches.
-    </label>
-    <div class="actions">
-      <button class="button danger" data-testid="rescue-rewrite" disabled={!ready || step === "rewriting"} onclick={() => void rewrite()}>
-        {step === "rewriting" ? "Rewriting…" : "Rewrite history"}
-      </button>
-      <button class="button" data-testid="rescue-back" disabled={step === "rewriting"} onclick={() => (step = "results")}>
-        Back
-      </button>
-    </div>
+        <div class="actions">
+          <Button variant="danger" data-testid="rescue-rewrite" loading={step === "rewriting"} disabled={!ready || step === "rewriting"} onclick={() => void rewrite()}>
+            {step === "rewriting" ? "Rewriting…" : "Rewrite history"}
+          </Button>
+          <Button variant="ghost" data-testid="rescue-back" disabled={step === "rewriting"} onclick={() => (step = "results")}>
+            Back
+          </Button>
+        </div>
+      </div>
+    </Card>
   {:else if step === "done" && result}
-    <p class="ok" data-testid="rescue-done">
-      Rewrote {result.rewritten} commit{result.rewritten === 1 ? "" : "s"} on {result.branches.map((b) => b.name).join(", ")}.
-      The value is now <code>{`{{${variable}}}`}</code>, kept as a secret of <strong>{envName}</strong>.
-    </p>
+    <div data-testid="rescue-done">
+      <Banner tone="ok">
+        Rewrote {result.rewritten} commit{result.rewritten === 1 ? "" : "s"} on {result.branches.map((b) => b.name).join(", ")}.
+        The value is now <code>{`{{${variable}}}`}</code>, kept as a secret of <strong>{envName}</strong>.
+      </Banner>
+    </div>
     {#if declared}
       <p class="hint" data-testid="rescue-declared">
         Added the secret variable <code>{variable}</code> to the environment {declared}: save and commit it.
       </p>
     {/if}
     {#if pushes.length > 0}
-      <div class="warning" role="alert" data-testid="rescue-force-push">
-        <strong>The secret is still on the remote.</strong>
-        {pushes.length === 1 ? "This branch was" : "These branches were"} pushed before. Until you replace {pushes.length ===
-        1
-          ? "it"
-          : "them"} there, everyone with access can read the secret in the old commits. RequestTailor does not push with force; check that nobody else pushed meanwhile, then run:
-        {#each pushes as cmd (cmd)}
-          <code class="command">{cmd}</code>
-        {/each}
-        Collaborators need to fetch and reset their branches afterwards.
+      <div data-testid="rescue-force-push">
+        <Banner tone="warn" title="The secret is still on the remote.">
+          <div class="stack">
+            <span>
+              {pushes.length === 1 ? "This branch was" : "These branches were"} pushed before. Until you replace {pushes.length ===
+              1
+                ? "it"
+                : "them"} there, everyone with access can read the secret in the old commits. RequestTailor does not push with force; check that nobody else pushed meanwhile, then run:
+            </span>
+            {#each pushes as cmd (cmd)}
+              <code class="command">{cmd}</code>
+            {/each}
+            <span>Collaborators need to fetch and reset their branches afterwards.</span>
+          </div>
+        </Banner>
       </div>
     {/if}
-    <div class="warning" role="note" data-testid="rescue-rotate">
-      <strong>Rotate the secret.</strong>
-      It was exposed in the history{pushes.length > 0 ? " and on the remote" : ""}: revoke it at the provider, create a new
-      one and set the new value in Environments → {envName} → {variable}.
+    <div data-testid="rescue-rotate">
+      <Banner tone="warn" title="Rotate the secret.">
+        It was exposed in the history{pushes.length > 0 ? " and on the remote" : ""}: revoke it at the provider, create a new
+        one and set the new value in Environments → {envName} → {variable}.
+      </Banner>
     </div>
     {#if result.tags.length > 0}
       <p class="hint" data-testid="rescue-tags">
@@ -271,21 +289,25 @@
         remote).
       </p>
     {/if}
-    <details class="backups">
-      <summary>Backups</summary>
-      <p class="hint">
-        The old branches are saved under <code>{result.backup}</code>. Delete them when you no longer need them:
-      </p>
-      {#each deleteBackupCommands(result) as cmd (cmd)}
-        <code class="command">{cmd}</code>
-      {/each}
-    </details>
+    <Card padding="sm">
+      <details class="backups">
+        <summary>Backups</summary>
+        <div class="stack">
+          <p class="hint">
+            The old branches are saved under <code>{result.backup}</code>. Delete them when you no longer need them:
+          </p>
+          {#each deleteBackupCommands(result) as cmd (cmd)}
+            <code class="command">{cmd}</code>
+          {/each}
+        </div>
+      </details>
+    </Card>
     <div class="actions">
-      <button class="button" data-testid="rescue-rescan" onclick={() => void startScan()}>Scan again</button>
+      <Button data-testid="rescue-rescan" onclick={() => void startScan()}>Scan again</Button>
     </div>
   {/if}
   {#if error}
-    <p class="error" data-testid="rescue-error">{error}</p>
+    <div data-testid="rescue-error"><Banner tone="danger">{error}</Banner></div>
   {/if}
 </section>
 
@@ -293,8 +315,8 @@
   .rescue {
     display: flex;
     flex-direction: column;
-    gap: var(--rt-gap);
-    padding: var(--rt-gap) 12px;
+    gap: var(--rt-space-6);
+    padding: var(--rt-space-6);
     max-width: 72em;
   }
   p,
@@ -303,12 +325,16 @@
     margin: 0;
   }
   h3 {
-    font-size: var(--rt-size);
-    font-weight: 600;
+    font: var(--rt-font-title);
   }
   code {
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
+    font-size: var(--rt-text-small);
+  }
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-4);
   }
   .actions,
   .fields,
@@ -316,134 +342,55 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--rt-gap) 12px;
+    gap: var(--rt-space-4) var(--rt-space-5);
   }
-  .fields label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+  .fields {
+    align-items: flex-start;
   }
-  input:not([type="checkbox"]),
-  select {
-    color: var(--rt-fg);
-    background: var(--rt-bg);
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    padding: 2px 6px;
-  }
-  input:not([type="checkbox"]) {
-    font-family: var(--rt-font-mono);
-    width: 14em;
-  }
-  input[aria-invalid="true"] {
-    border-color: var(--rt-danger);
-  }
-  .button {
-    height: 26px;
-    padding: 0 10px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    color: var(--rt-fg);
-    cursor: pointer;
-    align-self: flex-start;
-  }
-  .button.primary:not(:disabled) {
-    background: var(--rt-accent);
-    border-color: var(--rt-accent);
-    color: var(--rt-accent-fg);
-  }
-  .button.danger:not(:disabled) {
-    background: var(--rt-danger);
-    border-color: var(--rt-danger);
-    color: var(--rt-accent-fg);
-  }
-  .button:disabled {
-    opacity: 0.6;
-    cursor: default;
+  .spacer {
+    flex: 1;
   }
   .hint,
   .muted {
     color: var(--rt-fg-muted);
-  }
-  .hint {
-    font-size: var(--rt-size-small);
-  }
-  .error {
-    color: var(--rt-danger);
-  }
-  .ok {
-    color: var(--rt-ok);
+    font: var(--rt-font-small);
   }
   .findings {
     list-style: none;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--rt-gap);
-  }
-  .finding {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: var(--rt-gap);
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg-panel);
+    gap: var(--rt-space-5);
   }
   .kind {
-    font-weight: 600;
+    font: var(--rt-font-title);
   }
   .path,
   .rev {
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
-  }
-  .badge {
-    font-size: var(--rt-size-small);
-    padding: 0 6px;
-    border-radius: var(--rt-radius);
-    border: 1px solid var(--rt-warn);
-    color: var(--rt-warn);
+    font-size: var(--rt-text-small);
+    overflow-wrap: anywhere;
   }
   .snippet,
   .command {
     display: block;
-    padding: 4px 6px;
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg-panel);
+    padding: var(--rt-space-3) var(--rt-space-4);
+    border-radius: var(--rt-radius-md);
+    background: var(--rt-surface-sunken);
+    border: 1px solid var(--rt-border);
     overflow-x: auto;
     white-space: pre;
   }
   .what {
-    padding-left: 1.2em;
+    padding-left: var(--rt-space-7);
     display: flex;
     flex-direction: column;
-    gap: 4px;
-  }
-  .confirm {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .warning {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: var(--rt-gap);
-    border: 1px solid var(--rt-warn);
-    border-left-width: 4px;
-    border-radius: var(--rt-radius);
-  }
-  .warning .command {
-    background: var(--rt-bg);
-  }
-  .backups {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    gap: var(--rt-space-3);
   }
   .backups summary {
     cursor: pointer;
+  }
+  progress {
+    accent-color: var(--rt-accent);
   }
 </style>

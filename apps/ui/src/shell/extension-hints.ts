@@ -3,8 +3,8 @@
 
 // Hints and node actions of a distribution's extensions (`AppExtension.hints` and
 // `nodeActions`, wave 14, strand C): collected here for the request editor (./ExtensionHints),
-// the collection nodes and the context menus of the sidebar (strand A). Dismissals per device
-// (strand C).
+// the collection nodes and the context menus of the sidebar (strand A). Dismissals per device:
+// ./hint-store.
 
 import type { ExtensionHint, ExtensionNodeAction, HintTarget, NodeTarget } from "../extensions";
 import type { ProvidedExtensions } from "./extension-tabs";
@@ -48,4 +48,22 @@ export function extensionNodeActions(provided: ProvidedExtensions | null, target
       return [];
     }
   });
+}
+
+/** The key a dismissal of `ref` is stored under for `target`: just the hint for scope `device`
+ *  (the default), the hint plus the collection (and request) for scope `target`. */
+export function dismissalKey(ref: ExtensionHintRef, target: HintTarget): string {
+  if (ref.hint.scope !== "target") return ref.key;
+  return target.place === "request"
+    ? `${ref.key}@${target.collection}:${target.path}`
+    : `${ref.key}@${target.collection}`;
+}
+
+/** The hint to show: the first of `refs` not dismissed (at most one per place). */
+export function pickHint(
+  refs: readonly ExtensionHintRef[],
+  target: HintTarget,
+  dismissed: ReadonlySet<string>,
+): ExtensionHintRef | null {
+  return refs.find((r) => !dismissed.has(dismissalKey(r, target))) ?? null;
 }

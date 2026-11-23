@@ -35,21 +35,36 @@ export function selectedMessage(messages: MessageVariant[]): MessageVariant | nu
 
 export const emptyMessage = (title = ""): MessageVariant => ({ title, selected: true, kind: "text", data: "" });
 
-/** The kinds the sidebar offers for a new request. */
-export type NewRequestKind = "http" | "graphql" | "grpc" | "websocket";
+/** The kinds of a new request (the sidebar's prompt, the "New…" dialog). */
+export type NewRequestKind = "http" | "graphql" | "grpc" | "websocket" | "sse";
 
 export const NEW_REQUEST_KINDS: [NewRequestKind, string][] = [
   ["http", "HTTP"],
   ["graphql", "GraphQL"],
   ["grpc", "gRPC"],
   ["websocket", "WebSocket"],
+  ["sse", "Server-Sent Events"],
 ];
+
+/** The `Accept` header that makes an HTTP request a Server-Sent Events session (`sessionKind`). */
+export const SSE_ACCEPT = "text/event-stream";
 
 /** `spec` (a fresh HTTP request) turned into a new request of `kind`. */
 export function asKind(spec: RequestSpec, kind: NewRequestKind): RequestSpec {
   switch (kind) {
     case "http":
       return spec;
+    case "sse":
+      // A GET that asks for an event stream; an `Accept` header already there is replaced.
+      return {
+        ...spec,
+        method: "GET",
+        body: { type: "none" },
+        headers: [
+          ...spec.headers.filter((h) => h.name.trim().toLowerCase() !== "accept"),
+          { name: "Accept", value: SSE_ACCEPT, enabled: true },
+        ],
+      };
     case "graphql":
       return { ...spec, method: "POST", body: { type: "graphql", query: "", variables: "" } };
     case "websocket":

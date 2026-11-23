@@ -60,12 +60,14 @@ test("create a request in a folder via the UI", async ({ page }) => {
   await expect(tab(page, "Delete user")).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("new-request-name")).toHaveCount(0);
 
-  // Escape cancels; Mod+N asks for a name at the root.
+  // Mod+N opens the "New…" dialog (wave 14): Escape closes it; Enter takes the HTTP tile, then
+  // the name and Enter create the request at the root.
   await page.keyboard.press(`${MOD}+n`);
-  await expect(page.getByTestId("new-request-name")).toBeFocused();
+  await expect(page.getByTestId("new-filter")).toBeFocused();
   await page.keyboard.press("Escape");
-  await expect(page.getByTestId("new-request-name")).toHaveCount(0);
+  await expect(page.getByTestId("new-dialog")).toHaveCount(0);
   await page.keyboard.press(`${MOD}+n`);
+  await page.keyboard.press("Enter");
   await page.keyboard.type("Ping");
   await page.keyboard.press("Enter");
   await expect(treeRequest(page, "Ping")).toHaveAttribute("data-path", "ping.yml");
