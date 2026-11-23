@@ -9,7 +9,9 @@ import type { CollectionSetApi } from "@requesttailor/ui";
 
 import type { Call } from "./backend";
 
-export function tauriCollections(call: Call): CollectionSetApi {
+/** Plus `reveal` ("Show in Finder"), which `CollectionSetApi` does not have yet: the sidebar
+ *  offers it where the backend's set has it (desktop only). */
+export function tauriCollections(call: Call): CollectionSetApi & { reveal(id: string): Promise<void> } {
   return {
     current: () => call("collections_current"),
     add: () => call("collections_add"),
@@ -20,5 +22,6 @@ export function tauriCollections(call: Call): CollectionSetApi {
     saveAll: () => call("collections_save_all"),
     search: (query, limit) => call("collections_search", { query, limit }),
     create: (spec) => call("collections_create", { spec }),
+    reveal: (id) => call("collections_reveal", { id }),
   };
 }

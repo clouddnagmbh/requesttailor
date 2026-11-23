@@ -34,6 +34,7 @@
     "allow-collections-save-all",
     "allow-collections-search",
     "allow-collections-create",
+    "allow-collections-reveal",
     "allow-git-status",
     "allow-git-diff",
     "allow-git-commit",

@@ -607,6 +607,11 @@ impl<S: SecretStore> Core<S> {
         Ok(info)
     }
 
+    /// The folder of collection `id` (a new, unsaved collection's folder may not exist yet).
+    pub fn path_of(&self, id: &str) -> Result<PathBuf, AppError> {
+        Ok(lock(&self.session).entry(id)?.path.clone())
+    }
+
     /// The tree of any collection of the set, unsaved changes included.
     pub fn tree_of(&self, id: &str) -> Result<TreeNode, AppError> {
         Ok(lock(&self.session).session(id)?.workspace.tree())
@@ -745,7 +750,7 @@ impl<S: SecretStore> Core<S> {
             return Ok(None);
         };
         let (_, wanted) = files::collection_id(root).map_err(shell)?;
-        if !saved.roots.iter().any(|r| *r == wanted) {
+        if !saved.roots.contains(&wanted) {
             return Ok(None);
         }
         let mut first = true;

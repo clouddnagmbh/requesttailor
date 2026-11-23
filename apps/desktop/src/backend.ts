@@ -93,6 +93,7 @@ export const COMMANDS = [
   "collections_save_all",
   "collections_search",
   "collections_create",
+  "collections_reveal",
   "git_status",
   "git_diff",
   "git_commit",

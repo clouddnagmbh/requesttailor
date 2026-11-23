@@ -330,6 +330,45 @@ pub async fn collections_create(
     Ok(Some(core.create_collection(&spec)?))
 }
 
+/// Shows the folder of collection `id` in the system's file manager (Finder, Explorer, the
+/// desktop's default). Runs on the Rust side: the webview has no shell or opener permission.
+/// A new collection that was not saved yet has no folder: refused with a clear message.
+#[tauri::command]
+pub fn collections_reveal(core: State<'_, AppCore>, id: String) -> CmdResult<()> {
+    let path = core.path_of(&id)?;
+    if !path.is_dir() {
+        return Err(AppError::Shell(
+            "save the new collection first; its folder does not exist yet".into(),
+        )
+        .into());
+    }
+    reveal(&path)
+        .map_err(|e| AppError::Shell(format!("could not open the file manager: {e}")).into())
+}
+
+fn reveal(path: &Path) -> io::Result<()> {
+    #[cfg(target_os = "macos")]
+    let mut cmd = {
+        let mut c = std::process::Command::new("open");
+        c.arg("-R").arg(path);
+        c
+    };
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        let mut c = std::process::Command::new("explorer");
+        c.arg(path);
+        c
+    };
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let mut cmd = {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(path);
+        c
+    };
+    // Not waited for: the file manager keeps running; the child is reaped by the OS.
+    cmd.spawn().map(drop)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

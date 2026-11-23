@@ -136,6 +136,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             collections::collections_save_all,
             collections::collections_search,
             collections::collections_create,
+            collections::collections_reveal,
             git::git_status,
             git::git_diff,
             git::git_commit,

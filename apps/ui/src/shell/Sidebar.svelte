@@ -628,7 +628,7 @@
   }
   .row:hover .actions,
   .row:focus-visible .actions,
-  .row:has(.actions :focus-visible) .actions {
+  .actions:focus-within {
     opacity: 1;
   }
   .hint {

@@ -103,6 +103,7 @@ describe("TauriBackend", () => {
     await b.collections.saveAll();
     await b.collections.search("users", 20);
     await b.collections.create({ name: "N", root: "/r", dir: "n", base_url: null, environment: "Local" });
+    await (b.collections as unknown as { reveal(id: string): Promise<void> }).reveal("/r/a");
     await b.companions.list("orders");
     await b.companions.read("orders/metadata.xml");
     await b.companions.stage("orders/metadata.xml", "<edmx/>");
@@ -285,6 +286,7 @@ describe("TauriBackend", () => {
       ["collections_save_all", undefined],
       ["collections_search", { query: "users", limit: 20 }],
       ["collections_create", { spec: { name: "N", root: "/r", dir: "n", base_url: null, environment: "Local" } }],
+      ["collections_reveal", { id: "/r/a" }],
       ["companion_list", { prefix: "orders" }],
       ["companion_read", { path: "orders/metadata.xml" }],
       ["companion_stage", { path: "orders/metadata.xml", text: "<edmx/>" }],
