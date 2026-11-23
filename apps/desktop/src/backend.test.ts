@@ -165,6 +165,14 @@ describe("TauriBackend", () => {
     await b.mcp.getTest("mcp/t.mcp.yaml");
     await b.mcp.saveTest(null, test);
     await b.mcp.runTest("mcp/t.mcp.yaml", secretInput);
+    await b.mcp.resources(1);
+    await b.mcp.readResource(1, "demo://readme");
+    await b.mcp.prompts(1);
+    await b.mcp.getPrompt(1, "summarize", [["text", "hi"]]);
+    await b.mcp.selfServer();
+    await b.mcp.localDemo?.status();
+    await b.mcp.localDemo?.start();
+    await b.mcp.localDemo?.stop();
     // Wave 12, strand A.
     await b.diffs.working();
     await b.diffs.commit("abc");
@@ -332,6 +340,14 @@ describe("TauriBackend", () => {
       ["mcp_get_test", { path: "mcp/t.mcp.yaml" }],
       ["mcp_save_test", { path: null, test }],
       ["mcp_run_test", { path: "mcp/t.mcp.yaml", input: { environment: "Local", vars: [] } }],
+      ["mcp_resources", { id: 1 }],
+      ["mcp_read_resource", { id: 1, uri: "demo://readme" }],
+      ["mcp_prompts", { id: 1 }],
+      ["mcp_get_prompt", { id: 1, name: "summarize", args: [["text", "hi"]] }],
+      ["mcp_self_server", undefined],
+      ["mcp_demo_status", undefined],
+      ["mcp_demo_start", undefined],
+      ["mcp_demo_stop", undefined],
       ["diff_working", undefined],
       ["diff_commit", { rev: "abc" }],
       ["diff_between", { from: "main", to: "feature" }],
