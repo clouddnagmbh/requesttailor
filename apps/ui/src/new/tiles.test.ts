@@ -22,8 +22,9 @@ describe("tiles", () => {
     );
     expect(groupTiles(tiles).map((g) => [g.group, g.tiles.length])).toEqual([
       ["Requests", 5],
-      // Collection, Folder, Environment and From OpenAPI (the OpenAPI wizard).
-      ["Organise", 4],
+      // Collection, Folder, Environment, From OpenAPI (the OpenAPI wizard) and the two
+      // repository tiles (wave 15).
+      ["Organise", 6],
       ["Testing", 1],
       ["Data", 2],
       ["More", 1],
@@ -33,9 +34,15 @@ describe("tiles", () => {
     expect(tiles.filter((t) => t.builtin).every((t) => t.badge === undefined)).toBe(true);
   });
 
-  it("without a collection only Collection, From OpenAPI and extension tiles can be chosen", () => {
+  it("without a collection only Collection, From OpenAPI, the repository tiles and extension tiles can be chosen", () => {
     const tiles = allTiles([ext("x/one")], false);
-    expect(tiles.filter((t) => !t.disabled).map((t) => t.key)).toEqual(["collection", "openapi", "x/one"]);
+    expect(tiles.filter((t) => !t.disabled).map((t) => t.key)).toEqual([
+      "collection",
+      "openapi",
+      "clone-repository",
+      "open-repository",
+      "x/one",
+    ]);
     expect(filterTiles(tiles, "").best).toBe(tiles.findIndex((t) => t.key === "collection"));
   });
 
@@ -55,6 +62,7 @@ describe("tiles", () => {
     expect(pick("proto")).toBe("grpc");
     expect(pick("odata")).toBe("x/odata");
     expect(pick("openapi")).toBe("openapi");
+    expect(pick("clone")).toBe("clone-repository");
     expect(filterTiles(tiles, "zzzz").flat).toEqual([]);
   });
 });

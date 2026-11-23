@@ -1,14 +1,16 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
 <!-- "Clone a repository" as a dialog, reachable without an open collection (start screen,
-     command palette). `onopen` shows the collection the backend opened (as after Open folder).
-     Private repositories ask for credentials once and retry (`git.setCredentials`). -->
+     command palette). Wave 15: the clone joins the sidebar as a new root (CloneForm); a clone
+     with collections shows the first one, `onopen` takes it when nothing was open (as after
+     Open folder), a clone without any is listed as a repository root. -->
 <script lang="ts">
   import { untrack } from "svelte";
 
-  import { BackendError, type CollectionInfo } from "../commands/backend";
+  import type { CollectionInfo } from "../commands/backend";
+  import type { RepositoryEntry } from "../commands/types";
   import { getApp } from "../state/app.svelte";
-  import CloneFields from "./CloneFields.svelte";
+  import CloneForm from "./CloneForm.svelte";
 
   let {
     open,
@@ -16,56 +18,23 @@
     onopen,
   }: { open: boolean; onclose: () => void; onopen: (info: CollectionInfo) => Promise<void> } = $props();
   const app = getApp();
-  const git = app.backend.git;
 
-  let url = $state("");
-  let busy = $state(false);
-  let error = $state<string | null>(null);
-  let credentials = $state<string | null>(null);
-  let user = $state("");
-  let password = $state("");
-
-  function reset() {
-    url = "";
-    busy = false;
-    error = null;
-    credentials = null;
-    user = "";
-    password = "";
-  }
+  // A fresh form each time the dialog opens.
+  let session = $state(0);
 
   function opened(node: HTMLDialogElement) {
     node.showModal();
-    untrack(reset);
+    untrack(() => session++);
     return () => node.close();
   }
 
-  async function clone() {
-    const address = url.trim();
-    if (!address || busy) return;
-    busy = true;
-    error = null;
-    try {
-      if (credentials) {
-        await git.setCredentials(credentials, user.trim(), password);
-        credentials = null;
-        password = "";
-      }
-      const info = await git.clone(address);
-      if (info) {
-        onclose();
-        await onopen(info);
-      }
-    } catch (e) {
-      if (e instanceof BackendError && e.kind === "git-auth") {
-        credentials = e.message;
-        error = `${e.message} needs a user name and a password or access token.`;
-      } else {
-        error = e instanceof Error ? e.message : String(e);
-      }
-    } finally {
-      busy = false;
-    }
+  async function done(entry: RepositoryEntry) {
+    const wasEmpty = app.collections.length === 0;
+    onclose();
+    const set = await app.backend.collections.current();
+    const first = set.collections.find((c) => entry.collections.includes(c.id));
+    if (wasEmpty && first) await onopen({ id: first.id, name: first.name, location: first.location });
+    else await app.adoptRepository(entry);
   }
 </script>
 
@@ -79,32 +48,10 @@
       onclose();
     }}
   >
-    <form
-      onsubmit={(e) => {
-        e.preventDefault();
-        void clone();
-      }}
-    >
-      <h2 id="clone-title">Clone a repository</h2>
-      <CloneFields bind:url disabled={busy} label="Repository address" />
-      {#if credentials}
-        <label>
-          User name
-          <input data-testid="clone-user" type="text" autocomplete="username" bind:value={user} />
-        </label>
-        <label>
-          Password or token
-          <input data-testid="clone-password" type="password" autocomplete="current-password" bind:value={password} />
-        </label>
-      {/if}
-      {#if error}<p class="error" role="alert" data-testid="clone-error">{error}</p>{/if}
-      <div class="actions">
-        <button type="button" data-testid="clone-cancel" onclick={onclose}>Cancel</button>
-        <button type="submit" data-testid="clone-submit" disabled={!url.trim() || busy}>
-          {busy ? "Cloning…" : "Clone"}
-        </button>
-      </div>
-    </form>
+    <h2 id="clone-title">Clone a repository</h2>
+    {#key session}
+      <CloneForm oncancel={onclose} ondone={done} />
+    {/key}
   </dialog>
 {/if}
 
@@ -123,38 +70,8 @@
   dialog::backdrop {
     background: var(--rt-bg-overlay);
   }
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--rt-gap);
-  }
   h2 {
-    margin: 0;
+    margin: 0 0 var(--rt-gap);
     font-size: 1.1em;
-  }
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
-  }
-  label input {
-    padding: 3px 6px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    color: var(--rt-fg);
-    font: inherit;
-  }
-  .error {
-    margin: 0;
-    color: var(--rt-danger);
-    overflow-wrap: anywhere;
-  }
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--rt-gap);
   }
 </style>

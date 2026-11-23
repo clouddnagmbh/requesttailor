@@ -52,7 +52,6 @@ import {
   type TransportMode,
   type TreeNode,
   type RepositoryApi,
-  stubRepositories,
 } from "@requesttailor/ui";
 
 import { webAuth, type WebAuthApi } from "./auth";
@@ -81,6 +80,7 @@ import type { Wave12Host } from "./wave12";
 import { webScriptTrust, type WebScriptTrust } from "./scripts";
 import { SessionStore, webSessionVars } from "./session-vars";
 import { webGit } from "./git";
+import { webRepositories } from "./repositories";
 import { WebHistory } from "./history";
 import { webImports, type WebImports } from "./import";
 import { webPlugins, type WebPluginApi } from "./plugins";
@@ -149,6 +149,12 @@ export interface WebHost {
    *  folder in it, `""` at its root); `null` outside Git. Without it, the web Git takes the
    *  collection's folder as the repository. */
   repository?(): { handle: FileSystemDirectoryHandle; scope: string } | null;
+  /** Wave 15: whether a collection of the active repository has unsaved changes (the active
+   *  repository may be a repository root without any collection). */
+  repositoryDirty?(): boolean;
+  /** Wave 15: reads the collections of the active repository again after Git changed files
+   *  (there may be none). Without it, the active collection's folder is opened again. */
+  reloadSet?(): Promise<void>;
   /** The companion's URL and token if it is paired, else `null`. */
   companionCredentials(): Promise<CompanionCredentials | null>;
 }
@@ -185,8 +191,8 @@ export class WebBackend implements Backend {
   readonly kind = "web" as const;
   /** Wave 14: the collections in the sidebar (`collections.ts`). */
   readonly collections: WebCollectionSet;
-  /** Wave 15: repositories in the set (placeholder until strand A, `repositories.ts`). */
-  readonly repositories: RepositoryApi = stubRepositories();
+  /** Wave 15: repositories in the set (`repositories.ts`). */
+  readonly repositories: RepositoryApi;
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
 
@@ -246,6 +252,10 @@ export class WebBackend implements Backend {
       addHandle: (handle) => this.addHandle(handle),
       openRecentRoot: (id, handle, interactive) => this.openRecentRoot(id, handle, interactive),
       repository: () => this.collections.repository(),
+      repositoryDirty: () => this.collections.repositoryDirty(),
+      reloadSet: async () => {
+        await this.collections.reloadSet();
+      },
       companionCredentials: async () => {
         try {
           return await this.client().credentials();
@@ -265,7 +275,14 @@ export class WebBackend implements Backend {
       pick: (id) => this.pickFolder(id),
       saveActive: () => this.save(),
     });
-    this.git = webGit(host);
+    const git = webGit(host);
+    this.git = git;
+    this.repositories = webRepositories({
+      collections: this.collections,
+      pick: (id) => this.pickFolder(id),
+      folders: git,
+      checkout: (handle, branch) => git.checkoutAt(handle, branch),
+    });
     this.imports = webImports(host);
     this.openapi = webOpenApi({
       host,

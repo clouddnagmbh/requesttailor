@@ -165,7 +165,8 @@ pub fn reload_repository<S: SecretStore>(
     workdir: &Path,
     conflicts: bool,
 ) -> Result<()> {
-    let Some(root) = core.root() else {
+    // Wave 15: the active repository (the chosen one, else the active collection's).
+    let Some(root) = core.active_repository() else {
         return Ok(());
     };
     let inside = rt_git::canonical(&root)

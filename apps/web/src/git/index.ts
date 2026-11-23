@@ -22,6 +22,7 @@ import {
   type CollectionInfo,
   type GitApi,
   type GitIdentity,
+  type GitStatus,
   type SecretsApi,
   LOCAL_CLONE_UNSUPPORTED,
   looksLocal,
@@ -121,7 +122,22 @@ export interface ChangelogCommitSource {
   changelogCommits(from: string, to: string): Promise<import("./revisions").RawCommit[]>;
 }
 
-export function webGit(host: WebHost): GitApi & ChangelogCommitSource {
+/** What the web Git adds for `repositories.ts` (wave 15, strand A): folders cloned or created
+ *  without opening them, so the repository can join the set instead of replacing it. */
+export interface RepositoryFolders {
+  /** Clones `url` into a new folder (`name`, default from the address) of one the user picks;
+   *  `null` if the picker was cancelled. Nothing is opened. */
+  cloneFolder(url: string, name?: string): Promise<FileSystemDirectoryHandle | null>;
+  /** `git init` in `folder`; refused if it already is a repository. */
+  initFolder(folder: FileSystemDirectoryHandle): Promise<void>;
+  /** Switches the repository in `folder` to `branch` (a fresh clone, nothing unsaved). */
+  checkoutAt(folder: FileSystemDirectoryHandle, branch: string): Promise<void>;
+  /** The status of the whole work tree of the repository in `folder`, for the sidebar. Reads
+   *  only, so it does not wait for a running Git operation. */
+  statusAt(folder: FileSystemDirectoryHandle): Promise<GitStatus>;
+}
+
+export function webGit(host: WebHost): GitApi & ChangelogCommitSource & RepositoryFolders {
   const identity = identityStore();
   let secrets: Promise<SecretsApi> | null = null;
   const store = () =>
@@ -155,14 +171,18 @@ export function webGit(host: WebHost): GitApi & ChangelogCommitSource {
   const wave14: WebGitContext = { host, repo, run: (op) => run(op) };
 
   function requireSaved(what: string): void {
-    if (session().ws.dirty().length > 0) {
+    // Wave 15: any collection of the active repository, which may have none (a repository
+    // root), counts.
+    const dirty = host.repositoryDirty ? host.repositoryDirty() : session().ws.dirty().length > 0;
+    if (dirty) {
       throw new BackendError("git", `Save your changes before you ${what}.`);
     }
   }
 
   /** Reads the changed files into the core again. */
   async function reopen(): Promise<void> {
-    await host.openHandle(session().handle);
+    if (host.reloadSet) await host.reloadSet();
+    else await host.openHandle(session().handle);
   }
 
   async function network(): Promise<Network> {
@@ -188,6 +208,47 @@ export function webGit(host: WebHost): GitApi & ChangelogCommitSource {
     if (!id) throw new BackendError("git", "Set your name and email for commits first.");
     return id;
   };
+
+  /** The clone of `clone`/`cloneFolder`: asks for the folder, clones, returns the new folder. */
+  async function cloneFolder(url: string, wanted?: string): Promise<FileSystemDirectoryHandle | null> {
+    const trimmed = url.trim();
+    if (looksLocal(trimmed)) throw new BackendError("unsupported", LOCAL_CLONE_UNSUPPORTED);
+    if (!/^https?:\/\//i.test(trimmed)) {
+      throw new BackendError("git", "Enter an HTTPS URL of the repository (SSH needs the desktop app).");
+    }
+    const net = await network();
+    // The picker needs the click's user activation: ask before loading anything slow.
+    const loadOps = ops();
+    loadOps.catch(() => undefined);
+    if (typeof window.showDirectoryPicker !== "function") {
+      throw new BackendError("unsupported", "This browser cannot open local folders. Use a current Chrome or Edge.");
+    }
+    let parent: FileSystemDirectoryHandle;
+    try {
+      parent = await window.showDirectoryPicker({ id: "requesttailor-clone", mode: "readwrite" });
+    } catch (e) {
+      if (isAbort(e)) return null;
+      throw e;
+    }
+    const o = await loadOps;
+    const name = wanted?.trim() || o.cloneFolderName(trimmed);
+    if (/[\\/:*?"<>|]/.test(name) || name === "." || name === "..") {
+      throw new BackendError("git", `"${name}" is not a folder name; use a plain name.`);
+    }
+    const exists = await parent.getDirectoryHandle(name).then(
+      () => true,
+      () => false,
+    );
+    if (exists) throw new BackendError("git", `The folder "${name}" already exists in "${parent.name}".`);
+    const target = await parent.getDirectoryHandle(name, { create: true });
+    try {
+      await o.clone(repoAt(target), net, trimmed);
+    } catch (e) {
+      await parent.removeEntry(name, { recursive: true }).catch(() => undefined);
+      throw e;
+    }
+    return target;
+  }
 
   return {
     status: () => run(async () => (await ops()).status(repo())),
@@ -242,41 +303,23 @@ export function webGit(host: WebHost): GitApi & ChangelogCommitSource {
 
     clone: (url) =>
       run(async (): Promise<CollectionInfo | null> => {
-        const trimmed = url.trim();
-        if (looksLocal(trimmed)) throw new BackendError("unsupported", LOCAL_CLONE_UNSUPPORTED);
-        if (!/^https?:\/\//i.test(trimmed)) {
-          throw new BackendError("git", "Enter an HTTPS URL of the repository (SSH needs the desktop app).");
-        }
-        const net = await network();
-        // The picker needs the click's user activation: ask before loading anything slow.
-        const loadOps = ops();
-        loadOps.catch(() => undefined);
-        if (typeof window.showDirectoryPicker !== "function") {
-          throw new BackendError("unsupported", "This browser cannot open local folders. Use a current Chrome or Edge.");
-        }
-        let parent: FileSystemDirectoryHandle;
-        try {
-          parent = await window.showDirectoryPicker({ id: "requesttailor-clone", mode: "readwrite" });
-        } catch (e) {
-          if (isAbort(e)) return null;
-          throw e;
-        }
-        const o = await loadOps;
-        const name = o.cloneFolderName(trimmed);
-        const exists = await parent.getDirectoryHandle(name).then(
-          () => true,
-          () => false,
-        );
-        if (exists) throw new BackendError("git", `The folder "${name}" already exists in "${parent.name}".`);
-        const target = await parent.getDirectoryHandle(name, { create: true });
-        try {
-          await o.clone(repoAt(target), net, trimmed);
-        } catch (e) {
-          await parent.removeEntry(name, { recursive: true }).catch(() => undefined);
-          throw e;
-        }
-        return host.openHandle(target);
+        const target = await cloneFolder(url);
+        return target ? host.openHandle(target) : null;
       }),
+
+    cloneFolder: (url, name) => run(() => cloneFolder(url, name)),
+
+    initFolder: (folder) => run(async () => (await ops()).init(repoAt(folder))),
+
+    checkoutAt: (folder, branch) => run(async () => (await ops()).checkout(repoAt(folder), branch)),
+
+    statusAt: async (folder) => {
+      try {
+        return await (await ops()).status(repoAt(folder));
+      } catch (e) {
+        throw (await ops()).gitError(e);
+      }
+    },
 
     identity: async () => identity.get(),
 

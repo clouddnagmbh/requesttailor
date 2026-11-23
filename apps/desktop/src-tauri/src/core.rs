@@ -128,6 +128,8 @@ struct Root {
     name: String,
     collections: Vec<String>,
     truncated: bool,
+    /// Wave 15: the repository of a *repository root* (no collections, in Git).
+    repo: Option<String>,
 }
 
 /// One collection of the set.
@@ -148,6 +150,8 @@ struct Sets {
     entries: Vec<Entry>,
     sessions: HashMap<String, Session>,
     active: Option<String>,
+    /// Wave 15: the repository chosen last in the sidebar; `None`: the active collection's.
+    chosen_repo: Option<String>,
 }
 
 impl Sets {
@@ -198,6 +202,7 @@ impl Sets {
             name,
             collections,
             truncated,
+            repo_root,
         } = found;
         let mut ids = Vec::new();
         for c in collections {
@@ -220,6 +225,7 @@ impl Sets {
             name,
             collections: ids,
             truncated,
+            repo: repo_root,
         });
         self.roots.last().expect("just pushed")
     }
@@ -256,54 +262,81 @@ impl Sets {
                 .collect(),
             active: self.active.clone(),
             repositories: self.repositories(),
-            active_repository: self
-                .active
-                .as_deref()
-                .and_then(|id| self.entry(id).ok())
-                .and_then(|e| e.repo.clone()),
+            active_repository: self.active_repo(),
         }
     }
 
-    /// Wave 15 interface: the repositories of the collections, in sidebar order. Strand A adds
-    /// repository roots without a collection and the active repository chosen in the sidebar.
+    /// Wave 15: the repositories of the set in sidebar order: those that hold collections, then
+    /// the repository roots without one (`rt_app::git::repos::repositories`).
     fn repositories(&self) -> Vec<rt_app::git::repos::RepositoryEntry> {
-        let mut out: Vec<rt_app::git::repos::RepositoryEntry> = Vec::new();
-        for e in &self.entries {
-            let Some(repo) = &e.repo else { continue };
-            if let Some(r) = out.iter_mut().find(|r| &r.id == repo) {
-                r.collections.push(e.id.clone());
-                continue;
-            }
-            out.push(rt_app::git::repos::RepositoryEntry {
-                id: repo.clone(),
-                name: std::path::Path::new(repo)
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| repo.clone()),
-                location: repo.clone(),
+        let entries: Vec<CollectionEntry> = self
+            .entries
+            .iter()
+            .map(|e| CollectionEntry {
+                id: e.id.clone(),
+                name: e.name.clone(),
+                location: e.id.clone(),
                 root: e.root.clone(),
-                collections: vec![e.id.clone()],
-                linked: false,
-            });
-        }
-        out
+                dir: e.dir.clone(),
+                repo: e.repo.clone(),
+                dirty: 0,
+            })
+            .collect();
+        let roots: Vec<rt_app::git::repos::RepoRoot> = self
+            .roots
+            .iter()
+            .filter_map(|r| {
+                r.repo.as_ref().map(|repo| rt_app::git::repos::RepoRoot {
+                    root: r.id.clone(),
+                    repo: repo.clone(),
+                })
+            })
+            .collect();
+        rt_app::git::repos::repositories(&entries, &roots, |id| {
+            let path = Path::new(id);
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| id.to_owned());
+            // `.git` is a file in a linked worktree and in a submodule's checkout.
+            (name, id.to_owned(), path.join(".git").is_file())
+        })
     }
 
-    /// Ids of the collections in the active collection's repository (just the active one
-    /// outside Git).
+    /// Id of the repository Git acts on: the chosen one, else the active collection's.
+    fn active_repo(&self) -> Option<String> {
+        let entries: Vec<CollectionEntry> = self
+            .entries
+            .iter()
+            .map(|e| CollectionEntry {
+                id: e.id.clone(),
+                name: String::new(),
+                location: String::new(),
+                root: e.root.clone(),
+                dir: String::new(),
+                repo: e.repo.clone(),
+                dirty: 0,
+            })
+            .collect();
+        rt_app::git::repos::active_repository(
+            &self.repositories(),
+            &entries,
+            self.chosen_repo.as_deref(),
+            self.active.as_deref(),
+        )
+    }
+
+    /// Ids of the collections in the active repository (just the active collection outside
+    /// Git).
     fn repo_mates(&self) -> Vec<String> {
-        let Some(active) = self.active.as_deref() else {
-            return Vec::new();
-        };
-        let repo = self.entry(active).ok().and_then(|e| e.repo.clone());
-        match repo {
-            None => vec![active.to_owned()],
+        match self.active_repo() {
             Some(repo) => self
                 .entries
                 .iter()
                 .filter(|e| e.repo.as_deref() == Some(repo.as_str()))
                 .map(|e| e.id.clone())
                 .collect(),
+            None => self.active.iter().cloned().collect(),
         }
     }
 }
@@ -384,7 +417,15 @@ impl<S: SecretStore> Core<S> {
     /// collection and the repository chosen in the sidebar. Public for distributions (e.g. a
     /// Tauri plugin that works on the same repository).
     pub fn active_repository(&self) -> Option<PathBuf> {
-        self.root()
+        let sets = lock(&self.session);
+        // A repository chosen in the sidebar: its working tree (paths are then relative to it).
+        if let Some(repo) = sets.chosen_repo.as_deref()
+            && sets.repositories().iter().any(|r| r.id == repo)
+        {
+            return Some(PathBuf::from(repo));
+        }
+        let id = sets.active.as_deref()?;
+        sets.entry(id).ok().map(|e| e.path.clone())
     }
 
     /// Id (`CollectionInfo::id`) of the open (active) collection.
@@ -428,13 +469,11 @@ impl<S: SecretStore> Core<S> {
 
     /// Reads the files again after Git changed them: every collection of the active
     /// collection's repository that was read (wave 14), after finding the roots' collections
-    /// again (a checkout may add or remove some). Returns the active collection.
-    pub fn reload(&self) -> Result<CollectionInfo, AppError> {
+    /// again (a checkout may add or remove some). Returns the active collection; `None` when
+    /// the set has none (wave 15: it may hold only repository roots).
+    pub fn reload(&self) -> Result<Option<CollectionInfo>, AppError> {
         let mut sets = lock(&self.session);
-        let active = sets
-            .active
-            .clone()
-            .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
+        let active = sets.active.clone();
         let mates = sets.repo_mates();
         let mut next = Sets::default();
         for root in &sets.roots {
@@ -471,17 +510,18 @@ impl<S: SecretStore> Core<S> {
                 next.sessions.insert(id, session);
             }
         }
-        next.active = Some(active)
+        next.chosen_repo = sets.chosen_repo.clone();
+        next.active = active
             .filter(|a| next.entries.iter().any(|e| e.id == *a))
             .or_else(|| next.entries.first().map(|e| e.id.clone()));
-        let id = next
-            .active
-            .clone()
-            .ok_or_else(|| AppError::Shell("no collection is left in the sidebar".into()))?;
+        let Some(id) = next.active.clone() else {
+            *sets = next;
+            return Ok(None);
+        };
         next.session(&id)?;
         let info = next.info(&id)?;
         *sets = next;
-        Ok(info)
+        Ok(Some(info))
     }
 
     /// The open workspace and the collection id, for the per-strand modules (wave 8: saved
@@ -554,12 +594,16 @@ impl<S: SecretStore> Core<S> {
     /// existing ones; collections already in the set are not added twice) and makes its first
     /// new collection active. An empty set is opened as by [`Core::open`].
     pub fn add_root(&self, root: &Path) -> Result<CollectionSet, AppError> {
+        let found = set_files::find(root)
+            .map_err(|e| AppError::Shell(format!("cannot open {}: {e}", root.display())))?;
+        if found.repo_root.is_some() {
+            // Wave 15: a folder without a collection in a Git repository is a repository root.
+            return self.add_repository_root(found);
+        }
         if lock(&self.session).roots.is_empty() {
             self.open(root)?;
             return Ok(self.collection_set());
         }
-        let found = set_files::find(root)
-            .map_err(|e| AppError::Shell(format!("cannot open {}: {e}", root.display())))?;
         if found.collections.is_empty() {
             return Err(AppError::Shell(format!(
                 "there is no collection in {}; create one with New… → Collection",
@@ -583,6 +627,8 @@ impl<S: SecretStore> Core<S> {
                     return Err(e);
                 }
                 sets.active = Some(first.clone());
+                // Wave 15: Git follows the active collection again.
+                sets.chosen_repo = None;
             }
             sets.set()
         };
@@ -650,10 +696,71 @@ impl<S: SecretStore> Core<S> {
             let mut sets = lock(&self.session);
             sets.session(id)?;
             sets.active = Some(id.to_owned());
+            // Wave 15: Git follows the active collection again.
+            sets.chosen_repo = None;
             (sets.info(id)?, sets.set())
         };
         self.remember(&set);
         Ok(info)
+    }
+
+    // ---- wave 15: repositories in the set ----
+
+    /// A folder without a collection in a Git repository joins the set as a *repository root*
+    /// (no scaffold, no `opencollection.yml`) and its repository becomes the active one. An
+    /// empty set is replaced by it; a repository that is in the set already is only made
+    /// active.
+    fn add_repository_root(&self, found: Found) -> Result<CollectionSet, AppError> {
+        let repo = found.repo_root.clone().expect("a repository root");
+        let set = {
+            let mut sets = lock(&self.session);
+            if sets.roots.is_empty() {
+                let mut fresh = Sets::default();
+                fresh.push_root(found.clone());
+                fresh.chosen_repo = Some(repo);
+                *sets = fresh;
+                // Bodies of the previous collections are no longer reachable from the UI.
+                *lock(&self.responses) = ResponseStore::new();
+            } else {
+                if !sets.roots.iter().any(|r| r.id == found.id)
+                    && !sets.repositories().iter().any(|r| r.id == repo)
+                {
+                    sets.push_root(found.clone());
+                }
+                sets.chosen_repo = Some(repo);
+            }
+            sets.set()
+        };
+        self.remember(&set);
+        Ok(set)
+    }
+
+    /// Makes repository `id` the one Git acts on (until a collection is activated).
+    pub fn activate_repository(
+        &self,
+        id: &str,
+    ) -> Result<rt_app::git::repos::RepositoryEntry, AppError> {
+        let (entry, set) = {
+            let mut sets = lock(&self.session);
+            let entry = sets
+                .repositories()
+                .into_iter()
+                .find(|r| r.id == id)
+                .ok_or_else(|| AppError::Shell(format!("no repository {id} in the sidebar")))?;
+            sets.chosen_repo = Some(entry.id.clone());
+            (entry, sets.set())
+        };
+        self.remember(&set);
+        Ok(entry)
+    }
+
+    /// The repository `id` of the set.
+    pub fn repository(&self, id: &str) -> Result<rt_app::git::repos::RepositoryEntry, AppError> {
+        lock(&self.session)
+            .repositories()
+            .into_iter()
+            .find(|r| r.id == id)
+            .ok_or_else(|| AppError::Shell(format!("no repository {id} in the sidebar")))
     }
 
     /// The folder of collection `id` (a new, unsaved collection's folder may not exist yet).
@@ -809,7 +916,13 @@ impl<S: SecretStore> Core<S> {
                 continue;
             }
             let opened = if first {
-                self.open(&path).map(|_| ())
+                // Wave 15: a remembered repository root (a folder in Git without collections).
+                match set_files::find(&path) {
+                    Ok(found) if found.repo_root.is_some() => {
+                        self.add_repository_root(found).map(|_| ())
+                    }
+                    _ => self.open(&path).map(|_| ()),
+                }
             } else {
                 self.add_root(&path).map(|_| ())
             };

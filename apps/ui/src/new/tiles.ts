@@ -10,6 +10,7 @@ import type { ExtensionNewItemRef } from "./items";
 import { NEW_ITEMS, type NewItemKind } from "./kinds";
 import { aiFor } from "../ai/ai.svelte";
 import { openOpenApiWizard } from "../openapi/store.svelte";
+import CloneRepositoryDialog from "../git/CloneRepositoryDialog.svelte";
 
 /** "From OpenAPI": opens the OpenAPI import wizard (it asks for the target itself). */
 const OPENAPI_TILE: Tile = {
@@ -22,6 +23,39 @@ const OPENAPI_TILE: Tile = {
     key: "openapi",
     extension: "core",
     item: { id: "openapi", title: "From OpenAPI", description: "", run: () => openOpenApiWizard() },
+  },
+};
+
+/** "Clone repository" (wave 15): any Git repository into a new folder, added to the sidebar. */
+const CLONE_TILE: Tile = {
+  key: "clone-repository",
+  title: "Clone repository",
+  description: "Any Git repository from an address, into a new folder in the sidebar.",
+  group: "Organise",
+  icon: "import",
+  extension: {
+    key: "clone-repository",
+    extension: "core",
+    item: {
+      id: "clone-repository",
+      title: "Clone repository",
+      description: "",
+      run: (ctx) => void ctx.app.showDialog({ title: "Clone a repository", component: CloneRepositoryDialog, width: 520 }),
+    },
+  },
+};
+
+/** "Open repository" (wave 15): a folder in Git joins the sidebar, with or without a collection. */
+const OPEN_REPOSITORY_TILE: Tile = {
+  key: "open-repository",
+  title: "Open repository",
+  description: "A folder on this computer that is a Git repository, with or without a collection.",
+  group: "Organise",
+  icon: "folder",
+  extension: {
+    key: "open-repository",
+    extension: "core",
+    item: { id: "open-repository", title: "Open repository", description: "", run: (ctx) => ctx.app.openRepository() },
   },
 };
 
@@ -105,7 +139,7 @@ export function allTiles(extensions: readonly ExtensionNewItemRef[], hasCollecti
     }),
   );
   const ai: Tile[] = aiReady ? [hasCollection ? AI_TILE : { ...AI_TILE, disabled: "Open or create a collection first." }] : [];
-  return [...builtin, OPENAPI_TILE, ...ai, ...more];
+  return [...builtin, OPENAPI_TILE, CLONE_TILE, OPEN_REPOSITORY_TILE, ...ai, ...more];
 }
 
 export interface TileGroup {

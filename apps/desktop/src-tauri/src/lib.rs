@@ -53,7 +53,7 @@ mod merges;
 mod plugins;
 pub mod recent;
 /// Wave 15, strand A: repositories without a collection in the set.
-mod repositories;
+pub mod repositories;
 /// Wave 12, strand G: secret rescue.
 pub mod rescue;
 /// Wave 12, strand E: pull-request review.

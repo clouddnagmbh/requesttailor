@@ -28,7 +28,9 @@ import {
   type NewCollection,
   type SearchHit,
   type SecretsApi,
+  type RepositoryEntry,
   type TreeNode,
+  repositoryName,
   withRepositories,
 } from "@requesttailor/ui";
 
@@ -62,6 +64,10 @@ interface Root {
   handle: FileSystemDirectoryHandle;
   collections: string[];
   truncated: boolean;
+  /** Wave 15: set for a *repository root*, a folder in Git without a collection (the browser
+   *  grants no access above the folder, so the folder itself holds `.git`); the value is the
+   *  repository's id, the root's own. */
+  repo?: string;
 }
 
 interface Entry {
@@ -177,7 +183,7 @@ const idOf = (root: string, dir: string) => (dir ? `${root}/${dir}` : root);
 const scopeIn = (repo: string, dir: string) => (repo === dir ? "" : dir.slice(repo ? repo.length + 1 : 0));
 
 /** Whether two handles are the same folder. */
-async function same(a: FileSystemDirectoryHandle, b: FileSystemDirectoryHandle): Promise<boolean> {
+export async function same(a: FileSystemDirectoryHandle, b: FileSystemDirectoryHandle): Promise<boolean> {
   if (a === b) return true;
   return typeof a.isSameEntry === "function" ? a.isSameEntry(b).catch(() => false) : false;
 }
@@ -187,6 +193,8 @@ export class WebCollectionSet implements CollectionSetApi {
   private entries: Entry[] = [];
   private readonly sessions = new Map<string, WebSession>();
   private active: string | null = null;
+  /** Wave 15: the repository chosen last in the sidebar; `null`: the active collection's. */
+  private chosenRepo: string | null = null;
 
   constructor(private readonly host: WebCollectionsHost) {}
 
@@ -203,7 +211,60 @@ export class WebCollectionSet implements CollectionSetApi {
    *  folder and the collection's folder in it (`""` at its root); `null` outside Git (or
    *  before a collection is open). */
   repository(): { handle: FileSystemDirectoryHandle; scope: string } | null {
+    // Wave 15: a repository chosen in the sidebar, whole (paths are repository paths).
+    const chosen = this.chosenHandle();
+    if (chosen) return { handle: chosen, scope: "" };
     return this.active ? (this.entries.find((e) => e.id === this.active)?.git ?? null) : null;
+  }
+
+  /** Wave 15: the folders of the set's repositories, by id. */
+  private repoHandles(): Map<string, FileSystemDirectoryHandle> {
+    const out = new Map<string, FileSystemDirectoryHandle>();
+    for (const e of this.entries) if (e.repo && e.git && !out.has(e.repo)) out.set(e.repo, e.git.handle);
+    for (const r of this.roots) if (r.repo && !out.has(r.repo)) out.set(r.repo, r.handle);
+    return out;
+  }
+
+  /** Wave 15: the folder of the repository chosen in the sidebar, if it is still in the set. */
+  private chosenHandle(): FileSystemDirectoryHandle | null {
+    return this.chosenRepo ? (this.repoHandles().get(this.chosenRepo) ?? null) : null;
+  }
+
+  /** Wave 15: the repository Git acts on (`CollectionSet.active_repository`). */
+  activeRepositoryId(): string | null {
+    return this.set().active_repository ?? null;
+  }
+
+  /** Wave 15: the folder of repository `id`. */
+  repositoryHandle(id: string): FileSystemDirectoryHandle | null {
+    return this.repoHandles().get(id) ?? null;
+  }
+
+  /** Wave 15: the repository `id` of the set. */
+  repositoryEntry(id: string): RepositoryEntry | null {
+    return this.set().repositories.find((r) => r.id === id) ?? null;
+  }
+
+  /** Wave 15: whether a collection of the active repository has unsaved changes (Git refuses to
+   *  change files then). */
+  repositoryDirty(): boolean {
+    return this.mates().some((id) => this.dirtyNow(id).length > 0);
+  }
+
+  /** Wave 15: ids of the collections in the active repository (just the active collection
+   *  outside Git). */
+  private mates(): string[] {
+    const repo = this.set().active_repository;
+    if (!repo) return this.active ? [this.active] : [];
+    return this.entries.filter((e) => e.repo === repo).map((e) => e.id);
+  }
+
+  /** Wave 15: makes repository `id` the one Git acts on. */
+  chooseRepository(id: string): RepositoryEntry {
+    const entry = this.repositoryEntry(id);
+    if (!entry) throw new BackendError("shell", `No repository ${id} in the sidebar.`);
+    this.chosenRepo = id;
+    return entry;
   }
 
   get isOpen(): boolean {
@@ -253,16 +314,22 @@ export class WebCollectionSet implements CollectionSetApi {
   /** Reads the collections of the active collection's repository again (after Git changed
    *  files), and finds the roots' collections again. */
   async reload(): Promise<CollectionInfo> {
+    const info = await this.reloadSet();
+    if (!info) throw new BackendError("shell", "No collection is left in the sidebar.");
+    return info;
+  }
+
+  /** [`reload`], also for a set without collections (wave 15: only repository roots): `null`
+   *  when no collection is left. */
+  async reloadSet(): Promise<CollectionInfo | null> {
     const active = this.active;
-    if (!active) throw new BackendError("shell", "No collection is open.");
     const core = await this.host.loadCore();
-    const repo = this.entry(active).repo;
-    const mates = new Set(this.entries.filter((e) => (repo ? e.repo === repo : e.id === active)).map((e) => e.id));
+    const mates = new Set(this.mates());
     const entries: Entry[] = [];
     const roots: Root[] = [];
     for (const root of this.roots) {
       try {
-        const found = await this.find(core, root.handle, root.id);
+        const found = await this.find(core, root.handle, root.id, false, false, true);
         roots.push(found.root);
         entries.push(...found.entries.filter((e) => !entries.some((x) => x.id === e.id)));
       } catch {
@@ -282,8 +349,8 @@ export class WebCollectionSet implements CollectionSetApi {
     }
     this.roots = roots;
     this.entries = entries;
-    this.active = entries.some((e) => e.id === active) ? active : (entries[0]?.id ?? null);
-    if (!this.active) throw new BackendError("shell", "No collection is left in the sidebar.");
+    this.active = active && entries.some((e) => e.id === active) ? active : (entries[0]?.id ?? null);
+    if (!this.active) return null;
     await this.loaded(this.active);
     return this.info(this.active);
   }
@@ -302,6 +369,12 @@ export class WebCollectionSet implements CollectionSetApi {
       const handle = await folder(rootId);
       if (!handle) continue;
       try {
+        // Wave 15: a remembered repository root (a folder in Git without a collection).
+        if (await this.isRepositoryRoot(handle)) {
+          await this.addRepositoryRoot(handle);
+          first = false;
+          continue;
+        }
         if (first) {
           if (!(await this.openRoot(handle, keep))) return null;
           first = false;
@@ -326,12 +399,63 @@ export class WebCollectionSet implements CollectionSetApi {
   async add(): Promise<CollectionSet | null> {
     const handle = await this.host.pick("requesttailor-add-collection");
     if (!handle) return null;
+    return this.addFolder(handle);
+  }
+
+  /** Wave 15: "Open repository": a folder picker; the folder joins the set. */
+  async openRepository(): Promise<CollectionSet | null> {
+    const handle = await this.host.pick("requesttailor-open-repository");
+    if (!handle) return null;
+    return this.addFolder(handle);
+  }
+
+  /** `handle` joins the set: its collections, else (in Git) as a repository root, else as a
+   *  new collection (the first root) or refused (as before wave 15). */
+  async addFolder(handle: FileSystemDirectoryHandle): Promise<CollectionSet> {
+    if (await this.isRepositoryRoot(handle)) {
+      await this.addRepositoryRoot(handle);
+      return this.set();
+    }
     if (this.roots.length === 0) {
       await this.openRoot(handle);
       return this.set();
     }
     await this.addRoot(handle, true);
     return this.set();
+  }
+
+  /** Whether `handle` holds no collection (anywhere below) but is a Git repository itself. */
+  private async isRepositoryRoot(handle: FileSystemDirectoryHandle): Promise<boolean> {
+    if (!(await has(handle, ".git", "any"))) return false;
+    return (await manifestDirs(await this.host.loadCore(), handle)).length === 0;
+  }
+
+  /** Adds `handle` as a repository root and chooses its repository (an empty set holds only
+   *  it). The same folder, or a repository that is in the set already, is only chosen. */
+  async addRepositoryRoot(handle: FileSystemDirectoryHandle): Promise<string> {
+    await this.host.ensureReadWrite(handle);
+    for (const r of this.roots) {
+      if (await same(r.handle, handle)) {
+        if (r.repo) this.chosenRepo = r.repo;
+        this.remember();
+        return r.id;
+      }
+    }
+    for (const [id, h] of this.repoHandles()) {
+      if (await same(h, handle)) {
+        this.chosenRepo = id;
+        this.remember();
+        return id;
+      }
+    }
+    const core = await this.host.loadCore();
+    const found = await this.find(core, handle, "", false, false, true);
+    if (!found.root.repo) throw new BackendError("shell", `"${handle.name}" is not a Git repository.`);
+    this.roots.push(found.root);
+    this.chosenRepo = found.root.repo;
+    // Not in the recent list: that opens a folder as a collection (and this one has none).
+    this.remember();
+    return found.root.id;
   }
 
   /** Adds `handle` as another root (`activate`: its first new collection becomes active). */
@@ -347,7 +471,10 @@ export class WebCollectionSet implements CollectionSetApi {
     found.root.collections = fresh.map((e) => e.id);
     this.roots.push(found.root);
     this.entries.push(...fresh);
-    if (activate && fresh[0]) this.active = fresh[0].id;
+    if (activate && fresh[0]) {
+      this.active = fresh[0].id;
+      this.chosenRepo = null;
+    }
     this.host.opened(this.rootInfo(found.root), handle);
     this.remember();
     return id;
@@ -375,6 +502,8 @@ export class WebCollectionSet implements CollectionSetApi {
   async activate(id: string): Promise<CollectionInfo> {
     await this.loaded(id);
     this.active = id;
+    // Wave 15: Git follows the active collection again.
+    this.chosenRepo = null;
     this.remember();
     return this.info(id);
   }
@@ -511,12 +640,17 @@ export class WebCollectionSet implements CollectionSetApi {
     rootId: string,
     allowEmpty = false,
     refuseEmpty = false,
+    detectRepo = false,
   ): Promise<{ root: Root; entries: Entry[] }> {
     const dirs = await manifestDirs(core, handle);
+    const id = rootId || (await this.host.rememberFolder(handle));
+    // Wave 15: a folder in Git without a collection is a repository root (no phantom collection).
+    if (dirs.length === 0 && detectRepo && (await has(handle, ".git", "any"))) {
+      return { root: { id, name: handle.name, handle, collections: [], truncated: false, repo: id }, entries: [] };
+    }
     if (dirs.length === 0 && refuseEmpty && !allowEmpty) {
       throw new BackendError("shell", `There is no collection in "${handle.name}"; create one with New… → Collection.`);
     }
-    const id = rootId || (await this.host.rememberFolder(handle));
     const discovery = core.collectionsDiscover(dirs);
     const list = dirs.length === 0 && allowEmpty ? [] : discovery.dirs;
     const entries: Entry[] = [];
@@ -556,17 +690,32 @@ export class WebCollectionSet implements CollectionSetApi {
       repo: e.repo,
       dirty: this.dirtyNow(e.id).length,
     });
-    return withRepositories({
-      roots: this.roots.map((r) => ({
-        id: r.id,
-        name: r.name,
-        location: r.name,
-        collections: [...r.collections],
-        truncated: r.truncated,
-      })),
-      collections: this.entries.map(entry),
-      active: this.active,
-    });
+    const repoHandles = this.repoHandles();
+    if (this.chosenRepo && !repoHandles.has(this.chosenRepo)) this.chosenRepo = null;
+    return withRepositories(
+      {
+        roots: this.roots.map((r) => ({
+          id: r.id,
+          name: r.name,
+          location: r.name,
+          collections: [...r.collections],
+          truncated: r.truncated,
+        })),
+        collections: this.entries.map(entry),
+        active: this.active,
+      },
+      {
+        repoRoots: this.roots.flatMap((r) => (r.repo ? [{ root: r.id, repo: r.repo }] : [])),
+        chosen: this.chosenRepo,
+        describe: (id) => {
+          const handle = repoHandles.get(id);
+          const root = this.roots.find((r) => id === r.id || id.startsWith(`${r.id}/`));
+          const dir = root && id !== root.id ? id.slice(root.id.length + 1) : "";
+          const location = root ? `${root.name}${dir ? `/${dir}` : ""}` : id;
+          return { name: handle?.name ?? repositoryName(id), location, linked: false };
+        },
+      },
+    );
   }
 
   private remember(): void {
