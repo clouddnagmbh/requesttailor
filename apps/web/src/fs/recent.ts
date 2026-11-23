@@ -8,12 +8,14 @@
 // nothing is remembered and every open shows the picker.
 //
 // Keys in the store: `last` and `folder:<id>` (a `RememberedFolder`), `recent` (the list,
-// `RecentEntry[]`, most recent first).
+// `RecentEntry[]`, most recent first), `roots` (wave 14: the folders in the sidebar and the
+// active collection, `RememberedRoots`).
 
 const DB = "requesttailor-web";
 const STORE = "folders";
 const LAST = "last";
 const RECENT = "recent";
+const ROOTS = "roots";
 /** Entries kept in the recent list. */
 export const MAX_RECENT = 10;
 
@@ -143,5 +145,41 @@ export async function forgetRecent(id: string): Promise<void> {
     await withStore("readwrite", (s) => s.put(list, RECENT));
   } catch {
     // Nothing to forget.
+  }
+}
+
+/** Wave 14: the folders in the sidebar (root ids, in order) and the active collection. */
+export interface RememberedRoots {
+  roots: string[];
+  active: string | null;
+}
+
+function isRoots(v: unknown): v is RememberedRoots {
+  const r = v as RememberedRoots;
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    Array.isArray(r.roots) &&
+    r.roots.every((x) => typeof x === "string") &&
+    (r.active === null || typeof r.active === "string")
+  );
+}
+
+/** The folders in the sidebar as last left; `null` if none were remembered. */
+export async function rememberedRoots(): Promise<RememberedRoots | null> {
+  try {
+    const v: unknown = await withStore("readonly", (s) => s.get(ROOTS));
+    return isRoots(v) && v.roots.length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Remembers the folders in the sidebar and the active collection. */
+export async function rememberRoots(roots: RememberedRoots): Promise<void> {
+  try {
+    await withStore("readwrite", (s) => s.put(roots, ROOTS));
+  } catch {
+    // Not remembered; the sidebar still works.
   }
 }

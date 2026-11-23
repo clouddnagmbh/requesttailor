@@ -17,7 +17,6 @@
 
 import {
   BackendError,
-  stubCollections,
   type AiApi,
   type Backend,
   type CollectionInfo,
@@ -79,8 +78,9 @@ import { webImports } from "./import";
 import { webPlugins, type WebPluginApi } from "./plugins";
 import { sendServices, type SendGuardFn } from "./send-services";
 import { webRecent, type WebRecent } from "./recent";
-import { readDirectory, writeChanges } from "./fs/directory";
-import { lastFolder, rememberFolder } from "./fs/recent";
+import { WebCollectionSet, type Core as CollectionsCoreModule, type WebSession } from "./collections";
+import { writeChanges } from "./fs/directory";
+import { folderById, lastFolder, rememberFolder, rememberRoots, rememberedRoots } from "./fs/recent";
 import { ExternalSecretReader } from "./secrets/external";
 import { openBrowserSecretStore } from "./secrets/store";
 import {
@@ -113,12 +113,8 @@ export const UNSUPPORTED_MESSAGE =
 
 const NO_COMPANION_HOWTO = "Run `rt agent` on this computer to send requests the browser blocks.";
 
-export interface Session {
-  id: string;
-  handle: FileSystemDirectoryHandle;
-  ws: CoreWorkspace;
-  secrets: Promise<SecretsApi> | null;
-}
+/** One open collection (wave 14: of the collection set, `./collections.ts`). */
+export type Session = WebSession;
 
 /** What the per-feature parts (./git, ./import, ./history, ./recent; wave 4) may use. */
 export interface OpenOptions {
@@ -128,10 +124,16 @@ export interface OpenOptions {
 
 export interface WebHost {
   readonly deps: WebBackendDeps;
-  /** The open collection; throws `BackendError` if none. */
+  /** The open (active) collection; throws `BackendError` if none. */
   session(): Session;
-  /** Opens `handle` as the collection (asks for read/write access if needed). */
+  /** Opens `handle` as the only root of the collection set (asks for read/write access if
+   *  needed). Wave 14: a handle of a root or collection already in the set reads the
+   *  collections of the active collection's repository again instead (after Git changed
+   *  files). */
   openHandle(handle: FileSystemDirectoryHandle, options?: OpenOptions): Promise<CollectionInfo>;
+  /** Wave 14: opens the recent root `id`: the whole remembered set if it is one of its roots,
+   *  else `handle` alone. */
+  openRecentRoot?(id: string, handle: FileSystemDirectoryHandle, interactive: boolean): Promise<CollectionInfo | null>;
   /** The companion's URL and token if it is paired, else `null`. */
   companionCredentials(): Promise<CompanionCredentials | null>;
 }
@@ -166,8 +168,8 @@ async function ensureReadWrite(handle: FileSystemDirectoryHandle): Promise<void>
 
 export class WebBackend implements Backend {
   readonly kind = "web" as const;
-  /** Wave 14 interface: one collection until strand A (`collections.ts`). */
-  readonly collections = stubCollections(this);
+  /** Wave 14: the collections in the sidebar (`collections.ts`). */
+  readonly collections: WebCollectionSet;
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
 
@@ -203,7 +205,6 @@ export class WebBackend implements Backend {
   private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;
 
-  private current: Session | null = null;
   private triedLast = false;
   private companionOn = false;
   private companionClient: CompanionClient | null = null;
@@ -220,6 +221,7 @@ export class WebBackend implements Backend {
       deps,
       session: () => this.session(),
       openHandle: (handle, options) => this.openHandle(handle, options),
+      openRecentRoot: (id, handle, interactive) => this.openRecentRoot(id, handle, interactive),
       companionCredentials: async () => {
         try {
           return await this.client().credentials();
@@ -229,6 +231,16 @@ export class WebBackend implements Backend {
       },
     };
     this.external = new ExternalSecretReader(host.companionCredentials);
+    this.collections = new WebCollectionSet({
+      loadCore: async () => (await deps.loadCore()) as CollectionsCoreModule,
+      ensureReadWrite,
+      rememberFolder,
+      opened: (info, handle) => this.recent.opened(info, handle),
+      remember: (roots, active) => void rememberRoots({ roots, active }),
+      session: (id, handle, ws) => ({ id, handle, ws, secrets: null }),
+      pick: (id) => this.pickFolder(id),
+      saveActive: () => this.save(),
+    });
     this.git = webGit(host);
     this.imports = webImports(host);
     this.history = new WebHistory(host);
@@ -308,8 +320,20 @@ export class WebBackend implements Backend {
   }
 
   private session(): Session {
-    if (!this.current) throw new BackendError("shell", "No collection is open.");
-    return this.current;
+    return this.collections.session();
+  }
+
+  /** The folder picker; `null` if cancelled. */
+  private async pickFolder(id: string, startIn?: FileSystemDirectoryHandle): Promise<FileSystemDirectoryHandle | null> {
+    if (typeof window.showDirectoryPicker !== "function") {
+      throw new BackendError("unsupported", UNSUPPORTED_MESSAGE);
+    }
+    try {
+      return await window.showDirectoryPicker({ id, mode: "readwrite", startIn });
+    } catch (e) {
+      if (isAbort(e)) return null;
+      throw toBackendError(e);
+    }
   }
 
   private secretStore(s: Session): Promise<SecretsApi> {
@@ -336,20 +360,13 @@ export class WebBackend implements Backend {
         handle = last.handle;
         // Already open (the start-up reopen got there first): keep it instead of replacing
         // the workspace under a send that may be running.
-        const open = this.current;
-        if (open && (await open.handle.isSameEntry(handle).catch(() => false))) {
-          return { id: open.id, name: open.ws.name().trim() || open.handle.name, location: open.handle.name };
+        if (this.collections.isOpen && (await this.collections.contains(handle))) {
+          return this.collections.info(this.session().id);
         }
       }
     }
-    if (!handle) {
-      try {
-        handle = await window.showDirectoryPicker({ id: "requesttailor-collection", mode: "readwrite", startIn });
-      } catch (e) {
-        if (isAbort(e)) return null;
-        throw toBackendError(e);
-      }
-    }
+    handle ??= await this.pickFolder("requesttailor-collection", startIn);
+    if (!handle) return null;
     return this.openHandle(handle);
   }
 
@@ -373,23 +390,36 @@ export class WebBackend implements Backend {
 
   private openHandleNow(handle: FileSystemDirectoryHandle, options: OpenOptions): Promise<CollectionInfo> {
     return guard(async () => {
-      await ensureReadWrite(handle);
-      const [core, files] = await Promise.all([this.deps.loadCore(), readDirectory(handle)]);
-      const ws = core.Workspace.open(files);
-      const open = this.current;
-      if (options.unlessOpen && open) {
-        // A collection was opened meanwhile (the start-up reopen came late): keep it.
-        ws.free();
-        return { id: open.id, name: open.ws.name().trim() || open.handle.name, location: open.handle.name };
+      const set = this.collections;
+      if (set.isOpen && (await set.contains(handle))) {
+        // Already in the sidebar: the start-up reopen keeps it; otherwise the files changed
+        // underneath (Git) and the repository's collections are read again.
+        return options.unlessOpen ? set.info(this.session().id) : set.reload();
       }
-      const id = await rememberFolder(handle);
-      // The previous workspace is not freed here: a send or history write that started before
-      // may still hold it (freeing it made them fail with "null pointer passed to rust").
-      // wasm-bindgen's FinalizationRegistry frees it once nothing refers to it any more.
-      this.current = { id, handle, ws, secrets: null };
-      const info = { id, name: ws.name().trim() || handle.name, location: handle.name };
-      this.recent.opened(info, handle);
-      return info;
+      // A collection opened meanwhile (the start-up reopen came late) is kept.
+      const keep = () => !!options.unlessOpen && set.isOpen;
+      const info = await set.openRoot(handle, keep);
+      return info ?? set.info(this.session().id);
+    });
+  }
+
+  private openRecentRoot(id: string, handle: FileSystemDirectoryHandle, interactive: boolean): Promise<CollectionInfo | null> {
+    return guard(async () => {
+      const saved = await rememberedRoots();
+      if (saved) {
+        const keep = () => !interactive && this.collections.isOpen;
+        const folder = async (rootId: string) => {
+          if (rootId === id) return handle;
+          const f = await folderById(rootId);
+          if (!f) return null;
+          const granted = !f.handle.queryPermission || (await f.handle.queryPermission({ mode: "readwrite" }).catch(() => "denied")) === "granted";
+          return granted ? f.handle : null;
+        };
+        const restored = await this.collections.restore(id, saved, folder, keep);
+        if (restored) return restored;
+        if (keep()) return this.collections.info(this.session().id);
+      }
+      return this.openHandle(handle, { unlessOpen: !interactive });
     });
   }
 
@@ -419,21 +449,25 @@ export class WebBackend implements Backend {
     return guard(async () => this.session().ws.updateRequest(path, spec));
   }
   dirty(): Promise<string[]> {
-    return guard(async () => this.session().ws.dirty());
+    return guard(async () => this.collections.dirtyNow(this.session().id));
   }
 
-  /** Writes all changes; the workspace forgets them only after every file was written. */
+  /** Writes all changes of the active collection; the workspace forgets them only after every
+   *  file was written. A new collection's files (wave 14) go first. */
   save(): Promise<FileChange[]> {
     return guard(async () => {
       const s = this.session();
       const prepared = s.ws.prepareSave();
       try {
-        const changes = prepared.changes;
+        const changes = [...prepared.changes];
+        for (const f of s.created ?? []) if (!changes.some((c) => c.path === f.path)) changes.push(f);
+        changes.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
         if (changes.length > 0) {
           await ensureReadWrite(s.handle);
           await writeChanges(s.handle, changes);
         }
         s.ws.commit(prepared);
+        s.created = undefined;
         return changes;
       } finally {
         prepared.free();

@@ -99,17 +99,22 @@ export class MockCollections implements CollectionSetApi {
   private readonly data = new Map<string, MockCollection>();
   private active: string | null = null;
 
-  constructor(private readonly host: MockCollectionsHost) {}
+  constructor(private readonly host: MockCollectionsHost) {
+    // The demo folder's collections exist before "Open folder" (tests set secrets and Git
+    // scenarios first); `isOpen` says whether the app opened them.
+    this.seed();
+  }
 
-  /** The active collection; throws like the shells when nothing is open. */
+  /** The active collection (before anything is opened: Demo API); throws when the set was
+   *  emptied. */
   current_(): MockCollection {
-    const c = this.active ? this.data.get(this.active) : undefined;
+    const c = this.data.get(this.active ?? DEMO_ID);
     if (!c) throw new BackendError("shell", "no collection open");
     return c;
   }
 
   get isOpen(): boolean {
-    return this.active !== null;
+    return this.active !== null && this.data.has(this.active);
   }
 
   private collection(id: string): MockCollection {
@@ -124,15 +129,17 @@ export class MockCollections implements CollectionSetApi {
     return { info, root, dir, repo: "mock://demo", requests, saved, envs, envDirty: new Set(), secretValues: new Map(), created: false };
   }
 
-  /** "Open folder": the demo root with its two collections, Demo API active. */
+  /** "Open folder": the demo root with its two collections, Demo API active. Opening it
+   *  again keeps their state, as the real shells keep unsaved edits of a folder read again. */
   openDemo(): CollectionInfo {
-    if (this.roots[0]?.id === "mock://demo" && this.data.has(DEMO_ID)) {
-      // Opening the same folder again keeps its state, as the real shells do.
-      this.roots = this.roots.slice(0, 1);
-      for (const id of [...this.data.keys()]) if (!this.roots[0].collections.includes(id)) this.data.delete(id);
-      this.active = DEMO_ID;
-      return this.data.get(DEMO_ID)!.info;
-    }
+    if (!this.data.has(DEMO_ID) || !this.data.has(BILLING_ID)) this.seed();
+    for (const id of [...this.data.keys()]) if (id !== DEMO_ID && id !== BILLING_ID) this.data.delete(id);
+    this.roots = [{ id: "mock://demo", name: "demo", location: "mock://demo", collections: [DEMO_ID, BILLING_ID] }];
+    this.active = DEMO_ID;
+    return this.data.get(DEMO_ID)!.info;
+  }
+
+  private seed(): void {
     this.data.clear();
     const demo = this.host.demo();
     this.data.set(DEMO_ID, this.make({ id: DEMO_ID, name: "Demo API", location: "mock://demo" }, "mock://demo", "", demo.requests, demo.envs));
@@ -151,9 +158,6 @@ export class MockCollections implements CollectionSetApi {
         [env("Staging", "http://127.0.0.1:47811/billing"), env("Local", "http://127.0.0.1:47811")],
       ),
     );
-    this.roots = [{ id: "mock://demo", name: "demo", location: "mock://demo", collections: [DEMO_ID, BILLING_ID] }];
-    this.active = DEMO_ID;
-    return this.data.get(DEMO_ID)!.info;
   }
 
   dirtyOf(c: MockCollection, extra: boolean): string[] {
