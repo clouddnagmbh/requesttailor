@@ -26,6 +26,8 @@ pub mod core;
 /// Wave 12, strand A: semantic diff.
 mod diffs;
 pub mod files;
+/// OpenAPI import wizard and run wizard.
+mod openapi;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
 /// Wave 8, strand B.
@@ -258,6 +260,11 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             contract::contract_check,
             contract::contract_changes,
             contract::contract_changelog,
+            openapi::openapi_fetch,
+            openapi::openapi_inspect,
+            openapi::openapi_plan,
+            openapi::openapi_requirements,
+            openapi::openapi_validate_response,
             // Wave 12, strand G.
             rescue::rescue_scan,
             rescue::rescue_rewrite,

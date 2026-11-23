@@ -334,3 +334,16 @@ fn a_stored_response_against_the_spec() {
     // The spec was read for every call (and parsed once).
     assert!(*disk.reads.borrow() >= 3);
 }
+
+#[test]
+fn the_configured_spec_path_for_shells_that_read_first() {
+    let named = Workspace::open(collection(true)).unwrap();
+    assert_eq!(
+        rt_app::contract::configured_spec(&named)
+            .unwrap()
+            .as_deref(),
+        Some("api/pets.json")
+    );
+    let unnamed = Workspace::open(collection(false)).unwrap();
+    assert_eq!(rt_app::contract::configured_spec(&unnamed).unwrap(), None);
+}

@@ -3,11 +3,12 @@
 
 import { readFileSync } from "node:fs";
 
-import { BackendError } from "@requesttailor/ui";
+import { BackendError, type OpenApiOptions } from "@requesttailor/ui";
 import { describe, expect, it } from "vitest";
 
 import { COMMANDS, TauriBackend, type Command, type Invoke } from "./backend";
 import { packImport, packPluginImport } from "./import";
+import { packSpec } from "./openapi";
 
 function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown) {
   const calls: [Command, Record<string, unknown> | undefined][] = [];
@@ -90,6 +91,23 @@ describe("TauriBackend", () => {
     await b.contract.check("HEAD~1");
     await b.contract.changes("v1", "v2");
     await b.contract.changelog("v1", "v2");
+    // OpenAPI wizard.
+    const specFiles = [{ name: "openapi.json", data: new Uint8Array([123, 125]) }];
+    const options: OpenApiOptions = {
+      operations: ["GET /pets"],
+      grouping: "tag",
+      naming: "summary",
+      examples: "spec",
+      servers: null,
+      default_server: null,
+      collection_name: null,
+      keep_spec: true,
+    };
+    await b.openapi.fetch("https://api.example.com/openapi.json");
+    await b.openapi.inspect(specFiles);
+    await b.openapi.plan(specFiles, options);
+    await b.openapi.requirements("pets/get.yml", { environment: "Dev", vars: [["id", "1"]] });
+    await b.openapi.validateResponse("pets/get.yml", 4);
     await b.imports.analyze([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman");
     await b.imports.write(1);
     await b.imports.discard(1);
@@ -263,6 +281,11 @@ describe("TauriBackend", () => {
       ["contract_check", { rev: "HEAD~1" }],
       ["contract_changes", { from: "v1", to: "v2" }],
       ["contract_changelog", { from: "v1", to: "v2" }],
+      ["openapi_fetch", { url: "https://api.example.com/openapi.json" }],
+      ["openapi_inspect", packSpec(specFiles, null)],
+      ["openapi_plan", packSpec(specFiles, options)],
+      ["openapi_requirements", { path: "pets/get.yml", input: { environment: "Dev", vars: [["id", "1"]] } }],
+      ["openapi_validate_response", { path: "pets/get.yml", responseId: 4 }],
       ["import_analyze", packImport([{ name: "c.json", data: new Uint8Array([1, 2]) }], "postman")],
       ["import_write", { id: 1 }],
       ["import_discard", { id: 1 }],

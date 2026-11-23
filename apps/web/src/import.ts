@@ -6,7 +6,15 @@
 // Wave 13: `writeInto` adds a plan to the open collection as a folder (the core's
 // `add_to_workspace`, unsaved), `adopt` keeps a collection converted by an extension.
 
-import { BackendError, type FileChange, type FolderImport, type ImportApi, type ImportPlan } from "@requesttailor/ui";
+import {
+  BackendError,
+  type FileChange,
+  type FolderImport,
+  type ImportApi,
+  type ImportPlan,
+  type ImportSource,
+  type OpenApiOptions,
+} from "@requesttailor/ui";
 
 import { writeChanges } from "./fs/directory";
 import { pluginsOf } from "./plugins";
@@ -26,7 +34,13 @@ async function isEmpty(dir: FileSystemDirectoryHandle): Promise<boolean> {
   return true;
 }
 
-export function webImports(host: WebHost): ImportApi {
+/** `ImportApi` plus the OpenAPI wizard's plans (`openapi.ts`), kept by the same importer so
+ *  `write` and `writeInto` take them like any plan. */
+export interface WebImports extends ImportApi {
+  openapiPlan(files: ImportSource[], options: OpenApiOptions): Promise<ImportPlan>;
+}
+
+export function webImports(host: WebHost): WebImports {
   let importer: Promise<CoreImporter> | null = null;
   // Folder names of the plans, for `write` (the core keeps the files).
   const folders = new Map<number, string>();
@@ -95,6 +109,17 @@ export function webImports(host: WebHost): ImportApi {
       try {
         const imports = (await core()) as CoreImporter & { adopt(imported: unknown): ImportPlan };
         const plan = imports.adopt(imported);
+        folders.set(plan.id, plan.folder_name);
+        return plan;
+      } catch (e) {
+        throw toBackendError(e);
+      }
+    },
+
+    openapiPlan: async (files, options) => {
+      try {
+        const imports = (await core()) as CoreImporter & { openapiPlan(files: ImportSource[], options: OpenApiOptions): ImportPlan };
+        const plan = imports.openapiPlan(files, options);
         folders.set(plan.id, plan.folder_name);
         return plan;
       } catch (e) {

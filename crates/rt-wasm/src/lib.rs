@@ -681,6 +681,9 @@ mod contract_js;
 mod diffs_js;
 #[cfg(target_arch = "wasm32")]
 mod merges_js;
+/// OpenAPI import wizard and run wizard.
+#[cfg(target_arch = "wasm32")]
+mod openapi_js;
 #[cfg(target_arch = "wasm32")]
 mod rescue_js;
 #[cfg(target_arch = "wasm32")]

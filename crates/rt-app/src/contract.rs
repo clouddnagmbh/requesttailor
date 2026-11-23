@@ -352,15 +352,10 @@ pub fn validate_response(
 /// The spec of the workspace's collection, parsed or from `cache`. The collection files are
 /// the workspace's, with an unsaved `opencollection.yml` (where the spec may be named) and
 /// staged companion files (an imported spec not saved yet) taking precedence.
-fn spec_of(
-    workspace: &crate::Workspace,
-    cache: &mut SpecCache,
-    read: ReadFile<'_>,
-) -> Result<Option<(String, std::sync::Arc<ParsedSpec>)>> {
-    let dirty = workspace.dirty();
+/// The workspace's files with the unsaved `opencollection.yml`, as `save` would write it.
+fn current_files(workspace: &crate::Workspace, dirty: &[String]) -> Result<FileSet> {
     let mut files = workspace.files().clone();
     if dirty.iter().any(|p| p == rt_format::COLLECTION_FILE) {
-        // The unsaved document, as `save` would write it.
         let mut copy = workspace.clone();
         for change in copy.save()? {
             if change.deleted {
@@ -370,6 +365,24 @@ fn spec_of(
             }
         }
     }
+    Ok(files)
+}
+
+/// The spec path the open collection names in `opencollection.yml`, unsaved edits included
+/// (`None`: it names none, so [`load`] looks for `openapi.{yaml,yml,json}`). For shells that
+/// read the spec's bytes before calling [`requirements`] (the web shell).
+pub fn configured_spec(workspace: &crate::Workspace) -> Result<Option<String>> {
+    let files = current_files(workspace, &workspace.dirty())?;
+    Ok(rt_format::contract::configured_spec(&files))
+}
+
+fn spec_of(
+    workspace: &crate::Workspace,
+    cache: &mut SpecCache,
+    read: ReadFile<'_>,
+) -> Result<Option<(String, std::sync::Arc<ParsedSpec>)>> {
+    let dirty = workspace.dirty();
+    let files = current_files(workspace, &dirty)?;
     let staged = |p: &str| -> Result<Option<Vec<u8>>> {
         if !p.starts_with('/') && dirty.iter().any(|d| d == p) {
             return Ok(workspace.companion_file(p).map(<[u8]>::to_vec));
