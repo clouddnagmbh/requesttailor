@@ -24,6 +24,7 @@
   import SemanticDiff from "../diff/SemanticDiff.svelte";
   import { getGitViews } from "../git/views.svelte";
   import { getApp } from "../state/app.svelte";
+  import { Avatar, Badge, Banner, Button, Card, Chip, EmptyState, Spinner, TextArea } from "../ui";
   import { changedRequestPaths, CI_LABEL, groupComments, relativeTime, requestWord, stateLabel, withFields } from "./model";
 
   let {
@@ -163,75 +164,84 @@
 </script>
 
 <div class="pull" data-testid="review-pull" data-number={number}>
-  <div class="bar">
-    <button class="button" data-testid="review-back" onclick={onback}>← All {word}s</button>
+  <header class="bar">
+    <Button variant="ghost" icon="chevron-left" data-testid="review-back" onclick={onback}>All {word}s</Button>
     {#if session}
-      <strong class="title" data-testid="review-title">#{session.pull.number} {session.pull.title}</strong>
-      <span class="badge" data-testid="review-state">{stateLabel(session.pull)}</span>
-      <a class="muted" href={session.pull.url} target="_blank" rel="noopener noreferrer">Open on {repo.host}</a>
-      <button
-        class="button"
+      <h2 class="title" data-testid="review-title">#{session.pull.number} {session.pull.title}</h2>
+      <span data-testid="review-state"><Badge tone={session.pull.state === "open" ? "ok" : session.pull.state === "merged" ? "accent" : "neutral"} value={stateLabel(session.pull)} /></span>
+      <span class="spacer"></span>
+      <a class="link" href={session.pull.url} target="_blank" rel="noopener noreferrer">Open on {repo.host}</a>
+      <Button
         data-testid="review-compare"
+        icon="compare"
         title="Every request of the {word} side by side, with the answers at both revisions"
-        onclick={() => views.open({ kind: "compare", from: session!.merge_base, to: session!.head_ref })}>Compare side by side</button
+        onclick={() => views.open({ kind: "compare", from: session!.merge_base, to: session!.head_ref })}>Compare side by side</Button
       >
     {/if}
-  </div>
+  </header>
 
   {#if loading}
-    <p class="hint" data-testid="review-loading">Fetching the {word}…</p>
+    <p class="loading" data-testid="review-loading"><Spinner size="sm" /> Fetching the {word}…</p>
   {:else if error}
-    <p class="error" role="alert" data-testid="review-pull-error">{error}</p>
+    <div data-testid="review-pull-error"><Banner tone="danger">{error}</Banner></div>
   {:else if session && diff}
-    <p class="muted branches" data-testid="review-branches">
-      {session.pull.author} · {session.pull.source} → {session.pull.target} · {relativeTime(session.pull.updated)}
+    <p class="meta" data-testid="review-branches">
+      <Avatar name={session.pull.author} size="sm" />
+      <span>{session.pull.author}</span>
+      <Chip size="sm" mono icon="branch" label={session.pull.source} />
+      <span aria-hidden="true">→</span>
+      <Chip size="sm" mono label={session.pull.target} />
+      <span>{relativeTime(session.pull.updated)}</span>
     </p>
 
     {#if ci}
-      <div class="ci {ci.state}" data-testid="review-ci" data-state={ci.state}>
-        <strong>{CI_LABEL[ci.state]}</strong>
-        <ul>
-          {#each ci.checks as c (c.name)}
-            <li data-testid="review-check" data-state={c.state}>
-              <span class="dot {c.state}" aria-hidden="true"></span>
-              {#if c.url}<a href={c.url} target="_blank" rel="noopener noreferrer">{c.name}</a>{:else}{c.name}{/if}
-              <span class="muted">{c.state}</span>
-            </li>
-          {/each}
-        </ul>
+      <div data-testid="review-ci" data-state={ci.state}>
+        <Card title={CI_LABEL[ci.state]} padding="sm">
+          <ul class="checks">
+            {#each ci.checks as c (c.name)}
+              <li data-testid="review-check" data-state={c.state}>
+                <span class="dot {c.state}" aria-hidden="true"></span>
+                {#if c.url}<a class="link" href={c.url} target="_blank" rel="noopener noreferrer">{c.name}</a>{:else}{c.name}{/if}
+                <span class="muted">{c.state}</span>
+              </li>
+            {/each}
+          </ul>
+        </Card>
       </div>
     {/if}
 
     <ContractNotes from={session.merge_base} to={session.head_ref} />
     <ExtensionDiffNotes from={session.merge_base} to={session.head_ref} />
 
-    <section class="block" aria-label="Run the changed requests">
-      <div class="head">
-        <h3>Changed requests</h3>
-        <span class="muted">{changed.length} {changed.length === 1 ? "request" : "requests"}</span>
-        <span class="spacer"></span>
-        <button class="button" data-testid="review-run" disabled={running || changed.length === 0} onclick={() => void runChanged()}>
-          {running ? "Running…" : "Run at the head"}
-        </button>
-      </div>
-      <p class="hint">
-        Run from the {word}'s commit without a checkout, with {app.environment ? `your environment "${app.environment}"` : "no environment"},
-        your secrets, cookies and plugins.
-      </p>
-      {#if runError}<p class="error" role="alert" data-testid="review-run-error">{runError}</p>{/if}
-      {#if run}
-        <ul class="steps" data-testid="review-run-result">
-          {#each run.steps as s (s.request_path)}
-            <li data-testid="review-step" data-path={s.request_path} data-passed={s.passed}>
-              <span class={s.passed ? "ok" : "bad"} aria-label={s.passed ? "Passed" : "Failed"}>{s.passed ? "✓" : "✗"}</span>
-              <span>{s.request_name}</span>
-              <span class="muted mono">{s.request_path}</span>
-              <span class="muted" data-testid="review-step-status">{statusOf(s) ?? s.report.error?.message ?? "no answer"}</span>
-            </li>
-          {/each}
-        </ul>
-        <p class="muted" data-testid="review-run-summary">{run.summary.passed} of {run.summary.requests} passed</p>
-      {/if}
+    <section aria-label="Run the changed requests">
+      <Card title="Changed requests" description="{changed.length} {changed.length === 1 ? 'request' : 'requests'}">
+        {#snippet actions()}
+          <Button variant="primary" size="sm" icon="play" data-testid="review-run" loading={running} disabled={running || changed.length === 0} onclick={() => void runChanged()}>
+            {running ? "Running…" : "Run at the head"}
+          </Button>
+        {/snippet}
+        <div class="stack">
+          <p class="hint">
+            Run from the {word}'s commit without a checkout, with {app.environment ? `your environment "${app.environment}"` : "no environment"},
+            your secrets, cookies and plugins.
+          </p>
+          {#if runError}<div data-testid="review-run-error"><Banner tone="danger">{runError}</Banner></div>{/if}
+          {#if run}
+            <ul class="steps" data-testid="review-run-result">
+              {#each run.steps as s (s.request_path)}
+                <li data-testid="review-step" data-path={s.request_path} data-passed={s.passed}>
+                  <span class={s.passed ? "ok" : "bad"} aria-label={s.passed ? "Passed" : "Failed"}>{s.passed ? "✓" : "✗"}</span>
+                  <span class="name">{s.request_name}</span>
+                  <span class="muted mono">{s.request_path}</span>
+                  <span class="spacer"></span>
+                  <span class="muted" data-testid="review-step-status">{statusOf(s) ?? s.report.error?.message ?? "no answer"}</span>
+                </li>
+              {/each}
+            </ul>
+            <p class="muted" data-testid="review-run-summary">{run.summary.passed} of {run.summary.requests} passed</p>
+          {/if}
+        </div>
+      </Card>
     </section>
 
     <section class="block" aria-label="Changes">
@@ -250,18 +260,25 @@
             void sendComment();
           }}
         >
-          <label>
-            Comment on <strong>{composer.label}</strong> <span class="muted mono">{composer.path}:{composer.line}</span>
-            <textarea rows="3" data-testid="review-comment-text" bind:value={draft} disabled={sending}></textarea>
-          </label>
-          <div class="row">
-            <button class="button primary" type="submit" data-testid="review-comment-send" disabled={sending || draft.trim() === ""}>Comment</button>
-            <button class="button" type="button" onclick={() => (composer = null)}>Cancel</button>
-          </div>
+          <Card padding="sm">
+            <div class="stack">
+              <TextArea
+                rows={3}
+                data-testid="review-comment-text"
+                bind:value={draft}
+                disabled={sending}
+                label="Comment on {composer.label} · {composer.path}:{composer.line}"
+              />
+              <div class="row">
+                <Button variant="primary" type="submit" data-testid="review-comment-send" disabled={sending || draft.trim() === ""}>Comment</Button>
+                <Button variant="ghost" onclick={() => (composer = null)}>Cancel</Button>
+              </div>
+            </div>
+          </Card>
         </form>
       {/if}
       {#if comments.length === 0}
-        <p class="hint" data-testid="review-no-comments">No comments yet. Use “Comment” next to a changed field.</p>
+        <div data-testid="review-no-comments"><EmptyState size="sm" icon="review" title="No comments yet." text="Use “Comment” next to a changed field." /></div>
       {/if}
       {#each groups as g (g.file ?? "")}
         <div class="group" data-testid="review-comment-group" data-file={g.file ?? ""}>
@@ -269,14 +286,17 @@
           <ul>
             {#each g.comments as c (c.id)}
               <li data-testid="review-comment" data-outdated={c.outdated}>
-                <div class="who">
-                  <strong>{c.author}</strong>
-                  <span class="muted">{relativeTime(c.created)}</span>
-                  {#if c.field}<span class="field" data-testid="review-comment-field">{fieldLabel(c.field)}</span>{/if}
-                  {#if c.line !== null}<span class="muted mono">line {c.line}</span>{/if}
-                  {#if c.outdated}<span class="badge">outdated</span>{/if}
-                </div>
-                <p class="text">{c.body}</p>
+                <Card padding="sm">
+                  <div class="who">
+                    <Avatar name={c.author} size="sm" />
+                    <strong>{c.author}</strong>
+                    <span class="muted">{relativeTime(c.created)}</span>
+                    {#if c.field}<span data-testid="review-comment-field"><Chip size="sm" label={fieldLabel(c.field)} /></span>{/if}
+                    {#if c.line !== null}<span class="muted mono">line {c.line}</span>{/if}
+                    {#if c.outdated}<Badge tone="warn" value="outdated" />{/if}
+                  </div>
+                  <p class="text">{c.body}</p>
+                </Card>
               </li>
             {/each}
           </ul>
@@ -284,16 +304,19 @@
       {/each}
     </section>
 
-    <section class="block" aria-label="Your review">
-      <h3>Your review</h3>
-      <textarea rows="3" placeholder="Summary (needed to request changes)" aria-label="Review summary" data-testid="review-body" bind:value={verdictBody} disabled={sending}></textarea>
-      <div class="row">
-        <button class="button primary" data-testid="review-approve" disabled={sending} onclick={() => void submit("approve")}>Approve</button>
-        <button class="button" data-testid="review-request-changes" disabled={sending} onclick={() => void submit("request-changes")}>Request changes</button>
-        <button class="button" data-testid="review-comment-only" disabled={sending || verdictBody.trim() === ""} onclick={() => void submit("comment")}>Comment</button>
-      </div>
-      {#if sent}<p class="ok" role="status" data-testid="review-sent">{sent}</p>{/if}
-      {#if actionError}<p class="error" role="alert" data-testid="review-action-error">{actionError}</p>{/if}
+    <section aria-label="Your review">
+      <Card title="Your review">
+        <div class="stack">
+          <TextArea rows={3} placeholder="Summary (needed to request changes)" aria-label="Review summary" data-testid="review-body" bind:value={verdictBody} disabled={sending} />
+          <div class="row">
+            <Button variant="primary" data-testid="review-approve" disabled={sending} onclick={() => void submit("approve")}>Approve</Button>
+            <Button data-testid="review-request-changes" disabled={sending} onclick={() => void submit("request-changes")}>Request changes</Button>
+            <Button variant="ghost" data-testid="review-comment-only" disabled={sending || verdictBody.trim() === ""} onclick={() => void submit("comment")}>Comment</Button>
+          </div>
+          {#if sent}<div data-testid="review-sent"><Banner tone="ok">{sent}</Banner></div>{/if}
+          {#if actionError}<div data-testid="review-action-error"><Banner tone="danger">{actionError}</Banner></div>{/if}
+        </div>
+      </Card>
     </section>
   {/if}
 </div>
@@ -302,181 +325,138 @@
   .pull {
     display: flex;
     flex-direction: column;
-    gap: var(--rt-gap);
-    padding-bottom: 16px;
+    gap: var(--rt-space-6);
   }
   .bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--rt-gap);
-    padding: var(--rt-gap) 12px 0;
+    gap: var(--rt-space-4);
   }
-  .title {
+  h2 {
+    margin: 0;
+    font: var(--rt-font-heading);
     overflow-wrap: anywhere;
+    min-width: 0;
   }
-  .block,
-  .ci {
-    margin: 0 12px;
+  h3 {
+    margin: 0;
+    font: var(--rt-font-title);
   }
-  .block {
-    display: flex;
-    flex-direction: column;
-    gap: var(--rt-gap);
-  }
-  .head {
-    display: flex;
-    align-items: baseline;
-    gap: var(--rt-gap);
-  }
-  h3,
   h4 {
     margin: 0;
-    font-size: var(--rt-size);
-  }
-  h4 {
+    font: var(--rt-font-small);
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
     color: var(--rt-fg-muted);
   }
   p {
     margin: 0;
   }
-  .branches,
-  .hint,
-  .error {
-    padding: 0 12px;
-  }
-  .hint {
-    padding: 0;
-  }
-  .branches {
-    font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
-  }
-  .muted,
-  .hint {
-    color: var(--rt-fg-muted);
-  }
-  .hint {
-    font-size: var(--rt-size-small);
-  }
-  .error,
-  .bad {
-    color: var(--rt-danger);
-  }
-  .ok {
-    color: var(--rt-ok);
-  }
-  .mono {
-    font-family: var(--rt-font-mono);
+  .link {
+    color: var(--rt-accent);
+    font: var(--rt-font-small);
   }
   .spacer {
     flex: 1;
   }
+  .loading,
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--rt-space-3);
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
+  }
+  .block,
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-4);
+  }
+  .muted,
+  .hint {
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
+  }
+  .bad {
+    color: var(--rt-danger-fg);
+  }
+  .ok {
+    color: var(--rt-ok-fg);
+  }
+  .mono {
+    font-family: var(--rt-font-mono);
+  }
   .row {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--rt-gap);
+    gap: var(--rt-space-4);
   }
-  .badge,
-  .field {
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    padding: 0 6px;
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
-  }
-  .button {
-    height: 26px;
-    padding: 0 10px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    color: var(--rt-fg);
-    cursor: pointer;
-  }
-  .button.primary:not(:disabled) {
-    background: var(--rt-accent);
-    border-color: var(--rt-accent);
-    color: var(--rt-accent-fg);
-  }
-  .button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  textarea {
-    font: inherit;
-    color: var(--rt-fg);
-    background: var(--rt-bg);
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    padding: 4px 6px;
-    width: 100%;
-    box-sizing: border-box;
-    resize: vertical;
-  }
-  .composer label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .composer {
-    display: flex;
-    flex-direction: column;
-    gap: var(--rt-gap);
-  }
-  .ci {
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    padding: var(--rt-gap) 12px;
-  }
-  .ci ul,
+  .checks,
   .steps,
   .group ul {
     list-style: none;
     margin: 0;
     padding: 0;
   }
-  .ci ul {
+  .checks {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 16px;
-    margin-top: 4px;
+    gap: var(--rt-space-2) var(--rt-space-6);
+  }
+  .checks li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-3);
   }
   .dot {
     display: inline-block;
     width: 8px;
     height: 8px;
-    border-radius: 50%;
+    border-radius: var(--rt-radius-pill);
     background: var(--rt-fg-muted);
   }
   .dot.success {
-    background: var(--rt-ok);
+    background: var(--rt-ok-fg);
   }
   .dot.failure {
-    background: var(--rt-danger);
+    background: var(--rt-danger-fg);
   }
   .dot.pending {
-    background: var(--rt-warn);
+    background: var(--rt-warn-fg);
+  }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-3);
   }
   .steps li {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 12px;
+    gap: var(--rt-space-2) var(--rt-space-5);
     align-items: baseline;
+    padding: var(--rt-space-3) 0;
+    border-top: 1px solid var(--rt-border);
+  }
+  .steps li:first-child {
+    border-top: 0;
+  }
+  .name {
+    font: var(--rt-font-body);
   }
   .group ul {
     display: flex;
     flex-direction: column;
-    gap: var(--rt-gap);
-    margin-top: 4px;
+    gap: var(--rt-space-4);
+    margin-top: var(--rt-space-3);
   }
   .who {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 10px;
+    align-items: center;
+    gap: var(--rt-space-3) var(--rt-space-4);
+    margin-bottom: var(--rt-space-3);
   }
   .text {
     white-space: pre-wrap;

@@ -4,7 +4,8 @@
 // Wave 14, strand H: every Git and comparison view in the main area, filled with content, in
 // light and dark at 900 and 1440 px. Each must fit: no horizontal scrolling of the page or of
 // the view. Screenshots go to `test-results/visual/<view>-<width>-<scheme>.png` (or
-// `RT_VISUAL_OUT`) for the review by eye; the test only fails on overflow.
+// `RT_VISUAL_OUT`, window height `RT_VISUAL_HEIGHT`) for the review by eye; the test only
+// fails on overflow.
 
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -18,6 +19,8 @@ type W = Window & { __rt: { backend: MockBackend & { git: MockGit } } };
 
 const MOD = "ControlOrMeta";
 const OUT = process.env.RT_VISUAL_OUT ?? join(process.cwd(), "test-results", "visual");
+/** A taller window shows more of each view for the review by eye. */
+const HEIGHT = Number(process.env.RT_VISUAL_HEIGHT ?? 900);
 
 /** The demo collection with history: `main` asserts the health check, `feature/pets` moves it,
  *  edits "List users" and adds "Pets". */
@@ -166,7 +169,7 @@ for (const view of VIEWS) {
     await view.open(page);
     await expect(page.getByTestId("git-view")).toBeVisible();
     for (const width of WIDTHS) {
-      await page.setViewportSize({ width, height: 900 });
+      await page.setViewportSize({ width, height: HEIGHT });
       for (const scheme of SCHEMES) {
         await page.emulateMedia({ colorScheme: scheme });
         await page.waitForTimeout(100);

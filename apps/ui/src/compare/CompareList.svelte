@@ -4,6 +4,7 @@
      what differs. Virtualized (fixed row height), so a thousand requests render as fast as
      ten. ↑/↓, Home/End move the selection; the panel's n/p jump between changes. -->
 <script lang="ts">
+  import { Badge } from "../ui";
   import type { CompareRow } from "./rows";
   import { rowSummary } from "./rows";
 
@@ -24,6 +25,7 @@
   const visible = $derived(rows.slice(first, last));
 
   const STATE_LABEL = { new: "New", removed: "Removed", changed: "Changed", same: "Same" } as const;
+  const STATUS = { new: "A", removed: "D", changed: "M" } as const;
 
   /** Keeps the selected row in view (after n/p or the arrow keys). */
   $effect(() => {
@@ -81,12 +83,14 @@
         onclick={() => onselect(i)}
         onkeydown={() => {}}
       >
-        <span class="dot {r.state}" title={STATE_LABEL[r.state]} aria-label={STATE_LABEL[r.state]}></span>
+        <span class="state" title={STATE_LABEL[r.state]}>
+          {#if r.state === "same"}<span class="same" aria-label={STATE_LABEL[r.state]}></span>{:else}<Badge kind="status" value={STATUS[r.state]} />{/if}
+        </span>
         <span class="text">
           <span class="line1">
             <span class="name">{r.name}</span>
-            {#if r.breaking.length > 0}<span class="flag bad">breaking</span>{/if}
-            {#if r.regressed.length > 0}<span class="flag bad" data-testid="compare-row-regressed">green → red</span>{/if}
+            {#if r.breaking.length > 0}<Badge tone="danger" value="Breaking" />{/if}
+            {#if r.regressed.length > 0}<span class="flag" data-testid="compare-row-regressed"><Badge tone="danger" value="green → red" /></span>{/if}
           </span>
           <span class="line2" data-testid="compare-row-summary">{rowSummary(r)}</span>
         </span>
@@ -104,73 +108,79 @@
     outline: none;
   }
   .viewport:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--rt-focus);
+    box-shadow: inset 0 0 0 var(--rt-focus-width) var(--rt-focus);
   }
   .spacer {
     position: relative;
   }
   .row {
     position: absolute;
-    left: 0;
-    right: 0;
+    left: var(--rt-space-3);
+    right: var(--rt-space-3);
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 0 12px;
+    gap: var(--rt-space-4);
+    padding: 0 var(--rt-space-4);
     box-sizing: border-box;
-    border-bottom: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius-md);
     cursor: pointer;
+    transition: background var(--rt-dur-fast) var(--rt-ease);
   }
   .row:hover {
     background: var(--rt-bg-hover);
   }
   .row[aria-selected="true"] {
-    background: var(--rt-bg-selected);
+    background: var(--rt-accent-subtle);
+    color: var(--rt-accent-subtle-fg);
   }
-  .dot {
+  .row[aria-selected="true"] .line2 {
+    color: inherit;
+    opacity: 0.85;
+  }
+  .state {
+    display: inline-flex;
+    justify-content: center;
     flex: none;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--rt-border);
+    width: var(--rt-control-sm);
   }
-  .dot.changed {
-    background: var(--rt-warn);
-  }
-  .dot.new {
-    background: var(--rt-ok);
-  }
-  .dot.removed {
-    background: var(--rt-danger);
+  .same {
+    width: var(--rt-space-3);
+    height: var(--rt-space-3);
+    border-radius: var(--rt-radius-pill);
+    background: var(--rt-border-strong);
   }
   .text {
     display: flex;
     flex-direction: column;
+    gap: var(--rt-space-1);
     min-width: 0;
   }
   .line1 {
     display: flex;
-    gap: 6px;
-    align-items: baseline;
+    gap: var(--rt-space-3);
+    align-items: center;
     min-width: 0;
+    font: var(--rt-font-body);
   }
   .name {
+    min-width: 0;
+    font-weight: var(--rt-weight-medium);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .line2 {
-    font-size: var(--rt-size-small);
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .flag {
+    display: inline-flex;
     flex: none;
-    font-size: var(--rt-size-small);
   }
-  .flag.bad {
-    color: var(--rt-danger);
+  .line1 > :global(.rt-badge) {
+    flex: none;
   }
 </style>

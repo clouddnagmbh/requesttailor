@@ -48,9 +48,11 @@
 <style>
   .fields {
     display: grid;
-    grid-template-columns: minmax(90px, max-content) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(96px, max-content) minmax(0, 1fr) minmax(0, 1fr);
     border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
+    border-radius: var(--rt-radius-lg);
+    background: var(--rt-surface-2);
+    box-shadow: var(--rt-elev-1);
     overflow: hidden;
   }
   .head,
@@ -58,40 +60,48 @@
     display: contents;
   }
   .head span {
-    padding: 4px 8px;
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
-    background: var(--rt-bg-panel);
+    padding: var(--rt-space-3) var(--rt-space-5);
     border-bottom: 1px solid var(--rt-border);
+    background: var(--rt-surface-sunken);
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
   }
   .row > * {
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--rt-border);
     min-width: 0;
+    padding: var(--rt-space-4) var(--rt-space-5);
+    border-bottom: 1px solid var(--rt-border);
   }
   .row:last-child > * {
     border-bottom: 0;
   }
   .name {
-    font-weight: 600;
+    font: var(--rt-font-body);
+    font-weight: var(--rt-weight-medium);
     overflow-wrap: anywhere;
   }
   .value {
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
+    font-size: var(--rt-text-small);
+    line-height: var(--rt-leading-body);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
   .value.old {
     background: var(--rt-diff-del-bg);
+    box-shadow: inset 2px 0 0 var(--rt-danger-border);
   }
   .value.new {
     background: var(--rt-diff-add-bg);
+    box-shadow: inset 2px 0 0 var(--rt-ok-border);
   }
   .value.none {
     background: transparent;
-    color: var(--rt-fg-muted);
-    font-family: var(--rt-font-ui);
+    box-shadow: none;
+    color: var(--rt-fg-subtle);
+    font: var(--rt-font-small);
+    font-style: italic;
   }
   .secret,
   .multi {
@@ -99,6 +109,7 @@
   }
   .secret {
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
   .multi {
     padding: 0;

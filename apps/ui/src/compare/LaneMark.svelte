@@ -25,9 +25,9 @@
     {@const at = single ? 0 : lanes * STEP}
     <rect x={at + 1} y="8" width="8" height="8" transform="rotate(45 {at + 5} 12)" fill="var(--rt-fg-muted)" />
   {:else if kind === "commit"}
-    <circle cx={x(lane)} cy="12" r="3.5" fill="var(--rt-bg)" stroke="var(--rt-lane-{lane})" stroke-width="2" />
+    <circle cx={x(lane)} cy="12" r="3.5" fill="var(--rt-surface-3)" stroke="var(--rt-lane-{lane})" stroke-width="2" />
   {:else}
-    <circle cx={x(lane)} cy="12" r="4.5" fill="var(--rt-lane-{lane})" stroke={kind === "remote" ? "var(--rt-bg)" : "none"} stroke-width="1.5" />
+    <circle cx={x(lane)} cy="12" r="4.5" fill="var(--rt-lane-{lane})" stroke={kind === "remote" ? "var(--rt-surface-3)" : "none"} stroke-width="1.5" />
   {/if}
 </svg>
 

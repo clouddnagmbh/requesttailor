@@ -5,6 +5,7 @@
      commits, each on its lane like in the commit graph. Keyboard: typing filters, ↑/↓ move,
      Enter picks (the typed text when nothing is highlighted), Esc closes. -->
 <script lang="ts">
+  import { IconButton, TextField } from "../ui";
   import LaneMark from "./LaneMark.svelte";
   import { filterOptions, KIND_LABEL, type RevisionKind, type RevisionOption } from "./revisions";
 
@@ -29,7 +30,7 @@
   let query = $state("");
   let active = $state(-1);
   let root = $state<HTMLDivElement | null>(null);
-  let input = $state<HTMLInputElement | null>(null);
+  let input = $state<HTMLInputElement | undefined>(undefined);
 
   const shown = $derived(filterOptions(options, query));
   const lanes = $derived(Math.max(1, ...options.map((o) => o.lane)));
@@ -40,6 +41,7 @@
   );
   const flat = $derived(groups.flatMap((g) => g.items));
   const selected = $derived(options.find((o) => o.rev === value));
+  const ICON: Record<RevisionKind, string> = { branch: "branch", remote: "branch", tag: "tag", commit: "commit" };
 
   function show() {
     if (disabled) return;
@@ -86,46 +88,46 @@
 </script>
 
 <div class="picker" bind:this={root} onfocusout={onfocusout} data-testid="{testid}-picker">
-  <label class="field">
-    <span class="label">{label}</span>
-    <span class="control" class:open>
-      {#if selected}
-        <LaneMark lane={selected.lane} lanes={1} kind={selected.kind} single />
-      {/if}
-      <input
-        bind:this={input}
-        bind:value
-        data-testid={testid}
-        role="combobox"
-        aria-expanded={open}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-        autocomplete="off"
-        spellcheck="false"
-        placeholder="branch, tag or commit"
-        {disabled}
-        onfocus={show}
-        onclick={() => !open && show()}
-        {oninput}
-        {onkeydown}
-      />
-      <button
-        type="button"
-        class="chevron"
-        tabindex="-1"
-        aria-label="Show revisions"
-        {disabled}
-        onclick={() => {
-          if (open) open = false;
-          else {
-            input?.focus();
-            show();
-          }
-        }}>▾</button
-      >
-    </span>
-  </label>
+  <TextField
+    {label}
+    bind:value
+    bind:element={input}
+    icon={selected ? ICON[selected.kind] : "commit"}
+    mono
+    data-testid={testid}
+    role="combobox"
+    aria-expanded={open}
+    aria-controls={listId}
+    aria-autocomplete="list"
+    aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
+    autocomplete="off"
+    placeholder="Branch, tag or commit"
+    {disabled}
+    onfocus={show}
+    onclick={() => !open && show()}
+    {oninput}
+    {onkeydown}
+  >
+    {#snippet trailing()}
+      <span class="trail">
+        {#if selected && selected.lane > 0}<span class="lane" style="--lane: var(--rt-lane-{selected.lane})" aria-hidden="true"></span>{/if}
+        <IconButton
+          icon="chevron-down"
+          label="Show revisions"
+          size="sm"
+          tabindex={-1}
+          {disabled}
+          onclick={() => {
+            if (open) open = false;
+            else {
+              input?.focus();
+              show();
+            }
+          }}
+        />
+      </span>
+    {/snippet}
+  </TextField>
   {#if open}
     <div class="popup" id={listId} role="listbox" aria-label="{label} revision" data-testid="{testid}-list">
       {#if flat.length === 0}
@@ -135,7 +137,7 @@
       {/if}
       {#each groups as g (g.kind)}
         <div class="group" role="group" aria-label={KIND_LABEL[g.kind]}>
-          <div class="group-title">{KIND_LABEL[g.kind]}</div>
+          <div class="heading">{KIND_LABEL[g.kind]}</div>
           {#each g.items as o (o.kind + o.rev)}
             {@const index = flat.indexOf(o)}
             <div
@@ -154,11 +156,9 @@
               onmousemove={() => (active = index)}
             >
               <LaneMark lane={o.lane} {lanes} kind={o.kind} />
-              <span class="text">
-                <span class="name" class:mono={o.kind === "commit"}>{o.label}</span>
-                {#if o.current}<span class="current">current</span>{/if}
-                {#if o.detail}<span class="detail">{o.detail}</span>{/if}
-              </span>
+              <span class="name" class:mono={o.kind !== "branch"}>{o.label}</span>
+              {#if o.current}<span class="current">current</span>{/if}
+              {#if o.detail}<span class="detail">{o.detail}</span>{/if}
             </div>
           {/each}
         </div>
@@ -172,104 +172,85 @@
     position: relative;
     min-width: 0;
   }
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .label {
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
-  }
-  .control {
-    display: flex;
+  .trail {
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 0 0 0 8px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
+    gap: var(--rt-space-2);
+    margin-right: calc(-1 * var(--rt-space-3));
   }
-  .control:focus-within {
-    border-color: var(--rt-focus);
-  }
-  input {
-    flex: 1;
-    min-width: 0;
-    height: 28px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    font-family: var(--rt-font-mono);
-  }
-  .chevron {
-    height: 28px;
-    width: 24px;
-    border: 0;
-    background: transparent;
-    color: var(--rt-fg-muted);
-    cursor: pointer;
+  .lane {
+    width: var(--rt-space-4);
+    height: var(--rt-space-4);
+    border-radius: var(--rt-radius-pill);
+    background: var(--lane);
   }
   .popup {
     position: absolute;
-    z-index: 20;
-    top: calc(100% + 4px);
+    z-index: var(--rt-z-popover);
+    top: calc(100% + var(--rt-space-2));
     left: 0;
+    box-sizing: border-box;
     width: max(100%, 320px);
     max-width: min(480px, 90vw);
     max-height: 360px;
     overflow: auto;
-    padding: 4px 0;
+    padding: var(--rt-space-2);
     border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    box-shadow: var(--rt-shadow);
+    border-radius: var(--rt-radius-lg);
+    background: var(--rt-surface-3);
+    box-shadow: var(--rt-elev-2);
   }
-  .group-title {
-    padding: 6px 10px 2px;
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
+  .heading {
+    padding: var(--rt-space-3) var(--rt-space-4) var(--rt-space-2);
+    color: var(--rt-fg-subtle);
+    font: var(--rt-font-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
   .option {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0 10px;
-    min-height: 28px;
+    gap: var(--rt-space-4);
+    min-height: var(--rt-control-md);
+    padding: 0 var(--rt-space-4);
+    border-radius: var(--rt-radius-md);
     cursor: pointer;
+    font: var(--rt-font-body);
   }
   .option.active {
     background: var(--rt-bg-hover);
   }
   .option[aria-selected="true"] {
-    background: var(--rt-bg-selected);
-  }
-  .text {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    min-width: 0;
+    background: var(--rt-accent-subtle);
+    color: var(--rt-accent-subtle-fg);
   }
   .name {
+    flex: none;
     white-space: nowrap;
   }
   .mono {
     font-family: var(--rt-font-mono);
   }
   .current {
-    font-size: var(--rt-size-small);
-    color: var(--rt-accent);
+    flex: none;
+    padding: 0 var(--rt-space-3);
+    border-radius: var(--rt-radius-pill);
+    background: var(--rt-accent-subtle);
+    color: var(--rt-accent-subtle-fg);
+    font: var(--rt-font-caption);
   }
   .detail {
-    font-size: var(--rt-size-small);
+    min-width: 0;
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .empty {
     margin: 0;
-    padding: 8px 10px;
+    padding: var(--rt-space-4);
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
 </style>

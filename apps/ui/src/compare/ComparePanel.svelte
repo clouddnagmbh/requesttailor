@@ -12,6 +12,7 @@
 
   import type { CollectionDiff, GitCommit, RunComparison, SpecChange } from "../commands/types";
   import { getGitViews } from "../git/views.svelte";
+  import { Banner, Button, Checkbox, Chip, EmptyState, Icon, IconButton, Kbd, Spinner, TextField } from "../ui";
   import { getApp } from "../state/app.svelte";
   import CompareHeader from "./CompareHeader.svelte";
   import CompareList from "./CompareList.svelte";
@@ -205,35 +206,32 @@
   >
     <div class="revs">
       <RevisionPicker label="Older (from)" bind:value={from} {options} testid="compare-from" disabled={loading} />
-      <button type="button" class="swap" data-testid="compare-swap" aria-label="Swap the revisions" title="Swap the revisions" onclick={swap} disabled={loading}>⇄</button>
+      <span class="swap">
+        <IconButton icon="compare" label="Swap the revisions" variant="secondary" data-testid="compare-swap" onclick={swap} disabled={loading} />
+      </span>
       <RevisionPicker label="Newer (to)" bind:value={to} {options} testid="compare-to" disabled={loading} />
     </div>
-    <label class="folder">
-      <span class="label">Folder</span>
-      <input data-testid="compare-folder" bind:value={folder} placeholder="whole collection" disabled={loading} spellcheck="false" />
-    </label>
+    <div class="folder">
+      <TextField label="Folder" icon="folder" mono bind:value={folder} placeholder="whole collection" disabled={loading} data-testid="compare-folder" />
+    </div>
     <div class="go">
-      <label class="check" title="Runs every request at both revisions with today's environment">
-        <input type="checkbox" data-testid="compare-send" bind:checked={send} /> Send requests
-      </label>
+      <span class="send" title="Runs every request at both revisions with today's environment">
+        <Checkbox label="Send requests" bind:checked={send} data-testid="compare-send" />
+      </span>
       {#if running}
-        <button type="button" class="button" data-testid="compare-cancel" onclick={() => void app.backend.compare.cancel()}>Cancel</button>
+        <Button data-testid="compare-cancel" onclick={() => void app.backend.compare.cancel()}>Cancel</Button>
       {/if}
-      <button type="submit" class="button primary" data-testid="compare-start" disabled={loading || !from.trim() || !to.trim()}>
+      <Button type="submit" variant="primary" icon="compare" loading={loading} data-testid="compare-start" disabled={!from.trim() || !to.trim()}>
         {loading ? "Comparing…" : "Compare"}
-      </button>
+      </Button>
     </div>
   </form>
   <div class="quick">
     {#if quick.main}
-      <button type="button" class="chip" data-testid="compare-with-main" onclick={() => compareWith(quick.main!)} disabled={loading}>
-        Compare {quick.current} with {quick.main}
-      </button>
+      <Chip icon="branch" label="Compare {quick.current} with {quick.main}" data-testid="compare-with-main" onclick={() => compareWith(quick.main!)} disabled={loading} />
     {/if}
     {#if quick.remote}
-      <button type="button" class="chip" data-testid="compare-with-remote" onclick={() => compareWith(quick.remote!)} disabled={loading}>
-        Compare with {quick.remote}
-      </button>
+      <Chip icon="sync" label="Compare with {quick.remote}" data-testid="compare-with-remote" onclick={() => compareWith(quick.remote!)} disabled={loading} />
     {/if}
     <span class="hint">
       Nothing is checked out. Requests run with {app.environment ? `today's environment "${app.environment}"` : "no environment"}, its secrets, cookies and plugins.
@@ -241,24 +239,39 @@
   </div>
 
   {#if error}
-    <p class="error" role="alert" data-testid="compare-error">{error}</p>
+    <div data-testid="compare-error"><Banner tone="danger" title="Could not compare">{error}</Banner></div>
   {/if}
 
   {#if !shown && !error && !loading}
     <div class="intro" data-testid="compare-intro">
-      <strong>Pick two revisions</strong>
-      <p>Choose a branch, tag or commit on each side, or start with one of the shortcuts above. You see every request's changes side by side, and with "Send requests" their answers too.</p>
+      <EmptyState
+        icon="compare"
+        title="Pick two revisions"
+        text={'Choose a branch, tag or commit on each side, or start with a shortcut above. Every changed request appears side by side, with "Send requests" its answers too.'}
+      />
     </div>
+  {/if}
+
+  {#if loading && !shown}
+    <div class="loading"><Spinner label="Comparing" /> Reading both revisions…</div>
   {/if}
 
   {#if shown}
     <div class="result" data-testid="compare-result">
       <div class="revline" data-testid="compare-summary">
-        <span class="rev"><span class="name">{shown.from}</span>{#if commits.from}<span class="oid">{shortOid(commits.from.oid)}</span><span class="msg">{commits.from.summary}</span>{/if}</span>
-        <span class="arrow" aria-hidden="true">→</span>
-        <span class="rev"><span class="name">{shown.to}</span>{#if commits.to}<span class="oid">{shortOid(commits.to.oid)}</span><span class="msg">{commits.to.summary}</span>{/if}</span>
-        {#if running}<span class="status" data-testid="compare-running">Sending the requests at both revisions…</span>{/if}
-        {#if runError}<span class="status bad" role="alert" data-testid="compare-run-error">Answers not compared: {runError}</span>{/if}
+        <span class="rev">
+          <Icon name="commit" size="sm" />
+          <span class="name">{shown.from}</span>
+          {#if commits.from}<span class="oid">{shortOid(commits.from.oid)}</span><span class="msg">{commits.from.summary}</span>{/if}
+        </span>
+        <span class="arrow" aria-hidden="true"><Icon name="chevron-right" size="sm" /></span>
+        <span class="rev">
+          <Icon name="commit" size="sm" />
+          <span class="name">{shown.to}</span>
+          {#if commits.to}<span class="oid">{shortOid(commits.to.oid)}</span><span class="msg">{commits.to.summary}</span>{/if}
+        </span>
+        {#if running}<span class="status" data-testid="compare-running"><Spinner size="sm" label="Sending" /> Sending the requests at both revisions…</span>{/if}
+        {#if runError}<span class="status bad" role="alert" data-testid="compare-run-error"><Icon name="error" size="sm" /> Answers not compared: {runError}</span>{/if}
       </div>
 
       <CompareHeader {counts} {filter} ran={run !== null} onfilter={(f) => (filter = f)} />
@@ -266,19 +279,21 @@
       <div class="split">
         <div class="side">
           <div class="filters">
-            <div class="seg" role="radiogroup" aria-label="Show">
+            <div class="chips" role="group" aria-label="Show">
               {#each FILTERS as f (f.id)}
-                <button type="button" role="radio" aria-checked={filter === f.id} data-testid="compare-filter-{f.id}" onclick={() => (filter = f.id)}>{f.label}</button>
+                <Chip size="sm" label={f.label} selected={filter === f.id} data-testid="compare-filter-{f.id}" onclick={() => (filter = f.id)} />
               {/each}
             </div>
-            <input class="search" type="search" placeholder="Filter requests" aria-label="Filter requests" data-testid="compare-search" bind:value={query} />
+            <TextField size="sm" icon="search" type="search" placeholder="Filter requests" aria-label="Filter requests" data-testid="compare-search" bind:value={query} />
           </div>
           {#if list.length === 0}
-            <p class="empty" data-testid="compare-empty">{emptyText}</p>
+            <div class="side-empty" data-testid="compare-empty">
+              <EmptyState size="sm" icon="filter" title="No requests" text={emptyText} />
+            </div>
           {:else}
             <CompareList rows={list} {selected} onselect={select} />
           {/if}
-          <p class="keys"><kbd>n</kbd> <kbd>p</kbd> next and previous change · {list.length} of {rows.length}</p>
+          <p class="keys"><Kbd keys="N" size="sm" /><Kbd keys="P" size="sm" /> next and previous change <span class="of">{list.length} of {rows.length}</span></p>
         </div>
         <div class="main">
           {#if current}
@@ -294,7 +309,11 @@
               onhistory={(p) => views.open({ kind: "timeline", path: p })}
             />
           {:else}
-            <p class="empty">{rows.length === 0 ? "Nothing differs between these revisions." : "Pick a request on the left."}</p>
+            <EmptyState
+              icon={rows.length === 0 ? "success" : "compare"}
+              title={rows.length === 0 ? "Nothing differs" : "Pick a request"}
+              text={rows.length === 0 ? "Both revisions define the same requests." : "Choose a request on the left to see it side by side."}
+            />
           {/if}
         </div>
       </div>
@@ -307,182 +326,132 @@
     container-type: inline-size;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--rt-space-5);
     height: 100%;
     min-height: 0;
     box-sizing: border-box;
-    padding: 12px 16px 0;
+    padding: var(--rt-space-6) var(--rt-space-6) 0;
   }
   .bar {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 10px 16px;
+    gap: var(--rt-space-5) var(--rt-space-6);
   }
   .revs {
     display: flex;
     align-items: flex-end;
-    gap: 6px;
-    flex: 1 1 420px;
+    gap: var(--rt-space-4);
+    flex: 1 1 440px;
     min-width: 0;
   }
   .revs > :global(.picker) {
     flex: 1 1 0;
   }
   .swap {
-    height: 30px;
-    width: 30px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    cursor: pointer;
+    display: inline-flex;
+    flex: none;
   }
   .folder {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    flex: 0 1 160px;
-  }
-  .label {
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
-  }
-  .folder input,
-  .search {
-    height: 30px;
-    box-sizing: border-box;
-    padding: 0 8px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    min-width: 0;
-  }
-  .folder input {
-    font-family: var(--rt-font-mono);
+    flex: 0 1 180px;
+    min-width: 120px;
   }
   .go {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--rt-space-5);
     margin-left: auto;
+    min-height: var(--rt-control-md);
   }
-  .check {
+  .send {
     display: inline-flex;
-    align-items: center;
-    gap: 4px;
     white-space: nowrap;
-  }
-  .button {
-    height: 30px;
-    padding: 0 12px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    cursor: pointer;
-  }
-  .button.primary:not(:disabled) {
-    background: var(--rt-accent);
-    border-color: var(--rt-accent);
-    color: var(--rt-accent-fg);
-  }
-  .button:disabled,
-  .chip:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   .quick {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px 8px;
-  }
-  .chip {
-    height: 24px;
-    padding: 0 10px;
-    border: 1px solid var(--rt-border);
-    border-radius: 12px;
-    background: var(--rt-bg-panel);
-    cursor: pointer;
-    font-size: var(--rt-size-small);
+    gap: var(--rt-space-3) var(--rt-space-4);
   }
   .hint {
-    font-size: var(--rt-size-small);
     color: var(--rt-fg-muted);
-  }
-  .error {
-    margin: 0;
-    color: var(--rt-danger);
+    font: var(--rt-font-small);
   }
   .intro {
-    padding: 24px;
-    border: 1px dashed var(--rt-border);
-    border-radius: var(--rt-radius);
+    padding: var(--rt-space-7) 0;
+  }
+  .loading {
+    display: flex;
+    align-items: center;
+    gap: var(--rt-space-4);
     color: var(--rt-fg-muted);
-  }
-  .intro p {
-    margin: 4px 0 0;
-  }
-  .intro strong {
-    color: var(--rt-fg);
   }
   .result {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--rt-space-5);
     flex: 1;
     min-height: 0;
   }
   .revline {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 10px;
+    align-items: center;
+    gap: var(--rt-space-2) var(--rt-space-4);
     min-width: 0;
   }
   .rev {
     display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
+    align-items: center;
+    gap: var(--rt-space-3);
     min-width: 0;
+    color: var(--rt-fg-muted);
   }
   .rev .name {
-    font-weight: 600;
+    color: var(--rt-fg);
+    font: var(--rt-font-title);
+    font-family: var(--rt-font-mono);
   }
   .oid {
+    padding: 0 var(--rt-space-3);
+    border-radius: var(--rt-radius-sm);
+    background: var(--rt-surface-sunken);
+    font: var(--rt-font-small);
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
   }
   .msg {
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 28ch;
+    max-width: 32ch;
   }
   .arrow {
-    color: var(--rt-fg-muted);
+    display: inline-flex;
+    color: var(--rt-fg-subtle);
   }
   .status {
-    font-size: var(--rt-size-small);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-3);
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
   .status.bad {
-    color: var(--rt-danger);
+    color: var(--rt-danger-fg);
   }
   .split {
     display: grid;
-    grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
     flex: 1;
     min-height: 0;
+    margin: 0 calc(-1 * var(--rt-space-6));
     border-top: 1px solid var(--rt-border);
-    margin: 0 -16px;
   }
   @container (max-width: 720px) {
     .split {
       grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(160px, 40%) minmax(0, 1fr);
+      grid-template-rows: minmax(200px, 42%) minmax(0, 1fr);
     }
     .side {
       border-right: 0;
@@ -494,61 +463,48 @@
     flex-direction: column;
     min-height: 0;
     border-right: 1px solid var(--rt-border);
-    background: var(--rt-bg-panel);
+    background: var(--rt-surface-sunken);
   }
   .filters {
     display: flex;
-    gap: 6px;
-    padding: 8px 12px;
+    flex-direction: column;
+    gap: var(--rt-space-4);
+    padding: var(--rt-space-4) var(--rt-space-5);
     border-bottom: 1px solid var(--rt-border);
   }
-  .search {
-    flex: 1;
-    height: 26px;
-  }
-  .seg {
-    display: inline-flex;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    overflow: hidden;
-    flex: none;
-  }
-  .seg button {
-    border: 0;
-    padding: 0 8px;
-    height: 24px;
-    background: var(--rt-bg);
-    cursor: pointer;
-    font-size: var(--rt-size-small);
-  }
-  .seg button + button {
-    border-left: 1px solid var(--rt-border);
-  }
-  .seg button[aria-checked="true"] {
-    background: var(--rt-bg-selected);
-    font-weight: 600;
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--rt-space-3);
   }
   .side > :global(.viewport) {
     flex: 1;
   }
-  .empty {
-    margin: 0;
-    padding: 16px 12px;
-    color: var(--rt-fg-muted);
-  }
-  .side .empty {
+  .side-empty {
     flex: 1;
+    padding: var(--rt-space-6) var(--rt-space-5);
   }
   .keys {
+    display: flex;
+    align-items: center;
+    gap: var(--rt-space-2);
     margin: 0;
-    padding: 4px 12px;
+    padding: var(--rt-space-3) var(--rt-space-5);
     border-top: 1px solid var(--rt-border);
-    font-size: var(--rt-size-small);
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
+  }
+  .keys .of {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
   }
   .main {
     overflow: auto;
     min-height: 0;
     min-width: 0;
+    background: var(--rt-surface-1);
+  }
+  .main > :global(.rt-empty) {
+    margin-top: var(--rt-space-8);
   }
 </style>

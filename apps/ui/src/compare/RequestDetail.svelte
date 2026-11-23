@@ -4,6 +4,7 @@
      field side by side, and how its answers differ, side by side; breaking changes of the API
      contract that name it. -->
 <script lang="ts">
+  import { Badge, Banner, Button, EmptyState, Spinner } from "../ui";
   import type { CompareRow } from "./rows";
   import DefinitionSides from "./DefinitionSides.svelte";
   import ResponseSides from "./ResponseSides.svelte";
@@ -25,14 +26,16 @@
   } = $props();
 
   const STATE = { new: "New", removed: "Removed", changed: "Changed", same: "Same" } as const;
+  const STATUS = { new: "A", removed: "D", changed: "M", same: "" } as const;
   const definitionFields = $derived(row.definition?.fields.length ?? 0);
 </script>
 
 <article class="detail" data-testid="compare-detail" data-path={row.path} aria-label={row.name}>
   <header>
     <div class="title">
-      <span class="state {row.state}">{STATE[row.state]}</span>
+      {#if row.state !== "same"}<Badge kind="status" value={STATUS[row.state]} />{/if}
       <h3>{row.name}</h3>
+      {#if row.state === "same"}<span class="state">{STATE[row.state]}</span>{/if}
     </div>
     <div class="path">
       {#if row.oldPath}<span class="mono">{row.oldPath}</span> <span aria-hidden="true">→</span>{/if}
@@ -40,21 +43,22 @@
     </div>
     <div class="actions">
       {#if row.state !== "removed"}
-        <button type="button" class="link" data-testid="compare-open-request" onclick={() => onopen(row.path)}>Open request</button>
-        <button type="button" class="link" onclick={() => onhistory(row.path)}>History</button>
+        <Button size="sm" variant="ghost" icon="history" onclick={() => onhistory(row.path)}>History</Button>
+        <Button size="sm" icon="external-link" data-testid="compare-open-request" onclick={() => onopen(row.path)}>Open request</Button>
       {/if}
     </div>
   </header>
 
   {#if row.breaking.length > 0}
-    <aside class="breaking" data-testid="compare-breaking">
-      <strong>Breaking change of the API</strong>
-      <ul>
-        {#each row.breaking as c, i (i)}
-          <li>{#if c.operation}<code>{c.operation}</code> {/if}{c.message}</li>
-        {/each}
-      </ul>
-    </aside>
+    <div data-testid="compare-breaking">
+      <Banner tone="danger" title="Breaking change of the API">
+        <ul class="breaking">
+          {#each row.breaking as c, i (i)}
+            <li>{#if c.operation}<code>{c.operation}</code> {/if}{c.message}</li>
+          {/each}
+        </ul>
+      </Banner>
+    </div>
   {/if}
 
   <section>
@@ -80,11 +84,14 @@
         <p class="muted">This comparison has no answers to show side by side.</p>
       {/if}
     {:else if running}
-      <p class="muted">Sending the requests at both revisions…</p>
+      <p class="muted running"><Spinner size="sm" label="Sending" /> Sending the requests at both revisions…</p>
     {:else}
-      <div class="empty" data-testid="compare-not-run">
-        <p>{ran ? "This request was not sent in this run." : "Send the requests at both revisions to compare their answers, times and tests."}</p>
-        {#if !ran}<button type="button" class="button" data-testid="compare-run" onclick={onrun}>Send and compare answers</button>{/if}
+      <div class="not-run" data-testid="compare-not-run">
+        <EmptyState size="sm" icon="send" title={ran ? "Not sent" : "Answers not compared yet"} text={ran ? "This request was not sent in this run." : "Send the requests at both revisions to compare their answers, times and tests."}>
+          {#snippet actions()}
+            {#if !ran}<Button variant="primary" icon="send" data-testid="compare-run" onclick={onrun}>Send and compare answers</Button>{/if}
+          {/snippet}
+        </EmptyState>
       </div>
     {/if}
   </section>
@@ -94,116 +101,77 @@
   .detail {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 12px 16px 24px;
+    gap: var(--rt-space-7);
+    padding: var(--rt-space-6) var(--rt-space-6) var(--rt-space-7);
     min-width: 0;
   }
   header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 2px 12px;
+    gap: var(--rt-space-2) var(--rt-space-5);
   }
   .title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--rt-space-4);
     min-width: 0;
   }
   h3 {
     margin: 0;
-    font-size: 15px;
+    font: var(--rt-font-heading);
     overflow-wrap: anywhere;
+  }
+  .state {
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
   .path {
     grid-column: 1;
-    font-size: var(--rt-size-small);
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
     overflow-wrap: anywhere;
   }
   .actions {
     grid-column: 2;
     grid-row: 1 / span 2;
     display: flex;
-    gap: 12px;
+    gap: var(--rt-space-4);
     align-items: center;
   }
   .mono,
   code {
     font-family: var(--rt-font-mono);
   }
-  .state {
-    font-size: var(--rt-size-small);
-    font-weight: 600;
-    padding: 0 6px;
-    border-radius: var(--rt-radius);
-    border: 1px solid currentcolor;
-    color: var(--rt-fg-muted);
-  }
-  .state.changed {
-    color: var(--rt-warn);
-  }
-  .state.new {
-    color: var(--rt-ok);
-  }
-  .state.removed {
-    color: var(--rt-danger);
-  }
   section {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--rt-space-4);
   }
   h4 {
     margin: 0;
-    font-size: var(--rt-size-small);
-    font-weight: 600;
+    padding-bottom: var(--rt-space-3);
+    border-bottom: 1px solid var(--rt-border);
     color: var(--rt-fg-muted);
+    font: var(--rt-font-caption);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
   }
   .muted {
     margin: 0;
     color: var(--rt-fg-muted);
   }
-  .breaking {
-    padding: 8px 10px;
-    border: 1px solid var(--rt-danger);
-    border-radius: var(--rt-radius);
-    font-size: var(--rt-size-small);
-  }
-  .breaking strong {
-    color: var(--rt-danger);
-  }
-  .breaking ul {
-    margin: 4px 0 0;
-    padding-left: 18px;
-  }
-  .empty {
+  .running {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 8px 12px;
-    padding: 12px;
-    border: 1px dashed var(--rt-border);
-    border-radius: var(--rt-radius);
-    color: var(--rt-fg-muted);
+    gap: var(--rt-space-4);
   }
-  .empty p {
+  .breaking {
     margin: 0;
+    padding-left: var(--rt-space-6);
   }
-  .link {
-    border: 0;
-    background: none;
-    padding: 0;
-    color: var(--rt-accent);
-    cursor: pointer;
-  }
-  .button {
-    height: 28px;
-    padding: 0 12px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    cursor: pointer;
+  .not-run {
+    padding: var(--rt-space-6);
+    border: 1px dashed var(--rt-border-strong);
+    border-radius: var(--rt-radius-lg);
   }
 </style>
