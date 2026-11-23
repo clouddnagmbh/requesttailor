@@ -115,8 +115,11 @@ test("the built-in demo server runs inside the browser core: call, save, run all
   await page.getByTestId("mcp-call").click();
   await page.getByTestId("mcp-save-test").click();
   await page.getByTestId("mcp-save-confirm").click();
+  const saved = page.getByTestId("mcp-test");
+  await expect(saved).toHaveAttribute("data-path", /^mcp\/.+\.mcp\.yaml$/);
+  const path = (await saved.getAttribute("data-path"))!;
   await page.keyboard.press("ControlOrMeta+s");
-  await expect.poll(() => readFolderFile(page, "mcp/fake-weather-metric.mcp.yaml")).toContain("rt-demo://mcp");
+  await expect.poll(() => readFolderFile(page, path)).toContain("rt-demo://mcp");
   await page.getByTestId("mcp-run-all").click();
   await expect(page.getByTestId("mcp-test")).toHaveAttribute("data-state", "passed");
 
