@@ -35,8 +35,9 @@ async function diverged(page: Page, theirs: Partial<RequestSpec>, ours: Partial<
     { theirs, ours },
   );
   await page.getByTestId("view-git").click();
-  await page.getByTestId("git-pull").click();
-  await expect(page.getByTestId("git-result")).toContainText("Conflicts in 1 file");
+  await page.getByTestId("git-sync-menu").click();
+  await page.getByRole("menuitem", { name: /^Pull/ }).click();
+  await expect(page.getByTestId("git-merging")).toContainText("The merge needs your decision");
 }
 
 const health = (page: Page) => page.evaluate(() => (window as unknown as W).__rt.backend.getRequest("health.yml"));
@@ -77,7 +78,7 @@ test("the merge view decides each conflicted field; the rest is merged; commit c
 
   await page.getByTestId("git-view-close").click();
   await page.getByTestId("view-git").click();
-  await expect(page.getByTestId("git-file").filter({ hasText: "health.yml" }).getByTestId("git-file-state")).toHaveText("M");
+  await expect(page.locator(`[data-testid="git-file"][data-path="health.yml"]`).getByTestId("git-file-state")).toHaveText("M");
   await expect(page.getByTestId("git-message")).toHaveValue("Merge origin/main into main");
   await page.getByTestId("git-commit").click();
   await expect(page.getByTestId("git-merging")).toBeHidden();
@@ -86,14 +87,14 @@ test("the merge view decides each conflicted field; the rest is merged; commit c
 
 test("the conflict dialog of a file offers the fields first, the whole versions below", async ({ page }) => {
   await diverged(page, { method: "PUT", url: "{{baseUrl}}/health/remote" }, { url: "{{baseUrl}}/health/local" });
-  await page.getByTestId("git-file").filter({ hasText: "health.yml" }).getByTestId("git-file-open").click();
+  await page.locator(`[data-testid="git-file"][data-path="health.yml"]`).getByTestId("git-file-open").click();
   const dialog = page.getByTestId("git-conflict");
   await expect(dialog.getByTestId("merge-field")).toHaveText(["url"]);
   await expect(dialog.getByTestId("git-use-ours")).toBeVisible();
   await dialog.getByTestId("merge-choose-ours").check();
   await dialog.getByTestId("merge-resolve").click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByTestId("git-file").filter({ hasText: "health.yml" }).getByTestId("git-file-state")).toHaveText("M");
+  await expect(page.locator(`[data-testid="git-file"][data-path="health.yml"]`).getByTestId("git-file-state")).toHaveText("M");
   const spec = await health(page);
   expect([spec.method, spec.url]).toEqual(["PUT", "{{baseUrl}}/health/local"]);
 });

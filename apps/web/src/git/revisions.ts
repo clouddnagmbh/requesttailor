@@ -15,6 +15,7 @@ import { BackendError, type GitCommit, type GitFileCommit, type GitTree } from "
 
 import { followFileLog } from "./file-log";
 import type { Repo } from "./repo";
+import { collectionPath, repoPath } from "./scope";
 
 const gitErr = (message: string) => new BackendError("git", message);
 const COLLECTION_FILE = "opencollection.yml";
@@ -98,7 +99,18 @@ export function dropNested(files: Record<string, string>): void {
 
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
-/** The collection's files at `rev`. */
+/** The tree at `path` (`a/b`, `""`: `tree` itself) below `tree`; `null` if there is none. */
+async function subtree(repo: Repo, tree: string, path: string): Promise<string | null> {
+  let oid = tree;
+  for (const part of path ? path.split("/") : []) {
+    const e = (await git.readTree({ ...base(repo), oid })).tree.find((x) => x.path === part && x.type === "tree");
+    if (!e) return null;
+    oid = e.oid;
+  }
+  return oid;
+}
+
+/** The collection's files at `rev` (paths relative to the collection). */
 export async function treeAt(repo: Repo, rev: string): Promise<GitTree> {
   const oid = await revParse(repo, rev);
   const { commit } = await git.readCommit({ ...base(repo), oid });
@@ -118,7 +130,8 @@ export async function treeAt(repo: Repo, rev: string): Promise<GitTree> {
       }
     }
   };
-  await walk(commit.tree, "");
+  const top = await subtree(repo, commit.tree, repo.scope ?? "");
+  if (top) await walk(top, "");
   dropNested(files);
   return { oid, files };
 }
@@ -143,8 +156,8 @@ function checkPath(path: string): string {
 
 /** Text of `path` at `rev`; `null` if it does not exist there. */
 export async function show(repo: Repo, rev: string, path: string): Promise<string | null> {
-  const filepath = checkPath(path);
-  const found = await blobOf(repo, await revParse(repo, rev), filepath);
+  checkPath(path);
+  const found = await blobOf(repo, await revParse(repo, rev), repoPath(repo, path));
   if (!found) return null;
   try {
     return decoder.decode(found.blob);
@@ -155,8 +168,11 @@ export async function show(repo: Repo, rev: string, path: string): Promise<strin
 
 /** Commits of `HEAD`'s history (by commit time) in which `path` differs from the first
  *  parent, newest first, following renames (./file-log.ts). */
-export function fileLog(repo: Repo, path: string, limit: number): Promise<GitFileCommit[]> {
-  return followFileLog(repo, path, limit);
+export async function fileLog(repo: Repo, path: string, limit: number): Promise<GitFileCommit[]> {
+  checkPath(path);
+  if (!repo.scope) return followFileLog(repo, path, limit);
+  const at = (p: string) => collectionPath(repo, p);
+  return (await followFileLog(repo, repoPath(repo, path), limit)).map((c) => ({ ...c, path: at(c.path), ...(c.from ? { from: at(c.from) } : {}) }));
 }
 
 /** Best common ancestor of `a` and `b`; `null` if unrelated. */

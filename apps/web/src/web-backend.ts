@@ -136,6 +136,10 @@ export interface WebHost {
   /** Wave 14: opens the recent root `id`: the whole remembered set if it is one of its roots,
    *  else `handle` alone. */
   openRecentRoot?(id: string, handle: FileSystemDirectoryHandle, interactive: boolean): Promise<CollectionInfo | null>;
+  /** Wave 14: the Git repository of the active collection (its folder and the collection's
+   *  folder in it, `""` at its root); `null` outside Git. Without it, the web Git takes the
+   *  collection's folder as the repository. */
+  repository?(): { handle: FileSystemDirectoryHandle; scope: string } | null;
   /** The companion's URL and token if it is paired, else `null`. */
   companionCredentials(): Promise<CompanionCredentials | null>;
 }
@@ -226,6 +230,7 @@ export class WebBackend implements Backend {
       session: () => this.session(),
       openHandle: (handle, options) => this.openHandle(handle, options),
       openRecentRoot: (id, handle, interactive) => this.openRecentRoot(id, handle, interactive),
+      repository: () => this.collections.repository(),
       companionCredentials: async () => {
         try {
           return await this.client().credentials();
