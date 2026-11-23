@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setCollectionMerger, type CollectionMerge, type CollectionMerger, type TextFiles } from "../merges";
 import type { WebHost } from "../web-backend";
 import { JOURNAL, UNDO_KEEP, webGitActions } from "./actions";
+import { fileSides } from "./graph";
 import { webGitPlumbing } from "./plumbing";
 import type { FsClient } from "./fs";
 import type { GitHttpRequest, GitHttpResponse, HttpClient } from "./http";
@@ -1384,5 +1385,37 @@ describe("rewrite", () => {
     const res = await h.api.apply({ action: "rewrite", branch: "feature", tip: c1, summary: "" });
     await commitHere(r, { "notes.txt": "later\n" }, "later");
     await expect(h.api.undo(res.undo!.id)).rejects.toThrow(/Cannot undo/);
+  });
+
+  it("accepts a fast-forward to a descendant even when the branch is published", async () => {
+    const { r, h, c1, c3 } = await feature();
+    await h.api.apply({ action: "switch", target: "main" });
+    await h.api.apply({ action: "rewrite", branch: "feature", tip: c1, summary: "" });
+    await onRemote(r, "feature", c1);
+    expect(await blocked(h.api, { action: "rewrite", branch: "feature", tip: c3, summary: "" })).toBeUndefined();
+    await h.api.apply({ action: "rewrite", branch: "feature", tip: c3, summary: "" });
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "refs/heads/feature" })).toBe(c3);
+  });
+
+  it("cherry-picks a commit that exists only as an object", async () => {
+    const { r, h, api, c1, c3 } = await feature();
+    await h.api.apply({ action: "switch", target: "main" });
+    const tree = await api.writeTree({ base: c1, files: [{ path: "/loose.txt", kind: "text", text: "loose\n" }] });
+    const loose = await api.writeCommit({ tree, parents: [c1], message: "loose\n" });
+    void c3;
+    expect(await blocked(h.api, { action: "cherry-pick", commit: loose })).toBeUndefined();
+    await h.api.apply({ action: "cherry-pick", commit: loose });
+    expect((await api.commitInfo("HEAD")).message).toContain("loose");
+    void r;
+  });
+});
+
+describe("fileDiff against the empty tree", () => {
+  it("a root commit diffs against nothing when from is null", async () => {
+    const r = await committed();
+    const root = (await repoOps.log(r, 50)).at(-1)!.oid;
+    const sides = await fileSides(r, null, root, "/notes.txt");
+    expect(sides.old).toBeNull();
+    expect(new TextDecoder().decode(sides.new!)).toBe("a\nb\nc\n");
   });
 });
