@@ -66,5 +66,4 @@ max = 1500
 [metrics.git_status_large]
 description = "Working copy of a repository with 50 000 tracked files, 100 changed: GitApi.workingCopy natively (release, warm, median of 9)"
 unit = "ms"
-pending = "wave 15, strand B"
 max = 300
