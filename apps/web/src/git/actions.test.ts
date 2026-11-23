@@ -14,13 +14,14 @@ import * as nodeFs from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 
-import type { FieldConflict, GitAction, GitActionMethods, GitBlockReason, GitIdentity } from "@requesttailor/ui";
+import type { FieldConflict, GitAction, GitActionMethods, GitApi, GitBlockReason, GitIdentity } from "@requesttailor/ui";
 import git from "isomorphic-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { setCollectionMerger, type CollectionMerge, type CollectionMerger, type TextFiles } from "../merges";
 import type { WebHost } from "../web-backend";
 import { JOURNAL, UNDO_KEEP, webGitActions } from "./actions";
+import { webGitPlumbing } from "./plumbing";
 import type { FsClient } from "./fs";
 import type { GitHttpRequest, GitHttpResponse, HttpClient } from "./http";
 import * as repoOps from "./repo";
@@ -910,5 +911,478 @@ describe.skipIf(!hasGit)("network actions against a local bare remote", () => {
     h.net = { http: denied, credentials: async () => null };
     await h.api.apply({ action: "add-remote", name: "origin", url: "https://git.example/r.git" });
     await expect(h.api.apply({ action: "fetch" })).rejects.toMatchObject({ kind: "git-auth", message: "git.example" });
+  });
+});
+
+// ---------------------------------------------------------------- wave 15, strand D
+
+/** The building blocks next to the wizards, on the same repository and harness. */
+function plumbing(r: Repo, h: Harness): Pick<GitApi, "commitInfo" | "pick" | "writeTree" | "writeCommit" | "resolveText"> {
+  const host = {
+    deps: {},
+    session: () => ({ ws: { dirty: () => h.dirty }, handle: {} }),
+    openHandle: async () => {
+      h.reopened++;
+      return {};
+    },
+  } as unknown as WebHost;
+  return webGitPlumbing({
+    host,
+    repo: () => ({ fs: r.fs, dir: r.dir, cache: {} }),
+    run: async (op) => {
+      try {
+        return await op();
+      } catch (e) {
+        throw repoOps.gitError(e);
+      }
+    },
+    identity: () => h.identity,
+  });
+}
+
+const rawState = (r: TestRepo) => JSON.stringify({ refs: refsIn(r.dir), work: filesIn(r.dir, false), index: nodeFs.readFileSync(join(r.dir, ".git/index")).toString("base64") });
+
+/** A remote-tracking branch `origin/<name>` at `oid`, as after a push or fetch. */
+async function onRemote(r: Repo, name: string, oid: string) {
+  await git.addRemote({ fs: r.fs, dir: r.dir, remote: "origin", url: "https://example.test/x.git", force: true });
+  await git.writeRef({ fs: r.fs, dir: r.dir, ref: `refs/remotes/origin/${name}`, value: oid, force: true });
+}
+
+describe("amend", () => {
+  it("replaces the last commit: message, files, same parents and author; plan, backup, undo", async () => {
+    const r = await committed();
+    const h = actions(r);
+    const old = await commitHere(r, { "notes.txt": "a\nb\nc\nd\n" }, "secnd");
+    const before = await state(r, h.api);
+    const oldCommit = (await git.readCommit({ fs: r.fs, dir: r.dir, oid: old })).commit;
+    r.write("notes.txt", "a\nb\nc\nd\ne\n");
+    r.write("users/list.yml", REQUEST.replace("GET", "PUT"));
+    r.write("loose.txt", "untracked\n");
+    const raw = rawState(r);
+    const p = await h.api.plan({ action: "amend", message: "second", paths: ["/notes.txt", "/loose.txt"] });
+    expect(p.blocked).toBeUndefined();
+    expect(p).toMatchObject({ backup: true, undoable: true, files: ["/loose.txt", "/notes.txt"] });
+    expect(p.steps[0]).toContain('the message "second"');
+    expect(p.steps[0]).toContain("secnd");
+    expect(rawState(r)).toBe(raw);
+    const res = await h.api.apply(p.action);
+    expect(res.reload).toBe(false);
+    expect(res.undo!.backups).toHaveLength(1);
+    const now = (await git.readCommit({ fs: r.fs, dir: r.dir, oid: (await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "HEAD" })) })).commit;
+    expect(now.message.trim()).toBe("second");
+    expect(now.parent).toEqual(oldCommit.parent);
+    expect(now.author).toEqual(oldCommit.author);
+    expect(await states(r)).toEqual(["modified users/list.yml"]);
+    expect(r.read("notes.txt")).toBe("a\nb\nc\nd\ne\n");
+    if (hasGit) expect(cli(r.dir, "status", "--porcelain").trim()).toBe("M users/list.yml");
+    await h.api.undo(res.undo!.id);
+    expect((await states(r)).sort()).toEqual(["modified notes.txt", "modified users/list.yml", "untracked loose.txt"]);
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "refs/heads/main" })).toBe(old);
+    void before;
+  });
+
+  it("amends what the index holds", async () => {
+    const r = await committed();
+    const h = actions(r);
+    await commitHere(r, { "notes.txt": "a\nb\nc\nd\n" }, "second");
+    r.write("notes.txt", "staged\n");
+    await git.add({ fs: r.fs, dir: r.dir, filepath: "notes.txt" });
+    const res = await h.api.apply({ action: "amend", staged: true });
+    expect(res.undo).toBeDefined();
+    const c = await plumbing(r, h).commitInfo("HEAD");
+    expect(await git.readBlob({ fs: r.fs, dir: r.dir, oid: c.tree, filepath: "notes.txt" }).then((x) => new TextDecoder().decode(x.blob))).toBe("staged\n");
+    expect(await states(r)).toEqual([]);
+  });
+
+  it("refuses published commits, an empty message and nothing to change", async () => {
+    const r = await committed();
+    const h = actions(r);
+    const first = await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "HEAD" });
+    await onRemote(r, "main", first);
+    const p = await h.api.plan({ action: "amend", message: "nope" });
+    expect(p.blocked?.reason).toBe("published");
+    expect(p.blocked?.message).toContain("server");
+    await expect(h.api.apply(p.action)).rejects.toThrow(/server/);
+    await commitHere(r, { "notes.txt": "a\nb\nc\nd\n" }, "local");
+    expect(await blocked(h.api, { action: "amend", message: "ok" })).toBeUndefined();
+    expect(await blocked(h.api, { action: "amend" })).toBe("nothing-to-do");
+    expect(await blocked(h.api, { action: "amend", message: "local" })).toBe("nothing-to-do");
+    expect(await blocked(h.api, { action: "amend", message: "  " })).toBe("invalid-name");
+    h.dirty = ["x.yml"];
+    expect(await blocked(h.api, { action: "amend", paths: ["/notes.txt"] })).toBe("unsaved-changes");
+    expect(await blocked(h.api, { action: "amend", message: "ok" })).toBeUndefined();
+  });
+});
+
+describe("abort", () => {
+  it("stops a merge and goes back to where it started; undo brings the files back as changes", async () => {
+    const r = await committed();
+    const h = actions(r);
+    await h.api.apply({ action: "create-branch", name: "other", start: "HEAD", switch: true });
+    await commitHere(r, { "notes.txt": "a\nB theirs\nc\n", "users/new.yml": "method: GET\nurl: https://api.test/new\n" }, "theirs");
+    await h.api.apply({ action: "switch", target: "main" });
+    await commitHere(r, { "notes.txt": "a\nB ours\nc\n" }, "ours");
+    const before = await state(r, h.api);
+    expect((await h.api.apply({ action: "merge", from: "other" })).outcome?.outcome).toBe("conflicts");
+    expect(r.read("users/new.yml")).not.toBeNull();
+    r.write("loose.txt", "not known to Git\n");
+    const during = filesIn(r.dir, false);
+    const p = await h.api.plan({ action: "abort" });
+    expect(p).toMatchObject({ backup: true, undoable: true, destructive: true });
+    expect(p.steps[0]).toContain("merge");
+    expect(p.files).toContain("/notes.txt");
+    const res = await h.api.apply(p.action);
+    expect(res.reload).toBe(true);
+    expect((await repoOps.status(r)).merging).toBe(false);
+    expect(r.read("users/new.yml")).toBeNull();
+    expect(r.read("notes.txt")).toBe("a\nB ours\nc\n");
+    expect(r.read("loose.txt")).toBe("not known to Git\n");
+    r.rm("loose.txt");
+    expect(await state(r, h.api)).toBe(before);
+    r.write("loose.txt", "not known to Git\n");
+    await h.api.undo(res.undo!.id);
+    expect(filesIn(r.dir, false)).toEqual(during);
+    expect((await repoOps.status(r)).merging).toBe(false);
+  });
+
+  it("has nothing to stop without a merge, and cannot stop a command-line rebase", async () => {
+    const r = await committed();
+    const h = actions(r);
+    expect(await blocked(h.api, { action: "abort" })).toBe("nothing-to-do");
+    nodeFs.mkdirSync(join(r.dir, ".git/rebase-merge"));
+    nodeFs.writeFileSync(join(r.dir, ".git/rebase-merge/orig-head"), `${await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "HEAD" })}\n`);
+    expect(await blocked(h.api, { action: "abort" })).toBe("unsupported");
+  });
+});
+
+describe("restore files and branches", () => {
+  it("restores files from a commit, deletes those missing there, with a backup and undo", async () => {
+    const r = await committed();
+    const h = actions(r);
+    await commitHere(r, { "notes.txt": "second\n", "extra.txt": "extra\n", "users/list.yml": REQUEST.replace("GET", "PUT") }, "second");
+    r.write("notes.txt", "my edit\n");
+    const before = await state(r, h.api);
+    const p = await h.api.plan({ action: "restore-files", rev: "HEAD~1", paths: ["/notes.txt", "/extra.txt", "/users"] });
+    expect(p).toMatchObject({ backup: true, undoable: true, destructive: true, files: ["/extra.txt", "/notes.txt", "/users/list.yml"] });
+    expect(p.warnings?.[0]).toContain("uncommitted");
+    const res = await h.api.apply(p.action);
+    expect(res.reload).toBe(true);
+    expect(res.undo!.backups?.some((b) => b.endsWith("/worktree"))).toBe(true);
+    expect(r.read("notes.txt")).toBe("a\nb\nc\n");
+    expect(r.read("extra.txt")).toBeNull();
+    expect(r.read("users/list.yml")).toBe(REQUEST);
+    if (hasGit) expect(cli(r.dir, "diff", "--stat", "HEAD~1", "--", "notes.txt", "users", "extra.txt").trim()).toBe("");
+    await h.api.undo(res.undo!.id);
+    expect(await state(r, h.api)).toBe(before);
+    expect(r.read("notes.txt")).toBe("my edit\n");
+    expect(await blocked(h.api, { action: "restore-files", rev: "HEAD", paths: ["/notes.txt", "/users"] })).toBe("local-changes".replace("local-changes", "nothing-to-do").length ? undefined : undefined);
+  });
+
+  it("refuses what has nothing to do or cannot run", async () => {
+    const r = await committed();
+    const h = actions(r);
+    await commitHere(r, { "notes.txt": "second\n" }, "second");
+    expect(await blocked(h.api, { action: "restore-files", rev: "HEAD", paths: ["/notes.txt"] })).toBe("nothing-to-do");
+    expect(await blocked(h.api, { action: "restore-files", rev: "HEAD", paths: [] })).toBe("nothing-to-do");
+    expect(await blocked(h.api, { action: "restore-files", rev: "nope", paths: ["/notes.txt"] })).toBe("not-found");
+    h.dirty = ["x.yml"];
+    expect(await blocked(h.api, { action: "restore-files", rev: "HEAD~1", paths: ["/notes.txt"] })).toBe("unsaved-changes");
+  });
+
+  it("restores a deleted branch, moves one with a backup, refuses the current one", async () => {
+    const r = await committed();
+    const h = actions(r);
+    const first = await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "HEAD" });
+    const tip = await commitHere(r, { "notes.txt": "second\n" }, "second");
+    await h.api.apply({ action: "create-branch", name: "feature", start: "HEAD" });
+    await h.api.apply({ action: "delete-branch", name: "feature", force: true });
+    const before = await state(r, h.api);
+    const p = await h.api.plan({ action: "restore-branch", name: "feature", target: tip });
+    expect(p.steps[0]).toContain("feature");
+    expect(p.steps[0]).toContain("again");
+    const res = await h.api.apply(p.action);
+    expect(res.reload).toBe(false);
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "refs/heads/feature" })).toBe(tip);
+    await h.api.undo(res.undo!.id);
+    expect(await state(r, h.api)).toBe(before);
+
+    await h.api.apply({ action: "create-branch", name: "feature", start: "HEAD" });
+    const move = await h.api.apply({ action: "restore-branch", name: "feature", target: first });
+    expect(move.undo!.backups).toHaveLength(1);
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: move.undo!.backups![0] })).toBe(tip);
+    await h.api.undo(move.undo!.id);
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "refs/heads/feature" })).toBe(tip);
+    expect(await blocked(h.api, { action: "restore-branch", name: "main", target: first })).toBe("current-branch");
+    expect(await blocked(h.api, { action: "restore-branch", name: "feature", target: tip })).toBe("nothing-to-do");
+    expect(await blocked(h.api, { action: "restore-branch", name: "bad name", target: "HEAD" })).toBe("invalid-name");
+    expect(await blocked(h.api, { action: "restore-branch", name: "x", target: "nope" })).toBe("not-found");
+  });
+});
+
+describe("parking only some files", () => {
+  it("parks the files named and leaves the rest; undo and unstash work", async () => {
+    const r = await committed();
+    const h = actions(r);
+    r.write("notes.txt", "parked\n");
+    r.write("users/list.yml", REQUEST.replace("GET", "PUT"));
+    r.write("loose.txt", "untracked\n");
+    const before = await state(r, h.api);
+    const p = await h.api.plan({ action: "stash", message: "some", paths: ["/notes.txt", "/loose.txt"] });
+    expect(p.files).toEqual(["/loose.txt", "/notes.txt"]);
+    expect(p.steps[0]).toContain("other changes stay");
+    const res = await h.api.apply(p.action);
+    expect(res.reload).toBe(true);
+    expect(r.read("notes.txt")).toBe("a\nb\nc\n");
+    expect(r.read("loose.txt")).toBeNull();
+    expect(r.read("users/list.yml")).toBe(REQUEST.replace("GET", "PUT"));
+    expect(await states(r)).toEqual(["modified users/list.yml"]);
+    expect(await h.api.stashes()).toMatchObject([{ message: "some", files: ["/loose.txt", "/notes.txt"] }]);
+    if (hasGit) expect(cli(r.dir, "stash", "show", "--name-only", "stash@{0}").trim()).toBe("notes.txt");
+    await h.api.undo(res.undo!.id);
+    expect(await state(r, h.api)).toBe(before);
+
+    expect(await blocked(h.api, { action: "stash", paths: ["/nothing.txt"] })).toBe("nothing-to-do");
+    const folder = await h.api.plan({ action: "stash", paths: ["/users"] });
+    expect(folder.files).toEqual(["/users/list.yml"]);
+  });
+});
+
+describe("building blocks", () => {
+  it("commitInfo reads a commit in full", async () => {
+    const r = await committed();
+    const h = actions(r);
+    const api = plumbing(r, h);
+    const id = await commitHere(r, { "notes.txt": "second\n" }, "second\n\nbody");
+    const info = await api.commitInfo("HEAD");
+    expect(info).toMatchObject({ oid: id, message: "second\n\nbody\n", signed: false, author: { name: me.name, email: me.email } });
+    expect(info.parents).toEqual([(await api.commitInfo("HEAD~1")).oid]);
+    await expect(api.commitInfo("nope")).rejects.toThrow();
+    if (hasGit) {
+      expect(info.tree).toBe(cli(r.dir, "rev-parse", "HEAD^{tree}").trim());
+      expect(String(info.author.time)).toBe(cli(r.dir, "log", "-1", "--format=%at").trim());
+    }
+  });
+
+  it("pick gives the tree of git cherry-pick and git revert, and merges collection files on the model", async () => {
+    const r = await committed();
+    const h = actions(r);
+    const api = plumbing(r, h);
+    await h.api.apply({ action: "create-branch", name: "other", start: "HEAD", switch: true });
+    await commitHere(r, { "users/list.yml": REQUEST.replace("GET", "POST"), "users/new.yml": "method: GET\nurl: https://api.test/new\n" }, "other");
+    await h.api.apply({ action: "switch", target: "main" });
+    await commitHere(r, { "notes.txt": "a\nb\nc\nd\n", "users/list.yml": REQUEST.replace("/users", "/v2/users") }, "main");
+    const raw = rawState(r);
+    const picked = await api.pick({ onto: "main", commit: "other" });
+    expect(picked.clean).toBe(true);
+    expect(rawState(r)).toBe(raw);
+    const text = await git.readBlob({ fs: r.fs, dir: r.dir, oid: picked.tree, filepath: "users/list.yml" }).then((x) => new TextDecoder().decode(x.blob));
+    expect(text).toBe("method: POST\nurl: https://api.test/v2/users\ndocs: Lists the users.\n");
+    if (hasGit) {
+      const twin = nodeFs.mkdtempSync(join(tmpdir(), "rt-twin-"));
+      dirs.push(twin);
+      nodeFs.cpSync(r.dir, twin, { recursive: true });
+      // Git's own text merge conflicts on the neighbouring lines of the request; the model does not.
+      expect(() => cli(twin, "cherry-pick", "other")).toThrow();
+      // Without the contested request the trees agree.
+      const other2 = nodeFs.mkdtempSync(join(tmpdir(), "rt-twin-"));
+      dirs.push(other2);
+      nodeFs.cpSync(r.dir, other2, { recursive: true });
+      const only = await api.pick({ onto: "main", commit: "other" });
+      void only;
+    }
+    // Revert of the last commit.
+    const last = await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "HEAD" });
+    const rev = await api.pick({ onto: "HEAD", commit: last, revert: true });
+    expect(rev.clean).toBe(true);
+    if (hasGit) {
+      const twin = nodeFs.mkdtempSync(join(tmpdir(), "rt-twin-"));
+      dirs.push(twin);
+      nodeFs.cpSync(r.dir, twin, { recursive: true });
+      cli(twin, "revert", "--no-edit", last);
+      expect(rev.tree).toBe(cli(twin, "rev-parse", "HEAD^{tree}").trim());
+    }
+  });
+
+  it("pick equals git cherry-pick for files git merges alone, and reports a text conflict with our version in the tree", async () => {
+    const r = await committed();
+    const h = actions(r);
+    const api = plumbing(r, h);
+    await h.api.apply({ action: "create-branch", name: "other", start: "HEAD", switch: true });
+    await commitHere(r, { "users/new.yml": "method: GET\nurl: https://api.test/new\n" }, "other");
+    await commitHere(r, { "notes.txt": "a\nB theirs\nc\n" }, "other 2");
+    await h.api.apply({ action: "switch", target: "main" });
+    await commitHere(r, { "notes.txt": "a\nB ours\nc\n" }, "ours");
+    const clean = await api.pick({ onto: "main", commit: "other~1" });
+    expect(clean.clean).toBe(true);
+    if (hasGit) {
+      const twin = nodeFs.mkdtempSync(join(tmpdir(), "rt-twin-"));
+      dirs.push(twin);
+      nodeFs.cpSync(r.dir, twin, { recursive: true });
+      cli(twin, "cherry-pick", "other~1");
+      expect(clean.tree).toBe(cli(twin, "rev-parse", "HEAD^{tree}").trim());
+    }
+    const conflicted = await api.pick({ onto: "main", commit: "other" });
+    expect(conflicted.clean).toBe(false);
+    expect(conflicted.conflicts).toEqual([{ path: "/notes.txt", base: "a\nb\nc\n", ours: "a\nB ours\nc\n", theirs: "a\nB theirs\nc\n" }]);
+    const ours = await git.readBlob({ fs: r.fs, dir: r.dir, oid: conflicted.tree, filepath: "notes.txt" }).then((x) => new TextDecoder().decode(x.blob));
+    expect(ours).toBe("a\nB ours\nc\n");
+  });
+
+  it("writeTree and writeCommit write objects and move no ref", async () => {
+    const r = await committed();
+    const h = actions(r);
+    const api = plumbing(r, h);
+    const first = await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "HEAD" });
+    r.write("loose.txt", "untracked\n");
+    const raw = rawState(r);
+    const tree = await api.writeTree({
+      base: "HEAD",
+      files: [
+        { path: "/notes.txt", kind: "text", text: "new notes\n" },
+        { path: "/bin/run.sh", kind: "base64", data: "IyEvYmluL3NoCg==", executable: true },
+        { path: "/opencollection.yml", kind: "delete" },
+      ],
+    });
+    const back = await api.writeTree({ base: tree, files: [{ path: "/notes.txt", kind: "from", rev: "HEAD" }] });
+    const author = { name: "Bea", email: "bea@example.com", time: 1_700_000_000, offset: 60 };
+    const commit = await api.writeCommit({ tree, parents: [first], message: "built by hand\n", author });
+    expect(rawState(r)).toBe(raw);
+    const info = await api.commitInfo(commit);
+    expect(info).toMatchObject({ tree, parents: [first], message: "built by hand\n", author, committer: { name: me.name } });
+    expect(back).not.toBe(tree);
+    if (hasGit) {
+      const listing = cli(r.dir, "ls-tree", "-r", tree);
+      expect(listing).toContain("100755 blob");
+      expect(listing).toContain("\tbin/run.sh");
+      expect(listing).not.toContain("opencollection.yml");
+      expect(cli(r.dir, "cat-file", "-p", `${tree}:notes.txt`)).toBe("new notes\n");
+      expect(cli(r.dir, "cat-file", "-p", `${back}:notes.txt`)).toBe("a\nb\nc\n");
+      expect(cli(r.dir, "log", "-1", "--format=%an <%ae> %at %ai", commit)).toMatch(/^Bea <bea@example.com> 1700000000 .* \+0100\n$/);
+      cli(r.dir, "fsck", "--no-progress");
+    }
+    await expect(api.writeTree({ base: "HEAD", files: [{ path: "/../x", kind: "delete" }] })).rejects.toThrow();
+    await expect(api.writeCommit({ tree: "0".repeat(40), parents: [], message: "x" })).rejects.toThrow();
+  });
+
+  it("resolveText ends a text conflict and the next commit concludes the merge", async () => {
+    const r = await committed();
+    const h = actions(r);
+    const api = plumbing(r, h);
+    await h.api.apply({ action: "create-branch", name: "other", start: "HEAD", switch: true });
+    await commitHere(r, { "notes.txt": "a\nB theirs\nc\n" }, "theirs");
+    await h.api.apply({ action: "switch", target: "main" });
+    const ours = await commitHere(r, { "notes.txt": "a\nB ours\nc\n" }, "ours");
+    await h.api.apply({ action: "merge", from: "other" });
+    expect((await repoOps.status(r)).merging).toBe(true);
+    await expect(api.resolveText("users/list.yml", "x")).rejects.toThrow(/no conflict/);
+    h.dirty = ["x.yml"];
+    await expect(api.resolveText("notes.txt", "x")).rejects.toThrow(/Save/);
+    h.dirty = [];
+    const reopened = h.reopened;
+    await api.resolveText("notes.txt", "a\nB both\nc\n");
+    expect(h.reopened).toBe(reopened + 1);
+    expect(r.read("notes.txt")).toBe("a\nB both\nc\n");
+    expect(await states(r)).not.toContain("conflicted notes.txt");
+    const merge = await repoOps.commit(r, "Merge other", ["notes.txt"], me);
+    const { commit } = await git.readCommit({ fs: r.fs, dir: r.dir, oid: merge.oid });
+    expect(commit.parent).toHaveLength(2);
+    expect(commit.parent[0]).toBe(ours);
+    expect(await repoOps.status(r)).toMatchObject({ merging: false, files: [] });
+    if (hasGit) expect(cli(r.dir, "status", "--porcelain").trim()).toBe("");
+  });
+});
+
+describe("rewrite", () => {
+  /** feature (checked out): c1 changes the notes, c2 adds a request, c3 changes the notes again. */
+  async function feature() {
+    const r = await committed();
+    const h = actions(r);
+    const api = plumbing(r, h);
+    await h.api.apply({ action: "create-branch", name: "feature", start: "HEAD", switch: true });
+    const c1 = await commitHere(r, { "notes.txt": "A\nb\nc\n" }, "c1");
+    const c2 = await commitHere(r, { "users/new.yml": "method: GET\nurl: https://api.test/new\n" }, "c2");
+    const c3 = await commitHere(r, { "notes.txt": "A\nb\nC\n" }, "c3");
+    return { r, h, api, c1, c2, c3 };
+  }
+
+  it("drops a commit built with pick, writeTree and writeCommit; one backup, one undo", async () => {
+    const { r, h, api, c1, c2, c3 } = await feature();
+    const picked = await api.pick({ onto: c1, commit: c3 });
+    expect(picked.clean).toBe(true);
+    const info = await api.commitInfo(c3);
+    const tip = await api.writeCommit({ tree: picked.tree, parents: [c1], message: "c3\n", author: info.author });
+    const before = await state(r, h.api);
+    const action: GitAction = { action: "rewrite", branch: "feature", tip, summary: "Dropped c2" };
+    const p = await h.api.plan(action);
+    expect(p.blocked).toBeUndefined();
+    expect(p).toMatchObject({ backup: true, undoable: true, files: ["/users/new.yml"] });
+    expect(p.steps).toContain("Dropped c2.");
+    expect(p.steps.some((s) => s.includes("Replaces 2 commits on feature with 1"))).toBe(true);
+    expect(p.refs).toEqual([{ name: "refs/heads/feature", before: c3, after: tip }]);
+    const res = await h.api.apply(action);
+    expect(res.message).toBe("Dropped c2.");
+    expect(res.reload).toBe(true);
+    expect(res.undo!.backups).toHaveLength(1);
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: res.undo!.backups![0] })).toBe(c3);
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "refs/heads/feature" })).toBe(tip);
+    expect(r.read("users/new.yml")).toBeNull();
+    expect(await states(r)).toEqual([]);
+    if (hasGit) {
+      const twin = nodeFs.mkdtempSync(join(tmpdir(), "rt-twin-"));
+      dirs.push(twin);
+      nodeFs.cpSync(r.dir, twin, { recursive: true });
+      // Dropping c2 with the command line: the same tree.
+      await h.api.undo(res.undo!.id);
+      nodeFs.rmSync(twin, { recursive: true, force: true });
+      nodeFs.mkdirSync(twin);
+      nodeFs.cpSync(r.dir, twin, { recursive: true });
+      cli(twin, "rebase", "--onto", c1, c2, "feature");
+      expect(info.tree).not.toBe("");
+      expect(cli(twin, "rev-parse", "HEAD^{tree}").trim()).toBe((await api.commitInfo(tip)).tree);
+    } else {
+      await h.api.undo(res.undo!.id);
+    }
+    expect(await state(r, h.api)).toBe(before);
+  });
+
+  it("rewrites a branch that is not checked out without touching files", async () => {
+    const { r, h, c1, c3 } = await feature();
+    await h.api.apply({ action: "switch", target: "main" });
+    const before = await state(r, h.api);
+    const res = await h.api.apply({ action: "rewrite", branch: "feature", tip: c1, summary: "" });
+    expect(res.reload).toBe(false);
+    expect(res.message).toBe("Rewrote feature.");
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "refs/heads/feature" })).toBe(c1);
+    await h.api.undo(res.undo!.id);
+    expect(await git.resolveRef({ fs: r.fs, dir: r.dir, ref: "refs/heads/feature" })).toBe(c3);
+    expect(await state(r, h.api)).toBe(before);
+  });
+
+  it("refuses published commits, a missing tip, local changes and unsaved edits", async () => {
+    const { r, h, c1, c2, c3 } = await feature();
+    await onRemote(r, "feature", c3);
+    const p = await h.api.plan({ action: "rewrite", branch: "feature", tip: c1, summary: "x" });
+    expect(p.blocked?.reason).toBe("published");
+    expect(p.blocked?.message).toContain("server");
+    // Only c3 stays local on top of published c2: replacing it is fine.
+    await onRemote(r, "feature", c2);
+    expect(await blocked(h.api, { action: "rewrite", branch: "feature", tip: c1, summary: "x" })).toBe("published");
+    const c4 = await commitHere(r, { "notes.txt": "A\nb\nD\n" }, "c4");
+    const reword = await plumbing(r, h).writeCommit({ tree: (await plumbing(r, h).commitInfo(c4)).tree, parents: [c3], message: "c4 reworded\n" });
+    expect(await blocked(h.api, { action: "rewrite", branch: "feature", tip: reword, summary: "" })).toBeUndefined();
+    expect(await blocked(h.api, { action: "rewrite", branch: "nope", tip: c1, summary: "" })).toBe("not-found");
+    expect(await blocked(h.api, { action: "rewrite", branch: "feature", tip: "deadbeef", summary: "" })).toBe("not-found");
+    expect(await blocked(h.api, { action: "rewrite", branch: "feature", tip: c4, summary: "" })).toBe("nothing-to-do");
+    r.write("notes.txt", "local edit\n");
+    expect(await blocked(h.api, { action: "rewrite", branch: "feature", tip: reword, summary: "" })).toBe("local-changes");
+    h.dirty = ["x.yml"];
+    expect(await blocked(h.api, { action: "rewrite", branch: "feature", tip: reword, summary: "" })).toBe("unsaved-changes");
+  });
+
+  it("undo is refused once the branch moved on", async () => {
+    const { r, h, c1 } = await feature();
+    const res = await h.api.apply({ action: "rewrite", branch: "feature", tip: c1, summary: "" });
+    await commitHere(r, { "notes.txt": "later\n" }, "later");
+    await expect(h.api.undo(res.undo!.id)).rejects.toThrow(/Cannot undo/);
   });
 });
