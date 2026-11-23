@@ -1,14 +1,19 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
 <!-- A CodeMirror 6 field with {{variable}} highlighting: single line (URL, table cells, auth
-     fields) or multi line (body). Controlled: `value` in, `onchange` out. -->
+     fields) or multi line (body). Controlled: `value` in, `onchange` out.
+     Wave 14: typing `{{` completes variables from the nearest `provideVarSource` (request
+     editor, environment manager); `complete={false}` turns it off. Tooltips live at the end of
+     the page (or of the open dialog), so no overflow of a narrow field ever clips them. -->
 <script lang="ts">
   import { isolateHistory } from "@codemirror/commands";
   import { Annotation, Compartment, EditorState } from "@codemirror/state";
-  import { EditorView, placeholder as cmPlaceholder } from "@codemirror/view";
+  import { EditorView, placeholder as cmPlaceholder, tooltips } from "@codemirror/view";
   import { onMount } from "svelte";
 
   import { base, language, multiLine, setLookup, singleLine, variables, type Language } from "./codemirror";
+  import { varCompletion } from "./var-completion";
+  import { getVarSource } from "./var-source";
   import type { VarLookup } from "./vars";
 
   let {
@@ -22,6 +27,7 @@
     placeholder = "",
     readonly = false,
     onenter,
+    complete = true,
   }: {
     value: string;
     onchange?: (value: string) => void;
@@ -33,7 +39,11 @@
     placeholder?: string;
     readonly?: boolean;
     onenter?: () => void;
+    /** `{{` completion of variables (needs a `provideVarSource` above). */
+    complete?: boolean;
   } = $props();
+
+  const varSource = getVarSource();
 
   /** Marks changes that come from `value`, so they are not reported back. */
   const external = Annotation.define<boolean>();
@@ -52,6 +62,9 @@
         extensions: [
           base(),
           variables(),
+          tooltips({ parent: (host.closest("dialog") as HTMLElement | null) ?? document.body }),
+          // svelte-ignore state_referenced_locally
+          varSource && complete ? varCompletion(varSource) : [],
           multiline ? multiLine() : singleLine(() => onenter?.()),
           langSlot.of(language(lang)),
           editSlot.of(editable(readonly)),
