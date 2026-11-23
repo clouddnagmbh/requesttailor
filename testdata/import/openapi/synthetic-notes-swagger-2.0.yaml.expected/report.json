@@ -1,0 +1,41 @@
+{
+  "collectionName": "Notes",
+  "report": {
+    "environments": 1,
+    "folders": 0,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "server URL `/notes-api` is relative; set `baseUrl` to the full address",
+        "effect": "approximated",
+        "kind": "variable",
+        "location": "collection"
+      },
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "`text/plain` body has no example; it is empty",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Create a note"
+      },
+      {
+        "detail": "API key in `cookie` (scheme `cookie_session`) not imported; send it as a header instead",
+        "effect": "dropped",
+        "kind": "auth",
+        "location": "Get a note"
+      },
+      {
+        "detail": "second body parameter `second` not imported (Swagger 2.0 allows one)",
+        "effect": "dropped",
+        "kind": "body",
+        "location": "POST /notes"
+      }
+    ],
+    "requests": 3
+  }
+}

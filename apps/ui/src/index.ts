@@ -21,6 +21,7 @@ export * from "./commands/wave12-stubs";
 export * from "./commands/wave14-stubs";
 // Wave 14, strand F: the graph's order and pages for shells that build it in TypeScript.
 export { dateOrder, graphPage, reachable, sortChanges, sortRefs, type GraphSource, type OrderCommit } from "./git/graph/order";
+export * from "./commands/openapi-stub";
 
 export type * from "./extensions";
 

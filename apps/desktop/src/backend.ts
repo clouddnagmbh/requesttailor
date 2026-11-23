@@ -22,6 +22,7 @@ import {
   type GitApi,
   type HistoryApi,
   type ImportApi,
+  type OpenApiApi,
   type LineSlice,
   type PluginApi,
   type Preview,
@@ -50,6 +51,7 @@ import { tauriAi } from "./ai";
 // Wave 12: one file per strand.
 import { tauriCompare, type MakeStepChannel } from "./compare";
 import { tauriContract } from "./contract";
+import { tauriOpenApi } from "./openapi";
 import { tauriDiffs } from "./diffs";
 import { tauriMerges } from "./merges";
 import { tauriRescue, type MakeProgressChannel } from "./rescue";
@@ -230,6 +232,12 @@ export const COMMANDS = [
   "contract_check",
   "contract_changes",
   "contract_changelog",
+  // OpenAPI wizard (src-tauri/src/openapi.rs).
+  "openapi_fetch",
+  "openapi_inspect",
+  "openapi_plan",
+  "openapi_requirements",
+  "openapi_validate_response",
   // Wave 12, strand G.
   "rescue_scan",
   "rescue_rewrite",
@@ -280,6 +288,7 @@ export class TauriBackend implements Backend {
   readonly transport: TransportApi;
   readonly git: GitApi;
   readonly imports: ImportApi;
+  readonly openapi: OpenApiApi = tauriOpenApi((cmd, args) => this.call(cmd, args));
   readonly history: HistoryApi;
   readonly plugins: PluginApi;
   readonly auth: AuthApi;

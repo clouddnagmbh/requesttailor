@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! Importer for OpenAPI 3.0, 3.1 and 3.2 descriptions (JSON or YAML). Owner: wave 4, strand B.
+//! Importer for OpenAPI 3.0, 3.1 and 3.2 descriptions (JSON or YAML), and Swagger 2.0 after
+//! conversion. Owner: wave 4, strand B.
 //!
 //! An API description is not a collection, so the import builds one request per operation:
 //! - Folders: one per operation's first tag (in the order of the top-level `tags`, with their
@@ -19,9 +20,17 @@
 //!   callbacks and webhooks are documentation only and reported once.
 //!
 //! References: local `$ref`s (`#/components/...`) are resolved, with cycles and depth bounded;
-//! references to other files are reported.
+//! references to other files are reported. A multi-file spec arrives bundled into one document
+//! (`spec_files`), Swagger 2.0 converted to 3.0 (`swagger2`).
+//!
+//! Wizard choices ([`OpenApiOptions`], since the OpenAPI import wizard): which operations
+//! (`METHOD /path` keys), folders by tag, first path segment or none, request names from the
+//! summary or the `operationId`, examples from the spec or generated from the schema, which
+//! servers become environments under which names, the server of `baseUrl`, the collection
+//! name, and the kept spec (`extensions.requesttailor.contract.spec`). The defaults give the
+//! plain import byte for byte. [`overview`] describes a spec with the same names and order.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use rt_core::model::{
     ApiKeyPlacement, Auth, Body, Environment, KeyValue, MultipartPart, Param, ParamKind, PartKind,
@@ -29,15 +38,19 @@ use rt_core::model::{
 };
 
 use super::auth::{self, OAuth2};
-use super::common::{Losses, finish, invalid, location, plural, raw_kind, utf8};
+use super::common::{Losses, finish, invalid, location, plural, raw_kind};
 use super::out::{AuthOut, CollectionOut, DefaultsOut, ExampleOut, FolderOut, ItemOut, RequestOut};
-use super::value::{Value, parse_any};
-use super::{Import, ImportError, ImportFormat, LossKind, SourceFile, stem};
+use super::value::Value;
+use super::{
+    Import, ImportError, ImportFormat, Loss, LossKind, OpenApiExamples, OpenApiGrouping,
+    OpenApiNaming, OpenApiOptions, SpecOperation, SpecSecurityScheme, SpecServer,
+    SpecServerVariable, SpecTag, stem,
+};
 
 const F: ImportFormat = ImportFormat::Openapi;
 
 /// Operation keys of a path item (`query` is new in 3.2).
-const METHODS: &[&str] = &[
+pub(super) const METHODS: &[&str] = &[
     "get", "put", "post", "delete", "options", "head", "patch", "trace", "query",
 ];
 
@@ -45,16 +58,23 @@ const METHODS: &[&str] = &[
 const MAX_REF_DEPTH: usize = 32;
 const MAX_SAMPLE_DEPTH: usize = 8;
 
-pub(super) fn import(file: &SourceFile<'_>) -> Result<Import, ImportError> {
-    let root = parse_any(&utf8(F, file.data)?).map_err(|e| invalid(F, e))?;
+/// An OpenAPI 3.x document to convert (Swagger 2.0 is converted to it first, external files
+/// are bundled into it; see `spec_files` and `swagger2`).
+pub(super) struct Source<'v> {
+    pub root: &'v Value,
+    /// Name of the main file, for the collection name when the spec has no title.
+    pub file_name: &'v str,
+    /// Report references to other files at the collection (a single file). `false` when
+    /// the files were bundled: the bundler reported what it could not resolve.
+    pub report_external: bool,
+    /// Losses of reading, bundling and converting, reported with the import's.
+    pub losses: Vec<Loss>,
+}
+
+/// Refuses what is not OpenAPI 3.0, 3.1 or 3.2.
+pub(super) fn check_version(root: &Value) -> Result<(), ImportError> {
     if !root.is_obj() {
         return Err(invalid(F, "expected a JSON or YAML object"));
-    }
-    if let Some(v) = root.str_of("swagger") {
-        return Err(ImportError::UnsupportedVersion {
-            format: F,
-            version: format!("{v} (Swagger; convert it to OpenAPI 3 first)"),
-        });
     }
     let version = root.string("openapi");
     if !(version.starts_with("3.0") || version.starts_with("3.1") || version.starts_with("3.2")) {
@@ -67,18 +87,31 @@ pub(super) fn import(file: &SourceFile<'_>) -> Result<Import, ImportError> {
             },
         });
     }
+    Ok(())
+}
+
+/// Converts `src` with the wizard's choices; `contract_spec` names the spec kept in the
+/// collection (`extensions.requesttailor.contract.spec`).
+pub(super) fn build(
+    src: Source<'_>,
+    options: &OpenApiOptions,
+    contract_spec: Option<String>,
+) -> Result<Import, ImportError> {
+    check_version(src.root)?;
     let mut cx = Cx {
-        root: &root,
-        losses: Losses::default(),
+        root: src.root,
+        opts: options,
+        losses: Losses(src.losses),
         secrets: Vec::new(),
         plain_vars: Vec::new(),
         external_refs: BTreeSet::new(),
     };
-    cx.build(file)
+    cx.build(src.file_name, src.report_external, contract_spec)
 }
 
 struct Cx<'a> {
     root: &'a Value,
+    opts: &'a OpenApiOptions,
     losses: Losses,
     /// Variables the auth uses, to add to every environment: `(name, secret)`.
     secrets: Vec<(String, bool)>,
@@ -87,7 +120,7 @@ struct Cx<'a> {
 }
 
 /// JSON pointer `#/a/b~1c` → the value.
-fn pointer<'v>(root: &'v Value, reference: &str) -> Option<&'v Value> {
+pub(super) fn pointer<'v>(root: &'v Value, reference: &str) -> Option<&'v Value> {
     let path = reference.strip_prefix('#')?;
     let mut cur = root;
     for part in path.split('/').skip(1) {
@@ -98,6 +131,141 @@ fn pointer<'v>(root: &'v Value, reference: &str) -> Option<&'v Value> {
         };
     }
     Some(cur)
+}
+
+/// The collection name the import gives: `info.title`, else the file name.
+pub(super) fn spec_title(root: &Value, file_name: &str) -> String {
+    let title = root
+        .get("info")
+        .map(|i| i.string("title"))
+        .unwrap_or_default();
+    if title.trim().is_empty() {
+        stem(
+            file_name,
+            &[".openapi.json", ".openapi.yaml", ".json", ".yaml", ".yml"],
+        )
+        .to_owned()
+    } else {
+        title
+    }
+}
+
+/// The servers of the document.
+pub(super) fn servers(root: &Value) -> &[Value] {
+    root.get("servers").map(Value::items).unwrap_or_default()
+}
+
+/// The environment name the import suggests for server `i` (not yet unique).
+fn suggested_name(s: &Value, i: usize) -> String {
+    let url = braces_to_vars(&s.string("url"));
+    let mut env_name = s
+        .string("description")
+        .lines()
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_owned();
+    if env_name.is_empty() {
+        env_name = url
+            .split_once("://")
+            .map_or(url.as_str(), |(_, r)| r)
+            .trim_end_matches('/')
+            .to_owned();
+    }
+    if env_name.is_empty() || env_name.chars().any(char::is_control) {
+        env_name = format!("Server {}", i + 1);
+    }
+    env_name.chars().take(60).collect()
+}
+
+/// `name`, or `name (2)`, `name (3)`, ... if `taken` has it.
+fn unique(name: String, taken: &[String]) -> String {
+    let mut out = name.clone();
+    let mut n = 2;
+    while taken.contains(&out) {
+        out = format!("{name} ({n})");
+        n += 1;
+    }
+    out
+}
+
+/// The environment of each server (`None`: no environment), as the import names them.
+fn environment_names(root: &Value, opts: &OpenApiOptions) -> Vec<Option<String>> {
+    let mut taken: Vec<String> = Vec::new();
+    let mut out = Vec::new();
+    for (i, s) in servers(root).iter().enumerate() {
+        let wanted = match &opts.servers {
+            None => Some(suggested_name(s, i)),
+            Some(choices) => choices
+                .iter()
+                .find(|c| c.index as usize == i)
+                .and_then(|c| c.environment.as_deref())
+                .map(|n| {
+                    let n: String = n.trim().chars().take(60).collect();
+                    if n.is_empty() || n.chars().any(char::is_control) {
+                        suggested_name(s, i)
+                    } else {
+                        n
+                    }
+                }),
+        };
+        let name = wanted.map(|w| unique(w, &taken));
+        if let Some(n) = &name {
+            taken.push(n.clone());
+        }
+        out.push(name);
+    }
+    out
+}
+
+/// The operations of a path item in source order: `(method as written, operation)`.
+pub(super) fn item_operations(item: &Value) -> Vec<(&String, &Value)> {
+    // 3.2 lists operations with other methods under `additionalOperations`.
+    let extra = item
+        .get("additionalOperations")
+        .map(Value::entries)
+        .unwrap_or_default();
+    item.entries()
+        .iter()
+        .filter(|(m, _)| METHODS.contains(&m.as_str()))
+        .chain(extra.iter())
+        .filter(|(_, op)| op.is_obj())
+        .map(|(m, op)| (m, op))
+        .collect()
+}
+
+/// The collection-level loss for references that were not resolved.
+pub(super) fn external_refs_detail(refs: &[String]) -> String {
+    let shown: Vec<String> = refs.iter().take(5).map(|r| format!("`{r}`")).collect();
+    format!(
+        "references to other files not resolved ({}{})",
+        shown.join(", "),
+        if refs.len() > 5 { ", ..." } else { "" }
+    )
+}
+
+/// `GET /pets/{petId}`.
+pub(super) fn operation_key(method: &str, path: &str) -> String {
+    format!("{} {path}", method.to_ascii_uppercase())
+}
+
+/// The first tag of an operation.
+fn first_tag(op: &Value) -> Option<String> {
+    op.get("tags")
+        .and_then(|t| t.items().first())
+        .and_then(Value::text)
+}
+
+/// The folder of an operation for `grouping`; `None`: the collection root.
+fn folder_of(op: &Value, path: &str, grouping: OpenApiGrouping) -> Option<String> {
+    match grouping {
+        OpenApiGrouping::Tag => first_tag(op),
+        OpenApiGrouping::Path => path
+            .split('/')
+            .find(|s| !s.is_empty())
+            .map(|s| s.chars().take(80).collect()),
+        OpenApiGrouping::Flat => None,
+    }
 }
 
 impl<'a> Cx<'a> {
@@ -117,16 +285,27 @@ impl<'a> Cx<'a> {
         None
     }
 
-    fn build(&mut self, file: &SourceFile<'_>) -> Result<Import, ImportError> {
+    fn schema_examples(&self) -> bool {
+        self.opts.examples == OpenApiExamples::Schema
+    }
+
+    fn build(
+        &mut self,
+        file_name: &str,
+        report_external: bool,
+        contract_spec: Option<String>,
+    ) -> Result<Import, ImportError> {
         let root = self.root;
+        let opts = self.opts;
         let info = root.get("info").cloned().unwrap_or(Value::Null);
-        let mut name = info.string("title");
-        if name.trim().is_empty() {
-            name = stem(
-                file.name,
-                &[".openapi.json", ".openapi.yaml", ".json", ".yaml", ".yml"],
-            )
-            .to_owned();
+        let mut name = spec_title(root, file_name);
+        if let Some(n) = opts
+            .collection_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|n| !n.is_empty())
+        {
+            name = n.to_owned();
         }
         let mut docs = Vec::new();
         if let Some(v) = info.str_of("version") {
@@ -138,12 +317,18 @@ impl<'a> Cx<'a> {
 
         // Servers → baseUrl and environments.
         let mut environments = Vec::new();
-        let servers = root.get("servers").map(Value::items).unwrap_or_default();
+        let servers = servers(root);
+        let default_server = opts
+            .default_server
+            .map(|i| i as usize)
+            .filter(|i| *i < servers.len())
+            .unwrap_or(0);
+        let env_names = environment_names(root, opts);
         let mut base = String::new();
         let mut server_vars: Vec<Variable> = Vec::new();
         for (i, s) in servers.iter().enumerate() {
             let (url, vars) = self.server(s);
-            if i == 0 {
+            if i == default_server {
                 base = url.clone();
                 server_vars = vars.clone();
                 if !url.contains("://") && !url.starts_with("{{") {
@@ -156,36 +341,15 @@ impl<'a> Cx<'a> {
                     );
                 }
             }
-            let mut env_name = s
-                .string("description")
-                .lines()
-                .next()
-                .unwrap_or("")
-                .trim()
-                .to_owned();
-            if env_name.is_empty() {
-                env_name = url
-                    .split_once("://")
-                    .map_or(url.as_str(), |(_, r)| r)
-                    .trim_end_matches('/')
-                    .to_owned();
-            }
-            if env_name.is_empty() || env_name.chars().any(char::is_control) {
-                env_name = format!("Server {}", i + 1);
-            }
-            let env_name: String = env_name.chars().take(60).collect();
-            let mut unique = env_name.clone();
-            let mut n = 2;
-            while environments.iter().any(|e: &Environment| e.name == unique) {
-                unique = format!("{env_name} ({n})");
-                n += 1;
-            }
+            let Some(env_name) = env_names.get(i).cloned().flatten() else {
+                continue;
+            };
             let mut variables = vec![Variable::new("baseUrl", url)];
             variables.extend(vars);
             environments.push(Environment {
                 client_certificates: Vec::new(),
                 external_secrets: None,
-                name: unique,
+                name: env_name,
                 variables,
             });
         }
@@ -197,19 +361,25 @@ impl<'a> Cx<'a> {
             );
         }
 
-        // Folders from tags.
+        // Folders from tags (or path segments).
         let mut folders: Vec<FolderOut> = Vec::new();
-        for t in root.get("tags").map(Value::items).unwrap_or_default() {
-            if let Some(n) = t.str_of("name")
-                && !folders.iter().any(|f| f.name == n)
-            {
-                folders.push(FolderOut {
-                    name: n,
-                    docs: t.str_of("description"),
-                    ..FolderOut::default()
-                });
+        if opts.grouping == OpenApiGrouping::Tag {
+            for t in root.get("tags").map(Value::items).unwrap_or_default() {
+                if let Some(n) = t.str_of("name")
+                    && !folders.iter().any(|f| f.name == n)
+                {
+                    folders.push(FolderOut {
+                        name: n,
+                        docs: t.str_of("description"),
+                        ..FolderOut::default()
+                    });
+                }
             }
         }
+        let wanted: Option<HashSet<&str>> = opts
+            .operations
+            .as_ref()
+            .map(|ops| ops.iter().map(String::as_str).collect());
         let global_security = root.get("security");
         let collection_auth = match global_security {
             Some(sec) => self.security(sec, "collection"),
@@ -234,28 +404,17 @@ impl<'a> Cx<'a> {
                 .iter()
                 .collect();
             let path_servers = item.get("servers");
-            // 3.2 lists operations with other methods under `additionalOperations`.
-            let extra = item
-                .get("additionalOperations")
-                .map(Value::entries)
-                .unwrap_or_default();
-            let ops = item
-                .entries()
-                .iter()
-                .filter(|(m, _)| METHODS.contains(&m.as_str()))
-                .chain(extra.iter());
-            for (method, op) in ops {
-                if !op.is_obj() {
+            for (method, op) in item_operations(item) {
+                if let Some(wanted) = &wanted
+                    && !wanted.contains(operation_key(method, path).as_str())
+                {
                     continue;
                 }
                 if op.get("callbacks").is_some_and(|c| !c.entries().is_empty()) {
                     callbacks += 1;
                 }
-                let tag = op
-                    .get("tags")
-                    .and_then(|t| t.items().first())
-                    .and_then(Value::text);
-                let folder_path: Vec<String> = tag.iter().cloned().collect();
+                let folder = folder_of(op, path, opts.grouping);
+                let folder_path: Vec<String> = folder.iter().cloned().collect();
                 let r = self.operation(
                     path,
                     method,
@@ -265,13 +424,13 @@ impl<'a> Cx<'a> {
                     &folder_path,
                     global_security,
                 );
-                match tag {
-                    Some(tag) => {
-                        let i = match folders.iter().position(|f| f.name == tag) {
+                match folder {
+                    Some(folder) => {
+                        let i = match folders.iter().position(|f| f.name == folder) {
                             Some(i) => i,
                             None => {
                                 folders.push(FolderOut {
-                                    name: tag.clone(),
+                                    name: folder.clone(),
                                     ..FolderOut::default()
                                 });
                                 folders.len() - 1
@@ -311,14 +470,18 @@ impl<'a> Cx<'a> {
                 ),
             );
         }
+        let has_responses = paths.iter().any(|(path, item)| {
+            item.entries().iter().any(|(m, op)| {
+                METHODS.contains(&m.as_str())
+                    && op.get("responses").is_some()
+                    && wanted
+                        .as_ref()
+                        .is_none_or(|w| w.contains(operation_key(m, path).as_str()))
+            })
+        });
         let has_models = root
             .get("components")
             .is_some_and(|c| c.get("schemas").is_some_and(|s| !s.entries().is_empty()));
-        let has_responses = paths.iter().any(|(_, item)| {
-            item.entries()
-                .iter()
-                .any(|(m, op)| METHODS.contains(&m.as_str()) && op.get("responses").is_some())
-        });
         if has_models || has_responses {
             self.losses.dropped(
                 "collection",
@@ -327,26 +490,10 @@ impl<'a> Cx<'a> {
                  explicit response examples are kept as request examples",
             );
         }
-        if !self.external_refs.is_empty() {
-            let refs: Vec<String> = self
-                .external_refs
-                .iter()
-                .take(5)
-                .map(|r| format!("`{r}`"))
-                .collect();
-            self.losses.dropped(
-                "collection",
-                LossKind::Other,
-                format!(
-                    "references to other files not resolved ({}{})",
-                    refs.join(", "),
-                    if self.external_refs.len() > 5 {
-                        ", ..."
-                    } else {
-                        ""
-                    }
-                ),
-            );
+        if report_external && !self.external_refs.is_empty() {
+            let refs: Vec<String> = self.external_refs.iter().cloned().collect();
+            self.losses
+                .dropped("collection", LossKind::Other, external_refs_detail(&refs));
         }
 
         // Variables the auth needs.
@@ -388,6 +535,7 @@ impl<'a> Cx<'a> {
             },
             items,
             environments,
+            contract_spec,
         };
         let losses = std::mem::take(&mut self.losses);
         finish(F, collection, losses)
@@ -415,11 +563,15 @@ impl<'a> Cx<'a> {
         global_security: Option<&'a Value>,
     ) -> RequestOut {
         let method_upper = method.to_ascii_uppercase();
-        let name = op
-            .str_of("summary")
-            .filter(|s| !s.trim().is_empty())
-            .or_else(|| op.str_of("operationId"))
-            .unwrap_or_else(|| format!("{method_upper} {path}"));
+        let summary = op.str_of("summary").filter(|s| !s.trim().is_empty());
+        let name = match self.opts.naming {
+            OpenApiNaming::Summary => summary.or_else(|| op.str_of("operationId")),
+            OpenApiNaming::OperationId => op
+                .str_of("operationId")
+                .filter(|s| !s.trim().is_empty())
+                .or(summary),
+        }
+        .unwrap_or_else(|| format!("{method_upper} {path}"));
         let name: String = name
             .lines()
             .next()
@@ -578,14 +730,17 @@ impl<'a> Cx<'a> {
     }
 
     /// Example, then default, then first enum value of a parameter.
+    /// With [`OpenApiExamples::Schema`] only the schema's default and first enum value.
     fn param_value(&mut self, p: &'a Value) -> String {
-        if let Some(v) = p.field("example") {
+        let spec = !self.schema_examples();
+        if spec && let Some(v) = p.field("example") {
             return scalar_text(v);
         }
-        if let Some(first) = p
-            .get("examples")
-            .map(Value::entries)
-            .and_then(|e| e.first())
+        if spec
+            && let Some(first) = p
+                .get("examples")
+                .map(Value::entries)
+                .and_then(|e| e.first())
             && let Some(ex) = self.resolve(&first.1)
             && let Some(v) = ex.field("value")
         {
@@ -595,11 +750,13 @@ impl<'a> Cx<'a> {
             return String::new();
         };
         for key in ["example", "default"] {
-            if let Some(v) = schema.field(key) {
+            if (spec || key == "default")
+                && let Some(v) = schema.field(key)
+            {
                 return scalar_text(v);
             }
         }
-        if let Some(v) = schema.get("examples").and_then(|e| e.items().first()) {
+        if spec && let Some(v) = schema.get("examples").and_then(|e| e.items().first()) {
             return scalar_text(v);
         }
         if let Some(v) = schema.get("enum").and_then(|e| e.items().first()) {
@@ -652,13 +809,17 @@ impl<'a> Cx<'a> {
         headers.push(KeyValue::new("Content-Type", media.clone()));
         header_docs.push(None);
         let schema = mt.get("schema").and_then(|s| self.resolve(s));
-        let example = mt.field("example").or_else(|| {
-            mt.get("examples")
-                .map(Value::entries)
-                .and_then(|e| e.first())
-                .and_then(|(_, ex)| pointer_or(self.root, ex))
-                .and_then(|ex| ex.field("value"))
-        });
+        let example = mt
+            .field("example")
+            .or_else(|| {
+                mt.get("examples")
+                    .map(Value::entries)
+                    .and_then(|e| e.first())
+                    .and_then(|(_, ex)| pointer_or(self.root, ex))
+                    .and_then(|ex| ex.field("value"))
+            })
+            // Without a schema there is nothing to generate: the spec's example stays.
+            .filter(|_| !self.schema_examples() || schema.is_none());
         if lower.contains("x-www-form-urlencoded") || lower.contains("multipart/form-data") {
             let sample = example
                 .cloned()
@@ -785,12 +946,15 @@ impl<'a> Cx<'a> {
         if depth > MAX_SAMPLE_DEPTH || stack.contains(&ptr) {
             return Value::Null;
         }
+        let spec = !self.schema_examples();
         for key in ["example", "default", "const"] {
-            if let Some(v) = s.get(key) {
+            if (spec || key != "example")
+                && let Some(v) = s.get(key)
+            {
                 return v.clone();
             }
         }
-        if let Some(v) = s.get("examples").and_then(|e| e.items().first()) {
+        if spec && let Some(v) = s.get("examples").and_then(|e| e.items().first()) {
             return v.clone();
         }
         if let Some(v) = s.get("enum").and_then(|e| e.items().first()) {
@@ -1104,6 +1268,242 @@ impl<'a> Cx<'a> {
     }
 }
 
+// ---- the wizard's overview ----
+
+fn non_empty(s: Option<String>) -> Option<String> {
+    s.filter(|s| !s.trim().is_empty())
+}
+
+/// What the OpenAPI 3.x document `root` holds, named and ordered as [`build`] with the
+/// default options would import it.
+pub(super) fn overview(
+    root: &Value,
+    main_file: &str,
+    spec_version: String,
+    files: u32,
+    losses: Vec<Loss>,
+) -> super::SpecOverview {
+    let info = root.get("info").cloned().unwrap_or(Value::Null);
+    let names = environment_names(root, &OpenApiOptions::default());
+    let servers = servers(root)
+        .iter()
+        .enumerate()
+        .map(|(i, s)| SpecServer {
+            url: s.string("url"),
+            description: non_empty(s.str_of("description")),
+            suggested_name: names.get(i).cloned().flatten().unwrap_or_default(),
+            variables: s
+                .get("variables")
+                .map(Value::entries)
+                .unwrap_or_default()
+                .iter()
+                .map(|(name, v)| SpecServerVariable {
+                    name: name.clone(),
+                    default: v.string("default"),
+                    values: v
+                        .get("enum")
+                        .map(Value::items)
+                        .unwrap_or_default()
+                        .iter()
+                        .filter_map(Value::text)
+                        .collect(),
+                    description: non_empty(v.str_of("description")),
+                })
+                .collect(),
+        })
+        .collect();
+
+    let mut operations = Vec::new();
+    for (path, item) in root.get("paths").map(Value::entries).unwrap_or_default() {
+        let Some(item) = pointer_or(root, item) else {
+            continue;
+        };
+        for (method, op) in item_operations(item) {
+            operations.push(SpecOperation {
+                key: operation_key(method, path),
+                method: method.to_ascii_uppercase(),
+                path: path.clone(),
+                tags: op
+                    .get("tags")
+                    .map(Value::items)
+                    .unwrap_or_default()
+                    .iter()
+                    .filter_map(Value::text)
+                    .collect(),
+                summary: non_empty(op.str_of("summary")),
+                operation_id: non_empty(op.str_of("operationId")),
+                deprecated: op.flag("deprecated"),
+            });
+        }
+    }
+
+    // Folder order: the top-level tags, then first tags as used, then the other tags.
+    let mut tags: Vec<SpecTag> = Vec::new();
+    let add = |tags: &mut Vec<SpecTag>, name: String, description: Option<String>| {
+        if !tags.iter().any(|t| t.name == name) {
+            tags.push(SpecTag {
+                name,
+                description,
+                operations: 0,
+            });
+        }
+    };
+    for t in root.get("tags").map(Value::items).unwrap_or_default() {
+        if let Some(n) = t.str_of("name") {
+            add(&mut tags, n, non_empty(t.str_of("description")));
+        }
+    }
+    for op in &operations {
+        if let Some(first) = op.tags.first() {
+            add(&mut tags, first.clone(), None);
+        }
+    }
+    for op in &operations {
+        for t in op.tags.iter().skip(1) {
+            add(&mut tags, t.clone(), None);
+        }
+    }
+    for op in &operations {
+        let mut seen: Vec<&String> = Vec::new();
+        for t in &op.tags {
+            if !seen.contains(&t) {
+                seen.push(t);
+                if let Some(tag) = tags.iter_mut().find(|x| x.name == *t) {
+                    tag.operations += 1;
+                }
+            }
+        }
+    }
+
+    let security = root
+        .get("components")
+        .and_then(|c| c.get("securitySchemes"))
+        .map(Value::entries)
+        .unwrap_or_default()
+        .iter()
+        .map(|(name, scheme)| match pointer_or(root, scheme) {
+            Some(scheme) => scheme_overview(name, scheme),
+            None => SpecSecurityScheme {
+                name: name.clone(),
+                kind: "other".into(),
+                detail: "not resolved".into(),
+                maps_to: None,
+                variables: Vec::new(),
+            },
+        })
+        .collect();
+
+    super::SpecOverview {
+        title: spec_title(root, main_file),
+        version: info.string("version"),
+        description: non_empty(info.str_of("description")),
+        spec_version,
+        main_file: main_file.to_owned(),
+        files,
+        servers,
+        tags,
+        operations,
+        security,
+        losses,
+    }
+}
+
+/// What [`Cx::security`] makes of a scheme, in plain words.
+fn scheme_overview(name: &str, scheme: &Value) -> SpecSecurityScheme {
+    let vars = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+    let (kind, detail, maps_to, variables) = match (
+        scheme.string("type").as_str(),
+        scheme.string("scheme").to_ascii_lowercase().as_str(),
+    ) {
+        ("http", "basic") => (
+            "basic",
+            "HTTP Basic".to_owned(),
+            Some("Basic auth {{username}} / {{password}}".to_owned()),
+            vars(&["username", "password"]),
+        ),
+        ("http", "bearer") => (
+            "bearer",
+            non_empty(scheme.str_of("bearerFormat")).unwrap_or_else(|| "HTTP Bearer".into()),
+            Some("Bearer token {{token}}".to_owned()),
+            vars(&["token"]),
+        ),
+        ("http", "digest") => (
+            "digest",
+            "HTTP Digest".to_owned(),
+            Some(
+                "Digest auth {{username}} / {{password}} (kept in the file, not sent yet)"
+                    .to_owned(),
+            ),
+            vars(&["username", "password"]),
+        ),
+        ("http", other) => ("other", format!("HTTP {other}"), None, Vec::new()),
+        ("apiKey", _) => {
+            let key = scheme.string("name");
+            let place = scheme.string("in");
+            let maps_to = matches!(place.as_str(), "header" | "query")
+                .then(|| format!("API key {key} in {place} {{{{apiKey}}}}"));
+            let variables = if maps_to.is_some() {
+                vars(&["apiKey"])
+            } else {
+                Vec::new()
+            };
+            ("api-key", format!("{place} {key}"), maps_to, variables)
+        }
+        ("oauth2", _) => {
+            let flows = scheme.get("flows").map(Value::entries).unwrap_or_default();
+            match flows.first() {
+                None => ("oauth2", "no flows".to_owned(), None, Vec::new()),
+                Some((flow_name, _)) => {
+                    let flow = auth::oauth2_flow(flow_name).unwrap_or("authorization_code");
+                    let words = match flow {
+                        "client_credentials" => "client credentials",
+                        "resource_owner_password_credentials" => "password",
+                        "implicit" => "implicit",
+                        _ => "authorization code",
+                    };
+                    let mut v = vec!["clientId"];
+                    if flow != "implicit" {
+                        v.push("clientSecret");
+                    }
+                    if flow == "resource_owner_password_credentials" {
+                        v.extend(["username", "password"]);
+                    }
+                    let mut detail = format!("{words} flow");
+                    if flows.len() > 1 {
+                        detail.push_str(&format!(" (and {} more)", flows.len() - 1));
+                    }
+                    (
+                        "oauth2",
+                        detail,
+                        Some(format!("OAuth 2.0 {words} ({})", v.join(", "))),
+                        vars(&v),
+                    )
+                }
+            }
+        }
+        ("openIdConnect", _) => (
+            "openid-connect",
+            scheme.string("openIdConnectUrl"),
+            None,
+            Vec::new(),
+        ),
+        ("mutualTLS", _) => (
+            "mutual-tls",
+            "client certificate".to_owned(),
+            None,
+            Vec::new(),
+        ),
+        (other, _) => ("other", other.to_owned(), None, Vec::new()),
+    };
+    SpecSecurityScheme {
+        name: name.to_owned(),
+        kind: kind.to_owned(),
+        detail,
+        maps_to,
+        variables,
+    }
+}
+
 fn pointer_or<'v>(root: &'v Value, v: &'v Value) -> Option<&'v Value> {
     let mut cur = v;
     for _ in 0..MAX_REF_DEPTH {
@@ -1192,6 +1592,7 @@ fn braces_to_vars(url: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::import::value::parse_any;
 
     #[test]
     fn paths_and_servers() {

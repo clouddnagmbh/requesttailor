@@ -1,0 +1,6 @@
+name: Production
+variables:
+  - name: baseUrl
+    value: https://kennel.example.com/v1
+  - secret: true
+    name: token

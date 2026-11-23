@@ -186,6 +186,9 @@ export class AppState {
   /** A request tab asked for with `openRequestTab`; the request editor takes it. */
   requestTab = $state<{ key: string; seq: number } | null>(null);
   private seq = 0;
+  /** Asked before every `send` once the request's edits have reached the backend (the
+   *  OpenAPI run wizard, `openapi/gate.ts`); `false` cancels the send. Errors let it through. */
+  sendGate: ((path: string) => Promise<boolean>) | null = null;
 
   /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
    *  shells with concurrent commands (Tauri) never send or save a stale request. Wave 14:
@@ -629,6 +632,10 @@ export class AppState {
     if (!path || !view) return;
     view.sending[path] = true;
     await this.lastEdit;
+    if (this.sendGate && !(await this.sendGate(path).catch(() => true))) {
+      this.sending[path] = false;
+      return;
+    }
     await this.guard(async () => {
       const previous = view.results[path];
       const result = await this.backend.send(path, { environment: view.environment, vars: [] });

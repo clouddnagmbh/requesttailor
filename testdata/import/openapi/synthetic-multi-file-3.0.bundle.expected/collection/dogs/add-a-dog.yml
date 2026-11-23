@@ -1,0 +1,26 @@
+info:
+  name: Add a dog
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/dogs"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Bello",
+        "breed": "beagle",
+        "born": "2024-01-01",
+        "vaccinations": [
+          {
+            "vaccine": "rabies",
+            "date": "2024-01-01"
+          }
+        ]
+      }
+  auth: inherit

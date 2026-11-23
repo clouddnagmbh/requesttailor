@@ -1,0 +1,23 @@
+limit:
+  name: limit
+  in: query
+  schema:
+    type: integer
+    default: 25
+breed:
+  name: breed
+  in: query
+  required: true
+  schema:
+    $ref: "#/breedName"
+breedName:
+  type: string
+  enum: [beagle, collie, poodle]
+dogId:
+  name: dogId
+  in: path
+  required: true
+  schema:
+    type: string
+    format: uuid
+  example: 3f2c9a1e-0000-4000-8000-000000000001

@@ -18,7 +18,7 @@ use crate::workspace_js::{WorkspaceJs, app_error, from_js, int, to_js};
 
 #[wasm_bindgen]
 pub struct Importer {
-    imports: Imports,
+    pub(crate) imports: Imports,
 }
 
 impl Default for Importer {

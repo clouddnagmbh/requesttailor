@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SpecChanges, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -1514,6 +1514,7 @@ export const importPlan: ImportPlan = {
 };
 
 export const folderImport: FolderImport = {
+  "contract_spec": "Shop/openapi.yaml",
   "environments_added": [
     "Staging"
   ],
@@ -4464,4 +4465,294 @@ export const wave12RequestSpec: RequestSpec = {
       "value": "1"
     }
   ]
+};
+
+export const specOverview: SpecOverview = {
+  "description": "A sample API",
+  "files": 2,
+  "losses": [
+    {
+      "detail": "references to other files not resolved (`common.yaml`)",
+      "effect": "dropped",
+      "kind": "other",
+      "location": "collection"
+    }
+  ],
+  "main_file": "petstore.yaml",
+  "operations": [
+    {
+      "deprecated": false,
+      "key": "GET /pets/{petId}",
+      "method": "GET",
+      "operation_id": "showPetById",
+      "path": "/pets/{petId}",
+      "summary": "Info for a specific pet",
+      "tags": [
+        "pets"
+      ]
+    }
+  ],
+  "security": [
+    {
+      "detail": "JWT",
+      "kind": "bearer",
+      "maps_to": "Bearer token {{token}}",
+      "name": "bearerAuth",
+      "variables": [
+        "token"
+      ]
+    }
+  ],
+  "servers": [
+    {
+      "description": "Production",
+      "suggested_name": "Production",
+      "url": "https://{region}.example.com/v1",
+      "variables": [
+        {
+          "default": "eu",
+          "description": null,
+          "name": "region",
+          "values": [
+            "eu",
+            "us"
+          ]
+        }
+      ]
+    }
+  ],
+  "spec_version": "3.0.3",
+  "tags": [
+    {
+      "description": null,
+      "name": "pets",
+      "operations": 3
+    }
+  ],
+  "title": "Petstore",
+  "version": "1.0.0"
+};
+
+export const openApiOptions: OpenApiOptions = {
+  "collection_name": "Petstore",
+  "default_server": 0,
+  "examples": "spec",
+  "grouping": "tag",
+  "keep_spec": true,
+  "naming": "summary",
+  "operations": [
+    "GET /pets"
+  ],
+  "servers": [
+    {
+      "environment": "Production",
+      "index": 0
+    }
+  ]
+};
+
+export const openApiOptionsVariants: OpenApiOptions[] = [
+  {
+    "collection_name": "Petstore",
+    "default_server": 0,
+    "examples": "schema",
+    "grouping": "path",
+    "keep_spec": true,
+    "naming": "operation-id",
+    "operations": [
+      "GET /pets"
+    ],
+    "servers": [
+      {
+        "environment": "Production",
+        "index": 0
+      }
+    ]
+  },
+  {
+    "collection_name": "Petstore",
+    "default_server": 0,
+    "examples": "spec",
+    "grouping": "flat",
+    "keep_spec": true,
+    "naming": "summary",
+    "operations": [
+      "GET /pets"
+    ],
+    "servers": [
+      {
+        "environment": "Production",
+        "index": 0
+      }
+    ]
+  },
+  {
+    "collection_name": null,
+    "default_server": null,
+    "examples": "spec",
+    "grouping": "tag",
+    "keep_spec": false,
+    "naming": "summary",
+    "operations": null,
+    "servers": null
+  }
+];
+
+export const fetchedSpec: FetchedSpec = {
+  "files": [
+    {
+      "name": "openapi.yaml",
+      "text": "openapi: 3.0.3"
+    }
+  ],
+  "losses": [
+    {
+      "detail": "references to other files not resolved (`common.yaml`)",
+      "effect": "dropped",
+      "kind": "other",
+      "location": "collection"
+    }
+  ],
+  "url": "https://api.example.com/openapi.yaml"
+};
+
+export const sendRequirements: SendRequirements = {
+  "deprecated": false,
+  "fields": [
+    {
+      "auth": false,
+      "description": "The id of the pet",
+      "example": "42",
+      "id": "path:petId",
+      "name": "petId",
+      "place": "path",
+      "problem": {
+        "details": [
+          "$.name: required property `name` is missing"
+        ],
+        "kind": "missing",
+        "message": "petId is required"
+      },
+      "required": true,
+      "schema": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "secret": false,
+      "value": ""
+    },
+    {
+      "auth": false,
+      "description": "The id of the pet",
+      "example": "42",
+      "id": "path:petId",
+      "name": "petId",
+      "place": "variable",
+      "problem": {
+        "details": [
+          "$.name: required property `name` is missing"
+        ],
+        "kind": "invalid",
+        "message": "petId is required"
+      },
+      "required": true,
+      "schema": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "secret": false,
+      "value": ""
+    },
+    {
+      "auth": false,
+      "description": "The id of the pet",
+      "example": "42",
+      "id": "path:petId",
+      "name": "petId",
+      "place": "query",
+      "problem": null,
+      "required": true,
+      "schema": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "secret": false,
+      "value": ""
+    },
+    {
+      "auth": false,
+      "description": "The id of the pet",
+      "example": "42",
+      "id": "path:petId",
+      "name": "petId",
+      "place": "header",
+      "problem": null,
+      "required": true,
+      "schema": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "secret": false,
+      "value": ""
+    },
+    {
+      "auth": false,
+      "description": null,
+      "example": null,
+      "id": "path:petId",
+      "name": "petId",
+      "place": "body",
+      "problem": {
+        "kind": "missing",
+        "message": "a body is required"
+      },
+      "required": true,
+      "schema": null,
+      "secret": false,
+      "value": null
+    }
+  ],
+  "operation": "GET /pets/{petId}",
+  "ready": false,
+  "servers": [
+    {
+      "description": null,
+      "url": "https://{{region}}.example.com/v1"
+    }
+  ],
+  "spec": "openapi.yaml",
+  "summary": "Info for a specific pet"
+};
+
+export const responseCheck: ResponseCheck = {
+  "body_skipped": "the body is larger than 8 MB",
+  "differences": [
+    {
+      "expected": "integer",
+      "got": "string",
+      "path": "$.id",
+      "place": "status"
+    },
+    {
+      "expected": "integer",
+      "got": "string",
+      "path": "$.id",
+      "place": "header"
+    },
+    {
+      "expected": "integer",
+      "got": "string",
+      "path": "$.id",
+      "place": "content-type"
+    },
+    {
+      "expected": "integer",
+      "got": "string",
+      "path": "$.id",
+      "place": "body"
+    }
+  ],
+  "matched": "200",
+  "operation": "GET /pets/{petId}",
+  "status": 200
 };

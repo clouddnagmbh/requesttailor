@@ -77,6 +77,8 @@ Usage:
   rt run [<folder>] [options]
   rt agent [--port <PORT>] [--allow-origin <ORIGIN>]... [--allow-secrets]
   rt import <file>... --out <dir> [--format <FORMAT>] [--json]
+  rt import openapi <file|url>... --out <dir> [--names operation-id]
+            [--group tag|path|flat] [--keep-spec] [--json]
   rt scan [<path>...] [--json]
   rt mcp-test [<path>...] [-e <NAME>] [--var <NAME=VALUE>]...
 {git_usage}  rt --help | --version
@@ -154,10 +156,21 @@ rt import converts exports of other tools into a new collection folder:
                             (default: detected from each file)
       --json                Print the loss report as JSON instead of text
   Several files form one collection: a Postman collection with its environment
-  and globals files, .http files with http-client(.private).env.json, or
-  several cURL files. Secret values are never written; set them in
-  Environments. Exit code {EXIT_OK} once the collection is written, even if the report
-  lists losses; {EXIT_USAGE} if the files cannot be imported.
+  and globals files, .http files with http-client(.private).env.json,
+  several cURL files, or a multi-file OpenAPI spec. Secret values are never
+  written; set them in Environments. Exit code {EXIT_OK} once the collection is
+  written, even if the report lists losses; {EXIT_USAGE} if the files cannot be
+  imported.
+
+rt import openapi imports an OpenAPI 3.x or Swagger 2.0 spec with choices:
+  <file>...                 The spec; several files are one multi-file spec (the
+                            files its $refs name), a .zip holds one
+  <url>                     Fetch the spec and the files its relative $refs name
+                            ({EXIT_TRANSPORT} if it cannot be fetched)
+      --names operation-id  Name requests after the operationId (default: summary)
+      --group <BY>          Folders by tag (default), path (first segment) or flat
+      --keep-spec           Keep the spec in the collection (openapi.yaml/.json)
+                            for the contract check
 
 {git_help}
 The collection root is the nearest folder above <request-file> that contains

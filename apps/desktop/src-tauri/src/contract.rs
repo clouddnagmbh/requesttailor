@@ -33,7 +33,7 @@ fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
 
 /// Reads a spec path from the work tree: relative to the collection, or with a leading `/`
 /// relative to the repository root (the collection's folder if there is no repository).
-fn read_disk(root: &Path, work: &Path, path: &str) -> Result<Option<Vec<u8>>> {
+pub(crate) fn read_disk(root: &Path, work: &Path, path: &str) -> Result<Option<Vec<u8>>> {
     safe_path(path)?;
     let file = match path.strip_prefix('/') {
         Some(rest) => work.join(rest),
@@ -50,7 +50,7 @@ fn read_disk(root: &Path, work: &Path, path: &str) -> Result<Option<Vec<u8>>> {
     }
 }
 
-fn work_dir(root: &Path) -> PathBuf {
+pub(crate) fn work_dir(root: &Path) -> PathBuf {
     match Repo::open(root, &Options::default()) {
         Ok(Some(repo)) => repo.workdir().to_path_buf(),
         _ => root.to_path_buf(),

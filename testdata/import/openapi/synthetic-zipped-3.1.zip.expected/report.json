@@ -1,0 +1,23 @@
+{
+  "collectionName": "Library",
+  "report": {
+    "environments": 1,
+    "folders": 0,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "Add a book"
+      }
+    ],
+    "requests": 2
+  }
+}

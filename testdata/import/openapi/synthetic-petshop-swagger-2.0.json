@@ -1,0 +1,227 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Pet Shop",
+    "version": "2.1.0",
+    "description": "A synthetic Swagger 2.0 description for the importer tests."
+  },
+  "host": "petshop.example.com",
+  "basePath": "/api/v2",
+  "schemes": ["https", "http"],
+  "consumes": ["application/json", "application/xml"],
+  "produces": ["application/json"],
+  "tags": [
+    { "name": "pets", "description": "Everything about pets" },
+    { "name": "store", "description": "Orders" },
+    { "name": "users" }
+  ],
+  "securityDefinitions": {
+    "shop_key": { "type": "apiKey", "name": "X-Shop-Key", "in": "header" },
+    "basic": { "type": "basic" },
+    "shop_auth": {
+      "type": "oauth2",
+      "flow": "implicit",
+      "authorizationUrl": "https://auth.example.com/authorize",
+      "scopes": { "read:pets": "read your pets", "write:pets": "modify pets" }
+    },
+    "shop_password": {
+      "type": "oauth2",
+      "flow": "password",
+      "tokenUrl": "https://auth.example.com/token",
+      "scopes": { "orders": "place orders" }
+    },
+    "shop_app": {
+      "type": "oauth2",
+      "flow": "application",
+      "tokenUrl": "https://auth.example.com/token",
+      "scopes": {}
+    },
+    "shop_code": {
+      "type": "oauth2",
+      "flow": "accessCode",
+      "authorizationUrl": "https://auth.example.com/authorize",
+      "tokenUrl": "https://auth.example.com/token",
+      "scopes": { "admin": "administer the shop" }
+    }
+  },
+  "security": [{ "shop_key": [] }],
+  "parameters": {
+    "petId": {
+      "name": "petId",
+      "in": "path",
+      "description": "ID of the pet",
+      "required": true,
+      "type": "integer",
+      "format": "int64",
+      "x-example": 42
+    },
+    "traceId": {
+      "name": "X-Trace-Id",
+      "in": "header",
+      "type": "string",
+      "format": "uuid"
+    }
+  },
+  "responses": {
+    "NotFound": {
+      "description": "The pet was not found",
+      "schema": { "$ref": "#/definitions/Error" }
+    }
+  },
+  "paths": {
+    "/pets": {
+      "get": {
+        "tags": ["pets"],
+        "summary": "Find pets by status",
+        "operationId": "findPets",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": true,
+            "type": "array",
+            "items": { "type": "string", "enum": ["available", "pending", "sold"] },
+            "collectionFormat": "multi"
+          },
+          { "name": "limit", "in": "query", "type": "integer", "default": 20, "maximum": 100 },
+          { "$ref": "#/parameters/traceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pets",
+            "schema": { "type": "array", "items": { "$ref": "#/definitions/Pet" } },
+            "examples": { "application/json": [{ "id": 1, "name": "Rex", "status": "available" }] },
+            "headers": { "X-Total": { "type": "integer", "description": "All pets" } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["pets"],
+        "summary": "Add a pet",
+        "operationId": "addPet",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "pet",
+            "required": true,
+            "schema": { "$ref": "#/definitions/Pet" }
+          }
+        ],
+        "responses": { "201": { "description": "Created" } },
+        "security": [{ "shop_auth": ["write:pets"] }]
+      }
+    },
+    "/pets/{petId}": {
+      "parameters": [{ "$ref": "#/parameters/petId" }],
+      "get": {
+        "tags": ["pets"],
+        "summary": "Get a pet",
+        "operationId": "getPet",
+        "produces": ["application/json", "application/xml"],
+        "responses": {
+          "200": { "description": "The pet", "schema": { "$ref": "#/definitions/Pet" } },
+          "404": { "$ref": "#/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["pets"],
+        "summary": "Update a pet with form data",
+        "operationId": "updatePetWithForm",
+        "consumes": ["application/x-www-form-urlencoded"],
+        "parameters": [
+          { "name": "name", "in": "formData", "type": "string", "required": true },
+          { "name": "status", "in": "formData", "type": "string", "enum": ["available", "sold"] }
+        ],
+        "responses": { "204": { "description": "Updated" } }
+      },
+      "delete": {
+        "tags": ["pets"],
+        "summary": "Delete a pet",
+        "operationId": "deletePet",
+        "deprecated": true,
+        "parameters": [{ "name": "api_key", "in": "header", "type": "string" }],
+        "responses": { "204": { "description": "Deleted" } },
+        "security": [{ "basic": [] }]
+      }
+    },
+    "/pets/{petId}/photo": {
+      "post": {
+        "tags": ["pets"],
+        "summary": "Upload a photo",
+        "operationId": "uploadPhoto",
+        "consumes": ["multipart/form-data"],
+        "parameters": [
+          { "$ref": "#/parameters/petId" },
+          { "name": "caption", "in": "formData", "type": "string", "default": "Rex in the sun" },
+          { "name": "file", "in": "formData", "type": "file", "required": true }
+        ],
+        "responses": { "200": { "description": "Uploaded" } }
+      }
+    },
+    "/store/orders": {
+      "post": {
+        "tags": ["store"],
+        "summary": "Place an order",
+        "operationId": "placeOrder",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "order",
+            "schema": { "$ref": "#/definitions/Order" },
+            "x-examples": { "application/json": { "petId": 42, "quantity": 1 } }
+          }
+        ],
+        "responses": { "200": { "description": "The order", "schema": { "$ref": "#/definitions/Order" } } },
+        "security": [{ "shop_password": ["orders"] }]
+      }
+    },
+    "/store/inventory": {
+      "get": {
+        "tags": ["store"],
+        "summary": "Inventory by status",
+        "operationId": "getInventory",
+        "responses": { "200": { "description": "Counts", "schema": { "type": "object", "additionalProperties": { "type": "integer" } } } },
+        "security": [{ "shop_app": [] }]
+      }
+    },
+    "/users/{username}": {
+      "get": {
+        "tags": ["users"],
+        "operationId": "getUser",
+        "parameters": [{ "name": "username", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "The user", "schema": { "$ref": "#/definitions/User" } } },
+        "security": [{ "shop_code": ["admin"] }]
+      }
+    }
+  },
+  "definitions": {
+    "Pet": {
+      "type": "object",
+      "required": ["name"],
+      "discriminator": "kind",
+      "properties": {
+        "id": { "type": "integer", "format": "int64", "readOnly": true },
+        "kind": { "type": "string", "example": "dog" },
+        "name": { "type": "string", "example": "Rex" },
+        "tag": { "type": "string", "x-nullable": true },
+        "status": { "type": "string", "enum": ["available", "pending", "sold"] }
+      }
+    },
+    "Order": {
+      "type": "object",
+      "properties": {
+        "petId": { "type": "integer", "format": "int64" },
+        "quantity": { "type": "integer", "format": "int32" },
+        "shipDate": { "type": "string", "format": "date-time" }
+      }
+    },
+    "User": {
+      "type": "object",
+      "properties": { "username": { "type": "string" }, "email": { "type": "string", "format": "email" } }
+    },
+    "Error": {
+      "type": "object",
+      "properties": { "code": { "type": "integer" }, "message": { "type": "string" } }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Library
+
+request:
+  variables:
+    - name: baseUrl
+      value: https://library.example.org/api
+
+docs: Version 1.0
+
+bundled: false

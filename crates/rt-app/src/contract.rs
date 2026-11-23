@@ -11,7 +11,9 @@
 //!
 //! Owner: wave 12, strand F.
 
+use rt_core::model::{Auth, KeyValue, OAuth2Flow, RequestContext, RequestSpec};
 use rt_format::FileSet;
+use rt_format::contract::MAX_CHECKED_BODY;
 pub use rt_format::contract::{
     ContractError, ContractFinding, ContractReport, ContractSpec, FindingKind, SPEC_CANDIDATES,
     SpecChange, SpecChangeKind, SpecChanges,
@@ -204,4 +206,412 @@ pub fn changelog(old: &Side<'_>, new: &Side<'_>, from: &str, to: &str) -> Result
         .map(|l| l.spec.title.as_str());
     let title = changelog_title(name, &spec, from, to);
     Ok(rt_format::contract::changelog(&title, &spec, &collection))
+}
+
+// ---- the run wizard and the response check (interface) ----
+
+pub use rt_format::contract::{
+    DifferencePlace, InputField, InputPlace, InputProblem, ParsedSpec, ProblemKind, ResponseCheck,
+    ResponseDifference, SendRequirements, ServerOption, VarFact, VarState,
+};
+
+/// The parsed spec of one collection, kept between sends: parsed again only when the path or
+/// the bytes change (compared with the bytes parsed last; a memory compare is far cheaper than
+/// any hash over a large spec).
+#[derive(Debug, Default)]
+pub struct SpecCache {
+    entry: Option<CachedSpec>,
+}
+
+#[derive(Debug)]
+struct CachedSpec {
+    path: String,
+    bytes: Vec<u8>,
+    parsed: std::sync::Arc<ParsedSpec>,
+}
+
+impl SpecCache {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The spec of `files` (as [`load`] finds it), parsed or from the cache; `None` if the
+    /// collection has none.
+    pub fn get(
+        &mut self,
+        files: &FileSet,
+        read: ReadFile<'_>,
+    ) -> Result<Option<(String, std::sync::Arc<ParsedSpec>)>> {
+        let Some(loaded) = load(files, read)? else {
+            self.entry = None;
+            return Ok(None);
+        };
+        if let Some(c) = &self.entry
+            && c.path == loaded.spec.path
+            && c.bytes == loaded.bytes
+        {
+            return Ok(Some((c.path.clone(), std::sync::Arc::clone(&c.parsed))));
+        }
+        let parsed = std::sync::Arc::new(ParsedSpec::parse(&loaded.bytes)?);
+        self.entry = Some(CachedSpec {
+            path: loaded.spec.path.clone(),
+            bytes: loaded.bytes,
+            parsed: std::sync::Arc::clone(&parsed),
+        });
+        Ok(Some((loaded.spec.path, parsed)))
+    }
+}
+
+/// What the request at `path` still needs before sending, per its spec operation (`None`: the
+/// collection has no spec, or no operation matches). `input` as for sending (the shell has
+/// added the secrets it holds), so unresolved variables are those `send` would leave
+/// unresolved.
+///
+/// The request is the one being edited (unsaved changes included), with the headers and the
+/// auth it inherits from its folders and the collection. Variables: those the request uses
+/// (as `Workspace::preview` reports them, plus the ones of the effective auth); a variable
+/// declared secret counts as set only when `input.secrets` (or a runtime variable) gives it a
+/// non-empty value. Secret values never leave this function.
+pub fn requirements(
+    workspace: &crate::Workspace,
+    path: &str,
+    input: &crate::SendInput,
+    cache: &mut SpecCache,
+    read: ReadFile<'_>,
+) -> Result<Option<SendRequirements>> {
+    let Some(context) = workspace.collection().request(path) else {
+        return Err(AppError::RequestNotFound(path.to_owned()));
+    };
+    let Some((spec_path, spec)) = spec_of(workspace, cache, read)? else {
+        return Ok(None);
+    };
+    let preview = workspace.preview(path, input.clone())?;
+    let auth = effective_auth(&context);
+    let request = effective_request(&context, &auth);
+    let variables = var_facts(&context, input, &preview, &auth);
+    let facts = rt_format::contract::RequestFacts {
+        request: &request,
+        variables: &variables,
+    };
+    Ok(
+        rt_format::contract::requirements(&spec, &facts).map(|mut r| {
+            r.spec = spec_path;
+            r
+        }),
+    )
+}
+
+/// The stored response `response_id` of the request at `path` against its spec operation
+/// (`None`: no spec, no matching operation, or no response).
+pub fn validate_response(
+    workspace: &crate::Workspace,
+    path: &str,
+    responses: &crate::ResponseStore,
+    response_id: u64,
+    cache: &mut SpecCache,
+    read: ReadFile<'_>,
+) -> Result<Option<ResponseCheck>> {
+    let Some(context) = workspace.collection().request(path) else {
+        return Err(AppError::RequestNotFound(path.to_owned()));
+    };
+    let Some((_, spec)) = spec_of(workspace, cache, read)? else {
+        return Ok(None);
+    };
+    let report = responses.report(response_id)?;
+    let Some(response) = &report.response else {
+        return Ok(None);
+    };
+    let body = if response.truncated || response.size > MAX_CHECKED_BODY as u64 {
+        None
+    } else {
+        let len = u32::try_from(response.size).unwrap_or(u32::MAX);
+        Some(responses.bytes(response_id, 0, len)?)
+    };
+    let facts = rt_format::contract::ResponseFacts {
+        status: response.status,
+        headers: &response.headers,
+        body: body.as_deref(),
+    };
+    let auth = effective_auth(&context);
+    let request = effective_request(&context, &auth);
+    let mut check = rt_format::contract::validate_response(&spec, &request, &facts);
+    // Say why the body was not checked when it was too large rather than truncated.
+    if let Some(c) = &mut check
+        && body.is_none()
+        && !response.truncated
+        && c.body_skipped.as_deref() == Some("the body was not kept in full")
+    {
+        c.body_skipped = Some(format!(
+            "the body is larger than {} MB",
+            MAX_CHECKED_BODY / (1024 * 1024)
+        ));
+    }
+    Ok(check)
+}
+
+/// The spec of the workspace's collection, parsed or from `cache`. The collection files are
+/// the workspace's, with an unsaved `opencollection.yml` (where the spec may be named) and
+/// staged companion files (an imported spec not saved yet) taking precedence.
+/// The workspace's files with the unsaved `opencollection.yml`, as `save` would write it.
+fn current_files(workspace: &crate::Workspace, dirty: &[String]) -> Result<FileSet> {
+    let mut files = workspace.files().clone();
+    if dirty.iter().any(|p| p == rt_format::COLLECTION_FILE) {
+        let mut copy = workspace.clone();
+        for change in copy.save()? {
+            if change.deleted {
+                files.files.remove(&change.path);
+            } else {
+                files.files.insert(change.path, change.text.into_bytes());
+            }
+        }
+    }
+    Ok(files)
+}
+
+/// The spec path the open collection names in `opencollection.yml`, unsaved edits included
+/// (`None`: it names none, so [`load`] looks for `openapi.{yaml,yml,json}`). For shells that
+/// read the spec's bytes before calling [`requirements`] (the web shell).
+pub fn configured_spec(workspace: &crate::Workspace) -> Result<Option<String>> {
+    let files = current_files(workspace, &workspace.dirty())?;
+    Ok(rt_format::contract::configured_spec(&files))
+}
+
+fn spec_of(
+    workspace: &crate::Workspace,
+    cache: &mut SpecCache,
+    read: ReadFile<'_>,
+) -> Result<Option<(String, std::sync::Arc<ParsedSpec>)>> {
+    let dirty = workspace.dirty();
+    let files = current_files(workspace, &dirty)?;
+    let staged = |p: &str| -> Result<Option<Vec<u8>>> {
+        if !p.starts_with('/') && dirty.iter().any(|d| d == p) {
+            return Ok(workspace.companion_file(p).map(<[u8]>::to_vec));
+        }
+        read(p)
+    };
+    cache.get(&files, &staged)
+}
+
+/// The auth that applies after inheritance (as `rt_core::prepare` resolves it), with
+/// templates.
+fn effective_auth(context: &RequestContext<'_>) -> Auth {
+    std::iter::once(&context.request.spec.auth)
+        .chain(context.folders.iter().rev().map(|f| &f.defaults.auth))
+        .chain(std::iter::once(&context.collection.defaults.auth))
+        .find(|a| **a != Auth::Inherit)
+        .cloned()
+        .unwrap_or(Auth::None)
+}
+
+/// The request as it is sent: its headers merged over the collection's and folders' (a later
+/// layer replaces a header of the same name), and the effective auth.
+fn effective_request(context: &RequestContext<'_>, auth: &Auth) -> RequestSpec {
+    let mut request = context.request.spec.clone();
+    let mut headers: Vec<KeyValue> = Vec::new();
+    let layers = std::iter::once(&context.collection.defaults.headers)
+        .chain(context.folders.iter().map(|f| &f.defaults.headers))
+        .chain(std::iter::once(&request.headers));
+    for h in layers.flatten().filter(|h| h.enabled && !h.name.is_empty()) {
+        match headers
+            .iter_mut()
+            .find(|x| x.name.eq_ignore_ascii_case(&h.name))
+        {
+            Some(existing) => existing.value = h.value.clone(),
+            None => headers.push(h.clone()),
+        }
+    }
+    request.headers = headers;
+    request.auth = auth.clone();
+    request
+}
+
+/// The templates of the auth's fields: `(text, credential)`.
+fn auth_fields(auth: &Auth) -> Vec<(&str, bool)> {
+    match auth {
+        Auth::Inherit | Auth::None | Auth::Unsupported { .. } => Vec::new(),
+        Auth::Basic { username, password } => vec![(username, false), (password, true)],
+        Auth::Bearer { token } => vec![(token, true)],
+        Auth::ApiKey { key, value, .. } => vec![(key, false), (value, true)],
+        Auth::OAuth2(o) => {
+            let mut out = vec![
+                (o.access_token_url.as_str(), false),
+                (o.refresh_token_url.as_str(), false),
+                (o.client_id.as_str(), false),
+                (o.client_secret.as_str(), true),
+                (o.scope.as_str(), false),
+            ];
+            match &o.flow {
+                OAuth2Flow::ClientCredentials => {}
+                OAuth2Flow::Password { username, password } => {
+                    out.extend([(username.as_str(), false), (password.as_str(), true)]);
+                }
+                OAuth2Flow::AuthorizationCode {
+                    authorization_url,
+                    callback_url,
+                    state,
+                    ..
+                }
+                | OAuth2Flow::Implicit {
+                    authorization_url,
+                    callback_url,
+                    state,
+                } => out.extend([
+                    (authorization_url.as_str(), false),
+                    (callback_url.as_str(), false),
+                    (state.as_str(), false),
+                ]),
+                OAuth2Flow::DeviceCode {
+                    device_authorization_url,
+                } => out.push((device_authorization_url.as_str(), false)),
+                OAuth2Flow::Saml2Bearer { assertion } => out.push((assertion.as_str(), true)),
+            }
+            for p in &o.parameters {
+                out.extend([(p.name.as_str(), false), (p.value.as_str(), false)]);
+            }
+            out
+        }
+        Auth::AwsSigV4(a) => vec![
+            (a.access_key_id.as_str(), false),
+            (a.secret_access_key.as_str(), true),
+            (a.session_token.as_str(), true),
+            (a.service.as_str(), false),
+            (a.region.as_str(), false),
+            (a.profile_name.as_str(), false),
+        ],
+    }
+}
+
+/// Names of the `{{placeholders}}` in `text`, in order.
+fn placeholders(text: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(i) = rest.find("{{") {
+        let after = &rest[i + 2..];
+        let Some(j) = after.find("}}") else { break };
+        let name = after[..j].trim();
+        if !name.is_empty() && !name.contains('{') {
+            out.push(name);
+        }
+        rest = &after[j + 2..];
+    }
+    out
+}
+
+fn var_facts(
+    context: &RequestContext<'_>,
+    input: &crate::SendInput,
+    preview: &crate::Preview,
+    auth: &Auth,
+) -> Vec<VarFact> {
+    // Names in use: what the preparation substituted or left unresolved, then the auth's
+    // (OAuth 2.0 and SigV4 are applied after the preparation, so the preview misses them).
+    let mut names: Vec<String> = Vec::new();
+    let mut add = |n: &str| {
+        if !names.iter().any(|x| x == n) {
+            names.push(n.to_owned());
+        }
+    };
+    for v in &preview.variables {
+        add(&v.name);
+    }
+    for n in &preview.unresolved {
+        add(n);
+    }
+    let fields = auth_fields(auth);
+    let mut auth_vars: Vec<(&str, bool)> = Vec::new();
+    for (text, credential) in &fields {
+        for name in placeholders(text) {
+            add(name);
+            match auth_vars.iter_mut().find(|(n, _)| *n == name) {
+                Some(slot) => slot.1 |= credential,
+                None => auth_vars.push((name, *credential)),
+            }
+        }
+    }
+
+    let environment = input
+        .environment
+        .as_deref()
+        .and_then(|name| context.collection.environment(name));
+    let declared_secret = |name: &str| {
+        context
+            .collection
+            .defaults
+            .vars
+            .iter()
+            .chain(environment.into_iter().flat_map(|e| &e.variables))
+            .chain(context.folders.iter().flat_map(|f| &f.defaults.vars))
+            .chain(&context.request.spec.vars)
+            .any(|v| v.secret && v.name == name)
+    };
+    let prepare_input = rt_core::prepare::PrepareInput {
+        environment: environment.map(|e| e.name.as_str()),
+        globals: Vec::new(),
+        runtime: input.vars.clone(),
+    };
+    let scope = rt_core::prepare::scope(context, &prepare_input).unwrap_or_default();
+    let given = |name: &str| {
+        input
+            .secrets
+            .iter()
+            .chain(&input.vars)
+            .rev()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v.as_str())
+    };
+
+    // Those of the URL first (`baseUrl`), the auth's last.
+    let url = &context.request.spec.url;
+    let rank = |name: &str| {
+        if placeholders(url).contains(&name) {
+            0
+        } else if auth_vars.iter().any(|(n, _)| *n == name) {
+            2
+        } else {
+            1
+        }
+    };
+    names.sort_by_key(|n| rank(n));
+
+    names
+        .into_iter()
+        .map(|name| {
+            let auth_var = auth_vars.iter().find(|(n, _)| *n == name);
+            let previewed_secret = preview.variables.iter().any(|v| v.name == name && v.secret);
+            let declared = declared_secret(&name) || previewed_secret;
+            let secret = declared || auth_var.is_some_and(|(_, credential)| *credential);
+            let state = if declared {
+                match given(&name) {
+                    Some(v) if !v.is_empty() => VarState::Set,
+                    Some(_) => VarState::Empty,
+                    None => VarState::Unresolved,
+                }
+            } else if preview.unresolved.contains(&name) {
+                VarState::Unresolved
+            } else {
+                match scope.get(&name) {
+                    Some((v, _, _)) if !v.is_empty() => VarState::Set,
+                    Some(_) => VarState::Empty,
+                    None => VarState::Unresolved,
+                }
+            };
+            let value = if secret || state == VarState::Unresolved {
+                None
+            } else {
+                preview
+                    .variables
+                    .iter()
+                    .find(|v| v.name == name)
+                    .and_then(|v| v.value.clone())
+                    .or_else(|| scope.get(&name).map(|(v, _, _)| v.to_owned()))
+            };
+            VarFact {
+                auth: auth_var.is_some(),
+                name,
+                state,
+                secret,
+                value,
+            }
+        })
+        .collect()
 }

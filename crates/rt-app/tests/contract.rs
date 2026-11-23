@@ -1272,6 +1272,7 @@ fn history_entry() -> HistoryEntry {
 fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
     let mut all = base_fixtures();
     all.extend(wave12::fixtures());
+    all.extend(openapi_wizard::fixtures());
     all
 }
 
@@ -1537,6 +1538,7 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                 environments_extended: vec!["Prod".into()],
                 files: vec!["shop/recording.odtrace".into()],
                 losses: import_plan().report.losses,
+                contract_spec: Some("Shop/openapi.yaml".into()),
             }),
         ),
         (
@@ -2807,4 +2809,207 @@ fn wave5_values_round_trip_through_json() {
     let report = report_ok();
     let json = serde_json::to_string(&report).unwrap();
     assert_eq!(serde_json::from_str::<SendReport>(&json).unwrap(), report);
+}
+
+/// The OpenAPI import wizard and the run wizard.
+mod openapi_wizard {
+    use rt_app::contract::{
+        DifferencePlace, InputField, InputPlace, InputProblem, ProblemKind, ResponseCheck,
+        ResponseDifference, SendRequirements, ServerOption,
+    };
+    use rt_app::openapi::{
+        FetchedFile, FetchedSpec, OpenApiExamples, OpenApiGrouping, OpenApiNaming, OpenApiOptions,
+        OpenApiServerChoice, SpecOperation, SpecOverview, SpecSecurityScheme, SpecServer,
+        SpecServerVariable, SpecTag,
+    };
+    use rt_format::import::{Loss, LossEffect, LossKind};
+    use serde::Serialize;
+
+    fn j<T: Serialize>(v: T) -> serde_json::Value {
+        serde_json::to_value(v).unwrap()
+    }
+
+    fn loss() -> Loss {
+        Loss {
+            location: "collection".into(),
+            kind: LossKind::Other,
+            effect: LossEffect::Dropped,
+            detail: "references to other files not resolved (`common.yaml`)".into(),
+        }
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        let op = |grouping, naming, examples| OpenApiOptions {
+            operations: Some(vec!["GET /pets".into()]),
+            grouping,
+            naming,
+            examples,
+            servers: Some(vec![OpenApiServerChoice {
+                index: 0,
+                environment: Some("Production".into()),
+            }]),
+            default_server: Some(0),
+            collection_name: Some("Petstore".into()),
+            keep_spec: true,
+        };
+        let field = |place, kind: Option<ProblemKind>| InputField {
+            id: "path:petId".into(),
+            place,
+            name: "petId".into(),
+            required: true,
+            secret: false,
+            auth: false,
+            value: Some(String::new()),
+            problem: kind.map(|kind| InputProblem {
+                kind,
+                message: "petId is required".into(),
+                details: vec!["$.name: required property `name` is missing".into()],
+            }),
+            schema: Some(serde_json::json!({ "type": "string", "format": "uuid" })),
+            description: Some("The id of the pet".into()),
+            example: Some("42".into()),
+        };
+        vec![
+            (
+                "specOverview",
+                "SpecOverview",
+                j(SpecOverview {
+                    title: "Petstore".into(),
+                    version: "1.0.0".into(),
+                    description: Some("A sample API".into()),
+                    spec_version: "3.0.3".into(),
+                    main_file: "petstore.yaml".into(),
+                    files: 2,
+                    servers: vec![SpecServer {
+                        url: "https://{region}.example.com/v1".into(),
+                        description: Some("Production".into()),
+                        suggested_name: "Production".into(),
+                        variables: vec![SpecServerVariable {
+                            name: "region".into(),
+                            default: "eu".into(),
+                            values: vec!["eu".into(), "us".into()],
+                            description: None,
+                        }],
+                    }],
+                    tags: vec![SpecTag {
+                        name: "pets".into(),
+                        description: None,
+                        operations: 3,
+                    }],
+                    operations: vec![SpecOperation {
+                        key: "GET /pets/{petId}".into(),
+                        method: "GET".into(),
+                        path: "/pets/{petId}".into(),
+                        tags: vec!["pets".into()],
+                        summary: Some("Info for a specific pet".into()),
+                        operation_id: Some("showPetById".into()),
+                        deprecated: false,
+                    }],
+                    security: vec![SpecSecurityScheme {
+                        name: "bearerAuth".into(),
+                        kind: "bearer".into(),
+                        detail: "JWT".into(),
+                        maps_to: Some("Bearer token {{token}}".into()),
+                        variables: vec!["token".into()],
+                    }],
+                    losses: vec![loss()],
+                }),
+            ),
+            (
+                "openApiOptions",
+                "OpenApiOptions",
+                j(op(
+                    OpenApiGrouping::Tag,
+                    OpenApiNaming::Summary,
+                    OpenApiExamples::Spec,
+                )),
+            ),
+            (
+                "openApiOptionsVariants",
+                "OpenApiOptions[]",
+                j(vec![
+                    op(
+                        OpenApiGrouping::Path,
+                        OpenApiNaming::OperationId,
+                        OpenApiExamples::Schema,
+                    ),
+                    op(
+                        OpenApiGrouping::Flat,
+                        OpenApiNaming::Summary,
+                        OpenApiExamples::Spec,
+                    ),
+                    OpenApiOptions::default(),
+                ]),
+            ),
+            (
+                "fetchedSpec",
+                "FetchedSpec",
+                j(FetchedSpec {
+                    url: "https://api.example.com/openapi.yaml".into(),
+                    files: vec![FetchedFile {
+                        name: "openapi.yaml".into(),
+                        text: "openapi: 3.0.3".into(),
+                    }],
+                    losses: vec![loss()],
+                }),
+            ),
+            (
+                "sendRequirements",
+                "SendRequirements",
+                j(SendRequirements {
+                    operation: "GET /pets/{petId}".into(),
+                    summary: Some("Info for a specific pet".into()),
+                    deprecated: false,
+                    spec: "openapi.yaml".into(),
+                    ready: false,
+                    fields: vec![
+                        field(InputPlace::Path, Some(ProblemKind::Missing)),
+                        field(InputPlace::Variable, Some(ProblemKind::Invalid)),
+                        field(InputPlace::Query, None),
+                        field(InputPlace::Header, None),
+                        InputField {
+                            schema: None,
+                            description: None,
+                            example: None,
+                            value: None,
+                            problem: Some(InputProblem {
+                                kind: ProblemKind::Missing,
+                                message: "a body is required".into(),
+                                details: Vec::new(),
+                            }),
+                            ..field(InputPlace::Body, None)
+                        },
+                    ],
+                    servers: vec![ServerOption {
+                        url: "https://{{region}}.example.com/v1".into(),
+                        description: None,
+                    }],
+                }),
+            ),
+            (
+                "responseCheck",
+                "ResponseCheck",
+                j(ResponseCheck {
+                    operation: "GET /pets/{petId}".into(),
+                    status: 200,
+                    matched: Some("200".into()),
+                    differences: [
+                        DifferencePlace::Status,
+                        DifferencePlace::Header,
+                        DifferencePlace::ContentType,
+                        DifferencePlace::Body,
+                    ]
+                    .into_iter()
+                    .map(|place| ResponseDifference {
+                        place,
+                        path: "$.id".into(),
+                        expected: "integer".into(),
+                        got: "string".into(),
+                    })
+                    .collect(),
+                    body_skipped: Some("the body is larger than 8 MB".into()),
+                }),
+            ),
+        ]
+    }
 }

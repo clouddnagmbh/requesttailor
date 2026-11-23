@@ -3,11 +3,12 @@
 
 //! Acceptance (wave 4): the import corpus imports completely and every loss is in the report.
 //!
-//! Corpus: `testdata/import/<source>/`. A case is one input file, or a folder `<name>.bundle/`
-//! whose files are imported together (a Postman collection with its environments, several
-//! `.http` files with `http-client.env.json`, ...). Next to each case, `<case>.expected/`
-//! holds the snapshot: `report.json` (the loss report) and `collection/` (every file of the
-//! imported collection), compared byte for byte. `RT_UPDATE_SNAPSHOTS=1` rewrites them.
+//! Corpus: `testdata/import/<source>/`. A case is one input file (also a `.zip` of a
+//! multi-file OpenAPI spec), or a folder `<name>.bundle/` whose files are imported together (a
+//! Postman collection with its environments, several `.http` files with
+//! `http-client.env.json`, a multi-file OpenAPI spec with subfolders, ...). Next to each case,
+//! `<case>.expected/` holds the snapshot: `report.json` (the loss report) and `collection/`
+//! (every file of the imported collection), compared byte for byte. `RT_UPDATE_SNAPSHOTS=1` rewrites them.
 //!
 //! `testdata/import/invalid/` holds files that must be refused with an error (malformed or
 //! unsupported input); their snapshot is `<case>.expected/error.txt`.
@@ -59,24 +60,11 @@ fn cases(dir: &Path) -> Vec<PathBuf> {
     out
 }
 
-/// The files of a case, as `(name, bytes)`.
+/// The files of a case, as `(name, bytes)`; files in subfolders of a bundle (a multi-file
+/// OpenAPI spec) are named by their `/`-separated path within it.
 fn inputs(case: &Path) -> Vec<(String, Vec<u8>)> {
     if case.is_dir() {
-        let mut files: Vec<PathBuf> = std::fs::read_dir(case)
-            .unwrap()
-            .map(|e| e.unwrap().path())
-            .filter(|p| p.is_file())
-            .collect();
-        files.sort();
-        files
-            .iter()
-            .map(|p| {
-                (
-                    p.file_name().unwrap().to_string_lossy().into_owned(),
-                    std::fs::read(p).unwrap(),
-                )
-            })
-            .collect()
+        read_tree(case).into_iter().collect()
     } else {
         vec![(
             case.file_name().unwrap().to_string_lossy().into_owned(),

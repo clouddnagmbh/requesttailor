@@ -45,6 +45,8 @@ pub mod history;
 pub mod import;
 pub mod mcp_client;
 pub mod merges;
+/// OpenAPI import wizard: fetch, inspect, convert with choices.
+pub mod openapi;
 pub mod plugins;
 pub mod rescue;
 pub mod response;

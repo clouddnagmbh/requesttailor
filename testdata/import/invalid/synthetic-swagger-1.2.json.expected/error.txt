@@ -1,0 +1,1 @@
+OpenAPI version 1.2 (Swagger) is not supported

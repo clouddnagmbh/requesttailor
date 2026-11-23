@@ -75,7 +75,7 @@ Real-world files for importer tests, copied byte for byte from public repositori
 | `insomnia-server-variables-3.0.yaml` | https://raw.githubusercontent.com/Kong/insomnia/911271895758e20ba4eb95ddbb00436510057c8f/packages/insomnia/src/main/importers/importers/fixtures/openapi3/example-with-server-variables-input.yaml | Apache-2.0 | 2026-11-22 | OpenAPI 3.0.2 YAML: server URL template variables |
 | `box-platform-v2026-3.0.json` | https://raw.githubusercontent.com/box/box-openapi/528aaa08fb2350e6af44b0d8a268d0d7053cd652/openapi/openapi-v2026.0.json | Apache-2.0 | 2026-11-22 | Stress test, OpenAPI 3.0.2 JSON, 362 KB, real API description |
 | `kubernetes-apps-v1-3.0.json` | https://raw.githubusercontent.com/kubernetes/kubernetes/43cbb94ee845ad387717fe851bf5f421b7284329/api/openapi-spec/v3/apis__apps__v1_openapi.json | Apache-2.0 | 2026-11-22 | Stress test, OpenAPI 3.0.0 JSON, 959 KB; `components` precedes `openapi` key; deep $ref graph |
-| `../invalid/oai-petstore-swagger-2.0.json` | https://raw.githubusercontent.com/OAI/OpenAPI-Specification/42a9e3d4eddade52363a5c4fac852e80681c2fe5/examples/v2.0/json/petstore.json | Apache-2.0 | 2026-11-22 | Swagger 2.0 JSON; must be rejected with "unsupported version" |
+| `oai-petstore-swagger-2.0.json` | https://raw.githubusercontent.com/OAI/OpenAPI-Specification/42a9e3d4eddade52363a5c4fac852e80681c2fe5/examples/v2.0/json/petstore.json | Apache-2.0 | 2026-11-22 | Swagger 2.0 JSON, minimal petstore; converted to OpenAPI 3 since the import wizard (was in `invalid/` while Swagger was refused) |
 
 ## HAR
 
@@ -180,15 +180,15 @@ Real-world files for importer tests, copied byte for byte from public repositori
 
 ## Layout
 
-- Each file is one case; a directory ending in `.bundle` is one case made of several files
-  (a Postman collection with its environment and globals files, `.http` files with
-  `http-client.env.json`, several cURL files), imported together as the user would drop them.
+- Each file is one case (a `.zip` too: a zipped multi-file OpenAPI spec); a directory ending
+  in `.bundle` is one case made of several files (a Postman collection with its environment
+  and globals files, `.http` files with `http-client.env.json`, several cURL files, a
+  multi-file OpenAPI spec with subfolders), imported together as the user would drop them.
 - `<case>.expected/` is the snapshot: `report.json` (collection name and loss report) and
   `collection/` (the written OpenCollection files). `RT_UPDATE_SNAPSHOTS=1 cargo test -p
   rt-format --test import_corpus` rewrites them.
 - `invalid/` holds files every importer must refuse; `<case>.expected/error.txt` is the message.
-  Real files there: `oai-petstore-swagger-2.0.json` (Swagger 2.0) and `insomnia-no-url.sh`
-  (a curl command without URL); both listed above.
+  Real file there: `insomnia-no-url.sh` (a curl command without URL), listed above.
 
 ## Synthetic files
 
@@ -207,6 +207,10 @@ made up (`typed-password`, `not-a-real-token`, ...).
 | `insomnia/synthetic-v5-lossless.yaml` | A v5 collection that imports without any loss |
 | `openapi/synthetic-features-3.1.yaml` | Server variables and several servers, tags, parameters in every location, generated and explicit bodies, several media types, forms, multipart, binary bodies, every security scheme type, alternative and combined requirements, an undefined scheme, external references, callbacks, webhooks, the 3.2 `query` operation key |
 | `openapi/synthetic-lossless-3.1.json` | A description that imports without any loss |
+| `openapi/synthetic-petshop-swagger-2.0.json` | Swagger 2.0 (JSON): `host`, `basePath`, two `schemes`, global and per-operation `consumes`/`produces`, `in: body` with `x-examples`, `formData` (urlencoded and multipart with `type: file`), query/header/path parameters with `type`/`format`/`enum`/`items`/`default`/`x-example`, shared `parameters` and `responses`, `definitions` (`discriminator`, `x-nullable`, `readOnly`), `securityDefinitions` basic, apiKey and oauth2 with the flows implicit, password, application and accessCode; response `examples` and headers |
+| `openapi/synthetic-notes-swagger-2.0.yaml` | Swagger 2.0 (YAML) without `host` (relative server), path-level parameters, a second body parameter, a `text/plain` body without example, API keys in query and cookie |
+| `openapi/synthetic-multi-file-3.0.bundle/` | A multi-file spec: `openapi.yaml` with `parameters.yaml` and `schemas/{dog,error}.yaml`; references with fragments, to whole files, between the other files (`../parameters.yaml#/breedName`), local ones inside them, one to a missing file (`schemas/owner.yaml`) and one to a URL |
+| `openapi/synthetic-zipped-3.1.zip` | A multi-file OpenAPI 3.1 spec as a zip (deflated, made with `zip -X -r`): `library/index.yaml` referencing `library/components/book.json`, with directory entries |
 | `har/synthetic-features.har` | Pages, pseudo headers, cookies, credentials, form, multipart and base64 bodies, binary and external response bodies, a failed entry |
 | `har/synthetic-lossless.har` | An archive that imports without any loss |
 | `http/synthetic-features.bundle/` | Names, file variables, response references, multi-line query, Basic and Digest headers, pre-request and response handlers, body files, redirection, `@no-redirect`, `@timeout`, `@prompt`, WebSocket, `$shared`, public and private environment files |
@@ -216,4 +220,4 @@ made up (`typed-password`, `not-a-real-token`, ...).
 | `curl/synthetic-windows-cmd.bat` | Windows `cmd` quoting (`^"`, `^` line continuation) |
 | `curl/synthetic-two-files.bundle/` | Two command files imported as two folders |
 | `curl/synthetic-lossless.sh` | A command that imports without any loss |
-| `invalid/synthetic-*` | Empty, binary, truncated and malformed files, unsupported versions of every format, nesting deeper than the limits, text that is no request |
+| `invalid/synthetic-*` | Empty, binary, truncated and malformed files, unsupported versions of every format (also Swagger 1.2), nesting deeper than the limits, text that is no request |

@@ -28,6 +28,7 @@ import {
   type FileChange,
   type GitApi,
   type ImportApi,
+  type OpenApiApi,
   type LineSlice,
   type McpClientApi,
   type MergeApi,
@@ -64,6 +65,7 @@ import { webAi } from "./ai";
 // Wave 12: one file per strand (./wave12.ts).
 import { webCompare } from "./compare";
 import { webContract } from "./contract";
+import { webOpenApi } from "./openapi";
 import { webDiffs } from "./diffs";
 import { webMerges } from "./merges";
 import { webRescue } from "./rescue";
@@ -76,7 +78,7 @@ import { webScriptTrust, type WebScriptTrust } from "./scripts";
 import { SessionStore, webSessionVars } from "./session-vars";
 import { webGit } from "./git";
 import { WebHistory } from "./history";
-import { webImports } from "./import";
+import { webImports, type WebImports } from "./import";
 import { webPlugins, type WebPluginApi } from "./plugins";
 import { sendServices, type SendGuardFn } from "./send-services";
 import { webRecent, type WebRecent } from "./recent";
@@ -180,7 +182,8 @@ export class WebBackend implements Backend {
   readonly transport: TransportApi;
 
   readonly git: GitApi;
-  readonly imports: ImportApi;
+  readonly imports: WebImports;
+  readonly openapi: OpenApiApi;
   readonly history: WebHistory;
   readonly plugins: WebPluginApi;
   readonly auth: WebAuthApi;
@@ -252,6 +255,13 @@ export class WebBackend implements Backend {
     });
     this.git = webGit(host);
     this.imports = webImports(host);
+    this.openapi = webOpenApi({
+      host,
+      imports: this.imports,
+      // As for a send (external secrets read too), so what the gate finds is what goes out.
+      coreInput: (input) => this.coreInput(this.session(), input, true),
+      companionOn: () => this.companionOn,
+    });
     this.history = new WebHistory(host);
     this.plugins = webPlugins(host);
     this.auth = webAuth(host);

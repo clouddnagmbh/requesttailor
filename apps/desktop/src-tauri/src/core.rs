@@ -1032,6 +1032,15 @@ impl<S: SecretStore> Core<S> {
         lock(&self.responses).release(id);
     }
 
+    /// `f` on the open workspace and the kept responses (the OpenAPI response check,
+    /// `openapi.rs`). Locks the session, then the responses, as `ai_context` does.
+    pub fn with_responses<T>(
+        &self,
+        f: impl FnOnce(&Workspace, &ResponseStore) -> Result<T, AppError>,
+    ) -> Result<T, AppError> {
+        self.with_session(|s| f(&s.workspace, &lock(&self.responses)))
+    }
+
     fn secret_key(&self, environment: &str, variable: &str) -> Result<SecretKey, AppError> {
         self.with_session(|s| {
             Ok(SecretKey {

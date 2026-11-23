@@ -40,6 +40,11 @@ import type {
   AuthPrompt,
   CookieInfo,
   ImportPlan,
+  FetchedSpec,
+  OpenApiOptions,
+  ResponseCheck,
+  SendRequirements,
+  SpecOverview,
   ExternalImport,
   FolderImport,
   LineSlice,
@@ -383,6 +388,27 @@ export interface ImportApi {
   adopt(imported: ExternalImport): Promise<ImportPlan>;
 }
 
+/** The OpenAPI import wizard and the run wizard ("Ready to send?"). Free. `fetch`, `inspect`
+ *  and `plan` work without an open collection; `plan` returns an `ImportPlan` written with
+ *  `ImportApi.write` / `writeInto` / `discard` like any import. `requirements` and
+ *  `validateResponse` use the open collection's spec (`ContractApi.spec`), parsed once and
+ *  cached per collection; both resolve `null` when there is no spec or no operation matches. */
+export interface OpenApiApi {
+  /** Fetches a spec and the relative files its `$ref`s name, over the core transport (web:
+   *  the browser's fetch, then the companion if the server does not allow CORS). Rejects with
+   *  kind `import` (HTTP status, transport error; web: a CORS hint). */
+  fetch(url: string): Promise<FetchedSpec>;
+  /** Reads a spec (one file, a multi-file spec, or a `.zip`) for the wizard. Rejects with
+   *  kind `import`. */
+  inspect(files: ImportSource[]): Promise<SpecOverview>;
+  /** Converts with the wizard's choices. */
+  plan(files: ImportSource[], options: OpenApiOptions): Promise<ImportPlan>;
+  /** What the request at `path` still needs before sending (`input` as for `send`). */
+  requirements(path: string, input: SendInput): Promise<SendRequirements | null>;
+  /** The stored response `responseId` of the request at `path` against the spec. */
+  validateResponse(path: string, responseId: number): Promise<ResponseCheck | null>;
+}
+
 /** Sends from this device. Recorded by the backend on every `send`; no bodies, no header
  *  values, URL with secrets masked. Owner in wave 4: strand E. */
 export interface HistoryApi {
@@ -653,6 +679,8 @@ export interface Backend {
   readonly transport: TransportApi;
   readonly git: GitApi;
   readonly imports: ImportApi;
+  /** OpenAPI import wizard and run wizard. */
+  readonly openapi: OpenApiApi;
   readonly history: HistoryApi;
   /** Wave 5. */
   readonly plugins: PluginApi;

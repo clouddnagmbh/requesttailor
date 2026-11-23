@@ -97,6 +97,31 @@ tests, its response. Secret values are replaced by <code>***</code> before anyth
 app, and so are credentials typed into headers, URLs or bodies. What the assistant proposes is
 shown to you first and added as an unsaved change; it never saves anything itself.</p>
 
+<h2 id="openapi">Start from an OpenAPI spec</h2>
+<p>Choose <em>Import OpenAPI…</em> in the command palette, the <em>From OpenAPI</em> tile of
+the <em>New…</em> dialog, or drop a spec on the window. The wizard reads OpenAPI 3.x and
+Swagger 2.0, as JSON or YAML, a multi-file spec (pick the folder or a <code>.zip</code>), a
+pasted spec or a URL. On the web, a server that does not allow the browser to read the spec
+is fetched through the paired companion (<code>rt agent</code>); references to other files
+of the same server come along.</p>
+<p>It shows what is in the spec (operations per tag, servers, auth), then lets you choose the
+operations, how requests are grouped and named, and which servers become environments, with
+names such as <em>Production</em> and <em>Staging</em>. The result is a new collection or a
+folder of the open one, with a plain-language report of what could not be carried over. By
+default the spec is kept next to the requests and named in <code>opencollection.yml</code>
+(<code>extensions.requesttailor.contract.spec</code>), so the app can check against it.</p>
+<p>With a spec in the collection, sending a request that matches an operation first checks
+what the spec requires. If a path parameter, a required query parameter or header, a
+variable such as <code>baseUrl</code>, or a required body is missing or does not fit the
+schema, <em>Ready to send?</em> asks for it in a form built from the schema, instead of
+sending into an error. <em>Fill and send</em> (<kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd>)
+writes the values to the request like any edit, unsaved; <code>baseUrl</code> and auth values
+go to the environment, secrets only to the keychain. <em>Send anyway</em> and <em>Don't ask
+for this request</em> are always there. After the response, a small badge says whether
+status, headers and body match the spec, with the differences one click away; it never
+blocks anything. The command line does the import with
+<a href="cli/#import"><code>rt import openapi</code></a>.</p>
+
 <h2 id="mock">Mock a service from its examples</h2>
 <p>Requests can keep saved examples: a request and the response it got (OpenCollection
 <code>examples</code>, also carried over by the Postman import). <code>rt mock</code> serves

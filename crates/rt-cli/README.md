@@ -8,6 +8,7 @@ companion `rt agent` (below).
 rt send <request-file> [--env NAME] [--var NAME=VALUE]... [--body-limit BYTES] [--pretty]
 rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAME[=FILE]]...
 rt import <file>... --out DIR [--format FORMAT] [--json]
+rt import openapi <file|url>... --out DIR [--names operation-id] [--group tag|path|flat] [--keep-spec] [--json]
 rt scan [PATH]... [--json]
 rt diff [<rev> | <rev>..<rev>] [--json] [<collection>]
 rt merge-driver <base> <ours> <theirs> [<path>]
@@ -272,12 +273,36 @@ rt import api.yaml --format openapi --out ./api --json
 | Option | Meaning |
 | --- | --- |
 | `-o`, `--out DIR` | Folder to create; it must not exist or must be empty |
-| `-f`, `--format FORMAT` | `postman` (v2.0, v2.1), `insomnia` (v4, v5), `openapi` (3.0 to 3.2), `curl`, `har` (1.2) or `http` (VS Code REST Client, JetBrains); default: detected per file |
+| `-f`, `--format FORMAT` | `postman` (v2.0, v2.1), `insomnia` (v4, v5), `openapi` (3.0 to 3.2, Swagger 2.0), `curl`, `har` (1.2) or `http` (VS Code REST Client, JetBrains); default: detected per file |
 | `--json` | Print `{ collectionName, out, files, report }` instead of text |
 
 Several files form one collection: a Postman collection with its environment and globals
 files; `.http` files (one folder each) with `http-client.env.json` and
-`http-client.private.env.json`; several cURL files (one folder each).
+`http-client.private.env.json`; several cURL files (one folder each); a multi-file OpenAPI
+spec (the main file and the files its `$ref`s name). Swagger 2.0 is converted to OpenAPI 3.
+
+### OpenAPI with choices: `rt import openapi`
+
+```sh
+rt import openapi petstore.yaml --out ./petstore --names operation-id --keep-spec
+rt import openapi api/openapi.yaml api/schemas/*.yaml --out ./api --group path
+rt import openapi spec.zip --out ./api
+rt import openapi https://api.example.com/v1/openapi.yaml --out ./api --json
+```
+
+The same choices as the app's import wizard:
+
+| Option | Meaning |
+| --- | --- |
+| `FILE...` | The spec: one file (OpenAPI 3.0 to 3.2 or Swagger 2.0, JSON or YAML), several files of a multi-file spec (named by their paths relative to the folder they share, so relative `$ref`s resolve), or a `.zip` of one |
+| `URL` | Fetch the spec and, recursively, the files its relative `$ref`s name (same origin only, at most 64 files); a reference that cannot be fetched is in the report, a main file that cannot be fetched exits with 1 |
+| `--names operation-id` | Name requests after the `operationId` (default `summary`: the summary, else the `operationId`, else `METHOD /path`) |
+| `--group tag\|path\|flat` | Folders per first tag (default), per first path segment, or none |
+| `--keep-spec` | Keep the spec in the collection (`openapi.yaml` or `openapi.json` with the original bytes; a multi-file spec bundled into one `openapi.json`) and name it in `extensions.requesttailor.contract.spec`, for the contract check |
+| `-o`, `--out DIR`, `--json` | As above |
+
+Referenced files that were not given and URL references are reported, not fetched (except
+the relative ones of a URL given on the command line).
 
 The report lists every loss with its location (`Users / Get user`), kind, effect (`dropped`:
 not in the collection; `approximated`: in it, but not exactly) and one sentence. Scripts and

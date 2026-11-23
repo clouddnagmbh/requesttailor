@@ -256,3 +256,86 @@ fn external_imports_are_checked_before_they_are_kept() {
         assert!(e.is_err(), "{bad:?}");
     }
 }
+
+/// An OpenAPI import that kept its spec (OpenAPI import wizard).
+fn openapi_import(keep_spec: bool) -> FileSet {
+    let spec = std::fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../testdata/import/openapi/oai-petstore-3.0.yaml"),
+    )
+    .unwrap();
+    let options = rt_format::import::OpenApiOptions {
+        keep_spec,
+        ..Default::default()
+    };
+    rt_format::import::import_openapi(
+        &[SourceFile {
+            name: "petstore.yaml",
+            data: &spec,
+        }],
+        &options,
+    )
+    .unwrap()
+    .files
+}
+
+#[test]
+fn a_kept_spec_becomes_the_contract_spec_of_the_open_collection() {
+    let base = base();
+    assert_eq!(rt_format::contract::configured_spec(&base), None);
+    let mut ws = Workspace::open(base.clone()).unwrap();
+    let result = add_to_workspace(&mut ws, &openapi_import(true), "Petstore").unwrap();
+    assert_eq!(result.folder, "Petstore");
+    assert_eq!(
+        result.contract_spec.as_deref(),
+        Some("Petstore/openapi.yaml")
+    );
+    assert!(result.files.contains(&"Petstore/openapi.yaml".to_owned()));
+    // Unsaved like any edit: opencollection.yml and the spec are dirty.
+    let dirty = ws.dirty();
+    assert!(
+        dirty.contains(&rt_format::COLLECTION_FILE.to_owned()),
+        "{dirty:?}"
+    );
+    assert!(
+        dirty.contains(&"Petstore/openapi.yaml".to_owned()),
+        "{dirty:?}"
+    );
+    let changes = ws.save().unwrap();
+    let mut files = base.clone();
+    for c in changes {
+        files.files.insert(c.path, c.text.into_bytes());
+    }
+    assert_eq!(
+        rt_format::contract::configured_spec(&files).as_deref(),
+        Some("Petstore/openapi.yaml")
+    );
+    let doc = read_collection(&files).unwrap();
+    assert!(doc.issues().is_empty(), "{:?}", doc.issues());
+    assert_eq!(
+        doc.write().files[rt_format::COLLECTION_FILE],
+        files.files[rt_format::COLLECTION_FILE]
+    );
+    // Only the extension was added to opencollection.yml.
+    let before = String::from_utf8(base.files[rt_format::COLLECTION_FILE].clone()).unwrap();
+    let after = String::from_utf8(files.files[rt_format::COLLECTION_FILE].clone()).unwrap();
+    assert!(after.starts_with(before.trim_end()), "{after}");
+    assert!(
+        after.ends_with("contract:\n      spec: Petstore/openapi.yaml\n"),
+        "{after}"
+    );
+
+    // A collection that names a spec keeps it; the spec file still comes along.
+    let mut ws = Workspace::open(files).unwrap();
+    let second = add_to_workspace(&mut ws, &openapi_import(true), "Petstore").unwrap();
+    assert_eq!(second.folder, "Petstore 2");
+    assert_eq!(second.contract_spec, None);
+    assert!(second.files.contains(&"Petstore 2/openapi.yaml".to_owned()));
+    assert!(!ws.dirty().contains(&rt_format::COLLECTION_FILE.to_owned()));
+
+    // An import without a kept spec names none.
+    let mut ws = Workspace::open(base).unwrap();
+    let plain = add_to_workspace(&mut ws, &openapi_import(false), "Petstore").unwrap();
+    assert_eq!((plain.contract_spec, plain.files.len()), (None, 0));
+    assert!(!ws.dirty().contains(&rt_format::COLLECTION_FILE.to_owned()));
+}

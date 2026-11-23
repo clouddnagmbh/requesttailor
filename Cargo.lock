@@ -5176,6 +5176,8 @@ dependencies = [
 name = "rt-format"
 version = "0.0.0"
 dependencies = [
+ "miniz_oxide 0.9.1",
+ "regex-lite",
  "rt-core",
  "serde",
  "serde_json",

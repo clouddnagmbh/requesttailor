@@ -1,0 +1,59 @@
+{
+  "collectionName": "Pet Shop",
+  "report": {
+    "environments": 2,
+    "folders": 3,
+    "format": "openapi",
+    "losses": [
+      {
+        "detail": "schemas and response definitions are API documentation and not imported; explicit response examples are kept as request examples",
+        "effect": "dropped",
+        "kind": "documentation",
+        "location": "collection"
+      },
+      {
+        "detail": "OAuth 2.0 implicit flow kept in the file, but RequestTailor does not run it (OAuth 2.1 removes it); switch to authorization code with PKCE",
+        "effect": "approximated",
+        "kind": "auth",
+        "location": "pets / Add a pet"
+      },
+      {
+        "detail": "body imported as `application/json`; other media types not imported: `application/xml`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "pets / Add a pet"
+      },
+      {
+        "detail": "request body generated from the schema; edit the example values",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "pets / Add a pet"
+      },
+      {
+        "detail": "form fields generated from the schema",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "pets / Update a pet with form data"
+      },
+      {
+        "detail": "form fields generated from the schema",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "pets / Upload a photo"
+      },
+      {
+        "detail": "file parts have no file selected; choose them in the request",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "pets / Upload a photo"
+      },
+      {
+        "detail": "body imported as `application/json`; other media types not imported: `application/xml`",
+        "effect": "approximated",
+        "kind": "body",
+        "location": "store / Place an order"
+      }
+    ],
+    "requests": 9
+  }
+}

@@ -1,0 +1,13 @@
+opencollection: "1.0.0"
+
+info:
+  name: Notes
+
+request:
+  variables:
+    - name: baseUrl
+      value: /notes-api
+
+docs: Version 0.3
+
+bundled: false
