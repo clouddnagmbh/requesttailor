@@ -77,8 +77,11 @@ export function webRecent(host: WebHost): WebRecent {
         return null;
       }
       // Without a click this is the start-up reopen: it must not replace a collection the
-      // user opened while it was on its way.
-      return host.openHandle(folder.handle, { unlessOpen: !interactive });
+      // user opened while it was on its way. Wave 14: a folder of the remembered sidebar
+      // brings back all of its folders (those the browser still grants without asking).
+      return host.openRecentRoot
+        ? host.openRecentRoot(id, folder.handle, interactive)
+        : host.openHandle(folder.handle, { unlessOpen: !interactive });
     },
   };
 }

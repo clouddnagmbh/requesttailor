@@ -49,7 +49,10 @@
   });
   const preview = $derived(runner.data ? dataPreview(runner.data) : null);
   const iterationsShown = $derived(runner.data ? runner.data.length : Math.max(1, Math.floor(runner.iterations || 1)));
-  const sameTarget = $derived(runner.ran !== null && runner.target !== null && runner.ran.folder === runner.target.folder);
+  const sameTarget = $derived(runner.ran !== null &&
+      runner.target !== null &&
+      runner.ran.folder === runner.target.folder &&
+      runner.ran.collection === runner.target.collection);
   const hasResults = $derived(sameTarget && (view.count > 0 || view.summary !== null || runner.running));
 
   // New run: back to the top, nothing selected.

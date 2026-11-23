@@ -11,9 +11,11 @@
 //                    its first animation frame (apps/ui/src/recent/startup.ts): the shell is
 //                    painted and its main thread accepts input. This is `cold_start`.
 //   collection-open  the sample collection is open in the core (reopened from the list).
+// Wave 14: the app reopens a folder with several copies of the sample collection
+// (`collectionRoot`, 10 by default), so start-up includes finding them for the sidebar.
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -45,6 +47,21 @@ export function isSettled(totals, window = 3, tolerance = 0.02) {
   const lo = Math.min(...last);
   const hi = Math.max(...last);
   return hi - lo <= tolerance * hi;
+}
+
+/** A new temporary folder with `count` copies of the collection `source` (`c01` … `cNN`, named
+ *  "<name> NN"): what the desktop measurement reopens (wave 14). The caller removes it. */
+export function collectionRoot(source, count) {
+  const root = mkdtempSync(join(tmpdir(), "rt-perf-collections-"));
+  for (let i = 1; i <= count; i++) {
+    const n = String(i).padStart(2, "0");
+    const dir = join(root, `c${n}`);
+    cpSync(source, dir, { recursive: true });
+    const manifest = join(dir, "opencollection.yml");
+    const text = readFileSync(manifest, "utf8");
+    writeFileSync(manifest, text.replace(/^(\s+name:\s*)(.*)$/m, (_, k, v) => `${k}${v.replace(/^"|"$/g, "")} ${n}`));
+  }
+  return root;
 }
 
 /** The recent list that makes the app reopen `collection` at start. */
@@ -127,12 +144,22 @@ async function runOnce({ binary, collection, memory, idle }) {
 export async function measureDesktop({
   binary,
   collection,
+  collections = 10,
   runs = 10,
   memoryRuns = 3,
   idle = { minMs: 3000, maxMs: 20_000, intervalMs: 1000 },
   log = console.log,
 }) {
   if (!existsSync(binary)) throw new Error(`desktop binary not found: ${binary} (build it: npm run build -w apps/desktop)`);
+  const root = collections > 1 ? collectionRoot(collection, collections) : null;
+  try {
+    return await measureStarts({ binary, collection: root ?? collection, collections, runs, memoryRuns, idle, log });
+  } finally {
+    if (root) rmSync(root, { recursive: true, force: true });
+  }
+}
+
+async function measureStarts({ binary, collection, collections, runs, memoryRuns, idle, log }) {
   const starts = [];
   for (let i = 0; i < runs; i++) {
     const memory = i >= runs - memoryRuns;
@@ -153,6 +180,7 @@ export async function measureDesktop({
     idle_memory: medianMemory ? medianMemory.ownMB : undefined,
     details: {
       runs,
+      collections,
       firstFrameMs: counted.map((s) => Math.round(s.firstFrameMs)),
       collectionOpenMs: counted.map((s) => Math.round(s.collectionOpenMs)),
       collectionOpenMedianMs: Math.round(median(counted.map((s) => s.collectionOpenMs))),

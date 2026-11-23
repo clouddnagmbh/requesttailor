@@ -55,11 +55,15 @@ main thread is free to handle input.
 
 ## Idle memory (`idle_memory`)
 
-**Memory of the app and its webview processes, idle, with one collection open.**
+**Memory of the app and its webview processes, idle, with a folder of ten collections in the
+sidebar.**
 
-- The app reopens a fixed sample collection, [`testdata/conformance/collection`](../testdata/conformance/collection),
+- Since wave 14 the app reopens a temporary folder with ten copies (`c01` … `c10`) of a fixed
+  sample collection, [`testdata/conformance/collection`](../testdata/conformance/collection),
   from a recent list that the measurement writes into `RT_PERF_DIR` (the user's own list is not
-  touched). Measured in the last 3 of the 10 starts: at least 3 s after `collection-open`, then
+  touched). The app finds all ten for the sidebar and reads the first; `--collections 1` measures
+  the collection alone (`scripts/perf/desktop.mjs`, `collectionRoot`). The cold start uses the
+  same folder. Measured in the last 3 of the 10 starts: at least 3 s after `collection-open`, then
   sampled every second until three samples differ by less than 2 % (at most 20 s). The result is
   the median of the 3 starts.
 - Counted processes and the number the gate uses, per OS (`scripts/perf/memory.mjs`):

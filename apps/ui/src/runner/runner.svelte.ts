@@ -14,6 +14,8 @@ import type { AppState } from "../state/app.svelte";
 import { planOf, RunResults } from "./model";
 
 export interface RunTarget {
+  /** The collection it runs in (wave 14); `undefined`: the active one when it starts. */
+  collection?: string;
   /** Folder path, `null`: the whole collection. */
   folder: string | null;
   /** Display name: the folder's or the collection's. */
@@ -84,6 +86,8 @@ export class RunnerState {
     this.version++;
     try {
       const backend = this.app.backend;
+      // Wave 14: the runner acts on the active collection; the target's comes first.
+      if (target.collection && this.app.activeCollection !== target.collection) await this.app.activate(target.collection);
       const requests = await backend.runner.plan(target.folder);
       const plan = planOf(requests, {
         iterations: this.iterations,

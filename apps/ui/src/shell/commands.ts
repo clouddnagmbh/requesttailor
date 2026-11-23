@@ -49,7 +49,7 @@ export function buildCommands(app: AppState, actions: Actions, mac: boolean): Co
   const open = app.collection !== null;
   return [
     cmd("open-folder"),
-    ...(open ? [cmd("new-request")] : []),
+    cmd("new-request"),
     ...(app.active ? [cmd("send")] : []),
     ...(app.active && canFormat(app.drafts[app.active]?.body) ? [cmd("format-body")] : []),
     ...(app.dirty.length > 0 ? [cmd("save")] : []),

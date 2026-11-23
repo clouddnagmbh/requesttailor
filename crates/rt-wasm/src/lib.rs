@@ -648,6 +648,9 @@ mod ai_js;
 mod auth_js;
 #[cfg(target_arch = "wasm32")]
 mod companions_js;
+// Wave 14, strand A: several collections in the sidebar.
+#[cfg(target_arch = "wasm32")]
+mod collections_js;
 #[cfg(target_arch = "wasm32")]
 mod cookies_js;
 #[cfg(target_arch = "wasm32")]
