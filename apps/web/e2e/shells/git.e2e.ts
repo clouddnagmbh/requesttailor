@@ -143,6 +143,7 @@ test.describe("through a real rt agent", () => {
     await page.getByTestId("view-git").click();
 
     // Clone: the server wants credentials, the prompt stores them and the clone runs again.
+    await page.getByTestId("git-clone-open").click();
     await page.getByTestId("git-clone-url").fill(repoUrl);
     await page.getByTestId("git-clone").click();
     const prompt = page.getByTestId("git-credentials");
