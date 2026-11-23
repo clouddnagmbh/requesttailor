@@ -105,8 +105,9 @@ pub struct RequestComparison {
     pub tests: Vec<TestChange>,
     /// Transport or preparation errors (`None` when the same).
     pub error: Option<ValueChange<String>>,
-    /// Wave 14 (interface, strand H): both responses for the side-by-side view (status, timing,
-    /// headers, body preview), masked like the reports. `None` until strand H fills it.
+    /// Wave 14: both responses for the side-by-side view (status, timing, headers, body
+    /// preview), with the secrets of today's environments masked. Always filled by
+    /// [`compare_steps`]; `None` only in comparisons from before wave 14.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sides: Option<ResponseSides>,
 }
@@ -337,19 +338,115 @@ pub async fn compare_revisions<T: Transport>(
         on_run(&to.0, &after);
         after
     };
+    let mut requests = compare_steps(
+        &paths,
+        |p| name_of(&old, p),
+        |p| name_of(&new, p),
+        &before.steps,
+        &after.steps,
+    );
+    mask_comparisons(&mut requests, &secret_values(today));
     Ok(RunComparison {
         from: from.0,
         to: to.0,
-        requests: compare_steps(
-            &paths,
-            |p| name_of(&old, p),
-            |p| name_of(&new, p),
-            &before.steps,
-            &after.steps,
-        ),
+        requests,
         from_summary: before.summary,
         to_summary: after.summary,
     })
+}
+
+/// The values of every secret variable today's run knows (the environments, the collection
+/// defaults, runtime variables declared secret), longest first. The reports mask what went out;
+/// a response can still echo a secret back, which the comparison must not carry.
+pub fn secret_values(today: &RunSnapshot) -> Vec<String> {
+    let collection = &today.collection;
+    let declared = collection.defaults.vars.iter().chain(
+        collection
+            .environments
+            .iter()
+            .flat_map(|e| e.variables.iter()),
+    );
+    let mut names = Vec::new();
+    let mut values = Vec::new();
+    for v in declared.filter(|v| v.secret) {
+        names.push(v.name.as_str());
+        values.extend(v.value.clone());
+    }
+    for (name, value) in &today.vars {
+        if names.contains(&name.as_str()) {
+            values.push(value.clone());
+        }
+    }
+    values.retain(|v| !v.is_empty());
+    values.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+    values.dedup();
+    values
+}
+
+/// Replaces every secret value (raw, JSON- or Debug-escaped) in `text` with
+/// [`rt_core::send::MASK`].
+fn mask_text(text: &str, secrets: &[String]) -> String {
+    let mut out = text.to_owned();
+    for secret in secrets {
+        let json = serde_json::to_string(secret).unwrap_or_default();
+        let json = json.trim_matches('"').to_owned();
+        for form in [secret.clone(), json, secret.escape_debug().to_string()] {
+            if !form.is_empty() && out.contains(&form) {
+                out = out.replace(&form, rt_core::send::MASK);
+            }
+        }
+    }
+    out
+}
+
+fn mask_json(value: &mut serde_json::Value, secrets: &[String]) {
+    use serde_json::Value;
+    match value {
+        Value::String(s) => *s = mask_text(s, secrets),
+        Value::Array(items) => items.iter_mut().for_each(|v| mask_json(v, secrets)),
+        Value::Object(map) => {
+            let masked: serde_json::Map<String, Value> = std::mem::take(map)
+                .into_iter()
+                .map(|(k, mut v)| {
+                    mask_json(&mut v, secrets);
+                    (mask_text(&k, secrets), v)
+                })
+                .collect();
+            *map = masked;
+        }
+        _ => {}
+    }
+}
+
+/// Masks `secrets` in everything a comparison shows: header and body changes, errors, the
+/// sides' headers and bodies.
+pub fn mask_comparisons(requests: &mut [RequestComparison], secrets: &[String]) {
+    if secrets.is_empty() {
+        return;
+    }
+    let m = |s: &mut String| *s = mask_text(s, secrets);
+    for r in requests {
+        for h in &mut r.headers {
+            h.old.iter_mut().for_each(m);
+            h.new.iter_mut().for_each(m);
+        }
+        for b in &mut r.body {
+            b.pointer = mask_text(&b.pointer, secrets);
+            b.old.iter_mut().for_each(|v| mask_json(v, secrets));
+            b.new.iter_mut().for_each(|v| mask_json(v, secrets));
+        }
+        if let Some(e) = &mut r.error {
+            e.old.iter_mut().for_each(m);
+            e.new.iter_mut().for_each(m);
+        }
+        let sides = r.sides.iter_mut().flat_map(|s| [&mut s.old, &mut s.new]);
+        for snapshot in sides.flatten() {
+            for (_, value) in &mut snapshot.headers {
+                m(value);
+            }
+            snapshot.body.iter_mut().for_each(m);
+        }
+    }
 }
 
 fn name_of(snapshot: &RunSnapshot, path: &str) -> Option<String> {
@@ -462,8 +559,42 @@ fn compare_one(
         body_text,
         tests,
         error,
-        sides: None,
+        sides: Some(ResponseSides {
+            old: old.and_then(response_snapshot),
+            new: new.and_then(response_snapshot),
+        }),
     }
+}
+
+/// One side of the side-by-side view: the report's response with the body cut to
+/// [`SNAPSHOT_BODY_LIMIT`] bytes on a character boundary (binary bodies: no preview).
+pub fn response_snapshot(report: &SendReport) -> Option<ResponseSnapshot> {
+    let r = report.response.as_ref()?;
+    let content_type = r
+        .headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+        .map(|(_, value)| value.clone());
+    let (body, cut) = match &r.body {
+        ReportBody::Utf8(text) if text.len() > SNAPSHOT_BODY_LIMIT => {
+            let mut end = SNAPSHOT_BODY_LIMIT;
+            while !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            (Some(text[..end].to_owned()), true)
+        }
+        ReportBody::Utf8(text) => (Some(text.clone()), false),
+        ReportBody::Base64(_) => (None, false),
+    };
+    Some(ResponseSnapshot {
+        status: r.status,
+        duration_ms: u64::try_from(r.total.as_millis()).unwrap_or(u64::MAX),
+        size: r.size,
+        headers: r.headers.clone(),
+        content_type,
+        body,
+        truncated: r.truncated || cut,
+    })
 }
 
 fn error_text(e: &rt_core::send::SendError) -> String {

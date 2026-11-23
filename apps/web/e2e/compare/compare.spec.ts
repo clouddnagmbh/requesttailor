@@ -56,37 +56,38 @@ test("compares two revisions from the palette: what changed, per request", async
 
   await page.getByTestId("compare-from").fill(ids[1]!);
   await page.getByTestId("compare-to").fill("HEAD");
+  await page.keyboard.press("Escape");
   await page.getByTestId("compare-start").click();
-  await expect(page.getByTestId("compare-changed")).toHaveText("1 changed");
+  await expect(page.getByTestId("compare-count-changed").locator(".value")).toHaveText("1");
   await expect(page.getByTestId("compare-summary")).toContainText(ids[1]!.slice(0, 7));
   await expect(page.getByTestId("compare-summary")).toContainText("Rename health");
 
-  // Only the changed request is listed; its row says what differs.
+  // Only the changed request is listed; its row says what differs, the detail shows both sides.
   const rows = page.getByTestId("compare-row");
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("status 200 → 503");
-  await rows.first().getByRole("button").click();
-  await expect(page.getByTestId("compare-status")).toHaveText("200 → 503");
-  await expect(page.getByTestId("compare-body")).toContainText("/url");
-  await expect(page.getByTestId("compare-body")).toContainText("/status/503");
-  await expect(page.getByTestId("compare-headers")).toContainText("x-mock-name");
-  const tests = page.getByTestId("compare-tests");
+  const detail = page.getByTestId("compare-detail");
+  await expect(detail.getByTestId("cmp-new-side").getByTestId("cmp-status")).toHaveText("503");
+  await expect(detail.getByTestId("cmp-json").locator('[data-pointer="/url"]')).toContainText("/status/503");
+  await detail.getByTestId("cmp-all-headers").check();
+  await expect(detail.getByTestId("cmp-headers")).toContainText("x-mock-name");
+  const tests = detail.getByTestId("cmp-tests");
   await expect(tests).toContainText("res.status eq 200");
   await expect(tests).toContainText("passed");
   await expect(tests).toContainText("failed");
 
-  // Everything else answers the same; "Changed only" off lists it.
-  await expect(page.getByTestId("compare-same")).not.toHaveText("0 unchanged");
-  await page.getByTestId("compare-only-changed").uncheck();
-  await expect(rows.first()).toBeVisible();
+  // Everything else answers the same; "All" lists it.
+  await expect(page.getByTestId("compare-same")).not.toContainText("0 unchanged");
+  await page.getByTestId("compare-filter-all").click();
   expect(await rows.count()).toBeGreaterThan(1);
-  await expect(page.locator('[data-testid="compare-row"][data-same="true"]').first()).toContainText("unchanged");
+  await expect(page.locator('[data-testid="compare-row"][data-same="true"]').first()).toContainText("same at both revisions");
 });
 
 test("an unknown revision shows the error and keeps the form", async ({ page }) => {
   await setup(page);
   await openFromPalette(page, "compare rev", "Compare revisions");
   await page.getByTestId("compare-from").fill("nope");
+  await page.keyboard.press("Escape");
   await page.getByTestId("compare-start").click();
   await expect(page.getByTestId("compare-error")).toContainText(/nope/i);
   await expect(page.getByTestId("compare-start")).toBeEnabled();
@@ -113,7 +114,7 @@ test("bisect finds the commit that broke the assertion and opens the comparison"
   await page.getByTestId("bisect-open-compare").click();
   await expect(page.getByTestId("git-view")).toHaveAttribute("data-kind", "compare");
   await expect(page.getByTestId("compare-from")).toHaveValue(`${ids[2]}~1`);
-  await expect(page.getByTestId("compare-changed")).toHaveText("1 changed");
+  await expect(page.getByTestId("compare-count-changed").locator(".value")).toHaveText("1");
   await expect(page.getByTestId("compare-row").first()).toContainText("status 200 → 503");
 });
 

@@ -11,11 +11,22 @@
   const app = getApp();
   const extensions = getExtensions();
   const open = $derived(app.dialog);
+
+  // Escape closes the extension's dialog before anything behind it sees the key.
+  function onkeydown(e: KeyboardEvent) {
+    if (e.key === "Escape" && app.dialog) {
+      e.preventDefault();
+      e.stopPropagation();
+      app.closeDialog();
+    }
+  }
 </script>
+
+<svelte:window onkeydowncapture={onkeydown} />
 
 {#if open && extensions}
   {#key open.seq}
-    <Dialog title={open.dialog.title} size={open.dialog.width ?? "md"} testid="extension-dialog" onclose={() => app.closeDialog()}>
+    <Dialog title={open.dialog.title} size={open.dialog.width ?? "md"} testid="extension-dialog" closeOnBackdrop={false} onclose={() => app.closeDialog()}>
       <open.dialog.component ctx={extensions.ctx} close={(r?: unknown) => app.closeDialog(r)} props={open.dialog.props ?? {}} />
     </Dialog>
   {/key}

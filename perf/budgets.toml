@@ -39,6 +39,8 @@ max = 200
 #   [metrics.git_graph]        first rows of a 10 000-commit graph visible, ms, max 1500
 #   [metrics.git_graph_frame]  p95 frame time while scrolling that graph, ms, max 20
 
-# Wave 14, strand H (comparison, scripts/perf/compare.mjs) adds here, together with its
-# measurement:
-#   [metrics.compare_view]     comparison of 1000 requests (100 changed) visible, ms, max 1000
+# Wave 14, strand H (scripts/perf/compare.mjs, apps/web/e2e/perf/compare.measure.ts).
+[metrics.compare_view]
+description = "Comparison of two revisions with 1000 requests, 100 changed, visible with both runs' answers (median of 5, mock backend)"
+unit = "ms"
+max = 1000
