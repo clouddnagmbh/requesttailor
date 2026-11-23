@@ -29,6 +29,7 @@
     <section aria-labelledby="rt-script-{p.phase}">
       <h3 id="rt-script-{p.phase}">{p.label}</h3>
       <ScriptEditor
+        editor={{ kind: "script", phase: p.phase }}
         testid="script-{p.phase}"
         label="{p.label} script"
         placeholder={p.hint}

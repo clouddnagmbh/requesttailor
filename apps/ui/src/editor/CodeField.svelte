@@ -11,6 +11,8 @@
   import { EditorView, placeholder as cmPlaceholder, tooltips } from "@codemirror/view";
   import { onMount } from "svelte";
 
+  import EditorShell, { type EditorKind } from "../suggest/EditorShell.svelte";
+
   import { base, language, multiLine, setLookup, singleLine, variables, type Language } from "./codemirror";
   import { varCompletion } from "./var-completion";
   import { getVarSource } from "./var-source";
@@ -28,6 +30,7 @@
     readonly = false,
     onenter,
     complete = true,
+    editor,
   }: {
     value: string;
     onchange?: (value: string) => void;
@@ -41,6 +44,8 @@
     onenter?: () => void;
     /** `{{` completion of variables (needs a `provideVarSource` above). */
     complete?: boolean;
+    /** Wave 16: which editor this is, so extensions can add actions and propose text (`EditorShell`). */
+    editor?: EditorKind;
   } = $props();
 
   const varSource = getVarSource();
@@ -81,6 +86,16 @@
     return () => view?.destroy();
   });
 
+  /** Wave 16: the whole text replaced as one undo step (an applied suggestion). */
+  function replaceAll(next: string) {
+    if (!view) return;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: next },
+      annotations: isolateHistory.of("full"),
+      userEvent: "input.suggestion",
+    });
+  }
+
   $effect(() => {
     const v = value;
     if (!view) return;
@@ -112,7 +127,25 @@
   });
 </script>
 
-<div class="field" class:multiline data-testid={testid} bind:this={host}></div>
+{#snippet fieldEl()}
+  <div class="field" class:multiline data-testid={testid} bind:this={host}></div>
+{/snippet}
+{#if editor}
+  <EditorShell
+    {editor}
+    text={() => view?.state.doc.toString() ?? value}
+    selection={() => {
+      const r = view?.state.selection.main;
+      return r ? { from: r.from, to: r.to } : null;
+    }}
+    replace={replaceAll}
+    focus={() => view?.focus()}
+  >
+    {@render fieldEl()}
+  </EditorShell>
+{:else}
+  {@render fieldEl()}
+{/if}
 
 <style>
   .field {

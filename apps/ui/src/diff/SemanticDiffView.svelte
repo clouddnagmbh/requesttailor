@@ -6,7 +6,10 @@
      notes (strand F) of the OpenAPI spec between the two revisions. -->
 <script lang="ts">
   import ContractNotes from "../contract/ContractNotes.svelte";
+  import ExtensionActions from "../shell/ExtensionActions.svelte";
   import ExtensionDiffNotes from "../shell/ExtensionDiffNotes.svelte";
+  import { extensionRangeActions } from "../shell/extension-actions";
+  import { getExtensions } from "../shell/extension-tabs";
   import type { CollectionDiff, DiffScope } from "../commands/types";
   import { getGitViews } from "../git/views.svelte";
   import { getApp } from "../state/app.svelte";
@@ -18,6 +21,13 @@
   let { scope }: { scope: DiffScope } = $props();
   const app = getApp();
   const views = getGitViews();
+  // Wave 16: actions of extensions on the two revisions of a comparison.
+  const extensions = getExtensions();
+  const rangeActions = $derived(
+    scope.kind === "between"
+      ? extensionRangeActions(extensions, { collection: app.activeCollection, from: scope.from, to: scope.to, source: "diff" })
+      : [],
+  );
 
   let diff = $state<CollectionDiff | null>(null);
   let error = $state<string | null>(null);
@@ -65,6 +75,7 @@
         {@const s = scope}
         <Button size="sm" icon="compare" data-testid="sd-compare" onclick={() => views.open({ kind: "compare", from: s.from, to: s.to })}>Compare side by side</Button>
       {/if}
+      <ExtensionActions actions={rangeActions} label="Range actions" />
       <SegmentedControl
         size="sm"
         label="Diff display"

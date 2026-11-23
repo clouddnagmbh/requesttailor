@@ -9,6 +9,9 @@
   import { tick } from "svelte";
 
   import { describeError, formatDuration, statusClass } from "../response/format";
+  import ExtensionActions from "../shell/ExtensionActions.svelte";
+  import { extensionRunActions } from "../shell/extension-actions";
+  import { getExtensions } from "../shell/extension-tabs";
   import MethodBadge from "../shell/MethodBadge.svelte";
   import { getApp } from "../state/app.svelte";
   import { dataPreview, progressText, scrollToShow, stepCounts, stepState, stepTime, windowRange } from "./model";
@@ -53,6 +56,19 @@
       runner.target !== null &&
       runner.ran.folder === runner.target.folder &&
       runner.ran.collection === runner.target.collection);
+  // Wave 16: actions of extensions on a finished run.
+  const extensions = getExtensions();
+  const runActions = $derived.by(() => {
+    void runner.version;
+    const summary = runner.results.summary;
+    if (runner.running || !summary || !runner.ran || !app.activeCollection) return [];
+    const events = [
+      { kind: "started" as const, total: runner.results.total },
+      ...runner.results.steps.map((step) => ({ kind: "step" as const, step })),
+      { kind: "finished" as const, summary },
+    ];
+    return extensionRunActions(extensions, { kind: "run", collection: app.activeCollection, folder: runner.ran.folder ?? "", summary, events });
+  });
   const hasResults = $derived(sameTarget && (view.count > 0 || view.summary !== null || runner.running));
 
   // New run: back to the top, nothing selected.
@@ -253,6 +269,7 @@
           {view.counts.assertions_passed}/{view.counts.assertions_passed + view.counts.assertions_failed}
         </span>
         {#if iterationsShown > 1}<span class="muted">{iterationsShown} iterations</span>{/if}
+        <span class="push"><ExtensionActions actions={runActions} label="Run actions" variant="ghost" /></span>
       </div>
 
       <div class="results">
@@ -478,6 +495,9 @@
     border-bottom: 1px solid var(--rt-border);
     text-align: left;
     white-space: nowrap;
+  }
+  .push {
+    margin-left: auto;
   }
   .summary {
     display: flex;

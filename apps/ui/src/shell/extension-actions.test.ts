@@ -14,6 +14,7 @@ import {
   extensionResponseActions,
   extensionRunActions,
 } from "./extension-actions";
+import { createExtensionAi } from "../ai/extension-ai";
 import { createExtensionContext } from "./extension-context";
 import type { ProvidedExtensions } from "./extension-tabs";
 
@@ -60,11 +61,61 @@ describe("extension actions and the assistant panel (wave 16 interface)", () => 
     expect(extensionAssistant(provided([one, { id: "a", assistant: panel }, { id: "b", assistant: panel }]))?.extension).toBe("a");
   });
 
-  it("gives extensions the AI provider; the placeholders refuse to call until strand A", async () => {
+  it("gives extensions the AI provider (the placeholder refuses to call until strand A) and the suggestion dialog", async () => {
     const p = provided([]);
     const status = await p.ctx.ai.status();
     expect(status).toMatchObject({ configured: false, allowed: true, profiles: [] });
     await expect(p.ctx.ai.complete({ purpose: "x", system: "", messages: [] })).rejects.toMatchObject({ kind: "unsupported" });
-    await expect(p.ctx.suggest({ kind: "file", path: "CHANGELOG.md", text: "" })).rejects.toMatchObject({ kind: "unsupported" });
+    // `ctx.suggest` is built (strand C): a `*.yml` file is refused up front, before any dialog.
+    await expect(p.ctx.suggest({ kind: "file", path: "a/b.yml", text: "" })).rejects.toMatchObject({ kind: "invalid" });
+  });
+
+  describe("ctx.ai: preview, policy and abort", () => {
+    const preview = { profile: "p", provider: "anthropic", model: "m", endpoint: "https://x.test", call: { system: "", messages: [] }, masked: 0, bytes: 1, required: true };
+    function setup(policy = { file_off: false, device_off: false }) {
+      const backend = new MockBackend();
+      const calls: string[] = [];
+      const cancelled: string[] = [];
+      let finish: (() => void) | null = null;
+      Object.assign(backend.ai, {
+        policy: async () => policy,
+        preview: async () => preview,
+        confirmPreview: async () => {},
+        cancel: async (id: string) => void cancelled.push(id),
+        complete: (r: { id: string }) =>
+          new Promise((resolve) => {
+            calls.push(r.id);
+            finish = () => resolve({ text: "ok", stop: "end" });
+          }),
+      });
+      return { backend, calls, cancelled, finish: () => finish?.() };
+    }
+    const request = { purpose: "x", system: "", messages: [] };
+
+    it("an opted-out collection refuses before anything is built", async () => {
+      const t = setup({ file_off: true, device_off: false });
+      const ai = createExtensionAi(t.backend, new AppState(t.backend), async () => true);
+      await expect(ai.complete(request)).rejects.toMatchObject({ kind: "opted-out" });
+      expect(t.calls).toEqual([]);
+    });
+
+    it("cancelling the preview sends nothing", async () => {
+      const t = setup();
+      const ai = createExtensionAi(t.backend, new AppState(t.backend), async () => false);
+      await expect(ai.complete(request, { preview: true })).rejects.toMatchObject({ kind: "cancelled" });
+      expect(t.calls).toEqual([]);
+    });
+
+    it("an aborted signal cancels the running call by its id", async () => {
+      const t = setup();
+      const ai = createExtensionAi(t.backend, new AppState(t.backend), async () => true);
+      const controller = new AbortController();
+      const done = ai.complete(request, { signal: controller.signal });
+      await vi.waitFor(() => expect(t.calls).toHaveLength(1));
+      controller.abort();
+      await vi.waitFor(() => expect(t.cancelled).toEqual(t.calls));
+      t.finish();
+      await done;
+    });
   });
 });

@@ -71,7 +71,12 @@
   import "../styles/base.css";
   import CompanionOffer from "../transport/CompanionOffer.svelte";
   import CommandPalette from "./CommandPalette.svelte";
+  import AssistantPanel from "./AssistantPanel.svelte";
   import { createExtensionContext } from "./extension-context";
+  import { extensionAssistant } from "./extension-actions";
+  import SuggestHost from "../suggest/SuggestHost.svelte";
+  import { suggestionOwnsEnter } from "../suggest/keys.svelte";
+  import { suggestUndoFor } from "../suggest/undo.svelte";
   import { extensionTabsFor, provideExtensions } from "./extension-tabs";
   import { buildCommands, LABELS, type Actions } from "./commands";
   import Resizer from "./Resizer.svelte";
@@ -230,6 +235,18 @@
       (e: unknown) => console.warn("RequestTailor: reopening the last collection failed:", e),
     );
   });
+
+  // ---- the assistant panel of an extension (wave 16): header button, palette, Mod+J ----
+  const assistant = $derived(extensionAssistant(provided));
+  let assistantOpen = $state(false);
+  const assistantFocus = $derived({
+    collection: app.activeCollection,
+    request: app.active,
+    response: app.active ? (app.results[app.active] ?? null) : null,
+    folder: null,
+  });
+  const suggestUndo = suggestUndoFor(app);
+  const assistantKeys = mac ? "⌘J" : "Ctrl+J";
 
   // ---- commands and shortcuts ----
   const actions: Actions = {
@@ -408,6 +425,10 @@
       run: () => openCollectionTab(t.key),
     })),
     ...(app.collection ? [{ id: "run-collection", label: "Run collection…", run: () => openRunner(null) }] : []),
+    ...(assistant
+      ? [{ id: "assistant", label: "Assistant", shortcut: assistantKeys, run: () => (assistantOpen = !assistantOpen) }]
+      : []),
+    ...(suggestUndo.last?.undo ? [{ id: "suggest-undo", label: "Undo suggestion", run: () => void suggestUndo.run() }] : []),
     ...aiCommands(app, ai),
     ...agentCommands(app),
     ...gitApiCommands(app, gitViews),
@@ -422,10 +443,18 @@
   // work wherever focus is.
   $effect(() => {
     const onkeydown = (e: KeyboardEvent) => {
+      if (assistant && e.key.toLowerCase() === "j" && !e.altKey && !e.shiftKey && (mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!e.repeat) assistantOpen = !assistantOpen;
+        return;
+      }
       const s = matchShortcut(e, mac);
       if (!s) return;
       // Shift+Alt+F types a character (e.g. "Ï" on macOS): only taken when a body can be formatted.
       if (s.command === "format-body" && !formatAvailable()) return;
+      // A suggestion on screen takes Mod+Enter (apply), not "send".
+      if (s.command === "send" && suggestionOwnsEnter()) return;
       e.preventDefault();
       e.stopPropagation();
       if (e.repeat) return;
@@ -489,6 +518,15 @@
         <x.header ctx={extensionContext} />
       {/if}
     {/each}
+    {#if assistant}
+      <button
+        class="button"
+        data-testid="assistant-toggle"
+        aria-pressed={assistantOpen}
+        title="{assistant.assistant.title} ({assistantKeys})"
+        onclick={() => (assistantOpen = !assistantOpen)}>{assistant.assistant.title}</button
+      >
+    {/if}
     <button
       class="button"
       data-testid="palette-button"
@@ -626,6 +664,9 @@
         </div>
       {/if}
     </main>
+    {#if assistant && assistantOpen}
+      <AssistantPanel assistant={assistant.assistant} ctx={extensionContext} focus={assistantFocus} onclose={() => (assistantOpen = false)} />
+    {/if}
   </div>
 
   <footer>
@@ -641,6 +682,7 @@
 {/each}
 <NewDialog onfallback={(folder) => (newIn = folder)} />
 <DialogHost />
+<SuggestHost />
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
 <CloneDialog open={cloning} onclose={() => (cloning = false)} onopen={adoptCollection} />
 <ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptAdded} />
@@ -708,6 +750,7 @@
     color: var(--rt-accent-fg);
   }
   .body {
+    position: relative;
     display: flex;
     min-height: 0;
     min-width: 0;

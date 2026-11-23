@@ -29,6 +29,9 @@ export { refNameProblem, suggestRefName } from "./git/wizards/refname";
 export * from "./commands/wave16-stubs";
 
 export type * from "./extensions";
+// Wave 16: the diff of a suggested change, for assistants that show their own suggestions.
+export { default as SuggestedEditView } from "./suggest/SuggestedEditView.svelte";
+export { requestBlocks, scriptBlocks, textBlock, type PreviewBlock } from "./suggest/model";
 
 // Wave 14 design foundation: UI primitives and the semantic icon set (guide: ui/README.md).
 export * from "./ui";

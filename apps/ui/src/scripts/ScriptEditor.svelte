@@ -4,11 +4,13 @@
      language is loaded when the first editor opens (the Scripts tab), so it costs nothing at
      start. Controlled: `value` in, `onchange` out. -->
 <script lang="ts">
+  import { isolateHistory } from "@codemirror/commands";
   import { Annotation, Compartment, EditorState } from "@codemirror/state";
   import { EditorView, placeholder as cmPlaceholder } from "@codemirror/view";
   import { onMount } from "svelte";
 
   import { base, multiLine } from "../editor/codemirror";
+  import EditorShell, { type EditorKind } from "../suggest/EditorShell.svelte";
 
   let {
     value,
@@ -16,12 +18,15 @@
     label,
     testid,
     placeholder = "",
+    editor,
   }: {
     value: string;
     onchange: (value: string) => void;
     label: string;
     testid?: string;
     placeholder?: string;
+    /** Wave 16: which script this is, so extensions can add actions and propose text. */
+    editor?: EditorKind;
   } = $props();
 
   const external = Annotation.define<boolean>();
@@ -62,6 +67,15 @@
     };
   });
 
+  /** Wave 16: the whole text replaced as one undo step (an applied suggestion). */
+  function replaceAll(next: string) {
+    view?.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: next },
+      annotations: isolateHistory.of("full"),
+      userEvent: "input.suggestion",
+    });
+  }
+
   $effect(() => {
     const v = value;
     if (!view) return;
@@ -76,11 +90,30 @@
   });
 </script>
 
-<div class="field" data-testid={testid} data-language={language} bind:this={host}></div>
+{#snippet fieldEl()}
+  <div class="field" data-testid={testid} data-language={language} bind:this={host}></div>
+{/snippet}
+{#if editor}
+  <EditorShell
+    {editor}
+    text={() => view?.state.doc.toString() ?? value}
+    selection={() => {
+      const r = view?.state.selection.main;
+      return r ? { from: r.from, to: r.to } : null;
+    }}
+    replace={replaceAll}
+    focus={() => view?.focus()}
+  >
+    {@render fieldEl()}
+  </EditorShell>
+{:else}
+  {@render fieldEl()}
+{/if}
 
 <style>
   .field {
     min-width: 0;
+    flex: 1;
   }
   .field :global(.cm-editor) {
     min-height: 8em;
