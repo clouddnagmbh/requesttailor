@@ -25,6 +25,8 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
     }
     await expect(page.getByRole("tablist", { name: "Request parts" })).toBeVisible();
+    await expect(page.getByRole("progressbar", { name: "Upload" })).toHaveAttribute("aria-valuenow", "60");
+    await expect(page.getByRole("progressbar", { name: "Loading collection" })).not.toHaveAttribute("aria-valuenow");
     await expect(page.getByRole("switch", { name: "Follow redirects" })).toBeChecked();
     await page.evaluate(() => document.fonts.ready);
     await shoot(page, `gallery-${theme}`);
