@@ -28,6 +28,8 @@ pub mod docs;
 pub mod grpc;
 pub mod import;
 pub mod mcp;
+/// Wave 14: `rt mcp-demo`, the MCP demo server.
+pub mod mcp_demo;
 pub mod mcp_test;
 /// Wave 12, strand B: `rt merge-driver`.
 pub mod merge_driver;
@@ -79,7 +81,7 @@ Usage:
   rt import <file>... --out <dir> [--format <FORMAT>] [--json]
   rt scan [<path>...] [--json]
   rt mcp-test [<path>...] [-e <NAME>] [--var <NAME=VALUE>]...
-{git_usage}  rt --help | --version
+{mcp_demo_usage}{git_usage}  rt --help | --version
 
 Options for send:
   -e, --env <NAME>          Use the environment named NAME
@@ -144,6 +146,7 @@ servers: connect (stdio or Streamable HTTP), call the tool, check the assertions
   \"failed\": M}} as JSON, secret values as ***. Exit code {EXIT_OK} when all passed,
   {EXIT_TESTS} when a test failed, {EXIT_TRANSPORT} when a server could not be reached or started.
 
+{mcp_demo_help}
 External secrets: when the environment of rt send reads secrets from a manager
 (externalSecrets), rt runs its CLI (op, vault, aws, az, gcloud) with your login.
 Variables given with --var are not read from the manager.
@@ -181,6 +184,8 @@ Exit codes:
         agent_port = agent::DEFAULT_PORT,
         agent_origins = agent::DEFAULT_ORIGINS.join(" and "),
         scan_found = scan::EXIT_FOUND,
+        mcp_demo_usage = mcp_demo::USAGE,
+        mcp_demo_help = mcp_demo::help(),
         // Wave 12: each command's usage and help live in its own module.
         git_usage = [
             diff::USAGE,
@@ -221,6 +226,8 @@ pub enum Command {
     Deny(approvals::Args),
     /// Wave 8, strand D: `rt mcp-test`.
     McpTest(mcp_test::Args),
+    /// Wave 14: `rt mcp-demo`.
+    McpDemo(mcp_demo::Args),
     /// Wave 8, strand F: `rt mock`, `rt docs`.
     Mock(mock::Args),
     Docs(docs::Args),
@@ -324,6 +331,9 @@ where
         }
         Some(Value(cmd)) if cmd == "mcp-test" => {
             Ok(mcp_test::parse(&mut parser)?.map_or(Command::Help, Command::McpTest))
+        }
+        Some(Value(cmd)) if cmd == "mcp-demo" => {
+            Ok(mcp_demo::parse(&mut parser)?.map_or(Command::Help, Command::McpDemo))
         }
         Some(Value(cmd)) if cmd == "mock" => {
             Ok(mock::parse(&mut parser)?.map_or(Command::Help, Command::Mock))
@@ -708,6 +718,7 @@ where
             );
         }
         Ok(Command::McpTest(args)) => return mcp_test::run(args, stdout, stderr),
+        Ok(Command::McpDemo(args)) => return mcp_demo::run(args, stderr),
         Ok(Command::Mock(args)) => return mock::run(args, stdout, stderr),
         Ok(Command::Docs(args)) => return docs::run(args, stdout, stderr),
         Ok(Command::Diff(args)) => return diff::run(args, stdout, stderr),
