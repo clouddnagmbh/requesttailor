@@ -322,7 +322,7 @@ pub(super) fn call(
                             "progressToken": token,
                             "progress": step,
                             "total": from,
-                            "message": format!("{}…", left + 1)
+                            "message": format!("step {step} of {from}")
                         }
                     }));
                 }
