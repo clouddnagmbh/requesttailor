@@ -281,6 +281,8 @@
     padding-right: var(--rt-space-1);
   }
   .block {
+    /* The list scrolls; a block keeps its height instead of shrinking to its label. */
+    flex-shrink: 0;
     border: 1px solid var(--rt-border);
     border-radius: var(--rt-radius-md);
     background: var(--rt-surface-1);

@@ -162,3 +162,22 @@ test("folder scripts are suggested, applied unsaved, and undone", async ({ page 
   expect(await scripts()).toEqual([]);
   expect(await demoLog(page)).toContain("suggest-folder-scripts:true");
 });
+
+// A suggestion with many blocks scrolls; no block is squeezed below its own content (the list is
+// a scrolling flex column, whose children shrank to their label once there were more than five).
+test("a suggestion with many blocks keeps every block whole and scrolls", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await openCollection(page);
+  await openRequest(page);
+  await page.getByTestId("extension-actions-menu").first().click();
+  await page.getByRole("menuitem", { name: "Suggest a health check" }).click();
+  const view = page.getByTestId("suggested-edit");
+  const blocks = view.getByTestId("suggest-block");
+  expect(await blocks.count()).toBeGreaterThan(5);
+  const squeezed = await blocks.evaluateAll((els) =>
+    els.filter((el) => el.getBoundingClientRect().height + 1 < el.scrollHeight).map((el) => el.textContent?.slice(0, 40)),
+  );
+  expect(squeezed).toEqual([]);
+  const list = blocks.first().locator("xpath=..");
+  expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+});
