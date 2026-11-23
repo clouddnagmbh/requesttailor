@@ -3,17 +3,28 @@
 
 // Web shell entry. `?backend=mock` uses the in-memory MockBackend (UI tests; `&welcome=1`
 // adds a bundled plugin and the first-start question); otherwise the real WebBackend
-// (rt-wasm). Owner of the real backend: wave 3, strand E.
+// (rt-wasm). Owner of the real backend: wave 3, strand E. `?gallery=1` shows the UI primitive
+// gallery instead of the app, in the dev server only (production builds drop the branch).
 
 import { MockBackend, startApp, type Backend } from "@requesttailor/ui";
 
 import { createWebBackend } from "./web-backend";
 
 const params = new URLSearchParams(location.search);
-const backend: Backend =
-  params.get("backend") === "mock" ? new MockBackend({ welcome: params.get("welcome") === "1" }) : await createWebBackend();
 
-// Exposed for Playwright assertions only.
-(window as unknown as { __rt: { backend: Backend } }).__rt = { backend };
+if (import.meta.env.DEV && params.get("gallery") === "1") {
+  const { startGallery } = await import("@requesttailor/ui/gallery");
+  startGallery(document.getElementById("app")!);
+} else {
+  await startShell();
+}
 
-startApp(document.getElementById("app")!, backend);
+async function startShell() {
+  const backend: Backend =
+    params.get("backend") === "mock" ? new MockBackend({ welcome: params.get("welcome") === "1" }) : await createWebBackend();
+
+  // Exposed for Playwright assertions only.
+  (window as unknown as { __rt: { backend: Backend } }).__rt = { backend };
+
+  startApp(document.getElementById("app")!, backend);
+}
