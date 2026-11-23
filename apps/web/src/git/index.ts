@@ -27,7 +27,6 @@ import {
   LOCAL_CLONE_UNSUPPORTED,
   looksLocal,
   stubGitIndex,
-  stubGitWorking,
 } from "@requesttailor/ui";
 
 import type { WebHost } from "../web-backend";
@@ -36,6 +35,7 @@ import { companionHttp, NO_COMPANION_MESSAGE } from "./http";
 import type { Network, Repo } from "./repo";
 import { refuseSecrets, scanPaths } from "./scan";
 import { webGitActions } from "./actions";
+import { webGitFiles } from "./files";
 import { webGitHistory } from "./history";
 import { webGitPlumbing } from "./plumbing";
 import { webGitGraph, type WebGitContext } from "./graph";
@@ -361,8 +361,8 @@ export function webGit(host: WebHost): GitApi & ChangelogCommitSource & Reposito
     ...webGitGraph(wave14),
     ...webGitActions({ ...wave14, network, identity: () => identity.get() }),
     // Wave 15 (interface): placeholders until strands B (working copy), C (history), D (building
-    // blocks, ./plumbing.ts) and F (index) add their own files here.
-    ...stubGitWorking(),
+    // blocks) and F (index): only the index is still a placeholder (strand F).
+    ...webGitFiles(wave14),
     ...webGitHistory(wave14),
     ...webGitPlumbing({ ...wave14, identity: () => identity.get() }),
     ...stubGitIndex(),

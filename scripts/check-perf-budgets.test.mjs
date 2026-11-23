@@ -68,7 +68,7 @@ function gate(results, ...args) {
   }
 }
 
-const ALL_OK = { cold_start: 300, idle_memory: 100, large_response_frame: 16.8, send_keystrokes: 1, semantic_diff: 40, compare_view: 60, git_graph: 30, git_graph_frame: 16.7 };
+const ALL_OK = { cold_start: 300, idle_memory: 100, large_response_frame: 16.8, send_keystrokes: 1, semantic_diff: 40, compare_view: 60, git_graph: 30, git_graph_frame: 16.7, git_graph_large: 640, git_status_large: 84 };
 
 test("gate: every budget met and measured passes with --require-all", () => {
   const r = gate(ALL_OK, "--require-all");
@@ -84,6 +84,8 @@ test("gate: an exceeded budget fails the build, with or without --require-all", 
     ["semantic_diff", 200.1],
     ["git_graph", 1501],
     ["git_graph_frame", 33.4],
+    ["git_graph_large", 1501],
+    ["git_status_large", 300.1],
   ]) {
     for (const args of [[], ["--require-all"]]) {
       const r = gate({ ...ALL_OK, [metric]: value }, ...args);

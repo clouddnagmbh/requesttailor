@@ -31,7 +31,7 @@ fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
 }
 
 /// The set's collections inside `workdir`, by their folder relative to it.
-fn collections_in<S: SecretStore>(core: &Core<S>, workdir: &Path) -> Vec<CollectionAt> {
+pub(crate) fn collections_in<S: SecretStore>(core: &Core<S>, workdir: &Path) -> Vec<CollectionAt> {
     core.collection_set()
         .collections
         .iter()
