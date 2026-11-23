@@ -45,6 +45,7 @@ import { tauriGraphQl } from "./graphql";
 import { tauriAgents } from "./agents";
 import { tauriMcp } from "./mcp-client";
 import { tauriCompanions } from "./companions";
+import { tauriVariables } from "./variables";
 import { tauriAi } from "./ai";
 // Wave 12: one file per strand.
 import { tauriCompare, type MakeStepChannel } from "./compare";
@@ -121,6 +122,8 @@ export const COMMANDS = [
   "companion_list",
   "companion_read",
   "companion_stage",
+  "variables_scope",
+  "variables_define",
   "history_list",
   "history_clear",
   "search",
@@ -299,6 +302,8 @@ export class TauriBackend implements Backend {
   readonly contract = tauriContract((cmd, args) => this.call(cmd, args));
   /** Wave 13. */
   readonly companions = tauriCompanions((cmd, args) => this.call(cmd, args));
+  /** Wave 14: variable completion. */
+  readonly variables = tauriVariables((cmd, args) => this.call(cmd, args), sendInput);
   readonly rescue: RescueApi;
 
   constructor(

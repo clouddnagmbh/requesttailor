@@ -28,6 +28,8 @@ pub mod core;
 /// Wave 12, strand A: semantic diff.
 mod diffs;
 pub mod files;
+/// Wave 14: variable completion.
+mod variables;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
 /// Wave 8, strand B.
@@ -164,6 +166,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             companions::companion_list,
             companions::companion_read,
             companions::companion_stage,
+            variables::variables_scope,
+            variables::variables_define,
             history::history_list,
             history::history_clear,
             search::search,

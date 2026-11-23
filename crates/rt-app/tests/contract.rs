@@ -1395,6 +1395,43 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
             }),
         ),
         (
+            "variableScope",
+            "VariableScope",
+            j(rt_app::variables::VariableScope {
+                variables: vec![
+                    rt_app::variables::ScopeVar {
+                        name: "baseUrl".into(),
+                        value: Some("http://c".into()),
+                        source: VarSource::Collection,
+                        secret: false,
+                        external: None,
+                        overridden: true,
+                    },
+                    rt_app::variables::ScopeVar {
+                        name: "dbPassword".into(),
+                        value: None,
+                        source: VarSource::Environment {
+                            name: "Local".into(),
+                        },
+                        secret: true,
+                        external: Some(SecretProvider::OnePassword),
+                        overridden: false,
+                    },
+                    rt_app::variables::ScopeVar {
+                        name: "userId".into(),
+                        value: Some("42".into()),
+                        source: VarSource::Folder {
+                            path: "users".into(),
+                        },
+                        secret: false,
+                        external: None,
+                        overridden: false,
+                    },
+                ],
+                undefined: vec!["missing".into()],
+            }),
+        ),
+        (
             "fileChanges",
             "FileChange[]",
             j(vec![

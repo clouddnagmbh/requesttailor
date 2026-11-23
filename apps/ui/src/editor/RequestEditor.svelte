@@ -9,7 +9,8 @@
      the method picker above it) and gRPC calls its headers "Metadata"; Enter in the URL
      connects a session request instead of sending it.
      Wave 13: request tabs of a distribution's extensions (`AppExtension.tabs`) after the
-     plugin tabs. -->
+     plugin tabs.
+     Wave 14: provides the `{{` variable completion of every field below (`var-source.ts`). -->
 <script lang="ts">
   import { onMount, tick, untrack, type Snippet } from "svelte";
 
@@ -34,6 +35,7 @@
   import { canFormat, describeFormat, formatBody, onFormatRequest } from "./format-body";
   import KeyValueTable, { type Row } from "./KeyValueTable.svelte";
   import { paramsFromUrl, urlFromParams } from "./url";
+  import { createVarSource, folderOf, provideVarSource } from "./var-source";
   import { lookupFromPreview } from "./vars";
 
   /** `actions`: rendered at the end of the URL row (the shell puts the Send button there). */
@@ -143,6 +145,17 @@
   });
   const shown = $derived(preview?.path === path ? preview.value : null);
   const lookup = $derived(lookupFromPreview(shown));
+
+  // ---- `{{` completion (wave 14): every field below completes this request's variables ----
+
+  provideVarSource(
+    createVarSource(app, {
+      path: () => path,
+      folder: () => folderOf(path),
+      // A new collection or folder variable resolves now: refresh the highlighting.
+      onchange: () => revision++,
+    }),
+  );
 
   // ---- method and URL ----
 

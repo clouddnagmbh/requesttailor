@@ -66,6 +66,9 @@ const COMMANDS: &[&str] = &[
     "companion_list",
     "companion_read",
     "companion_stage",
+    // Wave 14: variable completion.
+    "variables_scope",
+    "variables_define",
     "history_list",
     "history_clear",
     "search",

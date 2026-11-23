@@ -51,6 +51,7 @@ import { mockContract } from "./mock-contract";
 import { mockRescue } from "./mock-rescue";
 import { mockCompanions } from "./mock-companions";
 import { DEMO_ID, MockCollections, mockTree } from "./mock-collections";
+import { mockVariables } from "./mock-variables";
 import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
 import { mockScripts } from "./mock-scripts";
@@ -197,7 +198,7 @@ export class MockBackend implements Backend {
     demo: () => ({ requests: sampleRequests(), envs: sampleEnvironments() }),
     empty: (name) => emptyRequest(name),
     files: this.files,
-    extraDirty: () => [...this.mcp.dirty(), ...this.companions.dirty()],
+    extraDirty: () => [...this.mcp.dirty(), ...this.companions.dirty(), ...this.variables.dirty()],
     saveExtra: () => {
       const changes: FileChange[] = [];
       for (const change of this.mcp.save()) {
@@ -205,6 +206,10 @@ export class MockBackend implements Backend {
         changes.push(change);
       }
       changes.push(...this.companions.save());
+      for (const change of this.variables.save()) {
+        this.files.set(change.path, change.text);
+        changes.push(change);
+      }
       return changes;
     },
   });
@@ -309,6 +314,14 @@ export class MockBackend implements Backend {
   readonly rescue = mockRescue(this.wave12);
   /** Wave 13: companion files for extensions. */
   readonly companions = mockCompanions(this.files, () => this.ensureOpen());
+  /** Wave 14: variable completion; also the collection and folder variables of the send. */
+  readonly variables = mockVariables({
+    requests: () => this.requests,
+    environments: () => this.envs,
+    sessionVars: (environment) => this.scripts.sessionVars(environment),
+    secretValues: (environment) =>
+      [...this.secretValues].flatMap(([key, value]) => (key.startsWith(`${environment}/`) ? [value] : [])),
+  });
 
   async openCollection(): Promise<CollectionInfo | null> {
     const info = this.collections.openDemo();
@@ -402,6 +415,7 @@ export class MockBackend implements Backend {
 
   async preview(path: string, input: SendInput): Promise<Preview> {
     const r = (await this.sendNow(path, input)).report;
+    const spec = await this.getRequest(path);
     const env = this.envs.find((e) => e.name === input.environment);
     const session = await this.scripts.sessionVars(input.environment ?? "");
     const runtime = (name: string) =>
@@ -415,7 +429,13 @@ export class MockBackend implements Backend {
           ? null
           : u.source.layer === "runtime"
             ? (runtime(u.name) ?? null)
-            : (env?.variables.find((v) => v.name === u.name)?.value ?? null),
+            : u.source.layer === "request"
+              ? (spec.vars.find((v) => v.name === u.name)?.value ?? null)
+              : u.source.layer === "folder"
+                ? (this.variables.lookup(path, u.name, "folders")?.value ?? null)
+                : u.source.layer === "collection"
+                  ? (this.variables.lookup(path, u.name, "collection")?.value ?? null)
+                  : (env?.variables.find((v) => v.name === u.name)?.value ?? null),
       })),
       unresolved: r.unresolved,
       error: null,
@@ -451,6 +471,17 @@ export class MockBackend implements Backend {
           used.push({ name, source: { layer: "runtime" }, secret: false });
           return runtime[1];
         }
+        // Wave 14: request and folder variables above the environment.
+        const own = spec.vars.find((x) => x.name === name && x.enabled && !x.secret && x.value !== null);
+        if (own) {
+          used.push({ name, source: { layer: "request" }, secret: false });
+          return own.value!;
+        }
+        const inFolder = this.variables.lookup(path, name, "folders");
+        if (inFolder) {
+          used.push({ name, source: inFolder.source, secret: false });
+          return inFolder.value;
+        }
         const v = env?.variables.find((x) => x.name === name && x.enabled);
         if (v) {
           const value = v.secret
@@ -461,6 +492,11 @@ export class MockBackend implements Backend {
             if (v.secret) secretValues.push(value);
             return value;
           }
+        }
+        const inCollection = this.variables.lookup(path, name, "collection");
+        if (inCollection) {
+          used.push({ name, source: inCollection.source, secret: false });
+          return inCollection.value;
         }
         unresolved.push(name);
         return whole;

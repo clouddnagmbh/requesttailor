@@ -208,6 +208,8 @@ describe("TauriBackend", () => {
     const choice = { kind: "file", path: "a.yml", side: "theirs" } as const;
     await b.merges.conflicts();
     await b.merges.resolve([choice]);
+    await b.variables.scope("users/list.yml", { environment: "Local", vars: [] });
+    await b.variables.define("users", { name: "tenant", value: "acme", enabled: true, secret: false });
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -381,6 +383,8 @@ describe("TauriBackend", () => {
       ["rescue_rewrite", { plan: { findings: ["a:b.yml:1"], variable: "apiToken", environment: "Local" } }],
       ["merge_conflicts", undefined],
       ["merge_resolve", { choices: [choice] }],
+      ["variables_scope", { path: "users/list.yml", input: { environment: "Local", vars: [] } }],
+      ["variables_define", { folder: "users", variable: { name: "tenant", value: "acme", enabled: true, secret: false } }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

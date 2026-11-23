@@ -857,6 +857,20 @@ impl<S: SecretStore> Core<S> {
         })
     }
 
+    /// Every variable `path` sees, for variable completion (`variables.rs`): the session's
+    /// variables in the runtime layer and the secret values only to mask, as for `preview`.
+    pub fn variables(
+        &self,
+        path: &str,
+        input: SendInput,
+    ) -> Result<rt_app::variables::VariableScope, AppError> {
+        self.with_session(|s| {
+            let input = self.services.session.input_for(&s.id, input);
+            let input = self.with_secrets(s, input)?;
+            s.workspace.variables(path, &input)
+        })
+    }
+
     /// Sends the current (possibly unsaved) state of the request.
     pub async fn send(&self, path: &str, input: SendInput) -> Result<StoredResponse, AppError> {
         // External secrets first, on a blocking thread (a CLI may take seconds, e.g. for a
