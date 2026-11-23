@@ -59,7 +59,6 @@ max = 1000
 [metrics.git_graph_large]
 description = "Commit graph of a repository with 100 000 commits: first page native (release rt-git) plus first rows visible (median of 5)"
 unit = "ms"
-pending = "wave 15, strand C"
 max = 1500
 
 # Strand B (scripts/perf/status.mjs, crates/rt-git/examples/perf_status.rs).
