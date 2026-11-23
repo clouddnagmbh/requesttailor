@@ -16,6 +16,8 @@ import type {
   AiRequest,
   AiScope,
   BisectOutcome,
+  GitConflict,
+  GitWorkingCopy,
   RequestSpec,
   RunEvent,
   RunSummary,
@@ -291,6 +293,17 @@ export type HintTarget =
   /** At the top of an expanded collection node in the sidebar. */
   | { place: "collection"; collection: string };
 
+/** The Git views a hint can sit in (since wave 15). */
+export type GitHintView = "graph" | "changes" | "conflict" | "history";
+
+/** At the top of a Git view of repository `repository` (`AppExtension.gitHints`, since wave
+ *  15); same rules as `HintTarget`. */
+export interface GitHintTarget {
+  place: "git";
+  repository: string;
+  view: GitHintView;
+}
+
 /** A small, calm note the shell shows in a defined place (since wave 14): never a modal, never
  *  blocking, always dismissible. The shell shows at most one hint per place at a time (the
  *  first not dismissed, extensions in order) and remembers a dismissal per device. */
@@ -341,6 +354,118 @@ export interface ExtensionDialog {
   props?: Record<string, unknown>;
   /** Width in CSS pixels (default 560); never wider than the window minus 32 px. */
   width?: number;
+}
+
+// ---- Git views (since wave 15). Generic Git, nothing assumes a collection; paths are
+// repository-relative with a leading `/`. ----
+
+/** What a Git action of an extension is offered on. `repository` is `RepositoryEntry.id`. */
+export type GitActionTarget =
+  /** The repository as a whole: its sidebar node's menu, the Git panel's "Tools" section. */
+  | { kind: "repository"; repository: string }
+  /** One commit in the graph or a history list. */
+  | { kind: "commit"; repository: string; commit: string }
+  /** Several commits selected in the graph, newest first. */
+  | { kind: "commits"; repository: string; commits: string[] }
+  /** A branch, tag or remote branch (`GitRef.full`). */
+  | { kind: "ref"; repository: string; ref: string }
+  /** A file in the changes view, the file tree or a history list; `rev` absent: working tree. */
+  | { kind: "file"; repository: string; path: string; rev?: string }
+  /** The changed files of the working copy as a whole. */
+  | { kind: "changes"; repository: string; paths: string[] }
+  /** A parked change (`GitStash.index`). */
+  | { kind: "stash"; repository: string; index: number }
+  /** A conflicted file during a merge, cherry-pick, revert or rebase. */
+  | { kind: "conflict"; repository: string; path: string };
+
+/** A view in the main area's Git host, opened with `AppState.show({ kind: "git", view: {
+ *  kind: "extension", id: "<extension>/<view>", props } })` (since wave 15). */
+export interface ExtensionGitView {
+  /** Unique within the extension. */
+  id: string;
+  /** Title bar of the view. */
+  title: string;
+  /** Semantic icon name (`ui/icons.ts`); default `graph`. */
+  icon?: string;
+  component: Component<ExtensionGitViewProps>;
+}
+
+export interface ExtensionGitViewProps {
+  ctx: ExtensionContext;
+  repository: string;
+  /** The `props` the view was opened with. */
+  props: Record<string, unknown>;
+  /** Closes the view (back to the previous one). */
+  close: () => void;
+}
+
+/** A staging view that replaces the file list of the app's commit form (since wave 15). With
+ *  one, the form commits what the index holds (`GitApi.commitStaged`); without, the app keeps
+ *  "commit without staging". The first extension's staging view wins. */
+export interface ExtensionStaging {
+  /** Shown as the file list's heading. */
+  title: string;
+  component: Component<ExtensionStagingProps>;
+  /** Whether it is in charge for this repository right now (e.g. allowed to); called reactively:
+   *  cheap, synchronous, no `$state` writes. Absent: always. */
+  active?(ctx: ExtensionContext, repository: string): boolean;
+}
+
+export interface ExtensionStagingProps {
+  ctx: ExtensionContext;
+  repository: string;
+  /** The working copy as last read; `refresh()` reads it again (after staging). */
+  workingCopy: GitWorkingCopy;
+  refresh: () => Promise<void>;
+}
+
+/** An editor for a file's diff or a conflicted file's merge, offered next to the app's own
+ *  (since wave 15): the app's line and semantic views stay the default, the user can switch. */
+export type ExtensionFileEditor =
+  | {
+      id: string;
+      title: string;
+      kind: "diff";
+      /** Which files it can show; absent: all text files. */
+      accepts?(path: string): boolean;
+      component: Component<ExtensionDiffEditorProps>;
+    }
+  | {
+      id: string;
+      title: string;
+      kind: "merge";
+      accepts?(path: string): boolean;
+      component: Component<ExtensionMergeEditorProps>;
+    };
+
+export interface ExtensionDiffEditorProps {
+  ctx: ExtensionContext;
+  repository: string;
+  path: string;
+  /** Revs of both sides; `to` `null`: the working tree. */
+  from: string;
+  to: string | null;
+  close: () => void;
+}
+
+export interface ExtensionMergeEditorProps {
+  ctx: ExtensionContext;
+  repository: string;
+  conflict: GitConflict;
+  /** Writes the result and marks the file resolved (`GitApi.resolveText`). */
+  resolve: (text: string) => Promise<void>;
+  close: () => void;
+}
+
+/** The commit form an action works on (since wave 15). */
+export interface CommitFormTarget {
+  repository: string;
+  /** The message field. */
+  message: { get(): string; set(text: string): void };
+  /** Files that will be committed (repository-relative). */
+  paths: readonly string[];
+  /** The form commits the index (a staging view is in charge). */
+  staged: boolean;
 }
 
 export interface AppExtension {
@@ -403,6 +528,24 @@ export interface AppExtension {
   runActions?(ctx: ExtensionContext, target: RunActionTarget): readonly ExtensionAction[];
   /** A side panel, e.g. a chat about the current request (since wave 16). */
   assistant?: ExtensionAssistant;
+  /**
+   * Actions in the Git views (since wave 15): commits, selections of commits, refs, files,
+   * the changes, parked changes, conflicts and the repository. Called inside a reactive scope:
+   * cheap, synchronous, no `$state` writes. Entries with `inline` show as a button in the row.
+   */
+  gitActions?(ctx: ExtensionContext, target: GitActionTarget): readonly ExtensionAction[];
+  /** Views in the main area's Git host (since wave 15); reactive like `commands`. */
+  gitViews?(ctx: ExtensionContext): readonly ExtensionGitView[];
+  /** A staging view for the commit form (since wave 15). */
+  staging?: ExtensionStaging;
+  /** Diff and merge editors offered next to the app's own (since wave 15); reactive. */
+  fileEditors?(ctx: ExtensionContext): readonly ExtensionFileEditor[];
+  /** Hints at the top of the Git views (since wave 15); same rules as `hints` (at most one per
+   *  view, dismissible, remembered per device). */
+  gitHints?(ctx: ExtensionContext, target: GitHintTarget): readonly ExtensionHint[];
+  /** Actions next to the commit message (since wave 15), e.g. a message template; same rules
+   *  as `gitActions`. */
+  commitFormActions?(ctx: ExtensionContext, target: CommitFormTarget): readonly ExtensionAction[];
 }
 
 export interface StartOptions {

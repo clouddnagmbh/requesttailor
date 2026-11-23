@@ -9,6 +9,10 @@ import type { GitApi } from "@requesttailor/ui";
 import type { Call } from "./backend";
 import { tauriGitActions } from "./git-actions";
 import { tauriGitGraph } from "./git-graph";
+import { tauriGitHistory } from "./git-history";
+import { tauriGitIndex } from "./git-index";
+import { tauriGitPlumbing } from "./git-plumbing";
+import { tauriGitWorking } from "./git-files";
 
 export function tauriGit(call: Call): GitApi {
   return {
@@ -42,5 +46,10 @@ export function tauriGit(call: Call): GitApi {
     // Wave 14 (interface): graph (strand F) and wizards (strand G).
     ...tauriGitGraph(call),
     ...tauriGitActions(call),
+    // Wave 15 (interface): working copy (strand B), history (C), building blocks (D), index (F).
+    ...tauriGitWorking(call),
+    ...tauriGitHistory(call),
+    ...tauriGitPlumbing(call),
+    ...tauriGitIndex(call),
   };
 }

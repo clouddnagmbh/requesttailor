@@ -6,7 +6,7 @@
 // the collection nodes and the context menus of the sidebar (strand A). Dismissals per device:
 // ./hint-store.
 
-import type { ExtensionHint, ExtensionNodeAction, HintTarget, NodeTarget } from "../extensions";
+import type { ExtensionHint, ExtensionNodeAction, GitHintTarget, HintTarget, NodeTarget } from "../extensions";
 import type { ProvidedExtensions } from "./extension-tabs";
 
 export interface ExtensionHintRef {
@@ -52,17 +52,22 @@ export function extensionNodeActions(provided: ProvidedExtensions | null, target
 
 /** The key a dismissal of `ref` is stored under for `target`: just the hint for scope `device`
  *  (the default), the hint plus the collection (and request) for scope `target`. */
-export function dismissalKey(ref: ExtensionHintRef, target: HintTarget): string {
+export function dismissalKey(ref: ExtensionHintRef, target: HintTarget | GitHintTarget): string {
   if (ref.hint.scope !== "target") return ref.key;
-  return target.place === "request"
-    ? `${ref.key}@${target.collection}:${target.path}`
-    : `${ref.key}@${target.collection}`;
+  switch (target.place) {
+    case "request":
+      return `${ref.key}@${target.collection}:${target.path}`;
+    case "collection":
+      return `${ref.key}@${target.collection}`;
+    case "git":
+      return `${ref.key}@git:${target.repository}`;
+  }
 }
 
 /** The hint to show: the first of `refs` not dismissed (at most one per place). */
 export function pickHint(
   refs: readonly ExtensionHintRef[],
-  target: HintTarget,
+  target: HintTarget | GitHintTarget,
   dismissed: ReadonlySet<string>,
 ): ExtensionHintRef | null {
   return refs.find((r) => !dismissed.has(dismissalKey(r, target))) ?? null;

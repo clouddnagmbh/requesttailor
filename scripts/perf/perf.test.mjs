@@ -133,7 +133,7 @@ test("merge keeps the worst value per metric", () => {
 
 test("run options", () => {
   const all = parseArgs([]);
-  assert.deepEqual(all.only, ["desktop", "frames", "keystrokes", "diff", "graph", "compare"]);
+  assert.deepEqual(all.only, ["desktop", "frames", "keystrokes", "diff", "graph", "compare", "status", "graph-large"]);
   assert.equal(all.partial, undefined);
   const some = parseArgs(["--only", "desktop", "--runs", "5", "--memory-runs", "2", "--check"]);
   assert.deepEqual(some.only, ["desktop"]);

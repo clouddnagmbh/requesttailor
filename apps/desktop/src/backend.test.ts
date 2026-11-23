@@ -253,6 +253,33 @@ describe("TauriBackend", () => {
     await b.variables.define("users", { name: "tenant", value: "acme", enabled: true, secret: false });
     await b.folderScripts.get("users");
     await b.folderScripts.set("users", [{ phase: "before-request", code: "a" }]);
+    // Wave 15 (interface).
+    await b.repositories.open();
+    await b.repositories.activate("/work/api");
+    await b.repositories.summary("/work/api");
+    await b.repositories.clone({ url: "https://example.com/r.git" });
+    await b.repositories.init();
+    await b.git.workingCopy();
+    await b.git.fileTree(null, "/");
+    await b.git.blob("HEAD", "/logo.png");
+    await b.git.blame("HEAD", "/README.md");
+    await b.git.searchHistory({ message: "fix", limit: 50 });
+    await b.git.reflog("HEAD", 20);
+    await b.git.commitInfo("HEAD");
+    await b.git.pick({ onto: "HEAD", commit: "abc" });
+    await b.git.writeTree({ base: "HEAD", files: [{ path: "/a.txt", kind: "text", text: "a" }] });
+    await b.git.writeCommit({ tree: "t", parents: ["p"], message: "m" });
+    await b.git.resolveText("/a.txt", "merged");
+    await b.git.indexDiff("/a.txt", "unstaged");
+    await b.git.stage(["/a.txt"]);
+    await b.git.unstage(["/a.txt"]);
+    const patch = { path: "/a.txt", side: "unstaged" as const, old: "o", new: "n", hunks: [{ hunk: 0 }] };
+    await b.git.stagePatch(patch);
+    await b.git.unstagePatch({ ...patch, side: "staged" });
+    await b.git.discardPatch(patch);
+    await b.git.commitStaged({ message: "m" });
+    await b.git.verify(["abc"]);
+    await b.review.create({ title: "T", body: "", head: "feature", base: "main", draft: false });
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -456,6 +483,31 @@ describe("TauriBackend", () => {
       ["variables_define", { folder: "users", variable: { name: "tenant", value: "acme", enabled: true, secret: false } }],
       ["folder_scripts_get", { path: "users" }],
       ["folder_scripts_set", { path: "users", scripts: [{ phase: "before-request", code: "a" }] }],
+      ["repositories_open", undefined],
+      ["repositories_activate", { id: "/work/api" }],
+      ["repositories_summary", { id: "/work/api" }],
+      ["repositories_clone", { request: { url: "https://example.com/r.git" } }],
+      ["repositories_init", undefined],
+      ["git_working_copy", undefined],
+      ["git_file_tree", { rev: null, dir: "/" }],
+      ["git_blob", { rev: "HEAD", path: "/logo.png" }],
+      ["git_blame", { rev: "HEAD", path: "/README.md" }],
+      ["git_search_history", { query: { message: "fix", limit: 50 } }],
+      ["git_reflog", { name: "HEAD", limit: 20 }],
+      ["git_commit_info", { rev: "HEAD" }],
+      ["git_pick", { request: { onto: "HEAD", commit: "abc" } }],
+      ["git_write_tree", { write: { base: "HEAD", files: [{ path: "/a.txt", kind: "text", text: "a" }] } }],
+      ["git_write_commit", { write: { tree: "t", parents: ["p"], message: "m" } }],
+      ["git_resolve_text", { path: "/a.txt", text: "merged" }],
+      ["git_index_diff", { path: "/a.txt", side: "unstaged" }],
+      ["git_stage", { paths: ["/a.txt"] }],
+      ["git_unstage", { paths: ["/a.txt"] }],
+      ["git_stage_patch", { patch: { path: "/a.txt", side: "unstaged", old: "o", new: "n", hunks: [{ hunk: 0 }] } }],
+      ["git_unstage_patch", { patch: { path: "/a.txt", side: "staged", old: "o", new: "n", hunks: [{ hunk: 0 }] } }],
+      ["git_discard_patch", { patch: { path: "/a.txt", side: "unstaged", old: "o", new: "n", hunks: [{ hunk: 0 }] } }],
+      ["git_commit_staged", { commit: { message: "m" } }],
+      ["git_verify", { oids: ["abc"] }],
+      ["review_create", { pull: { title: "T", body: "", head: "feature", base: "main", draft: false } }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

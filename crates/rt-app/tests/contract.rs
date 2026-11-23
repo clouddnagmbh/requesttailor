@@ -897,12 +897,14 @@ fn git_graph_page() -> rt_app::git::graph::GitGraphPage {
                 parents: vec!["a".repeat(40), "b".repeat(40)],
                 email: "ada@example.com".into(),
                 refs: vec!["refs/heads/main".into(), "refs/tags/v1".into()],
+                signed: true,
             },
             GitGraphCommit {
                 commit: wave14_commit("a", "Initial collection"),
                 parents: vec![],
                 email: "ada@example.com".into(),
                 refs: vec![],
+                signed: false,
             },
         ],
         refs: vec![
@@ -1023,6 +1025,11 @@ fn git_actions() -> Vec<rt_app::git::actions::GitAction> {
         },
         Stash {
             message: Some("half done".into()),
+            paths: Vec::new(),
+        },
+        Stash {
+            message: None,
+            paths: vec!["/README.md".into()],
         },
         Unstash {
             index: 0,
@@ -1051,6 +1058,31 @@ fn git_actions() -> Vec<rt_app::git::actions::GitAction> {
         PushTag {
             name: "v1".into(),
             remote: "origin".into(),
+        },
+        // Wave 15.
+        Amend {
+            message: Some("Fix the order total".into()),
+            paths: vec!["/src/total.rs".into()],
+            staged: false,
+        },
+        Amend {
+            message: None,
+            paths: Vec::new(),
+            staged: true,
+        },
+        Abort,
+        RestoreBranch {
+            name: "feature/login".into(),
+            target: "d".repeat(40),
+        },
+        RestoreFiles {
+            rev: "HEAD~2".into(),
+            paths: vec!["/docs/guide.md".into()],
+        },
+        Rewrite {
+            branch: "feature/login".into(),
+            tip: "e".repeat(40),
+            summary: "Squashed 3 commits into one".into(),
         },
     ]
 }
@@ -1161,6 +1193,7 @@ fn git_block_reasons() -> Vec<rt_app::git::actions::GitBlockReason> {
         AuthRequired,
         Network,
         Unsupported,
+        Published,
     ]
 }
 
@@ -1229,6 +1262,15 @@ fn collection_set() -> rt_app::collections::CollectionSet {
             entry("/work/scratch", "Scratch", "/work/scratch", "", None, 0),
         ],
         active: Some("/work/api/orders".into()),
+        repositories: vec![rt_app::git::repos::RepositoryEntry {
+            id: "/work/api".into(),
+            name: "api".into(),
+            location: "/work/api".into(),
+            root: "/work/api".into(),
+            collections: vec!["/work/api/orders".into(), "/work/api/users".into()],
+            linked: false,
+        }],
+        active_repository: Some("/work/api".into()),
     }
 }
 
@@ -1277,6 +1319,7 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
     all.extend(wave12::fixtures());
     all.extend(openapi_wizard::fixtures());
     all.extend(wave16::fixtures());
+    all.extend(wave15::fixtures());
     all
 }
 
@@ -2192,6 +2235,572 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
 
 /// Wave 16 interface: providers and profiles, tool use, streaming, the generic call of
 /// extensions, the preview, the opt-out and the changelog facts.
+/// Wave 15 interface: the Git client for any repository (repositories in the set, working copy,
+/// file tree and blobs, blame, history search and reflog, building blocks for history editors,
+/// the index, signatures, new pull requests).
+mod wave15 {
+    use rt_app::git::files::{GitBlob, GitEntryKind, GitTreeEntry, GitWorkingCopy, GitWorkingFile};
+    use rt_app::git::graph::GitGraphCommit;
+    use rt_app::git::history::{
+        GitBlame, GitBlameHunk, GitHistoryField, GitHistoryHit, GitHistoryPage, GitHistoryQuery,
+        GitReflogEntry,
+    };
+    use rt_app::git::index::{
+        GitHunkSelection, GitIndexDiff, GitPatchRequest, GitPatchSide, GitStagedCommit,
+    };
+    use rt_app::git::plumbing::{
+        GitCommitDetails, GitCommitWrite, GitPickRequest, GitPickResult, GitSignature,
+        GitTreeContent, GitTreeFile, GitTreeWrite,
+    };
+    use rt_app::git::repos::{GitCloneRequest, GitOperation, GitRepoSummary, RepositoryEntry};
+    use rt_app::git::signing::{GitSignatureCheck, GitSignatureKind, GitSignatureState};
+    use rt_app::git::{
+        DiffHunk, DiffLine, DiffLineKind, GitCommit, GitConflict, GitDiff, GitFileChange,
+        GitFileState,
+    };
+    use rt_app::review::NewPullRequest;
+    use serde::Serialize;
+
+    fn j<T: Serialize>(v: T) -> serde_json::Value {
+        serde_json::to_value(v).unwrap()
+    }
+
+    fn commit(c: &str, summary: &str) -> GitCommit {
+        GitCommit {
+            oid: c.repeat(40),
+            summary: summary.into(),
+            author: "Ada".into(),
+            time: 1_700_000_000,
+        }
+    }
+
+    fn signature() -> GitSignature {
+        GitSignature {
+            name: "Ada".into(),
+            email: "ada@example.com".into(),
+            time: 1_700_000_000,
+            offset: 60,
+        }
+    }
+
+    fn diff() -> GitDiff {
+        GitDiff {
+            path: "/src/total.rs".into(),
+            binary: false,
+            hunks: vec![DiffHunk {
+                old_start: 3,
+                old_lines: 1,
+                new_start: 3,
+                new_lines: 2,
+                lines: vec![
+                    DiffLine {
+                        kind: DiffLineKind::Removed,
+                        text: "let total = 0;".into(),
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Added,
+                        text: "let total = sum(items);".into(),
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Context,
+                        text: "total".into(),
+                    },
+                ],
+            }],
+        }
+    }
+
+    fn patch(side: GitPatchSide) -> GitPatchRequest {
+        GitPatchRequest {
+            path: "/src/total.rs".into(),
+            side,
+            old: "1".repeat(40),
+            new: "2".repeat(40),
+            hunks: vec![
+                GitHunkSelection {
+                    hunk: 0,
+                    lines: Some(vec![1]),
+                },
+                GitHunkSelection {
+                    hunk: 1,
+                    lines: None,
+                },
+            ],
+        }
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        vec![
+            (
+                "repositoryRoot",
+                "RepositoryEntry",
+                j(RepositoryEntry {
+                    id: "/work/website".into(),
+                    name: "website".into(),
+                    location: "/work/website".into(),
+                    root: "/work/website".into(),
+                    collections: Vec::new(),
+                    linked: true,
+                }),
+            ),
+            (
+                "gitRepoSummaries",
+                "GitRepoSummary[]",
+                j([
+                    GitRepoSummary {
+                        id: "/work/api".into(),
+                        branch: Some("main".into()),
+                        upstream: Some("origin/main".into()),
+                        ahead: 1,
+                        behind: 2,
+                        changes: 3,
+                        operation: None,
+                    },
+                    GitRepoSummary {
+                        id: "/work/website".into(),
+                        branch: None,
+                        upstream: None,
+                        ahead: 0,
+                        behind: 0,
+                        changes: 0,
+                        operation: Some(GitOperation::Rebase),
+                    },
+                ]),
+            ),
+            (
+                "gitOperations",
+                "GitOperation[]",
+                j([
+                    GitOperation::Merge,
+                    GitOperation::CherryPick,
+                    GitOperation::Revert,
+                    GitOperation::Rebase,
+                ]),
+            ),
+            (
+                "gitCloneRequests",
+                "GitCloneRequest[]",
+                j([
+                    GitCloneRequest {
+                        url: "https://github.com/acme/web.git".into(),
+                        parent: Some("/work".into()),
+                        name: Some("web".into()),
+                        branch: Some("develop".into()),
+                    },
+                    GitCloneRequest {
+                        url: "https://github.com/acme/api.git".into(),
+                        parent: None,
+                        name: None,
+                        branch: None,
+                    },
+                ]),
+            ),
+            (
+                "gitWorkingCopy",
+                "GitWorkingCopy",
+                j(GitWorkingCopy {
+                    repository: "/work/api".into(),
+                    branch: Some("main".into()),
+                    upstream: Some("origin/main".into()),
+                    ahead: 0,
+                    behind: 1,
+                    head: Some("c".repeat(40)),
+                    detached: false,
+                    operation: Some(GitOperation::Merge),
+                    files: vec![
+                        GitWorkingFile {
+                            path: "/orders/create.yml".into(),
+                            state: GitFileState::Modified,
+                            from: None,
+                            kind: GitEntryKind::File,
+                            staged: Some(GitFileChange::Modified),
+                            unstaged: true,
+                            collection: Some("/work/api/orders".into()),
+                        },
+                        GitWorkingFile {
+                            path: "/docs/new-name.md".into(),
+                            state: GitFileState::Modified,
+                            from: Some("/docs/old-name.md".into()),
+                            kind: GitEntryKind::File,
+                            staged: Some(GitFileChange::Renamed),
+                            unstaged: false,
+                            collection: None,
+                        },
+                        GitWorkingFile {
+                            path: "/vendor/lib".into(),
+                            state: GitFileState::Modified,
+                            from: None,
+                            kind: GitEntryKind::Submodule,
+                            staged: None,
+                            unstaged: true,
+                            collection: None,
+                        },
+                        GitWorkingFile {
+                            path: "/notes.txt".into(),
+                            state: GitFileState::Untracked,
+                            from: None,
+                            kind: GitEntryKind::File,
+                            staged: None,
+                            unstaged: true,
+                            collection: None,
+                        },
+                    ],
+                    truncated: false,
+                }),
+            ),
+            (
+                "gitTreeEntries",
+                "GitTreeEntry[]",
+                j([
+                    GitTreeEntry {
+                        name: "src".into(),
+                        path: "/src".into(),
+                        kind: GitEntryKind::Dir,
+                        size: None,
+                        state: None,
+                        ignored: false,
+                    },
+                    GitTreeEntry {
+                        name: "logo.png".into(),
+                        path: "/logo.png".into(),
+                        kind: GitEntryKind::File,
+                        size: Some(2048),
+                        state: Some(GitFileState::Modified),
+                        ignored: false,
+                    },
+                    GitTreeEntry {
+                        name: "link".into(),
+                        path: "/link".into(),
+                        kind: GitEntryKind::Symlink,
+                        size: Some(7),
+                        state: None,
+                        ignored: false,
+                    },
+                    GitTreeEntry {
+                        name: "target".into(),
+                        path: "/target".into(),
+                        kind: GitEntryKind::Dir,
+                        size: None,
+                        state: None,
+                        ignored: true,
+                    },
+                ]),
+            ),
+            (
+                "gitBlobs",
+                "GitBlob[]",
+                j([
+                    GitBlob {
+                        path: "/README.md".into(),
+                        rev: Some("HEAD".into()),
+                        oid: Some("3".repeat(40)),
+                        size: 6,
+                        binary: false,
+                        media_type: None,
+                        text: Some("Hello\n".into()),
+                        base64: None,
+                        truncated: false,
+                        lfs_pointer: false,
+                    },
+                    GitBlob {
+                        path: "/logo.png".into(),
+                        rev: None,
+                        oid: None,
+                        size: 4,
+                        binary: true,
+                        media_type: Some("image/png".into()),
+                        text: None,
+                        base64: Some("iVBORw==".into()),
+                        truncated: false,
+                        lfs_pointer: false,
+                    },
+                    GitBlob {
+                        path: "/video.mp4".into(),
+                        rev: Some("HEAD".into()),
+                        oid: Some("4".repeat(40)),
+                        size: 130,
+                        binary: false,
+                        media_type: None,
+                        text: None,
+                        base64: None,
+                        truncated: true,
+                        lfs_pointer: true,
+                    },
+                ]),
+            ),
+            (
+                "gitBlame",
+                "GitBlame",
+                j(GitBlame {
+                    path: "/src/total.rs".into(),
+                    rev: "c".repeat(40),
+                    lines: 12,
+                    hunks: vec![
+                        GitBlameHunk {
+                            start: 1,
+                            lines: 10,
+                            commit: commit("a", "Initial"),
+                            path: "/src/sum.rs".into(),
+                            orig_start: 1,
+                        },
+                        GitBlameHunk {
+                            start: 11,
+                            lines: 2,
+                            commit: commit("c", "Fix the total"),
+                            path: "/src/total.rs".into(),
+                            orig_start: 11,
+                        },
+                    ],
+                    binary: false,
+                }),
+            ),
+            (
+                "gitHistoryQueries",
+                "GitHistoryQuery[]",
+                j([
+                    GitHistoryQuery {
+                        message: Some("fix".into()),
+                        author: Some("ada".into()),
+                        path: Some("/src".into()),
+                        content: Some("total".into()),
+                        since: Some(1_690_000_000),
+                        until: Some(1_700_000_000),
+                        refs: Some(vec!["refs/heads/main".into()]),
+                        skip: 50,
+                        limit: 50,
+                    },
+                    GitHistoryQuery {
+                        limit: 100,
+                        ..Default::default()
+                    },
+                ]),
+            ),
+            (
+                "gitHistoryPage",
+                "GitHistoryPage",
+                j(GitHistoryPage {
+                    hits: vec![GitHistoryHit {
+                        commit: GitGraphCommit {
+                            commit: commit("c", "Fix the total"),
+                            parents: vec!["a".repeat(40)],
+                            email: "ada@example.com".into(),
+                            refs: vec!["refs/heads/main".into()],
+                            signed: false,
+                        },
+                        matched: vec![
+                            GitHistoryField::Message,
+                            GitHistoryField::Author,
+                            GitHistoryField::Path,
+                            GitHistoryField::Content,
+                        ],
+                        paths: vec!["/src/total.rs".into()],
+                    }],
+                    more: true,
+                    scanned: 2000,
+                }),
+            ),
+            (
+                "gitReflog",
+                "GitReflogEntry[]",
+                j([
+                    GitReflogEntry {
+                        name: "HEAD".into(),
+                        index: 0,
+                        old: Some("a".repeat(40)),
+                        new: "c".repeat(40),
+                        message: "commit: Fix the total".into(),
+                        time: 1_700_000_000,
+                        commit: Some(commit("c", "Fix the total")),
+                    },
+                    GitReflogEntry {
+                        name: "refs/heads/main".into(),
+                        index: 1,
+                        old: None,
+                        new: "a".repeat(40),
+                        message: "branch: Created from HEAD".into(),
+                        time: 1_690_000_000,
+                        commit: None,
+                    },
+                ]),
+            ),
+            (
+                "gitCommitDetails",
+                "GitCommitDetails",
+                j(GitCommitDetails {
+                    oid: "c".repeat(40),
+                    tree: "5".repeat(40),
+                    parents: vec!["a".repeat(40)],
+                    message: "Fix the total\n\nSums the items.\n".into(),
+                    author: signature(),
+                    committer: signature(),
+                    signed: true,
+                }),
+            ),
+            (
+                "gitPickRequests",
+                "GitPickRequest[]",
+                j([
+                    GitPickRequest {
+                        onto: "HEAD".into(),
+                        commit: "c".repeat(40),
+                        revert: false,
+                        mainline: None,
+                    },
+                    GitPickRequest {
+                        onto: "main".into(),
+                        commit: "d".repeat(40),
+                        revert: true,
+                        mainline: Some(1),
+                    },
+                ]),
+            ),
+            (
+                "gitPickResult",
+                "GitPickResult",
+                j(GitPickResult {
+                    tree: "6".repeat(40),
+                    clean: false,
+                    conflicts: vec![GitConflict {
+                        path: "/src/total.rs".into(),
+                        base: Some("a\n".into()),
+                        ours: Some("b\n".into()),
+                        theirs: None,
+                    }],
+                    other_conflicts: vec!["/logo.png".into()],
+                }),
+            ),
+            (
+                "gitTreeWrite",
+                "GitTreeWrite",
+                j(GitTreeWrite {
+                    base: "6".repeat(40),
+                    files: vec![
+                        GitTreeFile {
+                            path: "/src/total.rs".into(),
+                            content: GitTreeContent::Text { text: "c\n".into() },
+                            executable: None,
+                        },
+                        GitTreeFile {
+                            path: "/logo.png".into(),
+                            content: GitTreeContent::Base64 {
+                                data: "iVBORw==".into(),
+                            },
+                            executable: None,
+                        },
+                        GitTreeFile {
+                            path: "/build.sh".into(),
+                            content: GitTreeContent::From {
+                                rev: "d".repeat(40),
+                            },
+                            executable: Some(true),
+                        },
+                        GitTreeFile {
+                            path: "/old.txt".into(),
+                            content: GitTreeContent::Delete,
+                            executable: None,
+                        },
+                    ],
+                }),
+            ),
+            (
+                "gitCommitWrites",
+                "GitCommitWrite[]",
+                j([
+                    GitCommitWrite {
+                        tree: "7".repeat(40),
+                        parents: vec!["a".repeat(40)],
+                        message: "Squashed".into(),
+                        author: Some(signature()),
+                        committer: None,
+                    },
+                    GitCommitWrite {
+                        tree: "7".repeat(40),
+                        parents: Vec::new(),
+                        message: "Root".into(),
+                        author: None,
+                        committer: Some(signature()),
+                    },
+                ]),
+            ),
+            (
+                "gitIndexDiff",
+                "GitIndexDiff",
+                j(GitIndexDiff {
+                    side: GitPatchSide::Unstaged,
+                    diff: diff(),
+                    old: "1".repeat(40),
+                    new: "2".repeat(40),
+                }),
+            ),
+            (
+                "gitPatchRequests",
+                "GitPatchRequest[]",
+                j([patch(GitPatchSide::Unstaged), patch(GitPatchSide::Staged)]),
+            ),
+            (
+                "gitStagedCommit",
+                "GitStagedCommit",
+                j(GitStagedCommit {
+                    message: "Stage only the fix".into(),
+                }),
+            ),
+            (
+                "gitSignatureChecks",
+                "GitSignatureCheck[]",
+                j([
+                    GitSignatureCheck {
+                        oid: "c".repeat(40),
+                        state: GitSignatureState::Good,
+                        kind: Some(GitSignatureKind::Ssh),
+                        signer: Some("ada@example.com".into()),
+                        key: Some("SHA256:abc".into()),
+                    },
+                    GitSignatureCheck {
+                        oid: "a".repeat(40),
+                        state: GitSignatureState::Unsigned,
+                        kind: None,
+                        signer: None,
+                        key: None,
+                    },
+                ]),
+            ),
+            (
+                "gitSignatureStates",
+                "GitSignatureState[]",
+                j([
+                    GitSignatureState::Unsigned,
+                    GitSignatureState::Unverified,
+                    GitSignatureState::Good,
+                    GitSignatureState::Untrusted,
+                    GitSignatureState::Bad,
+                    GitSignatureState::UnknownKey,
+                    GitSignatureState::Expired,
+                ]),
+            ),
+            (
+                "gitSignatureKinds",
+                "GitSignatureKind[]",
+                j([
+                    GitSignatureKind::Gpg,
+                    GitSignatureKind::Ssh,
+                    GitSignatureKind::X509,
+                ]),
+            ),
+            (
+                "newPullRequest",
+                "NewPullRequest",
+                j(NewPullRequest {
+                    title: "Login with passkeys".into(),
+                    body: "Adds passkeys.".into(),
+                    head: "feature/login".into(),
+                    base: "main".into(),
+                    draft: true,
+                }),
+            ),
+        ]
+    }
+}
+
 mod wave16 {
     use rt_app::ai::{
         AiAnswer, AiCollectionPolicy, AiDelta, AiError, AiEvent, AiMessage, AiNameTarget,

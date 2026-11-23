@@ -24,6 +24,17 @@ test("budgets.toml carries the product budgets", () => {
   // Wave 12: 1000 requests, 100 changed.
   assert.equal(budgets.semantic_diff.max, 200);
   assert.equal(budgets.semantic_diff.unit, "ms");
+  // Wave 15: 100 000 commits, 50 000 files.
+  assert.equal(budgets.git_graph_large.max, 1500);
+  assert.equal(budgets.git_status_large.max, 300);
+});
+
+test("a pending budget is not required yet, but a measured value must hold (wave 15)", () => {
+  const pending = parseBudgets('[metrics.x]\nunit = "ms"\npending = "wave 15, strand B"\nmax = 10\n');
+  assert.equal(evaluate(pending, {})[0].status, "pending");
+  assert.equal(evaluate(pending, {})[0].pending, "wave 15, strand B");
+  assert.equal(evaluate(pending, { x: 10 })[0].status, "ok");
+  assert.equal(evaluate(pending, { x: 11 })[0].status, "over");
 });
 
 test("measurements at or under budget pass, over budget fails", () => {
@@ -98,4 +109,14 @@ test("gate: no results file at all fails with --require-all", () => {
     encoding: "utf8",
   });
   assert.equal(r.status, 1);
+});
+
+test("gate: pending budgets do not fail --require-all until measured, then they hold", () => {
+  const pending = Object.entries(budgets).filter(([, b]) => typeof b.pending === "string").map(([n]) => n);
+  for (const name of pending) {
+    assert.equal(ALL_OK[name], undefined, `${name} is pending: leave it out of ALL_OK`);
+    const over = gate({ ...ALL_OK, [name]: budgets[name].max + 1 }, "--require-all");
+    assert.equal(over.status, 1, name);
+    assert.match(over.stderr, new RegExp(`FAILED: ${name}`));
+  }
 });

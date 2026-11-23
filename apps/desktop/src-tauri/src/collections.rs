@@ -401,6 +401,8 @@ mod tests {
             }],
             collections: Vec::new(),
             active: Some("/a/x".into()),
+            repositories: Vec::new(),
+            active_repository: None,
         };
         save_roots(&dir, &set);
         assert_eq!(

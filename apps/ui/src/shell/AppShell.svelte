@@ -338,6 +338,7 @@
         if (key) void openCollectionTab(key);
       } else if (v.kind === "mcp") void openMcp(v.test);
       else if (v.kind === "environments") managing = true;
+      else if (v.kind === "git") gitViews.open(v.view);
       else void openRunner(v.folder);
     });
   });

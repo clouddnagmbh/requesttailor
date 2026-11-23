@@ -11,6 +11,7 @@
 import type { CollectionInfo, CollectionSetApi } from "./backend";
 import { BackendError } from "./backend";
 import { mockSearch } from "./mock-history";
+import { withRepositories } from "./wave15-stubs";
 import type {
   CollectionChanges,
   CollectionEntry,
@@ -227,11 +228,11 @@ export class MockCollections implements CollectionSetApi {
   }
 
   private set(): CollectionSet {
-    return {
+    return withRepositories({
       roots: this.roots.map((r) => ({ ...r, collections: [...r.collections], truncated: false })),
       collections: this.roots.flatMap((r) => r.collections.map((id) => this.entry(this.collection(id)))),
       active: this.active,
-    };
+    });
   }
 
   async current(): Promise<CollectionSet> {

@@ -51,6 +51,8 @@ import {
   type TransportApi,
   type TransportMode,
   type TreeNode,
+  type RepositoryApi,
+  stubRepositories,
 } from "@requesttailor/ui";
 
 import { webAuth, type WebAuthApi } from "./auth";
@@ -183,6 +185,8 @@ export class WebBackend implements Backend {
   readonly kind = "web" as const;
   /** Wave 14: the collections in the sidebar (`collections.ts`). */
   readonly collections: WebCollectionSet;
+  /** Wave 15: repositories in the set (placeholder until strand A, `repositories.ts`). */
+  readonly repositories: RepositoryApi = stubRepositories();
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
 

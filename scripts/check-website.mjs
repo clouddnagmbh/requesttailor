@@ -32,9 +32,15 @@ function walk(dir, out = []) {
   return out;
 }
 
-/** `max` per metric from perf/budgets.toml, parsed as the budget gate parses it. */
+/** `max` per metric from perf/budgets.toml, parsed as the budget gate parses it. A budget still
+ *  marked `pending` (its measurement is not built yet, since wave 15) is no promise yet: the
+ *  site shows it once the strand removes `pending`. */
 export function budgetMaxima(text) {
-  return Object.fromEntries(Object.entries(parseBudgets(text)).map(([name, m]) => [name, m.max]));
+  return Object.fromEntries(
+    Object.entries(parseBudgets(text))
+      .filter(([, m]) => typeof m.pending !== "string")
+      .map(([name, m]) => [name, m.max]),
+  );
 }
 
 function attr(tag, name) {

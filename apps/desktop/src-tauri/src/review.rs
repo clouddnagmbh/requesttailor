@@ -24,8 +24,8 @@ use std::sync::{LazyLock, Mutex, PoisonError};
 use rt_app::auth::DeviceCodePrompt;
 use rt_app::review::device::{self, DeviceLogin, DevicePoll};
 use rt_app::review::{
-    self, CiStatus, NewReviewComment, PullRequest, ReviewComment, ReviewError, ReviewHost,
-    ReviewProvider, ReviewRepo, ReviewSession, ReviewSubmission, token_slot,
+    self, CiStatus, NewPullRequest, NewReviewComment, PullRequest, ReviewComment, ReviewError,
+    ReviewHost, ReviewProvider, ReviewRepo, ReviewSession, ReviewSubmission, token_slot,
 };
 use rt_app::{AppError, SecretStore};
 use rt_core::transport::native::NativeTransport;
@@ -322,6 +322,12 @@ pub async fn ci<S: SecretStore>(core: &Core<S>, number: u64) -> Result<CiStatus>
     .await
 }
 
+/// Wave 15: opens a pull request from a branch on the remote (the provider's `create`; strand E
+/// implements it for GitHub and GitLab).
+pub async fn create<S: SecretStore>(core: &Core<S>, pull: NewPullRequest) -> Result<PullRequest> {
+    with_provider(core, move |p, _, _, rt| Ok(rt.block_on(p.create(&pull))?)).await
+}
+
 // ---- device-code login -------------------------------------------------------------------
 
 /// Logins started and not finished, by host.
@@ -505,6 +511,14 @@ pub async fn review_ci(
     number: u64,
 ) -> std::result::Result<CiStatus, CommandError> {
     Ok(ci(&core, number).await?)
+}
+
+#[tauri::command]
+pub async fn review_create(
+    core: State<'_, AppCore>,
+    pull: NewPullRequest,
+) -> std::result::Result<PullRequest, CommandError> {
+    Ok(create(&core, pull).await?)
 }
 
 #[cfg(test)]

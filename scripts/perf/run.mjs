@@ -6,8 +6,8 @@
 // is sent anywhere. What is measured and how: perf/README.md.
 //
 // Usage: node scripts/perf/run.mjs [options]
-//   --only <list>       comma-separated parts: desktop, frames, keystrokes, diff, graph, compare
-//                       (default: all)
+//   --only <list>       comma-separated parts: desktop, frames, keystrokes, diff, graph, compare,
+//                       status, graph-large (default: all)
 //   --binary <path>     desktop release binary (default: <target dir>/release/rt-desktop)
 //   --collection <dir>  collection the desktop app reopens (default: testdata/conformance/collection)
 //   --collections <n>   copies of it in one folder that the app reopens (default 10, wave 14;
@@ -30,10 +30,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { measureCompare } from "./compare.mjs";
 import { measureDesktop } from "./desktop.mjs";
 import { measureGraph } from "./graph.mjs";
+import { measureGraphLarge } from "./graph-large.mjs";
+import { measureStatus } from "./status.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WEB = join(ROOT, "apps", "web");
-const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare"];
+const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare", "status", "graph-large"];
 
 export function parseArgs(argv) {
   const opts = { only: PARTS, runs: 10, memoryRuns: 3, check: false, out: join(ROOT, "perf", "results.json") };
@@ -168,7 +170,17 @@ async function compare(opts) {
   return measureCompare({ root: ROOT, web: WEB, run, readJson, opts });
 }
 
-const STEPS = { desktop, frames, keystrokes, diff, graph, compare };
+/** Wave 15, strand B: the working copy of 50 000 files (./status.mjs). */
+async function status(opts) {
+  return measureStatus({ root: ROOT, run, readJson, opts });
+}
+
+/** Wave 15, strand C: the commit graph of 100 000 commits (./graph-large.mjs). */
+async function graphLarge(opts) {
+  return measureGraphLarge({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+const STEPS = { desktop, frames, keystrokes, diff, graph, compare, status, "graph-large": graphLarge };
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));

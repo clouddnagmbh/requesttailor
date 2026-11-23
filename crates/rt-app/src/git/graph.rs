@@ -84,6 +84,9 @@ pub struct GitGraphCommit {
     /// Full names of the refs pointing at it ([`GitRef::full`]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub refs: Vec<String>,
+    /// Since wave 15: the commit carries a signature (`gpgsig`); `GitApi.verify` checks it.
+    #[serde(default)]
+    pub signed: bool,
 }
 
 /// Commits in topological order, newest first (a child always before its parents, ties by

@@ -14,6 +14,8 @@ and how.
 | `compare_view` | ≤ 1000 ms | comparison view of 1000 requests (100 changed) with both runs' answers, mock backend, Chrome, median of 5 |
 | `git_graph` | ≤ 1500 ms | commit graph of 10 000 commits: first rows visible after opening, mock backend, Chrome, median of 5 |
 | `git_graph_frame` | ≤ 20 ms | p95 frame interval while scrolling that commit graph, Chrome |
+| `git_graph_large` | ≤ 1500 ms | commit graph of 100 000 commits: first page natively plus first rows visible, median of 5 (pending: wave 15, strand C) |
+| `git_status_large` | ≤ 300 ms | working copy of 50 000 tracked files, 100 changed, natively, release, median of 9 (pending: wave 15, strand B) |
 
 ```sh
 npm run build -w apps/desktop          # the release binary the desktop part starts
@@ -180,3 +182,20 @@ feature branches, merges, an octopus merge now and then, a second root, tags).
 
 The mock measures the view, not Git: reading the graph natively is timed by
 `crates/rt-git/tests/graph.rs` (`ten_thousand_commits_page_quickly`).
+
+## Git client (`git_status_large`, `git_graph_large`, wave 15)
+
+Both budgets carry `pending = "wave 15, strand …"` in `budgets.toml`: until that strand builds
+the measurement, a missing value does not fail `--require-all`, a measured one must hold. The
+strand removes `pending` in the same commit.
+
+- `git_status_large` (strand B, `node scripts/perf/run.mjs --only status`, `./status.mjs`): a
+  synthetic repository in a temporary folder with 50 000 tracked files in nested folders, 100 of
+  them changed (modified, new, deleted). One sample is one `workingCopy` of the active
+  repository in a release build of `rt-git` (`crates/rt-git/examples/perf_status.rs`), warm
+  (the index and the file system cache read once before); the median of nine.
+- `git_graph_large` (strand C, `node scripts/perf/run.mjs --only graph-large`,
+  `./graph-large.mjs`): a synthetic repository of 100 000 commits (branches and merges as for
+  `git_graph`). One sample is the first graph page natively in a release build
+  (`crates/rt-git/examples/perf_graph.rs`) plus the time until the first rows of the commit
+  graph are on screen; the median of five.

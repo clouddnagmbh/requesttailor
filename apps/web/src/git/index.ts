@@ -25,6 +25,10 @@ import {
   type SecretsApi,
   LOCAL_CLONE_UNSUPPORTED,
   looksLocal,
+  stubGitHistory,
+  stubGitIndex,
+  stubGitPlumbing,
+  stubGitWorking,
 } from "@requesttailor/ui";
 
 import type { WebHost } from "../web-backend";
@@ -313,5 +317,11 @@ export function webGit(host: WebHost): GitApi & ChangelogCommitSource {
     // Wave 14 (interface): graph (strand F, ./graph.ts) and wizards (strand G, ./actions.ts).
     ...webGitGraph(wave14),
     ...webGitActions({ ...wave14, network, identity: () => identity.get() }),
+    // Wave 15 (interface): placeholders until strands B (working copy), C (history), D (building
+    // blocks) and F (index) add their own files here.
+    ...stubGitWorking(),
+    ...stubGitHistory(),
+    ...stubGitPlumbing(),
+    ...stubGitIndex(),
   };
 }
