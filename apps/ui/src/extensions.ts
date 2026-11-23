@@ -9,7 +9,7 @@
 import type { Component } from "svelte";
 
 import type { Backend } from "./commands/backend";
-import type { StoredResponse } from "./commands/types";
+import type { RequestSpec, StoredResponse } from "./commands/types";
 import type { AppState } from "./state/app.svelte";
 
 /** What an extension sees: the backend the app was started with and the shared app state. */
@@ -93,6 +93,65 @@ export interface ExtensionNewItem {
   run(ctx: ExtensionContext, target: NewTarget): unknown;
 }
 
+/** What a hint is about (since wave 14). */
+export type HintTarget =
+  /** Above the request editor of `path` in collection `collection`. */
+  | { place: "request"; collection: string; path: string; spec: RequestSpec }
+  /** At the top of an expanded collection node in the sidebar. */
+  | { place: "collection"; collection: string };
+
+/** A small, calm note the shell shows in a defined place (since wave 14): never a modal, never
+ *  blocking, always dismissible. The shell shows at most one hint per place at a time (the
+ *  first not dismissed, extensions in order) and remembers a dismissal per device. */
+export interface ExtensionHint {
+  /** Unique within the extension; dismissals are stored under `<extension id>/<hint id>`. */
+  id: string;
+  /** One or two short sentences, plain text. */
+  text: string;
+  /** Up to two buttons; running one does not dismiss the hint unless `dismiss` is set. */
+  actions?: readonly { label: string; run: () => unknown; dismiss?: boolean }[];
+  /** `device` (default): once dismissed, never again on this device; `target`: dismissed for
+   *  this collection or request only. */
+  scope?: "device" | "target";
+}
+
+/** A collection or folder node of the sidebar (since wave 14). */
+export type NodeTarget =
+  | { kind: "collection"; collection: string }
+  | { kind: "folder"; collection: string; path: string };
+
+/** An entry in a collection or folder node's context menu (since wave 14). */
+export interface ExtensionNodeAction {
+  /** Unique within the extension. */
+  id: string;
+  label: string;
+  /** Also shown as a small chip on the row itself (at most one per row: the first). */
+  inline?: boolean;
+  /** An icon of the "New…" dialog's set, for the chip. */
+  icon?: string;
+  run: () => unknown;
+}
+
+/** What a dialog component of an extension gets (since wave 14, `AppState.showDialog`). */
+export interface ExtensionDialogProps {
+  ctx: ExtensionContext;
+  /** Closes the dialog; `showDialog` resolves with `result`. */
+  close: (result?: unknown) => void;
+  /** The `props` passed to `showDialog`. */
+  props: Record<string, unknown>;
+}
+
+/** A dialog shown by the shell (since wave 14): title bar, close button, Escape and focus
+ *  handling, light and dark theme, centred; one at a time. */
+export interface ExtensionDialog {
+  /** Title bar text and the dialog's accessible name. */
+  title: string;
+  component: Component<ExtensionDialogProps>;
+  props?: Record<string, unknown>;
+  /** Width in CSS pixels (default 560); never wider than the window minus 32 px. */
+  width?: number;
+}
+
 export interface AppExtension {
   /** Stable id, e.g. `example`; also the prefix of its command ids (`example:…`). */
   readonly id: string;
@@ -125,6 +184,17 @@ export interface AppExtension {
    * while the dialog is open; must not write `$state`.
    */
   newItems?(ctx: ExtensionContext): readonly ExtensionNewItem[];
+  /**
+   * Hints for a place (since wave 14). Called inside a reactive scope for the shown request and
+   * for every expanded collection node, so it must be cheap and synchronous (work from data
+   * the extension prepared before, e.g. in `start`) and must not write `$state`.
+   */
+  hints?(ctx: ExtensionContext, target: HintTarget): readonly ExtensionHint[];
+  /**
+   * Context-menu entries of collection and folder nodes (since wave 14). Called for visible
+   * nodes inside a reactive scope: cheap, synchronous, no `$state` writes.
+   */
+  nodeActions?(ctx: ExtensionContext, target: NodeTarget): readonly ExtensionNodeAction[];
 }
 
 export interface StartOptions {

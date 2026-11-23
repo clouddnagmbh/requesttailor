@@ -18,6 +18,7 @@
   import PluginTab from "../plugins/PluginTab.svelte";
   import { pluginsState } from "../plugins/store.svelte";
   import { extensionTabsFor, getExtensions } from "../shell/extension-tabs";
+  import ExtensionHints from "../shell/ExtensionHints.svelte";
   import AssertionsTab from "../scripts/AssertionsTab.svelte";
   import { countScripts } from "../scripts/edit";
   import ScriptsTab from "../scripts/ScriptsTab.svelte";
@@ -284,6 +285,8 @@
 <section data-testid="request-editor" aria-label="Request editor" bind:this={section}>
   {#if spec}
     {#key path}
+      <!-- Wave 14: the extensions' hint for this request (strand C). -->
+      <ExtensionHints target={app.collection ? { place: "request", collection: app.collection.id, path, spec } : null} />
       <div class="urlbar">
         {#if protocol}
           <span class="method protocol" data-testid="method-protocol" title={protocol.type === "grpc" ? "gRPC" : "WebSocket"}>{spec.method}</span>

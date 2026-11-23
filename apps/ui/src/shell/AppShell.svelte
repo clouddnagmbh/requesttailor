@@ -18,8 +18,9 @@
      a time, `git/views.svelte.ts`) and the strands' palette entries (`git/api-commands.ts`).
      Wave 13: tabs of a distribution's extensions (`AppExtension.tabs`, `extension-tabs.ts`); the
      collection panel shows plugin and extension collection tabs together.
-     Wave 14 mount point (interface): the "New…" dialog (`new/NewDialog.svelte`, strand B;
-     `AppState.openNew`). -->
+     Wave 14 mount points (interface): the "New…" dialog (`new/NewDialog.svelte`, strand B;
+     `AppState.openNew`), extension dialogs (`DialogHost`, strand C; `AppState.showDialog`) and
+     main-area views asked for with `AppState.show` / `openCollectionTab`. -->
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
 
@@ -35,6 +36,7 @@
   import { formatAvailable, requestFormat } from "../editor/format-body";
   import RequestEditor from "../editor/RequestEditor.svelte";
   import NewDialog from "../new/NewDialog.svelte";
+  import DialogHost from "./DialogHost.svelte";
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
   import SessionVarsButton from "../scripts/SessionVarsButton.svelte";
@@ -271,6 +273,21 @@
     runner.close();
     collectionTab = key;
   }
+
+  // ---- views asked for by extensions and the "New…" dialog (wave 14) ----
+  $effect(() => {
+    const asked = app.view;
+    if (!asked) return;
+    untrack(() => {
+      app.view = null;
+      const v = asked.view;
+      if (v.kind === "collection-tab") {
+        const key = [v.key, `extension:${v.key}`].find((k) => collectionTabs.some((t) => t.key === k));
+        if (key) void openCollectionTab(key);
+      } else if (v.kind === "mcp") void openMcp();
+      else void openRunner(v.folder);
+    });
+  });
 
   // ---- AI assistant (wave 8) ----
   const ai = aiFor(app.backend);
@@ -558,6 +575,7 @@
   {/if}
 {/each}
 <NewDialog onfallback={(folder) => (newIn = folder)} />
+<DialogHost />
 <EnvironmentManager open={managing} onclose={() => (managing = false)} />
 <ImportDialog open={importing} onclose={() => (importing = false)} onopen={adoptCollection} />
 <PluginsDialog open={managingPlugins} onclose={() => (managingPlugins = false)} />

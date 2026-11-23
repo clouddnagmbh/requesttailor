@@ -17,8 +17,19 @@ import type {
   StoredResponse,
   TreeNode,
 } from "../commands/types";
+import type { ExtensionDialog } from "../extensions";
 
 const KEY = Symbol("requesttailor-app");
+
+/** Wave 14: a view of the main area that extensions and the "New…" dialog can open. */
+export type MainView =
+  /** A collection tab: `<extension id>/<tab id>` for an extension's tab, or the palette key of
+   *  a plugin's collection tab. Nothing happens if no such tab is offered right now. */
+  | { kind: "collection-tab"; key: string }
+  /** The MCP client. */
+  | { kind: "mcp" }
+  /** The runner for `folder` of the active collection (`null`: the whole collection). */
+  | { kind: "runner"; folder: string | null };
 
 /** Wave 14: what the "New…" dialog opens with. */
 export interface NewDialogRequest {
@@ -30,6 +41,14 @@ export interface NewDialogRequest {
   folder: string;
   /** Counts requests, so asking again while open restarts it. */
   seq: number;
+}
+
+/** Wave 14: the dialog of an extension the shell shows (`showDialog`). */
+export interface OpenDialog {
+  dialog: ExtensionDialog;
+  /** Counts dialogs, a key for the host. */
+  seq: number;
+  resolve: (result: unknown) => void;
 }
 
 export class AppState {
@@ -72,8 +91,12 @@ export class AppState {
   openTabs = $derived<RequestRef[]>(
     this.collection ? this.tabs.map((path) => ({ collection: this.collection!.id, path })) : [],
   );
+  /** A view of the main area asked for with `show` / `openCollectionTab`; the shell takes it. */
+  view = $state<{ view: MainView; seq: number } | null>(null);
   /** The "New…" dialog while open (`openNew`). */
   newDialog = $state<NewDialogRequest | null>(null);
+  /** An extension's dialog while open (`showDialog`). */
+  dialog = $state<OpenDialog | null>(null);
   private seq = 0;
 
   /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
@@ -137,6 +160,16 @@ export class AppState {
     );
   }
 
+  /** Wave 14: asks the shell to show a view of the main area. */
+  show(view: MainView): void {
+    this.view = { view, seq: ++this.seq };
+  }
+
+  /** Wave 14: shows a collection tab (`<extension id>/<tab id>`) of the active collection. */
+  openCollectionTab(key: string): void {
+    this.show({ kind: "collection-tab", key });
+  }
+
   /** Wave 14: opens the "New…" dialog (default: the active collection's root). */
   openNew(options: { kind?: string; collection?: string | null; folder?: string } = {}): void {
     this.newDialog = {
@@ -149,6 +182,22 @@ export class AppState {
 
   closeNew(): void {
     this.newDialog = null;
+  }
+
+  /** Wave 14: shows an extension's dialog; resolves with what it passes to `close` (closing
+   *  with Escape or the close button: `undefined`). A second dialog replaces the first, which
+   *  resolves `undefined`. */
+  showDialog(dialog: ExtensionDialog): Promise<unknown> {
+    this.dialog?.resolve(undefined);
+    return new Promise((resolve) => {
+      this.dialog = { dialog, seq: ++this.seq, resolve };
+    });
+  }
+
+  closeDialog(result?: unknown): void {
+    const open = this.dialog;
+    this.dialog = null;
+    open?.resolve(result);
   }
 
   /** Until strand A: the sidebar's collections are the open one. */
