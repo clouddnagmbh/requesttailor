@@ -14,6 +14,7 @@ import { reviewCommands } from "../review/commands";
 import type { Command } from "../shell/commands";
 import type { AppState } from "../state/app.svelte";
 import { timelineCommands } from "../timeline/commands";
+import { historyCommands } from "./history/commands";
 import type { GitViews } from "./views.svelte";
 import { gitWizardCommands } from "./wizards/commands";
 
@@ -27,6 +28,7 @@ export function gitApiCommands(app: AppState, views: GitViews): Command[] {
     ...reviewCommands(app, views),
     ...contractCommands(app, views),
     ...rescueCommands(app, views),
+    ...historyCommands(app, views),
     ...gitWizardCommands(app, views),
   ];
 }

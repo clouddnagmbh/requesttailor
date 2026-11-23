@@ -11,7 +11,6 @@ describe("wave 15 interface placeholders", () => {
     await expect(stubCreatePull({ title: "T", body: "", head: "a", base: "main", draft: false })).rejects.toMatchObject({ kind: "unsupported" });
     const b = new MockBackend();
     await expect(b.git.workingCopy()).rejects.toMatchObject({ kind: "unsupported" });
-    await expect(b.git.blame("HEAD", "/a")).rejects.toMatchObject({ kind: "unsupported" });
     await expect(b.git.stage(["/a"])).rejects.toMatchObject({ kind: "unsupported" });
   });
 });

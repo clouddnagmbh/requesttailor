@@ -69,15 +69,16 @@ async function blobOid(repo: Repo, commit: string, filepath: string): Promise<st
   }
 }
 
-/** Every regular file of a commit's tree (path → blob id), collection files only. */
-async function collectionFiles(repo: Repo, commit: string): Promise<Map<string, string>> {
+/** Every regular file of a commit's tree (path → blob id): collection files only, or (`any`)
+ *  every regular file. */
+async function collectionFiles(repo: Repo, commit: string, any: boolean): Promise<Map<string, string>> {
   const { commit: c } = await git.readCommit({ ...base(repo), oid: commit });
   const out = new Map<string, string>();
   const walk = async (tree: string, prefix: string) => {
     for (const e of (await git.readTree({ ...base(repo), oid: tree })).tree) {
       const p = prefix ? `${prefix}/${e.path}` : e.path;
       if (e.type === "tree") await walk(e.oid, p);
-      else if (e.type === "blob" && (e.mode === "100644" || e.mode === "100755") && collectionFile(p)) out.set(p, e.oid);
+      else if (e.type === "blob" && (e.mode === "100644" || e.mode === "100755") && (any || collectionFile(p))) out.set(p, e.oid);
     }
   };
   await walk(c.tree, "");
@@ -89,8 +90,8 @@ async function text(repo: Repo, oid: string): Promise<string> {
   return new TextDecoder("utf-8").decode(blob);
 }
 
-async function renamedFrom(repo: Repo, parent: string, commit: string, blob: string, path: string): Promise<string | null> {
-  const [old, now] = [await collectionFiles(repo, parent), await collectionFiles(repo, commit)];
+export async function renamedFrom(repo: Repo, parent: string, commit: string, blob: string, path: string, any: boolean): Promise<string | null> {
+  const [old, now] = [await collectionFiles(repo, parent, any), await collectionFiles(repo, commit, any)];
   const removed = [...old].filter(([p]) => !now.has(p) && p !== path).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const same = removed.find(([, id]) => id === blob);
   if (same) return same[0];
@@ -109,8 +110,13 @@ function toCommit(oid: string, c: { message: string; author: { name: string; tim
 }
 
 /** Commits of `HEAD`'s history in which `path` differs from the first parent, newest first,
- *  following renames (an entry's `path` is the file's path at that commit). */
+ *  following renames (an entry's `path` is the file's path at that commit). A path with a
+ *  leading `/` names any file of the repository (wave 15): any regular file can be a rename
+ *  source and the paths come back with the `/`; without it only collection files are followed,
+ *  as before. */
 export async function followFileLog(repo: Repo, path: string, limit: number): Promise<GitFileCommit[]> {
+  const any = path.startsWith("/");
+  const shown = (p: string) => (any ? `/${p}` : p);
   const first = checkPath(path);
   let head: string;
   try {
@@ -130,7 +136,7 @@ export async function followFileLog(repo: Repo, path: string, limit: number): Pr
     let change: GitFileChange | null = null;
     let from: string | undefined;
     if (!parent && here) {
-      const old = parents[0] ? await renamedFrom(repo, parents[0], entry.oid, here, herePath) : null;
+      const old = parents[0] ? await renamedFrom(repo, parents[0], entry.oid, here, herePath, any) : null;
       if (old) {
         change = "renamed";
         from = old;
@@ -141,7 +147,7 @@ export async function followFileLog(repo: Repo, path: string, limit: number): Pr
     parents.forEach((p, i) => {
       if (!followed.has(p)) followed.set(p, i === 0 ? parentPath : herePath);
     });
-    if (change) out.push({ commit: toCommit(entry.oid, entry.commit), path: herePath, change, ...(from ? { from } : {}) });
+    if (change) out.push({ commit: toCommit(entry.oid, entry.commit), path: shown(herePath), change, ...(from ? { from: shown(from) } : {}) });
   }
   return out;
 }
