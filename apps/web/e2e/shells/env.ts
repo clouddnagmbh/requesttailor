@@ -11,6 +11,9 @@ export const WEB_PORT = Number(process.env.RT_SHELLS_WEB_PORT ?? 5185);
 /** rt-testserver for these tests (47811 belongs to the conformance suite);
  *  `RT_SHELLS_SERVER_PORT` overrides it. */
 export const SERVER_PORT = Number(process.env.RT_SHELLS_SERVER_PORT ?? 47815);
+/** The fake AI provider; `RT_AI_FAKE_PORT` overrides it. */
+export const AI_PORT = Number(process.env.RT_AI_FAKE_PORT ?? 48330);
+export const AI = `http://127.0.0.1:${AI_PORT}`;
 export const SERVER = `http://127.0.0.1:${SERVER_PORT}`;
 
 /** A small collection: one request, one environment pointing at rt-testserver, plus files

@@ -6,11 +6,28 @@
 // leaves the page. `asked` lists the tasks, for UI tests.
 
 import { BackendError, type AiApi } from "./backend";
-import { withAiWave16, type AiWave8Api } from "./wave16-stubs";
-import type { AiConfig, AiProviderKind, AiTask, RequestSpec } from "./types";
+import { providerInfo } from "../ai/providers";
+import type {
+  AiCollectionPolicy,
+  AiConfig,
+  AiEvent,
+  AiPreview,
+  AiProfile,
+  AiProviderKind,
+  AiReply,
+  AiSettings,
+  AiTask,
+  RequestSpec,
+} from "./types";
 
 export interface MockAiApi extends AiApi {
   readonly asked: AiTask[];
+  /** What `complete` was asked, for UI tests (the masked calls, as previewed). */
+  readonly sent: AiPreview["call"][];
+  /** `extensions.requesttailor.ai.enabled: false` of the open collection (a test switch). */
+  fileOff: boolean;
+  /** Values masked as `***` in previews, as the core masks secret values. */
+  secrets: string[];
 }
 
 function slug(text: string): string {
@@ -46,31 +63,143 @@ function proposal(description: string): RequestSpec {
 }
 
 export function mockAi(): MockAiApi {
-  let config: AiConfig | null = null;
-  const keys = new Map<AiProviderKind, string>();
+  let settings: AiSettings | null = null;
+  const provider = new Set<AiProviderKind>();
+  const own = new Set<string>();
   const asked: AiTask[] = [];
-  // Wave 16: profiles, preview and generic calls arrive with strand A (placeholders until then).
-  return withAiWave16<AiWave8Api & { asked: AiTask[] }>({
+  const sent: AiPreview["call"][] = [];
+  let deviceOff = false;
+  const cancelled = new Set<string>();
+  const notSetUp = () => new BackendError("not-configured", "no AI provider is set up");
+
+  const defaultProfile = (s: AiSettings | null): AiProfile | null =>
+    s ? (s.profiles.find((p) => p.id === s.default_profile) ?? s.profiles[0] ?? null) : null;
+  const profileFor = (wanted?: string | null): AiProfile => {
+    const s = settings;
+    if (!s || s.profiles.length === 0) throw notSetUp();
+    const by = (id?: string) => s.profiles.find((p) => p.id === id);
+    const found =
+      wanted === "fast" ? (by(s.roles.fast) ?? defaultProfile(s))
+      : wanted === "smart" ? (by(s.roles.smart) ?? defaultProfile(s))
+      : wanted ? by(wanted)
+      : defaultProfile(s);
+    if (!found) throw notSetUp();
+    return found;
+  };
+  const keyFor = (p: AiProfile) => own.has(p.id) || provider.has(p.provider);
+  const needsKey = (p: AiProfile) => p.provider !== "openai-compatible";
+
+  const api: MockAiApi = {
     asked,
-    config: async () => (config ? { ...config } : null),
+    sent,
+    fileOff: false,
+    secrets: [],
+    config: async () => {
+      const p = defaultProfile(settings);
+      return p ? { provider: p.provider, model: p.model, base_url: p.base_url } : null;
+    },
     setConfig: async (next) => {
-      if (next && next.model.trim() === "") throw new BackendError("not-configured", "no AI provider is set up");
-      if (next?.provider === "openai-compatible" && !next.base_url?.trim()) {
-        throw new BackendError("not-configured", "no AI provider is set up");
+      if (next === null) {
+        settings = null;
+        return;
       }
-      config = next ? { ...next } : null;
+      check(next);
+      const p = defaultProfile(settings);
+      settings = p
+        ? { ...settings!, profiles: settings!.profiles.map((q) => (q.id === p.id ? { ...q, ...next } : q)) }
+        : { profiles: [{ id: "default", label: providerInfo(next.provider).label, ...next }], roles: {}, preview: "first-use" };
     },
-    hasKey: async (provider) => keys.has(provider),
-    setKey: async (provider, key) => {
-      if (key.trim() === "") keys.delete(provider);
-      else keys.set(provider, key.trim());
+    hasKey: async (p) => provider.has(p),
+    setKey: async (p, key) => void (key.trim() === "" ? provider.delete(p) : provider.add(p)),
+    deleteKey: async (p) => void provider.delete(p),
+    settings: async () => (settings ? structuredClone(settings) : null),
+    setSettings: async (next) => {
+      if (next === null) {
+        settings = null;
+        return;
+      }
+      const ids = new Set<string>();
+      for (const p of next.profiles) {
+        if (!/^[a-z0-9-]{1,32}$/.test(p.id) || ids.has(p.id)) {
+          throw new BackendError("transport", `a profile id must be 1 to 32 characters of a-z, 0-9 and -: ${p.id}`);
+        }
+        ids.add(p.id);
+        check(p);
+      }
+      for (const r of [next.default_profile, next.roles.fast, next.roles.smart]) {
+        if (r && !ids.has(r)) throw new BackendError("transport", "the default profile and the roles must name existing profiles");
+      }
+      // A profile that moved is a first use again (`AiSettings::carry_previewed`).
+      const kept = (settings?.previewed ?? []).filter((id) => {
+        const a = settings?.profiles.find((p) => p.id === id);
+        const b = next.profiles.find((p) => p.id === id);
+        return a && b && a.provider === b.provider && a.model === b.model && (a.base_url ?? null) === (b.base_url ?? null);
+      });
+      settings = { ...structuredClone(next), previewed: kept };
     },
-    deleteKey: async (provider) => void keys.delete(provider),
+    hasProfileKey: async (id) => own.has(id),
+    setProfileKey: async (id, key) => void (key.trim() === "" ? own.delete(id) : own.add(id)),
+    deleteProfileKey: async (id) => void own.delete(id),
+    policy: async (): Promise<AiCollectionPolicy> => ({ file_off: api.fileOff, device_off: deviceOff }),
+    setDeviceOptOut: async (off) => void (deviceOff = off),
+    preview: async (what) => {
+      const p = profileFor(what.kind === "request" ? what.request.profile : "smart");
+      if (api.fileOff || deviceOff) throw new BackendError("opted-out", "the AI assistant is off for this collection");
+      const raw =
+        what.kind === "request"
+          ? { system: what.request.system, messages: what.request.messages, max_tokens: what.request.max_tokens ?? 4096, tools: what.request.tools ?? [] }
+          : { system: `Task: ${what.task.task}`, messages: [], max_tokens: 4096, tools: [] };
+      let text = JSON.stringify(raw);
+      let masked = 0;
+      for (const secret of api.secrets) {
+        if (secret === "") continue;
+        const parts = text.split(secret);
+        masked += parts.length - 1;
+        text = parts.join("***");
+      }
+      const call = JSON.parse(text) as AiPreview["call"];
+      const must = settings!.preview === "always" || (settings!.preview === "first-use" && !(settings!.previewed ?? []).includes(p.id));
+      return {
+        profile: p.id,
+        provider: p.provider,
+        model: p.model,
+        endpoint: p.base_url ? `${p.base_url.replace(/\/$/, "")}/chat/completions` : `https://mock.invalid/${p.provider}`,
+        call,
+        masked,
+        bytes: text.length,
+        required: must,
+      };
+    },
+    confirmPreview: async (id) => {
+      if (!settings) throw notSetUp();
+      if (!(settings.previewed ?? []).includes(id)) settings = { ...settings, previewed: [...(settings.previewed ?? []), id] };
+    },
+    complete: async (request, input, onEvent): Promise<AiReply> => {
+      const p = profileFor(request.profile);
+      if (api.fileOff || deviceOff) throw new BackendError("opted-out", "the AI assistant is off for this collection");
+      if (needsKey(p) && !keyFor(p)) throw new BackendError("no-key", "no API key for this provider");
+      const shown = await api.preview({ kind: "request", request }, input);
+      sent.push(shown.call);
+      const text = `Mock answer to: ${request.purpose}`;
+      const emit = (e: AiEvent) => onEvent?.(e);
+      for (const word of text.split(/(?<= )/)) {
+        await new Promise((r) => setTimeout(r, 0));
+        if (cancelled.delete(request.id)) {
+          const error = { kind: "cancelled" as const, message: "cancelled" };
+          emit({ kind: "error", error: error as never });
+          throw new BackendError("cancelled", "cancelled");
+        }
+        emit({ kind: "delta", delta: { kind: "text", text: word } });
+      }
+      const reply: AiReply = { text, stop: "end" };
+      emit({ kind: "done", reply });
+      return reply;
+    },
+    cancel: async (id) => void cancelled.add(id),
     ask: async (task) => {
-      if (!config) throw new BackendError("not-configured", "no AI provider is set up");
-      if (config.provider === "anthropic" && !keys.has("anthropic")) {
-        throw new BackendError("no-key", "no API key for this provider");
-      }
+      const p = profileFor(null);
+      if (needsKey(p) && !keyFor(p)) throw new BackendError("no-key", "no API key for this provider");
+      if (api.fileOff || deviceOff) throw new BackendError("opted-out", "the AI assistant is off for this collection");
       asked.push(task);
       switch (task.task) {
         case "create-request":
@@ -98,5 +227,14 @@ export function mockAi(): MockAiApi {
           throw new BackendError("unsupported", "This assistant task arrives in wave 16 (strand B).");
       }
     },
-  });
+  };
+
+  function check(c: AiConfig) {
+    if (c.model.trim() === "") throw notSetUp();
+    if (providerInfo(c.provider).capabilities.needs_base_url && !c.base_url?.trim()) throw notSetUp();
+    if (c.base_url?.trim() && !/^https?:\/\//.test(c.base_url.trim())) {
+      throw new BackendError("transport", `the provider could not be reached: the base URL must start with http:// or https://: ${c.base_url}`);
+    }
+  }
+  return api;
 }

@@ -16,7 +16,7 @@ function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown)
     calls.push([cmd, args]);
     return answer(cmd, args);
   };
-  return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel", () => "step-channel", () => "progress-channel"), calls };
+  return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel", () => "step-channel", () => "progress-channel", () => "ai-channel"), calls };
 }
 
 describe("TauriBackend", () => {
@@ -163,6 +163,19 @@ describe("TauriBackend", () => {
     await b.ai.setKey("anthropic", "sk-1");
     await b.ai.deleteKey("anthropic");
     await b.ai.ask({ task: "explain-error", path: "a.yml", response: 1 }, { environment: "Local", vars: [] });
+    const settings = { profiles: [], roles: {}, preview: "first-use" as const };
+    await b.ai.settings();
+    await b.ai.setSettings(settings);
+    await b.ai.hasProfileKey("default");
+    await b.ai.setProfileKey("default", "sk-2");
+    await b.ai.deleteProfileKey("default");
+    await b.ai.policy();
+    await b.ai.setDeviceOptOut(true);
+    const call = { id: "c1", purpose: "x", system: "", messages: [], scope: {} };
+    await b.ai.preview({ kind: "request", request: call }, { environment: "Local", vars: [] });
+    await b.ai.confirmPreview("default");
+    await b.ai.complete(call, { environment: "Local", vars: [] });
+    await b.ai.cancel("c1");
     await b.agents.policy();
     await b.agents.setPolicy({ access: "read", environments: [] });
     await b.agents.pending();
@@ -361,6 +374,17 @@ describe("TauriBackend", () => {
       ["ai_set_key", { provider: "anthropic", key: "sk-1" }],
       ["ai_delete_key", { provider: "anthropic" }],
       ["ai_ask", { task: { task: "explain-error", path: "a.yml", response: 1 }, input: { environment: "Local", vars: [] } }],
+      ["ai_settings", undefined],
+      ["ai_set_settings", { settings: { profiles: [], roles: {}, preview: "first-use" } }],
+      ["ai_has_profile_key", { profile: "default" }],
+      ["ai_set_profile_key", { profile: "default", key: "sk-2" }],
+      ["ai_delete_profile_key", { profile: "default" }],
+      ["ai_policy", undefined],
+      ["ai_set_device_opt_out", { off: true }],
+      ["ai_preview", { what: { kind: "request", request: { id: "c1", purpose: "x", system: "", messages: [], scope: {} } }, input: { environment: "Local", vars: [] } }],
+      ["ai_confirm_preview", { profile: "default" }],
+      ["ai_complete", { request: { id: "c1", purpose: "x", system: "", messages: [], scope: {} }, input: { environment: "Local", vars: [] }, onEvent: "ai-channel" }],
+      ["ai_cancel", { id: "c1" }],
       ["agents_policy", undefined],
       ["agents_set_policy", { policy: { access: "read", environments: [] } }],
       ["agents_pending", undefined],
