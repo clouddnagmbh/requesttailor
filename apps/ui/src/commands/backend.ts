@@ -589,6 +589,9 @@ export interface CollectionSetApi {
    *  `baseUrl`), unsaved like any edit until `save`/`saveAll`, adds it to the set and makes
    *  it active. `spec.root: null` asks for a folder first (`null` if cancelled). */
   create(spec: NewCollection): Promise<CollectionInfo | null>;
+  /** Shows the folder of collection `id` in the platform's file manager ("Show in Finder").
+   *  Only shells that can do that have it (desktop); the sidebar offers it where it exists. */
+  reveal?(id: string): Promise<void>;
 }
 
 export interface Backend {

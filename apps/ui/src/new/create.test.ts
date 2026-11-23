@@ -95,11 +95,12 @@ describe("createNew", () => {
 
   it("reports what the backend refuses", async () => {
     const { app, ctx } = await setup();
-    // Until several collections exist, activating another one is refused.
+    // A collection that is not in the set cannot be activated.
     const form = { ...(initialForm("http", ctx) as RequestForm), collection: "elsewhere" };
     const out = await createNew(app, form);
     expect(out.ok).toBe(false);
-    const collection = await createNew(app, initialForm("collection", ctx));
-    expect(collection).toMatchObject({ ok: false, error: expect.stringMatching(/wave 14|strand A|unsupported/i) });
+    // A collection without a name is refused by the collection set.
+    const collection = await createNew(app, { ...(initialForm("collection", ctx) as CollectionForm), name: "", dir: "x" });
+    expect(collection).toMatchObject({ ok: false, error: expect.stringMatching(/name/i) });
   });
 });

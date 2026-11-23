@@ -45,10 +45,9 @@
 
   const app = getApp();
   const provided = getExtensions();
-  /** Desktop only: an optional method of the desktop shell's collection set (not yet part of
-   *  `CollectionSetApi`; reported as an interface need). */
-  const collectionsApi = app.backend.collections as { reveal?: (id: string) => Promise<void> };
-  const reveal = typeof collectionsApi.reveal === "function" ? (id: string) => collectionsApi.reveal!(id) : null;
+  /** "Show in Finder": only shells that can show a folder (desktop) have `reveal`. */
+  const collectionsApi = app.backend.collections;
+  const reveal = collectionsApi.reveal ? (id: string) => collectionsApi.reveal!(id) : null;
 
   /** Expanded collections (ids); the active one opens by itself. */
   const expanded = new SvelteSet<string>();
@@ -164,7 +163,7 @@
     newIn = folder;
   }
 
-  // The prompt may also be opened from outside (Mod+N, palette): show it, start empty.
+  // The prompt may also be opened from outside (`newIn` bound by the shell): show it, start empty.
   $effect.pre(() => {
     if (newIn === null) return;
     const folder = newIn;
@@ -285,8 +284,8 @@
     if (onenvironments) views.push({ id: "environments", label: "Environments…", icon: "environment", run: () => onenvironments(id) });
     if (reveal) views.push({ id: "reveal", label: revealLabel, icon: "folder-open", run: () => reveal(id) });
     return [
-      { id: "new", label: "New…", icon: "add", run: () => app.openNew({ collection: id }) },
-      { id: "new-request", label: "New request", icon: "http", shortcut: "Mod+N", run: () => startNew(id, "") },
+      { id: "new", label: "New…", icon: "add", shortcut: "Mod+N", run: () => app.openNew({ collection: id }) },
+      { id: "new-request", label: "New request", icon: "http", run: () => startNew(id, "") },
       ...tail(views),
       ...tail(extra),
       { separator: true },
@@ -372,6 +371,7 @@
         icon="add"
         size="sm"
         label="New…"
+        shortcut={hint}
         data-testid="sidebar-new"
         tooltipPlacement="bottom"
         onclick={() => app.openNew({ collection: app.activeCollection })}
@@ -450,7 +450,6 @@
                 tabindex={-1}
                 data-testid={node.kind === "collection" && row.collection === app.activeCollection ? "new-request" : undefined}
                 label="New request in {node.name}"
-                shortcut={node.kind === "collection" ? hint : undefined}
                 onclick={() => startNew(row.collection, node.path)}
               />
               <IconButton

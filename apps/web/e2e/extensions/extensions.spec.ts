@@ -112,10 +112,28 @@ for (const width of [900, 1440]) {
   });
 }
 
-// The chip needs the sidebar of strand A (it places `NodeChip` and the context-menu entries).
-test.fixme("an inline node action shows as a chip on a folder row and opens the collection tab", async ({ page }) => {
+test("an inline node action shows as a chip on a folder row and opens the collection tab", async ({ page }) => {
   await openCollection(page);
   const row = page.getByTestId("tree-folder").filter({ hasText: "users" });
   await row.getByTestId("node-chip").click();
   await expect(page.getByTestId("demo-tab")).toHaveText("Demo collection tab");
+});
+
+test("a collection hint shows at the top of the expanded collection and stays away once dismissed", async ({ page }) => {
+  await openCollection(page);
+  const sidebar = page.getByTestId("sidebar");
+  const collectionHint = sidebar.getByTestId("extension-hint");
+  await expect(collectionHint).toHaveCount(1);
+  await expect(collectionHint).toHaveText(/Demo hint for this collection/);
+  // At the top of the node: above its first request row.
+  const h = (await collectionHint.boundingBox())!;
+  const first = (await sidebar.getByTestId("tree-request").first().boundingBox())!;
+  expect(h.y + h.height).toBeLessThanOrEqual(first.y);
+
+  await collectionHint.getByRole("button", { name: "Dismiss hint" }).click();
+  await expect(collectionHint).toHaveCount(0);
+  await page.reload();
+  await page.getByTestId("open-collection").click();
+  await expect(page.getByTestId("tree-request").first()).toBeVisible();
+  await expect(collectionHint).toHaveCount(0);
 });
