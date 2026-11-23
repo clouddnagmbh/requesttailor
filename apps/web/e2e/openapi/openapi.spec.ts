@@ -123,6 +123,17 @@ test("an OpenAPI file dropped in the import dialog goes to the wizard", async ({
   await expect(page.getByTestId("openapi-overview")).toContainText("Petstore");
 });
 
+test("the New dialog's 'From OpenAPI' tile opens the wizard", async ({ page }) => {
+  await page.goto("/?backend=mock");
+  await page.getByTestId("open-collection").click();
+  await expect(page.getByTestId("collection-name")).not.toHaveText("");
+  await page.keyboard.press(`${MOD}+n`);
+  await page.getByTestId("new-filter").fill("openapi");
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("openapi-wizard")).toBeVisible();
+  await expect(page.getByTestId("openapi-drop")).toBeVisible();
+});
+
 test("sending GET /pets/{petId} with an empty id asks first, then fills and sends", async ({ page }) => {
   await importPetstore(page);
   await sendPet(page);
