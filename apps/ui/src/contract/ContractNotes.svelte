@@ -7,6 +7,7 @@
 <script lang="ts">
   import type { SpecChange } from "../commands/types";
   import { getApp } from "../state/app.svelte";
+  import { Banner } from "../ui";
 
   let { from, to }: { from: string; to: string } = $props();
   const app = getApp();
@@ -32,39 +33,45 @@
 
 {#if breaking.length > 0}
   <aside class="notes" data-testid="contract-notes" aria-label="Breaking changes of the API">
-    <strong>Breaking changes of the API ({breaking.length})</strong>
-    <ul>
-      {#each breaking as c, i (i)}
-        <li data-testid="contract-note">
-          {#if c.operation}<code>{c.operation}</code>{/if}
-          {c.message}
-          {#if c.requests.length > 0}
-            <span class="affects">affects {c.requests.join(", ")}</span>
-          {/if}
-        </li>
-      {/each}
-    </ul>
+    <Banner tone="danger" title="Breaking changes of the API ({breaking.length})">
+      <ul>
+        {#each breaking as c, i (i)}
+          <li data-testid="contract-note">
+            {#if c.operation}<code>{c.operation}</code>{/if}
+            <span>{c.message}</span>
+            {#if c.requests.length > 0}
+              <span class="affects">affects {c.requests.join(", ")}</span>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    </Banner>
   </aside>
 {/if}
 
 <style>
-  .notes {
-    padding: var(--rt-gap);
-    border: 1px solid var(--rt-danger);
-    border-radius: var(--rt-radius);
-    font-size: var(--rt-size-small);
-  }
-  strong {
-    color: var(--rt-danger);
-  }
   ul {
-    margin: 4px 0 0;
-    padding-left: 18px;
+    list-style: none;
+    margin: var(--rt-space-3) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-3);
+  }
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--rt-space-2) var(--rt-space-4);
+    overflow-wrap: anywhere;
   }
   code {
     font-family: var(--rt-font-mono);
+    font-size: var(--rt-text-small);
+    font-weight: var(--rt-weight-semibold);
   }
   .affects {
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
 </style>

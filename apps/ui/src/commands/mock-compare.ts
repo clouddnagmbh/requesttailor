@@ -23,6 +23,7 @@ import type {
   GitCommit,
   HeaderChange,
   RequestComparison,
+  ResponseSnapshot,
   RevisionRun,
   RevisionRunRequest,
   RunComparison,
@@ -110,6 +111,10 @@ function mockReport(path: string, file: MockRequestFile, envName: string | null,
   const m = /\/status\/(\d{3})(?:[/?#]|$)/.exec(url);
   const status = m ? Number(m[1]) : 200;
   const body = JSON.stringify({ method: file.method, url, name: file.name }, null, 2);
+  // A plausible, stable duration per URL, so the time bars of the comparison differ.
+  let h = 7;
+  for (const c of url) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const total = 20 + (h % 180);
   const tests = [
     {
       name: "status is 2xx",
@@ -147,8 +152,8 @@ function mockReport(path: string, file: MockRequestFile, envName: string | null,
       body: { encoding: "utf8", data: body },
       size: body.length,
       truncated: false,
-      timing: { dns: null, connect: null, tls: null, ttfb: 1 },
-      total: 1,
+      timing: { dns: null, connect: null, tls: null, ttfb: Math.round(total * 0.8) },
+      total,
     },
     variables: [],
     unresolved,
@@ -228,6 +233,22 @@ function outcomes(step: RunStep | undefined): Map<string, boolean> {
   return m;
 }
 
+/** One side of the side-by-side view, as `rt_app::compare::response_snapshot`. */
+function snapshotOf(step: RunStep | undefined): ResponseSnapshot | null {
+  const r = step?.report.response;
+  if (!r) return null;
+  const type = r.headers.find(([n]) => n.toLowerCase() === "content-type")?.[1];
+  return {
+    status: r.status,
+    duration_ms: r.total,
+    size: r.size,
+    headers: r.headers,
+    ...(type ? { content_type: type } : {}),
+    ...(r.body.encoding === "utf8" ? { body: r.body.data.slice(0, 256 * 1024) } : {}),
+    truncated: r.truncated || (r.body.encoding === "utf8" && r.body.data.length > 256 * 1024),
+  };
+}
+
 export function compareSteps(paths: string[], from: RunStep[], to: RunStep[]): RequestComparison[] {
   const first = (steps: RunStep[]) => {
     const m = new Map<string, RunStep>();
@@ -265,6 +286,7 @@ export function compareSteps(paths: string[], from: RunStep[], to: RunStep[]): R
       body_text: bodyText,
       tests,
       error: null,
+      sides: { old: snapshotOf(o), new: snapshotOf(n) },
     };
   });
 }

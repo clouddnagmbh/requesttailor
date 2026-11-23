@@ -57,7 +57,7 @@ function gate(results, ...args) {
   }
 }
 
-const ALL_OK = { cold_start: 300, idle_memory: 100, large_response_frame: 16.8, send_keystrokes: 1, semantic_diff: 40 };
+const ALL_OK = { cold_start: 300, idle_memory: 100, large_response_frame: 16.8, send_keystrokes: 1, semantic_diff: 40, compare_view: 60 };
 
 test("gate: every budget met and measured passes with --require-all", () => {
   const r = gate(ALL_OK, "--require-all");

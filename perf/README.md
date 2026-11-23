@@ -11,6 +11,7 @@ and how.
 | `large_response_frame` | ≤ 20 ms | p95 frame interval while scrolling a 100 MB body, Chrome |
 | `send_keystrokes` | ≤ 2 | keystrokes from app start to a sent request, Chrome |
 | `semantic_diff` | ≤ 200 ms | semantic diff of 1000 requests (100 changed), release build, median of 9 |
+| `compare_view` | ≤ 1000 ms | comparison view of 1000 requests (100 changed) with both runs' answers, mock backend, Chrome, median of 5 |
 
 ```sh
 npm run build -w apps/desktop          # the release binary the desktop part starts
@@ -141,3 +142,16 @@ is gated before strand A lands and stays gated after. The WASM build of the same
 - `perf`: requires the results of all three OSes (a missing one fails), merges them with the
   worst value per metric (`scripts/perf/merge.mjs`) and runs the gate with `--require-all`. A
   metric no OS measured fails the build; nothing is skipped silently. `ci-ok` depends on both.
+
+## Comparison view (`compare_view`, wave 14)
+
+`node scripts/perf/run.mjs --only compare` runs `apps/web/e2e/perf/compare.measure.ts`
+(config `compare.perf.config.ts`, Vite on `RT_PERF_COMPARE_PORT`, default 48274) against the
+mock backend: a collection of 1000 requests in 20 folders, a commit, 100 requests changed, a
+second commit; then the comparison view compares `HEAD~1` with `HEAD`. One sample is the time
+from the click on "Compare" until the numbers show 100 changes, both runs' answers are in, the
+list shows rows and the first change is shown side by side. One warm-up (reported as `first`),
+then the median of five. The list is virtualized: the measurement also checks that fewer than 80
+rows are in the DOM while all 1005 are listed. The mock measures the view, not a network or the
+Rust core (the semantic diff in Rust has its own budget, `semantic_diff`).
+

@@ -12,6 +12,7 @@
 
   import type { ChangeTarget, ChangedFile, CollectionDiff, DiffValue, FieldChange, FieldPath, ModelChange } from "../commands/types";
   import { fieldLabel, fieldValueText, isMultiline, KIND_LABEL, secretNote, targetLabel, valueText } from "./format";
+  import { Badge, Button, EmptyState, Icon } from "../ui";
   import { lineOps } from "./textdiff";
 
   let {
@@ -24,6 +25,7 @@
     fileDetail?: Snippet<[ChangedFile]>;
   } = $props();
 
+  const TONE = { added: "ok", removed: "danger", modified: "warn", moved: "info" } as const;
   const uncovered = $derived(diff.files.filter((f) => !f.covered));
 
   function key(c: ModelChange): string {
@@ -37,13 +39,13 @@
 
 <div class="sd" data-testid="semantic-diff">
   {#if diff.changes.length === 0 && uncovered.length === 0}
-    <p class="hint" data-testid="sd-empty">No changes.</p>
+    <div data-testid="sd-empty"><EmptyState icon="compare" title="No changes" text="Nothing differs in this comparison." size="sm" /></div>
   {/if}
 
   {#each diff.changes as c (key(c))}
-    <section class="change {c.change.kind}" data-testid="sd-change" data-kind={c.change.kind} data-target={c.target.kind} aria-label="{KIND_LABEL[c.change.kind]} {targetLabel(c.target).toLowerCase()} {c.name}">
+    <section class="change" data-testid="sd-change" data-kind={c.change.kind} data-target={c.target.kind} aria-label="{KIND_LABEL[c.change.kind]} {targetLabel(c.target).toLowerCase()} {c.name}">
       <header>
-        <span class="badge {c.change.kind}" data-testid="sd-badge">{KIND_LABEL[c.change.kind]}</span>
+        <span data-testid="sd-badge"><Badge value={KIND_LABEL[c.change.kind]} tone={TONE[c.change.kind] ?? "neutral"} /></span>
         <span class="target">{targetLabel(c.target)}</span>
         <strong class="name" data-testid="sd-name">{c.name}</strong>
         <span class="file" data-testid="sd-file">{c.file}</span>
@@ -57,12 +59,14 @@
                 <span class="path" data-testid="sd-path">{fieldLabel(f.path)}</span>
                 {#if f.line}<span class="line">line {f.line}</span>{/if}
                 {#if oncomment && f.line}
-                  <button class="link" data-testid="sd-comment" aria-label="Comment on {fieldLabel(f.path)}" onclick={() => oncomment(c.target, f.path, c.file, f.line!)}>Comment</button>
+                  <span class="comment">
+                    <Button variant="ghost" size="sm" icon="edit" data-testid="sd-comment" aria-label="Comment on {fieldLabel(f.path)}" onclick={() => oncomment(c.target, f.path, c.file, f.line!)}>Comment</Button>
+                  </span>
                 {/if}
               </div>
               {#if f.old?.kind === "secret" || f.new?.kind === "secret"}
                 <div class="values">
-                  <span class="secret" data-testid="sd-secret">secret value hidden</span>
+                  <span class="secret" data-testid="sd-secret"><Icon name="lock" size="sm" /> secret value hidden</span>
                   <span class="note" data-testid="sd-secret-note">{secretNote(f.path, f.old, f.new)}</span>
                 </div>
               {:else if isMultiline(f.old, f.new)}
@@ -74,7 +78,7 @@
               {:else}
                 <div class="values">
                   {#if f.old}<del class="old" data-testid="sd-old">{text(f.old, f.path) || "(empty)"}</del>{/if}
-                  {#if f.old && f.new}<span class="arrow" aria-hidden="true">→</span>{/if}
+                  {#if f.old && f.new}<span class="arrow" aria-hidden="true"><Icon name="chevron-right" size="sm" /></span>{/if}
                   {#if f.new}<ins class="new" data-testid="sd-new">{text(f.new, f.path) || "(empty)"}</ins>{/if}
                 </div>
               {/if}
@@ -92,7 +96,7 @@
       <ul>
         {#each uncovered as f (f.path)}
           <li data-testid="sd-uncovered-file">
-            <span class="file">{f.path}</span> <span class="note">{f.status}</span>
+            <div class="uncovered-head"><span class="file">{f.path}</span> <Badge value={f.status} /></div>
             {#if fileDetail}{@render fileDetail(f)}{/if}
           </li>
         {/each}
@@ -105,26 +109,32 @@
   .sd {
     display: flex;
     flex-direction: column;
-    gap: var(--rt-gap);
-    padding: var(--rt-gap) calc(var(--rt-gap) * 2);
+    gap: var(--rt-space-6);
+    padding: var(--rt-space-6);
   }
   .hint {
     margin: 0;
     color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
   .change {
     border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
+    border-radius: var(--rt-radius-lg);
+    background: var(--rt-surface-2);
+    box-shadow: var(--rt-elev-1);
     overflow: hidden;
   }
   header {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--rt-gap);
-    padding: calc(var(--rt-gap) / 2) var(--rt-gap);
-    background: var(--rt-bg-panel);
+    align-items: center;
+    gap: var(--rt-space-4) var(--rt-space-5);
+    padding: var(--rt-space-4) var(--rt-space-6);
+    background: var(--rt-surface-sunken);
+  }
+  .name {
+    font: var(--rt-font-title);
+    overflow-wrap: anywhere;
   }
   .target,
   .file,
@@ -132,29 +142,13 @@
   .note,
   .line {
     color: var(--rt-fg-muted);
-    font-size: var(--rt-size-small);
+    font: var(--rt-font-small);
   }
   .file,
   .from {
     font-family: var(--rt-font-mono);
     overflow-wrap: anywhere;
-  }
-  .badge {
-    padding: 0 6px;
-    border-radius: var(--rt-radius);
-    font-size: var(--rt-size-small);
-    font-weight: 600;
-    border: 1px solid currentcolor;
-  }
-  .badge.added {
-    color: var(--rt-ok);
-  }
-  .badge.removed {
-    color: var(--rt-danger);
-  }
-  .badge.modified,
-  .badge.moved {
-    color: var(--rt-warn);
+    min-width: 0;
   }
   .fields {
     list-style: none;
@@ -162,89 +156,112 @@
     padding: 0;
   }
   .fields li {
-    padding: calc(var(--rt-gap) / 2) var(--rt-gap);
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-3);
+    padding: var(--rt-space-5) var(--rt-space-6);
+    border-top: 1px solid var(--rt-border);
+  }
+  header + .fields li:first-child {
     border-top: 1px solid var(--rt-border);
   }
   .field-head {
     display: flex;
-    align-items: baseline;
-    gap: var(--rt-gap);
+    align-items: center;
+    gap: var(--rt-space-5);
+    min-height: var(--rt-control-sm);
   }
   .path {
-    font-weight: 600;
+    font: var(--rt-font-small);
+    font-weight: var(--rt-weight-semibold);
+    font-family: var(--rt-font-mono);
   }
-  .link {
+  .comment {
     margin-left: auto;
-    background: none;
-    border: none;
-    padding: 0;
-    color: var(--rt-accent);
-    cursor: pointer;
-    font: inherit;
-    font-size: var(--rt-size-small);
   }
   .values {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--rt-gap);
-    margin-top: 2px;
+    align-items: center;
+    gap: var(--rt-space-4);
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
+    font-size: var(--rt-text-small);
+    line-height: var(--rt-leading-small);
   }
   del,
   ins {
     text-decoration: none;
-    padding: 0 4px;
-    border-radius: var(--rt-radius);
+    padding: var(--rt-space-1) var(--rt-space-4);
+    border-radius: var(--rt-radius-sm);
     overflow-wrap: anywhere;
     white-space: pre-wrap;
+    min-width: 0;
   }
   del {
-    background: color-mix(in srgb, var(--rt-danger) 16%, transparent);
+    background: var(--rt-diff-del-bg);
+    color: var(--rt-danger-fg);
+    text-decoration: line-through;
+    text-decoration-color: var(--rt-danger-fg);
   }
   ins {
-    background: color-mix(in srgb, var(--rt-ok) 16%, transparent);
+    background: var(--rt-diff-add-bg);
+    color: var(--rt-ok-fg);
   }
   .arrow {
-    color: var(--rt-fg-muted);
+    display: inline-flex;
+    color: var(--rt-fg-subtle);
   }
   .secret {
-    padding: 0 6px;
-    border: 1px dashed var(--rt-border);
-    border-radius: var(--rt-radius);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-3);
+    padding: var(--rt-space-1) var(--rt-space-4);
+    border: 1px dashed var(--rt-border-strong);
+    border-radius: var(--rt-radius-sm);
     color: var(--rt-fg-muted);
   }
   .code {
-    margin-top: 2px;
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
+    font-size: var(--rt-text-small);
+    line-height: var(--rt-leading-small);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius-md);
+    overflow: hidden;
   }
   .row {
+    padding: 0 var(--rt-space-4);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
   .row.added {
-    background: color-mix(in srgb, var(--rt-ok) 16%, transparent);
+    background: var(--rt-diff-add-bg);
   }
   .row.removed {
-    background: color-mix(in srgb, var(--rt-danger) 16%, transparent);
+    background: var(--rt-diff-del-bg);
   }
   .sign {
     display: inline-block;
-    width: 1.5ch;
+    width: 2ch;
+    color: var(--rt-fg-muted);
     user-select: none;
+  }
+  .uncovered {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-4);
   }
   .uncovered h3 {
     margin: 0;
-    font-size: var(--rt-size);
+    font: var(--rt-font-title);
   }
   .uncovered ul {
     list-style: none;
     margin: 0;
     padding: 0;
   }
-  .uncovered li {
-    padding: 2px 0;
+  .uncovered-head {
+    display: flex;
+    align-items: center;
+    gap: var(--rt-space-4);
   }
 </style>

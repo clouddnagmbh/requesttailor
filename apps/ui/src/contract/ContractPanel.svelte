@@ -9,9 +9,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
 
-    import type { ContractReport, ContractSpec, FindingKind, SpecChanges } from "../commands/types";
+  import type { ContractReport, ContractSpec, FindingKind, SpecChanges } from "../commands/types";
   import { getGitViews } from "../git/views.svelte";
   import { getApp } from "../state/app.svelte";
+  import { Badge, Button, Card, EmptyState, Icon, Spinner, TextField } from "../ui";
 
   const app = getApp();
   const views = getGitViews();
@@ -22,6 +23,13 @@
     "unknown-parameter": "Unknown parameter",
     "missing-parameter": "Missing parameter",
     "body-mismatch": "Body does not fit",
+  };
+
+  const KIND_TONE: Record<FindingKind, "danger" | "warn"> = {
+    "no-operation": "danger",
+    "unknown-parameter": "warn",
+    "missing-parameter": "warn",
+    "body-mismatch": "danger",
   };
 
   let spec = $state<ContractSpec | null>(null);
@@ -88,39 +96,48 @@
 
 <div class="contract" data-testid="contract-panel">
   {#if !loaded}
-    <p class="muted">Looking for the OpenAPI spec…</p>
+    <p class="loading"><Spinner size="sm" label="Looking for the OpenAPI spec" /> Looking for the OpenAPI spec…</p>
   {:else if !spec}
-    <div class="card" data-testid="contract-none">
-      <strong>No OpenAPI spec found</strong>
-      <p>
-        Put <code>openapi.yaml</code> (or <code>.yml</code>, <code>.json</code>) next to the collection or at the
-        repository root, or name the file in <code>opencollection.yml</code> under
-        <code>extensions.requesttailor.contract.spec</code>.
-      </p>
-      {#if error}<p class="error" role="alert">{error}</p>{/if}
+    <div data-testid="contract-none">
+      <EmptyState icon="contract" title="No OpenAPI spec found">
+        <p class="none-text">
+          Put <code>openapi.yaml</code> (or <code>.yml</code>, <code>.json</code>) next to the collection or at the
+          repository root, or name the file in <code>opencollection.yml</code> under
+          <code>extensions.requesttailor.contract.spec</code>.
+        </p>
+        {#if error}<p class="error" role="alert">{error}</p>{/if}
+      </EmptyState>
     </div>
   {:else}
-    <section class="card" aria-label="Spec">
-      <div class="head">
-        <strong data-testid="contract-spec-title">{spec.title}</strong>
-        <span class="muted" data-testid="contract-spec-version">{spec.version}</span>
-        <code class="muted" data-testid="contract-spec-path">{spec.path}</code>
-        <span class="muted">{spec.configured ? "named in opencollection.yml" : "found next to the collection"}</span>
+    <header class="page-head" aria-label="Spec">
+      <span class="icon"><Icon name="contract" /></span>
+      <div class="titles">
+        <div class="line">
+          <strong class="spec-title" data-testid="contract-spec-title">{spec.title}</strong>
+          <span class="version" data-testid="contract-spec-version">{spec.version}</span>
+        </div>
+        <div class="line sub">
+          <code data-testid="contract-spec-path">{spec.path}</code>
+          <span>{spec.configured ? "named in opencollection.yml" : "found next to the collection"}</span>
+        </div>
       </div>
-    </section>
+    </header>
 
     {#if error}<p class="error" role="alert" data-testid="contract-error">{error}</p>{/if}
 
-    <section class="card" aria-label="Check">
+    <Card title="Check" description="Compare the requests with the operations of the spec.">
+      <div class="stack">
       <div class="row">
-        <label>
-          Revision
-          <input data-testid="contract-rev" bind:value={rev} placeholder="saved files" />
-        </label>
-        <button data-testid="contract-check" disabled={busy !== null} onclick={check}>Check</button>
+        <div class="grow"><TextField label="Revision" data-testid="contract-rev" bind:value={rev} placeholder="saved files" mono /></div>
+        <Button variant="primary" icon="check" data-testid="contract-check" disabled={busy !== null} loading={busy === "check"} onclick={check}>Check</Button>
       </div>
       {#if report}
-        <p data-testid="contract-summary">
+        <div class="tiles">
+          <div class="tile"><span class="num">{report.covered}<span class="of"> / {report.operations}</span></span><span class="cap">operations covered</span></div>
+          <div class="tile" class:bad={report.findings.length > 0}><span class="num">{report.findings.length}</span><span class="cap">{report.findings.length === 1 ? "problem" : "problems"}</span></div>
+          <div class="tile" class:warn={report.uncovered.length > 0}><span class="num">{report.uncovered.length}</span><span class="cap">without a request</span></div>
+        </div>
+        <p class="summary" data-testid="contract-summary">
           {report.covered} of {report.operations} operations are covered by a request,
           {report.findings.length} {report.findings.length === 1 ? "problem" : "problems"} found.
         </p>
@@ -128,8 +145,8 @@
           <ul class="list" data-testid="contract-findings">
             {#each report.findings as f, i (i)}
               <li data-testid="contract-finding" data-kind={f.kind}>
-                <span class="kind">{KINDS[f.kind]}</span>
-                <button class="link" onclick={() => openRequest(f.request)}>{f.request}</button>
+                <Badge value={KINDS[f.kind]} tone={KIND_TONE[f.kind]} />
+                <Button variant="ghost" size="sm" class="path-link" onclick={() => openRequest(f.request)}>{f.request}</Button>
                 <span class="message">{f.message}</span>
               </li>
             {/each}
@@ -144,23 +161,19 @@
           </ul>
         {/if}
       {/if}
-    </section>
+      </div>
+    </Card>
 
-    <section class="card" aria-label="Changes">
+    <Card title="Changes" description="What changed in the spec between two revisions.">
+      <div class="stack">
       <div class="row">
-        <label>
-          From
-          <input data-testid="contract-from" bind:value={from} />
-        </label>
-        <label>
-          To
-          <input data-testid="contract-to" bind:value={to} />
-        </label>
-        <button data-testid="contract-changes" disabled={busy !== null} onclick={showChanges}>Show changes</button>
-        <button data-testid="contract-changelog" disabled={busy !== null} onclick={showChangelog}>Changelog</button>
+        <div class="grow"><TextField label="From" data-testid="contract-from" bind:value={from} mono /></div>
+        <div class="grow"><TextField label="To" data-testid="contract-to" bind:value={to} mono /></div>
+        <Button variant="primary" data-testid="contract-changes" disabled={busy !== null} loading={busy === "changes"} onclick={showChanges}>Show changes</Button>
+        <Button icon="file-text" data-testid="contract-changelog" disabled={busy !== null} loading={busy === "changelog"} onclick={showChangelog}>Changelog</Button>
       </div>
       {#if changes}
-        <p data-testid="contract-changes-summary">
+        <p class="summary" data-testid="contract-changes-summary">
           {changes.from_version ?? "no spec"} → {changes.to_version ?? "no spec"}:
           <strong class:danger={breakingCount > 0}>{breakingCount} breaking</strong>,
           {changes.changes.length - breakingCount} other.
@@ -168,23 +181,25 @@
         <ul class="list" data-testid="contract-change-list">
           {#each changes.changes as c, i (i)}
             <li data-testid="contract-change" data-breaking={c.breaking}>
-              <span class="badge" class:breaking={c.breaking}>{c.breaking ? "Breaking" : "Change"}</span>
+              <Badge value={c.breaking ? "Breaking" : "Change"} tone={c.breaking ? "danger" : "neutral"} />
               {#if c.operation}<code>{c.operation}</code>{/if}
               <span class="message">{c.message}</span>
               {#each c.requests as r (r)}
-                <button class="link" onclick={() => openRequest(r)}>{r}</button>
+                <Button variant="ghost" size="sm" class="path-link" onclick={() => openRequest(r)}>{r}</Button>
               {/each}
             </li>
           {/each}
         </ul>
       {/if}
       {#if changelog !== null}
-        <div class="row">
-          <button data-testid="contract-copy" onclick={copy}>{copied ? "Copied" : "Copy Markdown"}</button>
+        <div class="changelog-head">
+          <h3>Changelog (Markdown)</h3>
+          <Button size="sm" icon="copy" data-testid="contract-copy" onclick={copy}>{copied ? "Copied" : "Copy Markdown"}</Button>
         </div>
         <pre data-testid="contract-changelog-text">{changelog}</pre>
       {/if}
-    </section>
+      </div>
+    </Card>
   {/if}
 </div>
 
@@ -192,81 +207,136 @@
   .contract {
     display: flex;
     flex-direction: column;
-    gap: var(--rt-gap);
-    padding: var(--rt-gap);
+    gap: var(--rt-space-6);
+    padding: var(--rt-space-6);
     box-sizing: border-box;
-    font-size: var(--rt-size);
-  }
-  .card {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: var(--rt-gap);
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg-panel);
+    font: var(--rt-font-body);
+    color: var(--rt-fg);
   }
   p,
   h3 {
     margin: 0;
   }
   h3 {
-    font-size: var(--rt-size-small);
+    font: var(--rt-font-caption);
     color: var(--rt-fg-muted);
-    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
-  .head,
+  .loading {
+    display: flex;
+    align-items: center;
+    gap: var(--rt-space-4);
+    color: var(--rt-fg-muted);
+  }
+  .none-text {
+    max-width: 56ch;
+    font: var(--rt-font-small);
+    color: var(--rt-fg-muted);
+  }
+  .page-head {
+    display: flex;
+    align-items: center;
+    gap: var(--rt-space-5);
+  }
+  .icon {
+    display: inline-grid;
+    place-items: center;
+    width: var(--rt-control-lg);
+    height: var(--rt-control-lg);
+    border-radius: var(--rt-radius-md);
+    background: var(--rt-accent-subtle);
+    color: var(--rt-accent-subtle-fg);
+    flex: none;
+  }
+  .titles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-1);
+    min-width: 0;
+  }
+  .line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--rt-space-2) var(--rt-space-4);
+  }
+  .spec-title {
+    font: var(--rt-font-heading);
+  }
+  .version {
+    padding: 0 var(--rt-space-3);
+    border-radius: var(--rt-radius-sm);
+    background: var(--rt-surface-sunken);
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
+    font-family: var(--rt-font-mono);
+  }
+  .sub {
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
+  }
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rt-space-6);
+  }
   .row {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: var(--rt-gap);
+    gap: var(--rt-space-5);
   }
-  .head {
-    align-items: baseline;
+  .grow {
+    flex: 1 1 160px;
+    min-width: 0;
   }
-  label {
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--rt-space-5);
+  }
+  .tile {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    font-size: var(--rt-size-small);
+    gap: var(--rt-space-1);
+    padding: var(--rt-space-5) var(--rt-space-6);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius-md);
+    background: var(--rt-surface-sunken);
+  }
+  .tile.bad {
+    background: var(--rt-danger-bg);
+    border-color: var(--rt-danger-border);
+    color: var(--rt-danger-fg);
+  }
+  .tile.warn {
+    background: var(--rt-warn-bg);
+    border-color: var(--rt-warn-border);
+    color: var(--rt-warn-fg);
+  }
+  .num {
+    font: var(--rt-font-heading);
+    font-variant-numeric: tabular-nums;
+  }
+  .of {
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-body);
+  }
+  .cap {
+    font: var(--rt-font-small);
     color: var(--rt-fg-muted);
   }
-  input {
-    min-width: 0;
-    box-sizing: border-box;
-    padding: 3px 6px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    color: var(--rt-fg);
-    font-size: var(--rt-size);
+  .tile.bad .cap,
+  .tile.warn .cap {
+    color: inherit;
   }
-  button {
-    height: 26px;
-    padding: 0 10px;
-    border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
-    background: var(--rt-bg);
-    color: var(--rt-fg);
-    cursor: pointer;
-    white-space: nowrap;
+  .summary {
+    color: var(--rt-fg-muted);
+    font: var(--rt-font-small);
   }
-  button:hover:not(:disabled) {
-    background: var(--rt-bg-hover);
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  button.link {
-    height: auto;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--rt-accent);
-    font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
+  .summary .danger {
+    color: var(--rt-danger-fg);
   }
   .list {
     list-style: none;
@@ -274,53 +344,51 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
   }
   .list li {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: 6px;
+    align-items: center;
+    gap: var(--rt-space-2) var(--rt-space-4);
+    padding: var(--rt-space-4) 0;
+    border-top: 1px solid var(--rt-border);
+  }
+  .list li:first-child {
+    border-top: none;
+  }
+  :global(.path-link) {
+    font-family: var(--rt-font-mono);
   }
   code {
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
-  }
-  .kind,
-  .badge {
-    padding: 0 6px;
-    border-radius: var(--rt-radius);
-    border: 1px solid var(--rt-border);
-    font-size: var(--rt-size-small);
-    color: var(--rt-fg-muted);
-  }
-  .badge.breaking {
-    color: var(--rt-danger);
-    border-color: var(--rt-danger);
-  }
-  .danger {
-    color: var(--rt-danger);
+    font-size: var(--rt-text-small);
   }
   .message {
     min-width: 0;
-  }
-  .muted {
+    overflow-wrap: anywhere;
     color: var(--rt-fg-muted);
-    font-size: var(--rt-size-small);
+    font: var(--rt-font-small);
+  }
+  .changelog-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--rt-space-5);
   }
   .error {
-    color: var(--rt-danger);
+    color: var(--rt-danger-fg);
   }
   pre {
     margin: 0;
-    padding: var(--rt-gap);
+    padding: var(--rt-space-5);
     overflow: auto;
     max-height: 320px;
-    background: var(--rt-bg);
+    background: var(--rt-surface-sunken);
     border: 1px solid var(--rt-border);
-    border-radius: var(--rt-radius);
+    border-radius: var(--rt-radius-md);
     font-family: var(--rt-font-mono);
-    font-size: var(--rt-size-small);
+    font-size: var(--rt-text-small);
+    line-height: var(--rt-leading-small);
     user-select: text;
   }
 </style>

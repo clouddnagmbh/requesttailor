@@ -102,18 +102,22 @@ test("compares two commits in the view, per request", async ({ page }) => {
   await dialog.getByRole("option").filter({ hasText: "Compare revisions" }).click();
   await page.getByTestId("compare-from").fill(ids[1]!);
   await page.getByTestId("compare-to").fill("HEAD");
+  await page.keyboard.press("Escape");
   await page.getByTestId("compare-start").click();
-  await expect(page.getByTestId("compare-changed")).toHaveText("2 changed");
+  await expect(page.getByTestId("compare-count-changed").locator(".value")).toHaveText("2");
+  await expect(page.getByTestId("compare-count-failures").locator(".value")).toHaveText("1");
   const rows = page.getByTestId("compare-row");
   await expect(rows.filter({ hasText: "Check" })).toContainText("status 200 → 500");
-  await rows.filter({ hasText: "Check" }).getByRole("button").click();
-  await expect(page.getByTestId("compare-tests")).toContainText("res.status eq 200");
-  await expect(page.getByTestId("compare-tests")).toContainText("failed");
+  await rows.filter({ hasText: "Check" }).click();
+  const detail = page.getByTestId("compare-detail");
+  await expect(detail.getByTestId("cmp-tests")).toContainText("res.status eq 200");
+  await expect(detail.getByTestId("cmp-tests")).toContainText("failed");
+  await expect(detail.getByTestId("cmp-new-side").getByTestId("cmp-status")).toHaveText("500");
   // The echo server repeats the query: its body differs at one value, status and tests do not.
-  await rows.filter({ hasText: "Echo" }).getByRole("button").click();
-  const echoBody = page.getByTestId("compare-body").filter({ hasText: "/query" });
-  await expect(echoBody).toContainText('"x=2"');
-  await expect(echoBody).toContainText('"x=4"');
+  await rows.filter({ hasText: "Echo" }).click();
+  await expect(detail.getByTestId("cmp-field")).toContainText("x=4");
+  const query = detail.getByTestId("cmp-json").locator('[data-kind="changed"]').filter({ hasText: "x=4" }).first();
+  await expect(query).toContainText("x=2");
 });
 
 test("bisect finds the commit that broke the check, in few runs", async ({ page }) => {
