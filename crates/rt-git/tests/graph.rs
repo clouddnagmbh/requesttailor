@@ -306,7 +306,10 @@ fn the_graph_is_topological_newest_first_over_all_refs() {
     .collect();
     assert_eq!(ids(&page), expected);
     assert!(!page.more);
-    assert_eq!(page.head.as_deref(), Some(f.local_only.to_string().as_str()));
+    assert_eq!(
+        page.head.as_deref(),
+        Some(f.local_only.to_string().as_str())
+    );
     assert!(!page.detached);
     assert_eq!(page.refs.len(), 7);
 
@@ -404,7 +407,10 @@ fn a_detached_head_is_a_ref_of_its_own() {
         ("HEAD", "HEAD", true)
     );
     assert_eq!(head.target, f.c2.to_string());
-    assert!(refs.iter().filter(|r| r.current).count() == 1, "no branch is current");
+    assert!(
+        refs.iter().filter(|r| r.current).count() == 1,
+        "no branch is current"
+    );
     let page = repo
         .commit_graph(&GitGraphQuery {
             skip: 0,
@@ -414,11 +420,7 @@ fn a_detached_head_is_a_ref_of_its_own() {
         .unwrap();
     assert!(page.detached);
     assert_eq!(page.head.as_deref(), Some(f.c2.to_string().as_str()));
-    let c2 = page
-        .commits
-        .iter()
-        .find(|c| c.commit.oid == f.c2.to_string())
-        .unwrap();
+    let c2 = page.commits.iter().find(|c| c.commit.oid == f.c2).unwrap();
     assert_eq!(c2.refs, vec!["HEAD".to_owned()]);
 }
 
@@ -499,7 +501,9 @@ fn changes_of_a_commit_with_renames_binary_files_and_any_path() {
 fn collection_files_are_named_by_the_shell() {
     let f = fixture();
     let repo = reopen(&f.work);
-    let mut files = repo.changes(Some(&f.c1.to_string()), &f.c4.to_string()).unwrap();
+    let mut files = repo
+        .changes(Some(&f.c1.to_string()), &f.c4.to_string())
+        .unwrap();
     rt_app::git::graph::assign_collections(
         &mut files,
         &[rt_app::git::graph::CollectionAt {
@@ -533,7 +537,11 @@ fn file_diffs_between_revisions_and_against_the_work_tree() {
             .collect()
     };
     let get = repo
-        .file_diff(Some(&f.c1.to_string()), Some(&f.c2.to_string()), "/api/get.yml")
+        .file_diff(
+            Some(&f.c1.to_string()),
+            Some(&f.c2.to_string()),
+            "/api/get.yml",
+        )
         .unwrap();
     assert_eq!(get.path, "/api/get.yml");
     assert_eq!(
@@ -544,7 +552,9 @@ fn file_diffs_between_revisions_and_against_the_work_tree() {
         ]
     );
     // `from` omitted: the first parent of `to`.
-    let same = repo.file_diff(None, Some(&f.c2.to_string()), "/api/get.yml").unwrap();
+    let same = repo
+        .file_diff(None, Some(&f.c2.to_string()), "/api/get.yml")
+        .unwrap();
     assert_eq!(same, get);
     // A renamed file diffs against its old path.
     let renamed = repo
@@ -552,7 +562,11 @@ fn file_diffs_between_revisions_and_against_the_work_tree() {
         .unwrap();
     assert!(renamed.hunks.is_empty(), "renamed without edits");
     let renamed = repo
-        .file_diff(Some(&f.c2.to_string()), Some(&f.c4.to_string()), "/api/create.yml")
+        .file_diff(
+            Some(&f.c2.to_string()),
+            Some(&f.c4.to_string()),
+            "/api/create.yml",
+        )
         .unwrap();
     assert_eq!(
         lines(&renamed)
@@ -608,7 +622,11 @@ fn ten_thousand_commits_page_quickly() {
             side = snapshot(&g, &[side], &[("a.txt", b"s")], "side", i, "Grace");
             continue;
         }
-        let parents: Vec<ObjectId> = if i % 50 == 10 { vec![tip, side] } else { vec![tip] };
+        let parents: Vec<ObjectId> = if i % 50 == 10 {
+            vec![tip, side]
+        } else {
+            vec![tip]
+        };
         tip = snapshot(&g, &parents, &[("a.txt", b"m")], "main", i, "Ada");
     }
     set_ref(&g, "refs/heads/main", tip);
