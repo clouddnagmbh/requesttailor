@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentPolicy, AiAnswer, AiConfig, AiError, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlockReason, GitBranch, GitChangedFile, GitCommit, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitIdentity, GitPlan, GitPullResult, GitRemote, GitResolution, GitStash, GitStatus, GitTree, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -4882,4 +4882,367 @@ export const responseCheck: ResponseCheck = {
   "matched": "200",
   "operation": "GET /pets/{petId}",
   "status": 200
+};
+
+export const aiProviderKinds: AiProviderKind[] = [
+  "anthropic",
+  "openai",
+  "azure-openai",
+  "gemini",
+  "mistral",
+  "openai-compatible",
+  "bedrock"
+];
+
+export const aiCapabilities: AiCapabilities[] = [
+  {
+    "browser_direct": true,
+    "json": "schema",
+    "needs_base_url": false,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": true,
+    "json": "schema",
+    "needs_base_url": false,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": false,
+    "json": "schema",
+    "needs_base_url": true,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": true,
+    "json": "schema",
+    "needs_base_url": false,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": false,
+    "json": "schema",
+    "needs_base_url": false,
+    "streaming": true,
+    "tools": true
+  },
+  {
+    "browser_direct": false,
+    "json": "prompt",
+    "needs_base_url": true,
+    "streaming": true,
+    "tools": false
+  },
+  {
+    "browser_direct": false,
+    "json": "prompt",
+    "needs_base_url": true,
+    "streaming": true,
+    "tools": true
+  }
+];
+
+export const aiSettings: AiSettings = {
+  "default_profile": "smart",
+  "preview": "first-use",
+  "previewed": [
+    "smart"
+  ],
+  "profiles": [
+    {
+      "base_url": null,
+      "id": "smart",
+      "label": "smart",
+      "model": "claude-opus-5-5",
+      "provider": "anthropic"
+    },
+    {
+      "base_url": "https://acme.openai.azure.com/openai/v1",
+      "id": "azure",
+      "label": "azure",
+      "model": "gpt-deployment",
+      "provider": "azure-openai"
+    },
+    {
+      "base_url": "http://localhost:11434/v1",
+      "id": "local",
+      "label": "local",
+      "model": "llama3.1",
+      "provider": "openai-compatible"
+    }
+  ],
+  "roles": {
+    "fast": "local",
+    "smart": "smart"
+  }
+};
+
+export const aiSettingsEmpty: AiSettings = {
+  "preview": "first-use",
+  "profiles": [],
+  "roles": {}
+};
+
+export const aiCollectionPolicy: AiCollectionPolicy = {
+  "device_off": true,
+  "file_off": false
+};
+
+export const aiTasksWave16: AiTask[] = [
+  {
+    "folder": "users",
+    "snippet": "fetch('https://api.example.com/users')",
+    "task": "request-from-snippet"
+  },
+  {
+    "path": "users/get.yml",
+    "response": 4,
+    "task": "explain-response"
+  },
+  {
+    "path": "users/get.yml",
+    "response": 4,
+    "task": "suggest-assertions"
+  },
+  {
+    "path": "users/get.yml",
+    "target": "variable",
+    "task": "suggest-names"
+  },
+  {
+    "path": "users/get.yml",
+    "task": "draft-docs"
+  }
+];
+
+export const aiAnswerWave16: AiAnswer = {
+  "docs": "Returns the users of a tenant.",
+  "names": [
+    "List users",
+    "Get users"
+  ],
+  "text": "Names for the request."
+};
+
+export const aiErrorsWave16: AiError[] = [
+  {
+    "kind": "unsupported",
+    "message": "tool use with this provider"
+  },
+  {
+    "kind": "cancelled"
+  },
+  {
+    "kind": "opted-out"
+  }
+];
+
+export const aiRequest: AiRequest = {
+  "id": "call-1",
+  "json": {
+    "type": "object"
+  },
+  "max_tokens": 4000,
+  "messages": [
+    {
+      "content": "Why does this fail?",
+      "role": "user"
+    },
+    {
+      "content": "Let me read the request.",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "id": "toolu_1",
+          "input": {
+            "path": "users/get.yml"
+          },
+          "name": "get_request"
+        }
+      ]
+    },
+    {
+      "content": "",
+      "role": "user",
+      "tool_results": [
+        {
+          "call_id": "toolu_1",
+          "content": "{\"method\":\"GET\"}"
+        }
+      ]
+    }
+  ],
+  "profile": "smart",
+  "purpose": "Explain this failure",
+  "scope": {
+    "request": "users/get.yml",
+    "response": 4
+  },
+  "system": "You explain failed HTTP requests.",
+  "tools": [
+    {
+      "description": "Reads a request of the collection.",
+      "input_schema": {
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "name": "get_request"
+    }
+  ]
+};
+
+export const aiRequestMinimal: AiRequest = {
+  "id": "call-2",
+  "messages": [
+    {
+      "content": "GET /users",
+      "role": "user"
+    }
+  ],
+  "purpose": "Name this request",
+  "scope": {},
+  "system": ""
+};
+
+export const aiPreview: AiPreview = {
+  "bytes": 1834,
+  "call": {
+    "max_tokens": 4000,
+    "messages": [
+      {
+        "content": "Why does this fail?",
+        "role": "user"
+      },
+      {
+        "content": "Let me read the request.",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "toolu_1",
+            "input": {
+              "path": "users/get.yml"
+            },
+            "name": "get_request"
+          }
+        ]
+      },
+      {
+        "content": "",
+        "role": "user",
+        "tool_results": [
+          {
+            "call_id": "toolu_1",
+            "content": "{\"method\":\"GET\"}"
+          }
+        ]
+      }
+    ],
+    "system": "You explain failed HTTP requests."
+  },
+  "endpoint": "https://api.anthropic.com/v1/messages",
+  "masked": 2,
+  "model": "claude-opus-5-5",
+  "profile": "smart",
+  "provider": "anthropic",
+  "required": true
+};
+
+export const aiEvents: AiEvent[] = [
+  {
+    "delta": {
+      "kind": "text",
+      "text": "Add the"
+    },
+    "kind": "delta"
+  },
+  {
+    "delta": {
+      "call": {
+        "id": "toolu_1",
+        "input": {
+          "path": "users/get.yml"
+        },
+        "name": "get_request"
+      },
+      "kind": "tool-call"
+    },
+    "kind": "delta"
+  },
+  {
+    "kind": "done",
+    "reply": {
+      "stop": "tool-use",
+      "text": "Add the CSRF token fetch.",
+      "tool_calls": [
+        {
+          "id": "toolu_1",
+          "input": {
+            "path": "users/get.yml"
+          },
+          "name": "get_request"
+        }
+      ],
+      "usage": {
+        "input_tokens": 1200,
+        "output_tokens": 80
+      }
+    }
+  },
+  {
+    "kind": "done",
+    "reply": {
+      "stop": "end",
+      "text": ""
+    }
+  },
+  {
+    "error": {
+      "kind": "cancelled"
+    },
+    "kind": "error"
+  }
+];
+
+export const changelogFacts: ChangelogFacts = {
+  "collection": {
+    "changes": [],
+    "files": []
+  },
+  "commits": [
+    {
+      "author": "Ada",
+      "body": "Orders get a note",
+      "oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "pull": 12,
+      "summary": "Merge pull request #12 from acme/notes"
+    },
+    {
+      "author": "Ada",
+      "oid": "cccccccccccccccccccccccccccccccccccccccc",
+      "summary": "Fix typo"
+    }
+  ],
+  "from": "v1.0.0",
+  "markdown": "# Orders API 1.0.0 → 1.1.0\n",
+  "sections": [
+    "## Service metadata\n\n- Entity `Order`: new property `Note`"
+  ],
+  "spec": {
+    "changes": [],
+    "from_version": null,
+    "to_version": null
+  },
+  "title": "Orders API 1.0.0 → 1.1.0",
+  "to": "v1.1.0"
 };

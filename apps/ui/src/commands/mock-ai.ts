@@ -6,6 +6,7 @@
 // leaves the page. `asked` lists the tasks, for UI tests.
 
 import { BackendError, type AiApi } from "./backend";
+import { withAiWave16, type AiWave8Api } from "./wave16-stubs";
 import type { AiConfig, AiProviderKind, AiTask, RequestSpec } from "./types";
 
 export interface MockAiApi extends AiApi {
@@ -48,7 +49,8 @@ export function mockAi(): MockAiApi {
   let config: AiConfig | null = null;
   const keys = new Map<AiProviderKind, string>();
   const asked: AiTask[] = [];
-  return {
+  // Wave 16: profiles, preview and generic calls arrive with strand A (placeholders until then).
+  return withAiWave16<AiWave8Api & { asked: AiTask[] }>({
     asked,
     config: async () => (config ? { ...config } : null),
     setConfig: async (next) => {
@@ -91,7 +93,10 @@ export function mockAi(): MockAiApi {
               { expression: "res.body", operator: "isJson", value: "", description: null, enabled: true },
             ],
           };
+        default:
+          // Wave 16 tasks: their canned answers arrive with strand B.
+          throw new BackendError("unsupported", "This assistant task arrives in wave 16 (strand B).");
       }
     },
-  };
+  });
 }

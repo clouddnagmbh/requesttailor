@@ -9,12 +9,13 @@ import { MockBackend } from "../commands/mock";
 import type { AppExtension } from "../extensions";
 import type { ProvidedExtensions } from "../shell/extension-tabs";
 import { AppState } from "../state/app.svelte";
+import { createExtensionContext } from "../shell/extension-context";
 import { extensionNewItems } from "./items";
 import { isNewItemKind, NEW_ITEMS } from "./kinds";
 
 function provided(extensions: AppExtension[]): ProvidedExtensions {
   const backend = new MockBackend();
-  return { extensions, ctx: { backend, app: new AppState(backend) } };
+  return { extensions, ctx: createExtensionContext(backend, new AppState(backend)) };
 }
 
 describe("New dialog (wave 14 interface)", () => {

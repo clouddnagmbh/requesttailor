@@ -19,6 +19,19 @@
 //!
 //! Owner: wave 8 interface. Implementation: strand E.
 //!
+//! # Wave 16 (extended, not replaced)
+//!
+//! - More providers ([`AiProviderKind`]: OpenAI, Azure OpenAI, Gemini, Mistral, Bedrock) and
+//!   several profiles ([`AiSettings`], e.g. "fast" and "smart"); the wave-8 [`AiConfig`] is
+//!   one profile. The provider matrix is data: [`AiProviderKind::capabilities`].
+//! - Tool use and streaming, provider-neutral ([`AiTool`], [`AiReply`], [`AiDelta`]);
+//!   [`AiProvider::reply`] and [`AiProvider::stream`] fall back to [`AiProvider::complete`].
+//! - The generic call of extensions ([`AiRequest`], masked with [`mask_call`]) and the "show
+//!   what will be sent" preview ([`AiPreview`]).
+//! - New tasks of the app itself: a request from a snippet, a response explained,
+//!   assertions, names, a description draft.
+//! - Per collection off ([`AiCollectionPolicy`]): in `opencollection.yml` or on this device.
+//!
 //! # How a task runs
 //!
 //! 1. The shell builds an [`AiContext`] from the open [`Workspace`](crate::Workspace) and the
@@ -44,12 +57,22 @@ use serde::{Deserialize, Serialize};
 use crate::{AppError, SecretKey, SendInput};
 
 mod answer;
+mod call;
 mod context;
 mod mask;
+mod profiles;
 mod prompt;
 mod providers;
 
+pub use call::{
+    AiDelta, AiEvent, AiPreview, AiReply, AiRequest, AiScope, AiStop, AiTool, AiToolCall,
+    AiToolResult, AiUsage, mask_call,
+};
 pub use context::AiContext;
+pub use profiles::{
+    AiCapabilities, AiCollectionPolicy, AiJsonMode, AiPreviewMode, AiProfile, AiRoles, AiSettings,
+    LEGACY_PROFILE, ROLE_FAST, ROLE_SMART, profile_key_slot,
+};
 pub use providers::{
     ANTHROPIC_BASE_URL, ANTHROPIC_VERSION, AnthropicProvider, OpenAiCompatibleProvider, provider,
 };
@@ -66,6 +89,18 @@ pub const KEY_ENVIRONMENT: &str = "keys";
 pub enum AiProviderKind {
     Anthropic,
     OpenaiCompatible,
+    /// Wave 16: OpenAI's own API (`https://api.openai.com/v1`).
+    Openai,
+    /// Wave 16: Azure OpenAI, v1 API of a resource (`base_url`
+    /// `https://<resource>.openai.azure.com/openai/v1`; `model` is the deployment name).
+    AzureOpenai,
+    /// Wave 16: Google Gemini API (`https://generativelanguage.googleapis.com`).
+    Gemini,
+    /// Wave 16: Mistral (`https://api.mistral.ai/v1`).
+    Mistral,
+    /// Wave 16, optional: AWS Bedrock Converse API (`base_url`
+    /// `https://bedrock-runtime.<region>.amazonaws.com`; key: a Bedrock API key).
+    Bedrock,
 }
 
 /// The user's configuration, stored in the app's settings (not in the collection).
@@ -93,6 +128,40 @@ pub enum AiTask {
     ExplainError { path: String, response: u64 },
     /// Tests (a `tests` script) and assertions for the request and its response.
     SuggestTests { path: String, response: u64 },
+    /// Wave 16: one request from a pasted snippet (code, API documentation text). cURL goes
+    /// through the importer first, without a model.
+    RequestFromSnippet { snippet: String, folder: String },
+    /// Wave 16: a short summary of a response body.
+    ExplainResponse { path: String, response: u64 },
+    /// Wave 16: assertions only (no script) from the current response.
+    SuggestAssertions { path: String, response: u64 },
+    /// Wave 16: names for a request, folder or variable.
+    SuggestNames { target: AiNameTarget, path: String },
+    /// Wave 16: a description draft (Markdown) for one request.
+    DraftDocs { path: String },
+}
+
+/// What [`AiTask::SuggestNames`] names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AiNameTarget {
+    Request,
+    Folder,
+    /// The variables a request uses (`path` is the request).
+    Variable,
+}
+
+impl AiTask {
+    /// Wave 16 tasks whose prompt and parser arrive with strand B; until then [`run`] answers
+    /// [`AiError::Unsupported`] without a call.
+    pub fn is_pending(&self) -> bool {
+        !matches!(
+            self,
+            AiTask::CreateRequest { .. }
+                | AiTask::ExplainError { .. }
+                | AiTask::SuggestTests { .. }
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -107,6 +176,12 @@ pub struct AiAnswer {
     pub scripts: Vec<Script>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub assertions: Vec<Assertion>,
+    /// Wave 16, `SuggestNames`: proposals, best first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub names: Vec<String>,
+    /// Wave 16, `DraftDocs`: the description draft (Markdown).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -120,14 +195,38 @@ pub enum AiRole {
 pub struct AiMessage {
     pub role: AiRole,
     pub content: String,
+    /// Wave 16, assistant messages: the tools the model called.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<AiToolCall>,
+    /// Wave 16, user messages: the results of those calls.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_results: Vec<AiToolResult>,
+}
+
+impl AiMessage {
+    /// A plain text message.
+    pub fn text(role: AiRole, content: impl Into<String>) -> Self {
+        AiMessage {
+            role,
+            content: content.into(),
+            tool_calls: Vec::new(),
+            tool_results: Vec::new(),
+        }
+    }
 }
 
 /// One model call, provider-neutral. Already masked when it reaches a provider.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct AiCall {
     pub system: String,
     pub messages: Vec<AiMessage>,
     pub max_tokens: u32,
+    /// Wave 16: tools the model may call.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tools: Vec<AiTool>,
+    /// Wave 16: JSON Schema the answer must follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub json: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, Serialize, Deserialize)]
@@ -146,11 +245,60 @@ pub enum AiError {
     /// The model's answer could not be used (e.g. no valid request in it).
     #[error("the answer could not be used: {0}")]
     Answer(String),
+    /// Wave 16: the provider, this shell or this build cannot do it (yet), e.g. tool use
+    /// with a server that has none.
+    #[error("not supported: {0}")]
+    Unsupported(String),
+    /// Wave 16: the user cancelled the call.
+    #[error("cancelled")]
+    Cancelled,
+    /// Wave 16: the assistant is off for this collection (`AiCollectionPolicy`).
+    #[error("the AI assistant is off for this collection")]
+    OptedOut,
 }
 
 /// A model behind an API. Not `Send` (wasm32).
 pub trait AiProvider {
+    /// The text of the answer (wave 8).
     fn complete<'a>(&'a self, call: AiCall) -> LocalBoxFuture<'a, Result<String, AiError>>;
+
+    /// Wave 16: the whole answer, with tool calls. The default serves calls without tools
+    /// through [`AiProvider::complete`].
+    fn reply<'a>(&'a self, call: AiCall) -> LocalBoxFuture<'a, Result<AiReply, AiError>> {
+        Box::pin(async move {
+            if !call.tools.is_empty() {
+                return Err(AiError::Unsupported(
+                    "tool use with this provider".to_owned(),
+                ));
+            }
+            let text = self.complete(call).await?;
+            Ok(AiReply {
+                text,
+                ..Default::default()
+            })
+        })
+    }
+
+    /// Wave 16: the answer as it arrives; `on` gets each piece, the result is the whole
+    /// answer. The default reports the whole text once, after [`AiProvider::reply`].
+    fn stream<'a>(
+        &'a self,
+        call: AiCall,
+        on: &'a dyn Fn(AiDelta),
+    ) -> LocalBoxFuture<'a, Result<AiReply, AiError>> {
+        Box::pin(async move {
+            let reply = self.reply(call).await?;
+            if !reply.text.is_empty() {
+                on(AiDelta::Text {
+                    text: reply.text.clone(),
+                });
+            }
+            for call in &reply.tool_calls {
+                on(AiDelta::ToolCall { call: call.clone() });
+            }
+            Ok(reply)
+        })
+    }
 }
 
 /// Replaces every occurrence of each non-empty secret value with `***` (longest first), the
@@ -170,12 +318,17 @@ impl AiProviderKind {
         match self {
             AiProviderKind::Anthropic => "anthropic",
             AiProviderKind::OpenaiCompatible => "openai-compatible",
+            AiProviderKind::Openai => "openai",
+            AiProviderKind::AzureOpenai => "azure-openai",
+            AiProviderKind::Gemini => "gemini",
+            AiProviderKind::Mistral => "mistral",
+            AiProviderKind::Bedrock => "bedrock",
         }
     }
 
     /// Whether calls need a key (`openai-compatible`: optional, local models need none).
     pub fn needs_key(self) -> bool {
-        matches!(self, AiProviderKind::Anthropic)
+        !matches!(self, AiProviderKind::OpenaiCompatible)
     }
 }
 
@@ -188,7 +341,7 @@ impl AiConfig {
         }
         let url = self.base_url.as_deref().map(str::trim).unwrap_or("");
         if url.is_empty() {
-            return if self.provider == AiProviderKind::OpenaiCompatible {
+            return if self.provider.capabilities().needs_base_url {
                 Err(AiError::NotConfigured)
             } else {
                 Ok(())
@@ -281,29 +434,12 @@ pub fn token_values(tokens: &crate::auth::SecretTokens) -> Result<Vec<String>, A
 /// The model call for `task`, built from `context` and masked with `secrets`: every string
 /// of the call, then the whole serialized payload. What [`run`] sends.
 pub fn prepare(task: &AiTask, context: &AiContext, secrets: &[String]) -> Result<AiCall, AiError> {
-    let call = prompt::build(task, context);
-    let call = AiCall {
-        system: redact(&call.system, secrets),
-        messages: call
-            .messages
-            .into_iter()
-            .map(|m| AiMessage {
-                role: m.role,
-                content: redact(&m.content, secrets),
-            })
-            .collect(),
-        max_tokens: call.max_tokens,
-    };
-    let json = serde_json::to_string(&call).map_err(|e| AiError::Transport(e.to_string()))?;
-    let masked = redact(&json, secrets);
-    if masked == json {
-        return Ok(call);
+    if task.is_pending() {
+        return Err(AiError::Unsupported(
+            "this assistant task arrives with wave 16".to_owned(),
+        ));
     }
-    // Something was still found in the serialized form (an escape the string pass did not
-    // see). If the masked text is no longer JSON, nothing is sent.
-    serde_json::from_str(&masked).map_err(|_| {
-        AiError::Transport("the request to the model could not be masked; nothing was sent".into())
-    })
+    mask_call(prompt::build(task, context), secrets)
 }
 
 /// Runs one task: [`prepare`], send through `provider`, parse the answer. Errors are masked

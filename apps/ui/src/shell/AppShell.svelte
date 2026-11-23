@@ -71,6 +71,7 @@
   import "../styles/base.css";
   import CompanionOffer from "../transport/CompanionOffer.svelte";
   import CommandPalette from "./CommandPalette.svelte";
+  import { createExtensionContext } from "./extension-context";
   import { extensionTabsFor, provideExtensions } from "./extension-tabs";
   import { buildCommands, LABELS, type Actions } from "./commands";
   import Resizer from "./Resizer.svelte";
@@ -88,7 +89,7 @@
   const app = provideApp(new AppState(backend));
   // Wave 9: extensions of a distribution (none in the builds of this repository); fixed like the backend.
   // svelte-ignore state_referenced_locally
-  const extensionContext: ExtensionContext = { backend, app };
+  const extensionContext: ExtensionContext = createExtensionContext(backend, app);
   // Wave 13: their request, response and collection tabs.
   // svelte-ignore state_referenced_locally
   const provided = provideExtensions({ extensions, ctx: extensionContext });
