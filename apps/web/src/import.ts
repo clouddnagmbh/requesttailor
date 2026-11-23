@@ -2,7 +2,8 @@
 // Copyright 2026 The RequestTailor Authors
 
 // `ImportApi` of the web app: the core's `Importer` converts; `write` asks for a folder,
-// creates `plan.folder_name` in it, writes the files and opens it. Owner: wave 4, strand B.
+// creates `plan.folder_name` in it, writes the files and adds it to the collection set
+// (wave 14). Owner: wave 4, strand B.
 // Wave 13: `writeInto` adds a plan to the open collection as a folder (the core's
 // `add_to_workspace`, unsaved), `adopt` keeps a collection converted by an extension.
 
@@ -80,7 +81,8 @@ export function webImports(host: WebHost): WebImports {
         const imports = await core();
         await writeChanges(dir, imports.take(id));
         folders.delete(id);
-        return await host.openHandle(dir);
+        // Wave 14: another root of the collection set, not a replacement of it.
+        return await (host.addHandle ? host.addHandle(dir) : host.openHandle(dir));
       } catch (e) {
         throw toBackendError(e);
       }

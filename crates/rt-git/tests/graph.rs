@@ -420,7 +420,11 @@ fn a_detached_head_is_a_ref_of_its_own() {
         .unwrap();
     assert!(page.detached);
     assert_eq!(page.head.as_deref(), Some(f.c2.to_string().as_str()));
-    let c2 = page.commits.iter().find(|c| c.commit.oid == f.c2).unwrap();
+    let c2 = page
+        .commits
+        .iter()
+        .find(|c| f.c2 == c.commit.oid.as_str())
+        .unwrap();
     assert_eq!(c2.refs, vec!["HEAD".to_owned()]);
 }
 

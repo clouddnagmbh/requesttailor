@@ -28,10 +28,10 @@ pub mod core;
 /// Wave 12, strand A: semantic diff.
 mod diffs;
 pub mod files;
-/// Wave 14: variable completion.
-mod variables;
 /// OpenAPI import wizard and run wizard.
 mod openapi;
+/// Wave 14: variable completion.
+mod variables;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
 pub mod git;
 /// Wave 8, strand B.

@@ -159,7 +159,12 @@ pub async fn import_write(
         let (name, files) = imports.get(id)?;
         write_new_collection(&parent, name, files)?
     };
-    let info = core.open(&target)?;
+    // Wave 14: another root of the collection set (the only one if nothing is open), active.
+    let set = core.add_root(&target)?;
+    let active = set
+        .active
+        .ok_or_else(|| AppError::Shell(format!("cannot open {}", target.display())))?;
+    let info = core.activate(&active)?;
     core.imports
         .lock()
         .unwrap_or_else(|p| p.into_inner())

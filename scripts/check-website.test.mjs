@@ -89,7 +89,7 @@ test("budgets must match perf/budgets.toml", () => {
 test("pages need a title, one h1 and a main landmark", () => {
   const errors = withCopy((root) => {
     change(root, "docs/privacy/index.html", '<main id="main">', "<main>");
-    change(root, "docs/mcp/index.html", "<h1>MCP server</h1>", "<h2>MCP server</h2>");
+    change(root, "docs/mcp/index.html", "<h1>MCP</h1>", "<h2>MCP</h2>");
   });
   assert.ok(errors.includes('docs/privacy/index.html: no <main id="main">'), errors.join("\n"));
   assert.ok(errors.includes("docs/mcp/index.html: 0 <h1> elements, expected 1"), errors.join("\n"));

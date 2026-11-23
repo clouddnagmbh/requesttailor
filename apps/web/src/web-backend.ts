@@ -135,6 +135,9 @@ export interface WebHost {
    *  collections of the active collection's repository again instead (after Git changed
    *  files). */
   openHandle(handle: FileSystemDirectoryHandle, options?: OpenOptions): Promise<CollectionInfo>;
+  /** Wave 14: adds `handle` to the collection set as another root and makes its first
+   *  collection active (the only root if nothing is open): an import as a new collection. */
+  addHandle?(handle: FileSystemDirectoryHandle): Promise<CollectionInfo>;
   /** Wave 14: opens the recent root `id`: the whole remembered set if it is one of its roots,
    *  else `handle` alone. */
   openRecentRoot?(id: string, handle: FileSystemDirectoryHandle, interactive: boolean): Promise<CollectionInfo | null>;
@@ -232,6 +235,7 @@ export class WebBackend implements Backend {
       deps,
       session: () => this.session(),
       openHandle: (handle, options) => this.openHandle(handle, options),
+      addHandle: (handle) => this.addHandle(handle),
       openRecentRoot: (id, handle, interactive) => this.openRecentRoot(id, handle, interactive),
       repository: () => this.collections.repository(),
       companionCredentials: async () => {
@@ -409,6 +413,15 @@ export class WebBackend implements Backend {
     } finally {
       if (this.opening === entry) this.opening = null;
     }
+  }
+
+  private addHandle(handle: FileSystemDirectoryHandle): Promise<CollectionInfo> {
+    if (!this.collections.isOpen) return this.openHandle(handle);
+    return guard(async () => {
+      await this.collections.addRoot(handle, true);
+      const active = (await this.collections.current()).active;
+      return active ? this.collections.activate(active) : this.collections.info(this.session().id);
+    });
   }
 
   private openHandleNow(handle: FileSystemDirectoryHandle, options: OpenOptions): Promise<CollectionInfo> {

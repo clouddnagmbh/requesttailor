@@ -50,6 +50,7 @@ import {
   type GitRemote,
   type GitStash,
   type GitUndoEntry,
+  refNameProblem,
 } from "@requesttailor/ui";
 
 import { collectionMerger, type CollectionMerge, type TextFiles } from "../merges";
@@ -115,24 +116,6 @@ const subjectOf = (message: string) => message.split("\n")[0];
 const branchRef = (name: string) => `refs/heads/${name}`;
 const gitErr = (message: string) => new BackendError("git", message);
 const sorted = (paths: Iterable<string>) => [...new Set(paths)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-
-/** `null` when `name` is fine, else why not in plain words (the same rules and words as
- *  apps/ui/src/git/wizards/refname.ts and `rt_app::git::actions::check_ref_name`). */
-export function refNameProblem(name: string): string | null {
-  const bad = (why: string) => `"${name}" cannot be used as a name: ${why}.`;
-  if (name === "") return bad("it is empty");
-  if (name === "HEAD" || name === "@") return bad("Git uses it itself");
-  if (name.startsWith("-") || name.startsWith("/") || name.endsWith("/")) {
-    return bad('it must not start with "-" or "/" or end with "/"');
-  }
-  if (name.endsWith(".") || name.endsWith(".lock")) return bad('it must not end with "." or ".lock"');
-  if (name.includes("..") || name.includes("//") || name.includes("@{")) {
-    return bad('it must not contain "..", "//" or "@{"');
-  }
-  if (/[\s\x00-\x1f\x7f~^:?*[\\]/.test(name)) return bad("it must not contain spaces or any of ~ ^ : ? * [ \\");
-  if (name.split("/").some((part) => part.startsWith("."))) return bad('no part of it may start with "."');
-  return null;
-}
 
 /** The backup ref for `name` at `unix` seconds (`rt_app::git::actions::backup_ref`). */
 export function backupRef(unix: number, name: string): string {

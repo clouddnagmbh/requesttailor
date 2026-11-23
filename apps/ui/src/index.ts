@@ -22,6 +22,8 @@ export * from "./commands/wave14-stubs";
 // Wave 14, strand F: the graph's order and pages for shells that build it in TypeScript.
 export { dateOrder, graphPage, reachable, sortChanges, sortRefs, type GraphSource, type OrderCommit } from "./git/graph/order";
 export * from "./commands/openapi-stub";
+/** Wave 14: branch and tag names as `rt_app::git::actions::check_ref_name` checks them (the web Git uses it too). */
+export { refNameProblem, suggestRefName } from "./git/wizards/refname";
 // Wave 16 interface: placeholders for the AI profiles, preview and generic calls (strand A) and
 // the changelog facts (strand D).
 export * from "./commands/wave16-stubs";
