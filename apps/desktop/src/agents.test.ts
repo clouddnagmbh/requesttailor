@@ -77,9 +77,11 @@ describe("desktop agents", () => {
     const agents = tauriAgents(f.call, f.timers);
     await agents.setPolicy({ access: "read", environments: [] });
     await agents.audit(50);
+    await agents.check("a.yml", null);
     expect(f.calls).toEqual([
       ["agents_set_policy", { policy: { access: "read", environments: [] } }],
       ["agents_audit", { limit: 50 }],
+      ["agents_check", { path: "a.yml", environment: null }],
     ]);
   });
 });

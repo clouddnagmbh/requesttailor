@@ -228,6 +228,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             agents::agents_pending,
             agents::agents_decide,
             agents::agents_audit,
+            agents::agents_check,
             // Wave 8, strand B.
             grpc::grpc_services,
             grpc::grpc_template,

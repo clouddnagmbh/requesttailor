@@ -1006,6 +1006,12 @@ export type Verdict =
   | { decision: "needs-approval" }
   | { decision: "refused"; reason: string };
 
+/** `rt_app::agents::AgentCheck`: what the agent rules say about sending one request. */
+export interface AgentCheck {
+  effect: Effect;
+  verdict: Verdict;
+}
+
 export interface PendingApproval {
   id: string;
   at: number;

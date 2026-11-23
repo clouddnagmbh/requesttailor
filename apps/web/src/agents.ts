@@ -7,7 +7,7 @@
 // crates/rt-wasm/src/agents_js.rs). Coding agents connect through `rt mcp` on the user's
 // machine, never to the browser: nothing waits for approval here and there is no audit log.
 
-import type { AgentPolicy, AgentsApi } from "@requesttailor/ui";
+import type { AgentCheck, AgentPolicy, AgentsApi } from "@requesttailor/ui";
 
 import type { Session } from "./web-backend";
 import { toBackendError, type CoreWorkspace } from "./wasm";
@@ -16,6 +16,7 @@ import { toBackendError, type CoreWorkspace } from "./wasm";
 interface AgentsWorkspace {
   agentPolicy(): AgentPolicy;
   setAgentPolicy(policy: AgentPolicy): void;
+  agentCheck(path: string, environment: string | null): AgentCheck;
 }
 
 function agentsOf(ws: CoreWorkspace): AgentsWorkspace {
@@ -33,6 +34,7 @@ export function webAgents(session: () => Session): AgentsApi {
   return {
     policy: () => run((ws) => ws.agentPolicy()),
     setPolicy: (policy) => run((ws) => ws.setAgentPolicy(policy)),
+    check: (path, environment) => run((ws) => ws.agentCheck(path, environment)),
     pending: async () => [],
     decide: async (id) => {
       throw toBackendError(new Error(`no pending approval ${id}: agents run through rt mcp, not in the browser`));

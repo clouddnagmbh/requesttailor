@@ -5,6 +5,8 @@
 //!
 //! - `agents_policy` / `agents_set_policy`: `extensions.requesttailor.agents` of the open
 //!   collection; setting it is an unsaved edit like any other (`Workspace::set_agent_policy`).
+//! - `agents_check`: effect and verdict of one request (`rt_app::agents::check`), for
+//!   extensions that send on a model's behalf.
 //! - `agents_pending`, `agents_decide`, `agents_audit`: the files `rt mcp` and `rt approve`
 //!   share in the app's data folder (`rt_app::agents`). Approvals are machine-wide: the
 //!   banner shows those of every collection, also when none is open. The webview polls
@@ -38,6 +40,16 @@ pub async fn agents_set_policy(
     policy: AgentPolicy,
 ) -> Result<(), CommandError> {
     Ok(core.set_agent_policy(&policy)?)
+}
+
+/// The agent rules for one request of the active collection, as edited in memory.
+#[tauri::command]
+pub async fn agents_check(
+    core: State<'_, AppCore>,
+    path: String,
+    environment: Option<String>,
+) -> Result<agents::AgentCheck, CommandError> {
+    Ok(core.agent_check(&path, environment.as_deref())?)
 }
 
 #[tauri::command]

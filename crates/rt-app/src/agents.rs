@@ -80,6 +80,33 @@ pub fn verdict(policy: &AgentPolicy, environment: Option<&str>, effect: Effect) 
     }
 }
 
+/// What the agent rules say about sending one request (`Backend.agents.check`): its
+/// [`Effect`] and the [`Verdict`] of the collection's [`AgentPolicy`] for `environment`.
+/// The same two functions `rt mcp` calls, so a UI extension that sends on a model's behalf
+/// applies exactly the rules of `rt mcp` (minus the policy pinned at its start).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentCheck {
+    pub effect: Effect,
+    pub verdict: Verdict,
+}
+
+/// Evaluates the request at `path` of `collection` as it is in memory (unsaved edits
+/// included) against the collection's current policy.
+pub fn check(
+    collection: &rt_core::model::Collection,
+    path: &str,
+    environment: Option<&str>,
+) -> Result<AgentCheck, crate::AppError> {
+    let context = collection
+        .request(path)
+        .ok_or_else(|| crate::AppError::RequestNotFound(path.to_owned()))?;
+    let effect = effect(&context.request.spec);
+    Ok(AgentCheck {
+        effect,
+        verdict: verdict(&collection.config.agents, environment, effect),
+    })
+}
+
 /// The reason the approval banner shows for a writing request in `environment`.
 pub fn approval_reason(environment: Option<&str>) -> String {
     match environment {
@@ -578,6 +605,89 @@ mod tests {
         };
         assert!(reason.contains("Vault"), "{reason}");
         assert!(visible(&p, "PRD") && visible(&p, "Other") && !visible(&p, "Vault"));
+    }
+
+    fn collection_with(requests: Vec<(&str, RequestSpec)>) -> rt_core::model::Collection {
+        use rt_core::model::{Collection, Item, RequestEntry};
+        Collection {
+            name: "C".into(),
+            items: requests
+                .into_iter()
+                .map(|(path, spec)| {
+                    Item::Request(RequestEntry {
+                        path: path.into(),
+                        spec,
+                    })
+                })
+                .collect(),
+            config: rt_core::model::CollectionConfig {
+                agents: policy(),
+                ..Default::default()
+            },
+            ..Collection::default()
+        }
+    }
+
+    #[test]
+    fn check_combines_effect_and_policy() {
+        let ws = RequestSpec {
+            protocol: Protocol::WebSocket(Box::new(WebSocketSpec {
+                messages: vec![MessageVariant::default()],
+                ..WebSocketSpec::default()
+            })),
+            ..spec("WS")
+        };
+        let c = collection_with(vec![
+            ("get.yml", spec("GET")),
+            ("post.yml", spec("POST")),
+            ("query.yml", graphql("{ a }")),
+            ("mutation.yml", graphql("mutation { a }")),
+            (
+                "grpc.yml",
+                RequestSpec {
+                    protocol: Protocol::Grpc(Box::default()),
+                    ..spec("GRPC")
+                },
+            ),
+            ("ws.yml", ws),
+        ]);
+        let got = |path: &str, env: Option<&str>| check(&c, path, env).unwrap();
+        let read = |v| AgentCheck {
+            effect: Effect::Read,
+            verdict: v,
+        };
+        let write = |v| AgentCheck {
+            effect: Effect::Write,
+            verdict: v,
+        };
+        assert_eq!(got("get.yml", Some("PRD")), read(Verdict::Allowed));
+        assert_eq!(got("query.yml", Some("PRD")), read(Verdict::Allowed));
+        assert_eq!(got("post.yml", Some("Local")), write(Verdict::Allowed));
+        assert_eq!(got("post.yml", Some("PRD")), write(Verdict::NeedsApproval));
+        assert_eq!(
+            got("mutation.yml", Some("PRD")),
+            write(Verdict::NeedsApproval)
+        );
+        assert_eq!(got("grpc.yml", Some("Local")), write(Verdict::Allowed));
+        assert_eq!(got("ws.yml", Some("PRD")), write(Verdict::NeedsApproval));
+        assert!(matches!(
+            got("post.yml", Some("PRD-RO")).verdict,
+            Verdict::Refused { .. }
+        ));
+        assert!(matches!(
+            got("get.yml", Some("Vault")).verdict,
+            Verdict::Refused { .. }
+        ));
+        // No environment: the collection default (read).
+        assert_eq!(got("get.yml", None), read(Verdict::Allowed));
+        assert!(matches!(
+            got("mutation.yml", None).verdict,
+            Verdict::Refused { .. }
+        ));
+        assert!(matches!(
+            check(&c, "missing.yml", None),
+            Err(crate::AppError::RequestNotFound(_))
+        ));
     }
 
     fn temp_dir(name: &str) -> PathBuf {

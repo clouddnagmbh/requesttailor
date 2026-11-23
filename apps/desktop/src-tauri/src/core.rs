@@ -363,6 +363,15 @@ impl<S: SecretStore> Core<S> {
         self.with_session(|s| Ok(s.workspace.collection().config.agents.clone()))
     }
 
+    /// What the agent rules say about sending `path` as it is in memory (`agents_check`).
+    pub fn agent_check(
+        &self,
+        path: &str,
+        environment: Option<&str>,
+    ) -> Result<rt_app::agents::AgentCheck, AppError> {
+        self.with_session(|s| rt_app::agents::check(s.workspace.collection(), path, environment))
+    }
+
     /// Changes the agent policy in memory, like other edits (wave 8, strand C).
     pub fn set_agent_policy(&self, policy: &rt_core::model::AgentPolicy) -> Result<(), AppError> {
         self.with_session(|s| s.workspace.set_agent_policy(policy))

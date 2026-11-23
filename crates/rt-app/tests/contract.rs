@@ -12,7 +12,7 @@
 use std::time::Duration;
 
 use rt_app::agents::{
-    ApprovalDecision, AuditEntry, AuditOutcome, Effect, PendingApproval, Verdict,
+    AgentCheck, ApprovalDecision, AuditEntry, AuditOutcome, Effect, PendingApproval, Verdict,
 };
 use rt_app::ai::{AiAnswer, AiConfig, AiError, AiProviderKind, AiTask};
 use rt_app::auth::{AuthPrompt, DeviceCodePrompt, TokenInfo};
@@ -1890,6 +1890,14 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                     reason: "environment PRD allows only reading".into(),
                 },
             ]),
+        ),
+        (
+            "agentCheck",
+            "AgentCheck",
+            j(AgentCheck {
+                effect: Effect::Write,
+                verdict: Verdict::NeedsApproval,
+            }),
         ),
         (
             "pendingApproval",
