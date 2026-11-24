@@ -609,6 +609,7 @@ impl Workspace {
                 files.files.insert(key, bytes.clone());
             }
         }
+        self.add_snapshot_files(request_path, spec, &mut files);
         Ok(SendSnapshot {
             collection,
             request_path: request_path.to_owned(),
@@ -669,11 +670,34 @@ impl Workspace {
                 files.files.insert(key, bytes.clone());
             }
         }
+        for path in rt_core::runner::plan(&collection, None) {
+            if let Some(context) = collection.request(&path) {
+                self.add_snapshot_files(&path, &context.request.spec, &mut files);
+            }
+        }
         crate::runner::RunSnapshot {
             environment: input.environment,
             vars: input.vars,
             files,
             collection,
+        }
+    }
+
+    /// Puts the snapshot files (wave 17) that `spec`'s `matchesSnapshot` assertions read into
+    /// `files`, staged (unsaved) versions first, so a send compares with what the user sees.
+    fn add_snapshot_files(&self, request_path: &str, spec: &RequestSpec, files: &mut FileSet) {
+        for assertion in &spec.assertions {
+            if assertion.operator.trim() != rt_core::assert::MATCHES_SNAPSHOT {
+                continue;
+            }
+            let value = match assertion.value.trim() {
+                "" => rt_core::snapshot::default_value(request_path),
+                v => v.to_owned(),
+            };
+            let key = rt_core::snapshot::companion_path(request_path, &value);
+            if let Some(bytes) = self.companion_file(&key) {
+                files.files.insert(key, bytes.to_vec());
+            }
         }
     }
 

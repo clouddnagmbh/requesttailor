@@ -289,6 +289,7 @@ async fn after_response<T: Transport>(
     options: &SendOptions,
     services: &Services<'_>,
     secrets: &[String],
+    files: &dyn FileSource,
 ) {
     let mut scope = scope.clone();
     let sender = TransportSender {
@@ -327,16 +328,20 @@ async fn after_response<T: Transport>(
         }
     }
     let spec = &context.request.spec;
+    let file_snapshots = crate::assert::FileSnapshots(files);
+    let store: &dyn crate::assert::SnapshotStore = match services.snapshots {
+        Some(store) => store,
+        None => &file_snapshots,
+    };
     report.assertions = crate::assert::evaluate_with(
         &spec.assertions,
         &response,
         &scope,
-        services
-            .snapshots
-            .map(|store| crate::assert::SnapshotContext {
-                store,
-                request_path: &context.request.path,
-            }),
+        Some(crate::assert::SnapshotContext {
+            store,
+            request_path: &context.request.path,
+            secrets,
+        }),
     )
     .into_iter()
     .map(|mut a| {
@@ -670,6 +675,7 @@ async fn finish<T: Transport>(
                 options,
                 services,
                 &secrets,
+                files,
             )
             .await;
             report.response = Some(received(completed));

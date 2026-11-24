@@ -36,73 +36,19 @@
 //!   run`; a missing file fails the assertion with `no snapshot yet; run `rt snapshot
 //!   update``.
 
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
+use rt_core::model::{Assertion, RequestSpec};
+use rt_core::send::ReportBody;
+
+use crate::workspace::Workspace;
+use crate::{AppError, ResponseStore, secret_scan};
 
 pub use rt_core::assert::MATCHES_SNAPSHOT;
-
-/// The version of the companion file format.
-pub const SNAPSHOT_VERSION: u32 = 1;
-
-/// The response headers a snapshot keeps (lowercase). `etag` only when the user asks for it.
-pub const HEADER_ALLOWLIST: &[&str] = &["content-type", "content-language", "cache-control"];
-
-/// A frozen response, the content of a `.snap.json` file.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Snapshot {
-    pub version: u32,
-    pub status: u16,
-    /// Allowlisted headers, lowercase names, sorted.
-    pub headers: BTreeMap<String, String>,
-    pub body: SnapshotBody,
-    /// Paths the comparison skips, in the order the user added them.
-    #[serde(default)]
-    pub ignore: Vec<String>,
-}
-
-/// The body of a snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SnapshotBody {
-    /// More than [`crate::compare::SNAPSHOT_BODY_LIMIT`] bytes of a body that is not JSON:
-    /// hash and length instead of the text.
-    Digest {
-        #[serde(rename = "$digest")]
-        digest: String,
-        #[serde(rename = "$length")]
-        length: u64,
-    },
-    /// A JSON body as is, or any other text body as a JSON string.
-    Value(Value),
-}
-
-/// One way the response differs from the snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SnapshotDiff {
-    /// Where, as a path of the expression language (`status`, `headers.content-type`,
-    /// `body.items[0].id`).
-    pub path: String,
-    pub kind: SnapshotDiffKind,
-    /// What the snapshot has (`None`: nothing there). JSON, secrets masked.
-    pub expected: Option<Value>,
-    /// What the response has (`None`: nothing there). JSON, secrets masked.
-    pub actual: Option<Value>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum SnapshotDiffKind {
-    /// Same place, another value.
-    Changed,
-    /// The response has something the snapshot does not.
-    Added,
-    /// The snapshot has something the response lacks.
-    Removed,
-    /// Another kind of value (number against text, object against array, ...).
-    Type,
-}
+pub use rt_core::snapshot::{
+    HEADER_ALLOWLIST, SNAPSHOT_VERSION, Snapshot, SnapshotBody, SnapshotDiff, SnapshotDiffKind,
+    check_ignore, companion_path, default_value,
+};
 
 /// What comparing a response with the snapshot of a request found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -161,21 +107,274 @@ pub struct SnapshotEntry {
     pub exists: bool,
 }
 
-/// The `value` of the assertion for a new snapshot: `users/get.yml` gives `get.snap.json`
-/// (the file beside the request).
-pub fn default_value(request_path: &str) -> String {
-    let file = request_path.rsplit('/').next().unwrap_or(request_path);
-    let stem = file.strip_suffix(".yml").unwrap_or(file);
-    format!("{stem}.snap.json")
+/// The `value` of the request's snapshot assertion; `None` if it has none.
+fn assertion_value(spec: &RequestSpec) -> Option<String> {
+    spec.assertions
+        .iter()
+        .find(|a| a.operator.trim() == MATCHES_SNAPSHOT)
+        .map(|a| match a.value.trim() {
+            "" => String::new(),
+            v => v.to_owned(),
+        })
 }
 
-/// The companion file of the request at `request_path` for an assertion `value`, relative to
-/// the collection root (`value` is relative to the request file).
-pub fn companion_path(request_path: &str, value: &str) -> String {
-    match request_path.rsplit_once('/') {
-        Some((dir, _)) => format!("{dir}/{value}"),
-        None => value.to_owned(),
+/// The companion file (relative to the collection) of the request: the assertion's file, or
+/// the default file if it exists beside a request without the assertion.
+fn locate(workspace: &Workspace, path: &str, spec: &RequestSpec) -> Option<String> {
+    match assertion_value(spec) {
+        Some(value) => {
+            let value = if value.is_empty() {
+                default_value(path)
+            } else {
+                value
+            };
+            Some(companion_path(path, &value))
+        }
+        None => {
+            let file = companion_path(path, &default_value(path));
+            workspace.companion_file(&file).map(|_| file)
+        }
     }
+}
+
+/// The snapshot of the request at `path`; `None` if it has none (or the file is missing).
+pub fn read(workspace: &Workspace, path: &str) -> Result<Option<Snapshot>, AppError> {
+    let spec = workspace.request(path)?;
+    let Some(file) = locate(workspace, path, &spec) else {
+        return Ok(None);
+    };
+    let Some(bytes) = workspace.companion_file(&file) else {
+        return Ok(None);
+    };
+    rt_core::snapshot::parse(&String::from_utf8_lossy(bytes))
+        .map(Some)
+        .map_err(|e| AppError::Shell(format!("the snapshot {file} cannot be read: {e}")))
+}
+
+/// The stored response as bytes for the engine.
+fn view_of(
+    responses: &ResponseStore,
+    id: u64,
+) -> Result<(u16, Vec<(String, String)>, Vec<u8>), AppError> {
+    view_of_report(responses.report(id)?)
+}
+
+/// The status, headers and body of a report's response, for the engine (`rt snapshot
+/// update`, the app). Refuses a report without a response or with a cut body.
+pub fn view_of_report(
+    report: &rt_core::send::SendReport,
+) -> Result<(u16, Vec<(String, String)>, Vec<u8>), AppError> {
+    let response = report
+        .response
+        .as_ref()
+        .ok_or_else(|| AppError::Shell("the request got no response".into()))?;
+    if response.truncated {
+        return Err(AppError::Shell(
+            "the response was cut at the body limit; a snapshot needs all of it".into(),
+        ));
+    }
+    let body = match &response.body {
+        ReportBody::Utf8(text) => text.clone().into_bytes(),
+        ReportBody::Base64(text) => {
+            use base64::Engine as _;
+            base64::engine::general_purpose::STANDARD
+                .decode(text)
+                .map_err(|e| AppError::Shell(e.to_string()))?
+        }
+    };
+    Ok((response.status, response.headers.clone(), body))
+}
+
+/// The text of the file for `snapshot`, or `SecretsFound` when it contains a credential
+/// (never written).
+pub fn file_text(file: &str, snapshot: &Snapshot) -> Result<String, AppError> {
+    let text = rt_core::snapshot::to_text(snapshot);
+    let findings = secret_scan::scan(&[(file, &text)]);
+    if !findings.is_empty() {
+        return Err(AppError::SecretsFound(secret_scan::refusal(&findings)));
+    }
+    Ok(text)
+}
+
+fn stage(workspace: &mut Workspace, file: &str, snapshot: &Snapshot) -> Result<(), AppError> {
+    let text = file_text(file, snapshot)?;
+    workspace.stage_companion(file, text.into_bytes())
+}
+
+/// Freezes the stored response `response_id` as the snapshot of the request at `path`, staged
+/// and unsaved: the file, and the assertion if the request has none. An existing snapshot
+/// keeps its ignored paths (accepting a new response). `secrets` are the secret values of the
+/// environment the response was sent with ([`environment_of`]); the stored body still has them,
+/// and the file gets `***` instead.
+pub fn freeze(
+    workspace: &mut Workspace,
+    responses: &ResponseStore,
+    path: &str,
+    response_id: u64,
+    options: &FreezeOptions,
+    secrets: &[String],
+) -> Result<SnapshotFreeze, AppError> {
+    let mut spec = workspace.request(path)?;
+    let existing = read(workspace, path)?;
+    let (status, headers, body) = view_of(responses, response_id)?;
+    let view = rt_core::snapshot::ResponseView {
+        status,
+        headers: &headers,
+        body: &body,
+    };
+    let keep_etag = options.keep_etag
+        || existing
+            .as_ref()
+            .is_some_and(|s| s.headers.contains_key("etag"));
+    let content = rt_core::snapshot::freeze(
+        &view,
+        secrets,
+        &rt_core::snapshot::Freeze {
+            keep_etag,
+            ignore: existing.map(|s| s.ignore).unwrap_or_default(),
+        },
+    );
+    let assertion_added = assertion_value(&spec).is_none();
+    let file = match assertion_value(&spec) {
+        Some(value) if !value.is_empty() => companion_path(path, &value),
+        Some(_) => companion_path(path, &default_value(path)),
+        None => {
+            let value = match options.file.as_deref().map(str::trim) {
+                Some(v) if !v.is_empty() => v.to_owned(),
+                _ => default_value(path),
+            };
+            check_value(&value)?;
+            spec.assertions.push(Assertion {
+                expression: "res".into(),
+                operator: MATCHES_SNAPSHOT.into(),
+                value: value.clone(),
+                description: None,
+                enabled: true,
+            });
+            companion_path(path, &value)
+        }
+    };
+    stage(workspace, &file, &content)?;
+    if assertion_added {
+        workspace.update_request(path, spec)?;
+    }
+    Ok(SnapshotFreeze {
+        request_path: path.to_owned(),
+        snapshot: file,
+        assertion_added,
+        content,
+    })
+}
+
+/// The assertion's file must stay beside the request: a name ending in `.snap.json`.
+fn check_value(value: &str) -> Result<(), AppError> {
+    if value.ends_with(".snap.json") && !value.starts_with('/') && !value.contains("..") {
+        Ok(())
+    } else {
+        Err(AppError::Shell(format!(
+            "{value:?} is not a snapshot file name (it must end in .snap.json, beside the request)"
+        )))
+    }
+}
+
+/// Replaces the ignored paths of the snapshot of the request at `path` (staged, unsaved).
+pub fn set_ignore(
+    workspace: &mut Workspace,
+    path: &str,
+    ignore: Vec<String>,
+) -> Result<Snapshot, AppError> {
+    for p in &ignore {
+        check_ignore(p).map_err(|e| AppError::Shell(format!("ignore path {p:?}: {e}")))?;
+    }
+    let spec = workspace.request(path)?;
+    let file = locate(workspace, path, &spec)
+        .ok_or_else(|| AppError::Shell("the request has no snapshot yet".into()))?;
+    let mut snapshot = read(workspace, path)?
+        .ok_or_else(|| AppError::Shell("the request has no snapshot yet".into()))?;
+    let mut seen = Vec::new();
+    for p in ignore {
+        if !seen.contains(&p) {
+            seen.push(p);
+        }
+    }
+    snapshot.ignore = seen;
+    stage(workspace, &file, &snapshot)?;
+    Ok(snapshot)
+}
+
+/// The environment the stored response was sent with: the shell reads its secret values for
+/// [`freeze`] and [`check`].
+pub fn environment_of(
+    responses: &ResponseStore,
+    response_id: u64,
+) -> Result<Option<String>, AppError> {
+    Ok(responses.report(response_id)?.environment.clone())
+}
+
+/// Compares the stored response with the snapshot of the request at `path`.
+pub fn check(
+    workspace: &Workspace,
+    responses: &ResponseStore,
+    path: &str,
+    response_id: u64,
+    secrets: &[String],
+) -> Result<SnapshotCheck, AppError> {
+    let spec = workspace.request(path)?;
+    let none = |state, snapshot: String| SnapshotCheck {
+        request_path: path.to_owned(),
+        snapshot,
+        state,
+        differences: Vec::new(),
+    };
+    let Some(file) = locate(workspace, path, &spec) else {
+        return Ok(none(SnapshotState::None, String::new()));
+    };
+    let Some(snapshot) = read(workspace, path)? else {
+        return Ok(none(SnapshotState::Missing, file));
+    };
+    let (status, headers, body) = view_of(responses, response_id)?;
+    let view = rt_core::snapshot::ResponseView {
+        status,
+        headers: &headers,
+        body: &body,
+    };
+    let differences = rt_core::snapshot::compare(&snapshot, &view, secrets);
+    Ok(SnapshotCheck {
+        request_path: path.to_owned(),
+        snapshot: file,
+        state: if differences.is_empty() {
+            SnapshotState::Matches
+        } else {
+            SnapshotState::Differs
+        },
+        differences,
+    })
+}
+
+/// Every request of the collection that has a snapshot assertion.
+pub fn list(workspace: &Workspace) -> Vec<SnapshotEntry> {
+    let mut out = Vec::new();
+    for path in request_paths(workspace) {
+        let Ok(spec) = workspace.request(&path) else {
+            continue;
+        };
+        if assertion_value(&spec).is_none() {
+            continue;
+        }
+        let Some(file) = locate(workspace, &path, &spec) else {
+            continue;
+        };
+        out.push(SnapshotEntry {
+            exists: workspace.companion_file(&file).is_some(),
+            request_path: path,
+            snapshot: file,
+        });
+    }
+    out
+}
+
+fn request_paths(workspace: &Workspace) -> Vec<String> {
+    rt_core::runner::plan(workspace.collection(), None)
 }
 
 #[cfg(test)]

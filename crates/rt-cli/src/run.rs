@@ -257,7 +257,7 @@ pub fn exit_code(summary: &RunSummary, steps: &[RunStep]) -> i32 {
 
 /// The collection root above (or at) `dir` and the folder `dir` is, relative to the root
 /// (`None`: the root itself).
-fn locate(dir: &Path) -> Result<(PathBuf, Option<String>), String> {
+pub(crate) fn locate(dir: &Path) -> Result<(PathBuf, Option<String>), String> {
     let dir =
         std::fs::canonicalize(dir).map_err(|e| format!("cannot open {}: {e}", dir.display()))?;
     if dir.is_file() {
