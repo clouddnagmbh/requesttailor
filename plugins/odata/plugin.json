@@ -19,7 +19,8 @@
     ],
     "importers": [
       { "id": "edmx", "label": "OData metadata ($metadata, EDMX)", "extensions": ["edmx", "xml"] },
-      { "id": "sap-hub", "label": "SAP Business Accelerator Hub (API specification)", "extensions": ["edmx", "xml", "json"] }
+      { "id": "sap-hub", "label": "SAP Business Accelerator Hub (API specification)", "extensions": ["edmx", "xml", "json"] },
+      { "id": "btp-destinations", "label": "SAP BTP destinations (exported JSON or .properties)", "extensions": ["json", "properties"] }
     ],
     "welcome": {
       "label": "SAP and OData",

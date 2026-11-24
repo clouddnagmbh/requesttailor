@@ -19,6 +19,12 @@ OData or SAP.
   angle brackets instead). The snippets are checked against golden files
   (`testdata/abap/`), not against a system: review them before use.
 - Importers for `$metadata` files and SAP Business Accelerator Hub API specifications
+- Importer `btp-destinations`: exported SAP BTP destinations (JSON, one or several, or `.properties`)
+  become environments with `baseUrl`, `sapClient` and, for Basic and OAuth client credentials,
+  `user`/`password` or `tokenUrl`/`clientId`/`clientSecret`. Secrets are variables without a
+  value, never read from the export; other authentication types, on-premise destinations and
+  non-HTTP types keep only `baseUrl` and `sapClient` and appear in the loss report (property
+  names, never values). The export formats are assumptions (`testdata/destinations/SOURCES.md`).
 
 The app ships it bundled; at first start it is enabled only if you choose "SAP and OData".
 
