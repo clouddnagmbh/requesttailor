@@ -14,7 +14,9 @@ import type { RequestRef } from "../commands/types";
 import type { AppState } from "../state/app.svelte";
 import { load, store } from "./storage";
 import {
+  addAllUngrouped,
   addToGroup,
+  outsideGroup,
   contiguous,
   createGroup,
   dropGroup,
@@ -114,6 +116,19 @@ export class TabGroups {
     const r = addToGroup(this.order, this.state, keyOf(ref), id);
     this.recent = id;
     this.commit(r.state, r.order);
+  }
+
+  /** Moves every ungrouped tab into the group. */
+  addAllUngrouped(id: string): void {
+    const r = addAllUngrouped(this.order, this.state, id);
+    this.recent = id;
+    this.commit(r.state, r.order);
+  }
+
+  /** Open tabs outside the group, in tab order. */
+  outside(id: string): RequestRef[] {
+    const keys = new Set(outsideGroup(this.order, this.state, id));
+    return this.app.openTabs.filter((t) => keys.has(keyOf(t)));
   }
 
   remove(ref: RequestRef): void {

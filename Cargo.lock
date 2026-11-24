@@ -5070,7 +5070,7 @@ dependencies = [
 
 [[package]]
 name = "rt-app"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -5097,7 +5097,7 @@ dependencies = [
 
 [[package]]
 name = "rt-cli"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -5125,7 +5125,7 @@ dependencies = [
 
 [[package]]
 name = "rt-core"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -5163,7 +5163,7 @@ dependencies = [
 
 [[package]]
 name = "rt-desktop"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "gix",
  "rt-app",
@@ -5183,7 +5183,7 @@ dependencies = [
 
 [[package]]
 name = "rt-format"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "miniz_oxide 0.9.1",
  "regex-lite",
@@ -5197,7 +5197,7 @@ dependencies = [
 
 [[package]]
 name = "rt-git"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "gix",
@@ -5215,7 +5215,7 @@ dependencies = [
 
 [[package]]
 name = "rt-grpc"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "miette",
  "prost-reflect",
@@ -5230,7 +5230,7 @@ dependencies = [
 
 [[package]]
 name = "rt-odata-testserver"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "bytes",
  "http-body-util",
@@ -5242,7 +5242,7 @@ dependencies = [
 
 [[package]]
 name = "rt-plugin"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "rt-core",
@@ -5258,7 +5258,7 @@ dependencies = [
 
 [[package]]
 name = "rt-plugin-example"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "rt-format",
  "rt-plugin-sdk",
@@ -5267,7 +5267,7 @@ dependencies = [
 
 [[package]]
 name = "rt-plugin-odata"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "rt-format",
  "rt-odata-testserver",
@@ -5287,7 +5287,7 @@ dependencies = [
 
 [[package]]
 name = "rt-plugin-sdk"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "rt-core",
@@ -5308,7 +5308,7 @@ dependencies = [
 
 [[package]]
 name = "rt-script"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "js-sys",
  "rt-core",
@@ -5323,7 +5323,7 @@ dependencies = [
 
 [[package]]
 name = "rt-testserver"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -5343,7 +5343,7 @@ dependencies = [
 
 [[package]]
 name = "rt-wasm"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "js-sys",
  "rt-app",
