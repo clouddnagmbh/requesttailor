@@ -17,7 +17,8 @@
 //! ```
 //!
 //! `op` is `list`, `get`, `comments`, `comment` (`payload`: a `NewReviewComment`), `submit`
-//! (`payload`: a `ReviewSubmission`) or `ci`; `number` is the PR number (ignored by `list`).
+//! (`payload`: a `ReviewSubmission`), `ci` or `create` (`payload`: a `NewPullRequest`, answers
+//! the new `PullRequest`); `number` is the PR number (ignored by `list`).
 //! Calls go out with `fetch`, or through the companion when it is passed. Rejects with an
 //! `Error` named `AppError` whose `kind` is a `ReviewError` kind (`no-token`, `auth`,
 //! `not-found`, `transport`, `host`); the token is masked in every message.
@@ -25,7 +26,7 @@
 use js_sys::Promise;
 use rt_app::review::device::{self, DeviceLogin, DevicePoll};
 use rt_app::review::{
-    self, NewReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSubmission,
+    self, NewPullRequest, NewReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSubmission,
 };
 use rt_core::transport::Transport;
 use rt_core::transport::companion::CompanionTransport;
@@ -82,6 +83,11 @@ async fn call<T: Transport>(
         "ci" => {
             let pull = p.get(number).await?;
             to_json(&p.ci(&pull).await?)
+        }
+        "create" => {
+            let n: NewPullRequest =
+                serde_json::from_value(payload).map_err(|_| bad("pull request"))?;
+            to_json(&p.create(&n).await?)
         }
         other => {
             return Err(ReviewError::Host(format!(

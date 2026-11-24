@@ -18,7 +18,8 @@
 //   port), `POST /oauth/authorize_device` + `POST /oauth/token` (GitLab port). The first poll
 //   answers `authorization_pending`, the second hands out the token.
 // - Test hooks: `GET /__state` (posted comments, reviews, approvals, `authorizations` seen),
-//   `POST /__reset`.
+//   `POST /__reset`. `created` in `/__state` holds the bodies of the pull requests opened with
+//   `POST …/pulls` (GitHub) and `POST …/merge_requests` (GitLab); the head branch must exist.
 // - On start it prints one line `READY {json}` (ports, work dir, repo, shas, token) to stdout.
 //   It exits, removing its work dir, when stdin closes (unless --no-stdin-exit) or on SIGTERM.
 
@@ -114,13 +115,33 @@ const PULLS = [
 ];
 let state;
 function reset() {
-  state = { comments: [], reviews: [], approvals: [], notes: [], authorizations: [], devicePolls: 0, nextId: 100 };
+  state = { comments: [], reviews: [], approvals: [], notes: [], authorizations: [], created: [], devicePolls: 0, nextId: 100 };
+  PULLS.length = 2;
   state.comments.push({ number: 1, id: 11, author: "grace", body: "Is `currency` required?", created: "2026-11-20T10:00:00Z", path: "orders/create-order.yml", line: 17, head: head1 });
   state.comments.push({ number: 1, id: 12, author: "grace", body: "Old remark on a line that moved.", created: "2026-11-20T10:30:00Z", path: "orders/create-order.yml", line: 300, head: "0".repeat(40) });
 }
 reset();
 
 const pull = (n) => PULLS.find((p) => p.number === n);
+/** The commit of branch `name` in the bare repository, or null. */
+const branchSha = (name) => {
+  try {
+    return git(bare, "rev-parse", "--verify", "-q", `refs/heads/${name}`);
+  } catch {
+    return null;
+  }
+};
+/** Opens a pull request (`create`); returns the new one or `{ error }` with the host's wording. */
+function openPull({ title, head, base: target, draft }, author = "me") {
+  const sha = branchSha(head);
+  if (!sha) return { error: `head branch ${head} is not on the server` };
+  if (!branchSha(target)) return { error: `base branch ${target} is not on the server` };
+  if (PULLS.some((p) => p.source === head && p.target === target)) return { error: `A pull request already exists for ${PROJECT.split("/")[0]}:${head}.` };
+  const number = Math.max(...PULLS.map((p) => p.number)) + 1;
+  const made = { number, title, author, draft: Boolean(draft), source: head, target, head: sha, updated: "2026-11-24T09:00:00Z", labels: [] };
+  PULLS.push(made);
+  return { made };
+}
 const ci = {
   checks: [
     { name: "build", status: "completed", conclusion: "success", url: "https://ci.example.test/build/1" },
@@ -206,6 +227,14 @@ async function github(req, res, url, port) {
     const headers = next ? { link: `<http://127.0.0.1:${port}/api/v3${repo}/pulls?page=${next}&per_page=${url.searchParams.get("per_page") ?? 30}>; rel=\"next\"` } : {};
     return send(res, 200, slice.map((p) => ghPull(p, port)), headers);
   }
+  if (m === `${repo}/pulls` && req.method === "POST") {
+    const body = await readJson(req);
+    state.created.push(body);
+    if (!(body.title ?? "").trim()) return send(res, 422, { message: "Validation Failed", errors: [{ resource: "PullRequest", code: "missing_field", field: "title" }] });
+    const r = openPull(body);
+    if (r.error) return send(res, 422, { message: "Validation Failed", errors: [{ message: r.error }] });
+    return send(res, 201, ghPull(r.made, port));
+  }
   let r = m.match(new RegExp(`^${repo}/pulls/(\\d+)$`));
   if (r && req.method === "GET") {
     const p = pull(Number(r[1]));
@@ -280,6 +309,14 @@ async function gitlab(req, res, url, port) {
     const open = PULLS.slice().sort((a, b) => (a.updated < b.updated ? 1 : -1));
     const { slice, next } = paged(url, open);
     return send(res, 200, slice.map((p) => glMr(p, port, false)), next ? { "x-next-page": String(next) } : { "x-next-page": "" });
+  }
+  if (rest === "/merge_requests" && req.method === "POST") {
+    const body = await readJson(req);
+    state.created.push(body);
+    const draft = /^draft:/i.test(body.title ?? "");
+    const r = openPull({ title: body.title ?? "", head: body.source_branch, base: body.target_branch, draft });
+    if (r.error) return send(res, 409, { message: [r.error] });
+    return send(res, 201, glMr(r.made, port, true));
   }
   let r = rest.match(/^\/merge_requests\/(\d+)$/);
   if (r && req.method === "GET") {

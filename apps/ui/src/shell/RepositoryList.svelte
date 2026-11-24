@@ -11,11 +11,14 @@
   import type { GitRepoSummary, RepositoryEntry } from "../commands/types";
   import { getApp } from "../state/app.svelte";
   import { Badge, Icon, Menu, type MenuEntry } from "../ui";
+  import { gitActionEntries } from "./extension-git";
+  import { getExtensions } from "./extension-tabs";
   import { repoStatusParts } from "./tree";
 
   let { reveal = null }: { reveal?: ((id: string) => Promise<void> | void) | null } = $props();
 
   const app = getApp();
+  const extensions = getExtensions();
 
   let summaries = $state<Record<string, GitRepoSummary | null>>({});
   let round = 0;
@@ -51,9 +54,9 @@
     app.show({ kind: "git", view: { kind: view } });
   }
 
-  /** Extensions' `gitActions` for `{ kind: "repository" }` (strand E hangs them in here). */
-  function extra(_repo: RepositoryEntry): MenuEntry[] {
-    return [];
+  /** Extensions' `gitActions` for `{ kind: "repository" }` (the entries after a separator). */
+  function extra(repo: RepositoryEntry): MenuEntry[] {
+    return gitActionEntries(extensions, { kind: "repository", repository: repo.id }, (m) => (app.error = m)).slice(1);
   }
 
   function menuFor(repo: RepositoryEntry): MenuEntry[] {

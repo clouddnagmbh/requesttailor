@@ -77,6 +77,7 @@
   import SuggestHost from "../suggest/SuggestHost.svelte";
   import { inlineProposalOpen, suggestionOwnsEnter } from "../suggest/keys.svelte";
   import { suggestUndoFor } from "../suggest/undo.svelte";
+  import { extensionGitViews } from "./extension-git";
   import { extensionTabsFor, provideExtensions } from "./extension-tabs";
   import { buildCommands, LABELS, type Actions } from "./commands";
   import Resizer from "./Resizer.svelte";
@@ -136,19 +137,23 @@
     { id: "mcp", label: "MCP: Test MCP servers and see what AI agents see", icon: "mcp" },
   ];
   function onViewsKeydown(e: KeyboardEvent) {
-    const i = SIDE_VIEWS.findIndex((v) => v.id === sideView);
-    const n = SIDE_VIEWS.length;
+    const i = sideViews.findIndex((v) => v.id === shownView);
+    const n = sideViews.length;
     const next =
       e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i - 1 + n) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
     if (next < 0) return;
     e.preventDefault();
-    const id = SIDE_VIEWS[next].id;
+    const id = sideViews[next]!.id;
     sideView = id;
     store("sideView", id);
     void tick().then(() => document.querySelector<HTMLElement>(`[data-testid="view-${id}"]`)?.focus());
   }
   const isSideView = (v: unknown): v is SideView => SIDE_VIEWS.some((s) => s.id === v);
   let sideView = $state<SideView>(load("sideView", "requests", isSideView));
+  // A set with only repositories has no collection to search, run or test: it offers the list
+  // and Git. Collection-based views come back with the first collection.
+  const sideViews = $derived(app.collection ? SIDE_VIEWS : SIDE_VIEWS.filter((v) => v.id === "requests" || v.id === "git"));
+  const shownView = $derived<SideView>(sideViews.some((v) => v.id === sideView) ? sideView : "requests");
   async function showView(view: SideView) {
     sideView = view;
     store("sideView", view);
@@ -445,6 +450,15 @@
     ...aiCommands(app, ai),
     ...agentCommands(app),
     ...gitApiCommands(app, gitViews),
+    // Views of the distribution's extensions in the Git host (since wave 15): one palette
+    // entry each, while there is a repository to look at.
+    ...(app.activeRepository
+      ? extensionGitViews(provided).map((v) => ({
+          id: `git-view:${v.key}`,
+          label: `Git: ${v.action.title}`,
+          run: () => gitViews.open({ kind: "extension", id: v.key }),
+        }))
+      : []),
     ...openApiCommands(),
     ...(app.collection ? [{ id: "mcp", label: "Test an MCP server", run: () => openMcp() }] : []),
     ...extensions.flatMap((x) =>
@@ -561,18 +575,18 @@
 
   <div class="body">
     <div class="side" style:width="{sidebarWidth}px">
-      {#if app.collection}
+      {#if app.collection || app.activeRepository}
         <div class="views" role="tablist" aria-label="Sidebar" tabindex="-1" onkeydown={onViewsKeydown}>
-          {#each SIDE_VIEWS as v (v.id)}
-            <span class="view" class:selected={sideView === v.id} role="none">
+          {#each sideViews as v (v.id)}
+            <span class="view" class:selected={shownView === v.id} role="none">
               <IconButton
                 role="tab"
                 icon={v.icon}
                 label={v.label}
                 tooltipPlacement="bottom"
                 data-testid="view-{v.id}"
-                aria-selected={sideView === v.id}
-                tabindex={sideView === v.id ? 0 : -1}
+                aria-selected={shownView === v.id}
+                tabindex={shownView === v.id ? 0 : -1}
                 onclick={() => void showView(v.id)}
               />
             </span>
@@ -580,7 +594,7 @@
         </div>
       {/if}
       <div class="view-body">
-        {#if sideView === "requests" || !app.collection}
+        {#if shownView === "requests" || !(app.collection || app.activeRepository)}
           <Sidebar
             bind:this={sidebar}
             bind:newIn
@@ -590,11 +604,11 @@
             onpanel={openCollectionTabOf}
             onenvironments={manageEnvironmentsOf}
           />
-        {:else if sideView === "search"}
+        {:else if shownView === "search"}
           <SearchPanel bind:this={searchPanel} />
-        {:else if sideView === "history"}
+        {:else if shownView === "history"}
           <HistoryPanel />
-        {:else if sideView === "mcp"}
+        {:else if shownView === "mcp"}
           <McpSidebar {mcp} />
         {:else}
           <GitPanel onopen={adoptCollection} />

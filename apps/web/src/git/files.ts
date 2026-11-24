@@ -323,7 +323,9 @@ export function webGitFiles(ctx: WebGitContext): GitWorkingMethods {
       return null;
     }
   };
-  const repositoryName = () => ctx.host.repository?.()?.handle.name ?? "";
+  // The id of the active repository (what `GitActionTarget.repository` names); the folder's
+  // name only where the host does not know it.
+  const repositoryName = () => ctx.host.activeRepository?.() ?? ctx.host.repository?.()?.handle.name ?? "";
   return {
     workingCopy: () => ctx.run(() => workingCopy(ctx.repo(), collection(), repositoryName())),
     fileTree: (rev, dir) => ctx.run(() => fileTree(ctx.repo(), rev, dir)),

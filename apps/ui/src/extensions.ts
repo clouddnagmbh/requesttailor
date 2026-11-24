@@ -302,6 +302,15 @@ export interface GitHintTarget {
   place: "git";
   repository: string;
   view: GitHintView;
+  // What the user is doing in the view, for hints that only fit one situation. The view that
+  // shows the hint fills what it can tell; absent: unknown. Dismissals do not depend on them.
+  /** `graph`: how many commits are selected together (1 = just the one, 2 = a range). */
+  selected?: number;
+  /** `graph`: a commit row is being dragged right now. */
+  dragging?: boolean;
+  /** `changes`: the largest number of hunks (separate blocks of changed lines) in one changed
+   *  text file among the files shown so far; a file counts once it has been opened. */
+  hunks?: number;
 }
 
 /** A small, calm note the shell shows in a defined place (since wave 14): never a modal, never
@@ -438,9 +447,13 @@ export type ExtensionFileEditor =
       component: Component<ExtensionMergeEditorProps>;
     };
 
+/** What a diff editor gets: a file's two sides, read-only context in the app's own view. The
+ *  host shows it in place of its own diff (the user switches back with the same control);
+ *  `close()` returns to the host's own diff. */
 export interface ExtensionDiffEditorProps {
   ctx: ExtensionContext;
   repository: string;
+  /** Repository-relative, with a leading `/`. */
   path: string;
   /** Revs of both sides; `to` `null`: the working tree. */
   from: string;
@@ -448,11 +461,25 @@ export interface ExtensionDiffEditorProps {
   close: () => void;
 }
 
+/**
+ * What a merge editor gets. The contract of `resolve` and `close`:
+ *
+ * - `resolve(text)` writes `text` as the file's content and marks it resolved
+ *   (`GitApi.resolveText`, which refuses while there are unsaved edits and says why), reloads
+ *   the app's collections, and then **closes the editor itself**: the host returns to where the
+ *   user came from. It resolves when all of that is done and rejects with the reason when not;
+ *   the editor stays open then, so the user can retry or save first. Show the rejection's
+ *   `message`.
+ * - `close()` leaves the editor without resolving anything. Calling it after a successful
+ *   `resolve` is harmless (the host closes once), so an editor may also call `close()` itself
+ *   after `resolve` and does not have to.
+ * - The editor is shown only for the file it was opened for; `conflict` holds the three
+ *   versions (`base` the common ancestor, `ours`, `theirs`; absent = deleted on that side).
+ */
 export interface ExtensionMergeEditorProps {
   ctx: ExtensionContext;
   repository: string;
   conflict: GitConflict;
-  /** Writes the result and marks the file resolved (`GitApi.resolveText`). */
   resolve: (text: string) => Promise<void>;
   close: () => void;
 }
