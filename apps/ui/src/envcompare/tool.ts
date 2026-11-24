@@ -3,7 +3,7 @@
 
 // Wave 18, strand A: the main-area view of the environment comparison (`ToolId` `env-compare`).
 
-import type { ToolDefinition } from "../shell/tool-host";
+import type { ToolDefinition } from "../shell/tool-host.svelte";
 import EnvCompareView from "./EnvCompareView.svelte";
 
 export const envcompareTool: ToolDefinition | null = {

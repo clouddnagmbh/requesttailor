@@ -11,7 +11,7 @@
   import type { AgentPolicy, EnvComparison } from "../commands/types";
   import { filterRows, nextChange, type CompareFilter, type CompareRow } from "../compare/rows";
   import ResponseSides from "../compare/ResponseSides.svelte";
-  import type { ToolProps } from "../shell/tool-host";
+  import type { ToolProps } from "../shell/tool-host.svelte";
   import { Badge, Banner, Button, Checkbox, Chip, Dialog, DialogFooter, EmptyState, Kbd, Spinner, TextField } from "../ui";
   import EnvPicker from "./EnvPicker.svelte";
   import { canCompare, defaultSelection, pairCounts, pairTitle, productionNames, rowsOfPair, skippedLine } from "./model";

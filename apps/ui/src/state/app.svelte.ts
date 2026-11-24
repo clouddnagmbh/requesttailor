@@ -5,7 +5,7 @@
 // so behaviour stays the same in every component. Components get it with `getApp()`.
 // Adding fields or methods is an interface change (working rule 1).
 
-import type { ToolId } from "../shell/tool-host";
+import type { ToolId } from "../shell/tool-host.svelte";
 import { runSendGates } from "../shell/send-gates";
 import { getContext, setContext } from "svelte";
 
@@ -44,7 +44,7 @@ export type MainView =
   /** Wave 15: a Git view of the active repository (`git/views.svelte.ts`), e.g. an extension's
    *  `{ kind: "extension", id: "<extension>/<view>" }`. */
   | { kind: "git"; view: GitView }
-  /** Wave 18: one of the new tools in the main area (`shell/tool-host.ts`); nothing happens if
+  /** Wave 18: one of the new tools in the main area (`shell/tool-host.svelte.ts`); nothing happens if
    *  this build has no such tool. */
   | { kind: "tool"; tool: ToolId };
 

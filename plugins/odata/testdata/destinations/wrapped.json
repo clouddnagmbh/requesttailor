@@ -1,0 +1,12 @@
+{
+  "owner": { "SubaccountId": "00000000-0000-0000-0000-000000000000", "InstanceId": null },
+  "destinationConfiguration": {
+    "Name": "RT_WRAPPED",
+    "Type": "HTTP",
+    "URL": "https://wrapped.example.invalid/odata",
+    "Authentication": "BasicAuthentication",
+    "User": "WRAPPED_USER",
+    "Password": "RT-CANARY-destination-password-wrapped",
+    "sap-client": "010"
+  }
+}
