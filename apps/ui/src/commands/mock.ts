@@ -390,7 +390,14 @@ export class MockBackend implements Backend {
   readonly notebook = mockNotebook();
   readonly debugger = mockDebugger();
   /** Wave 18: placeholders until the strands (`wave18-stubs.ts`). */
-  readonly envCompare = mockEnvCompare();
+  readonly envCompare = mockEnvCompare({
+    tree: () => this.tree(),
+    getRequest: (path) => this.getRequest(path),
+    environments: () => this.environments(),
+    policy: () => this.agents.policy(),
+    send: (path, input) => this.sendNow(path, input),
+    releaseResponse: (id) => this.releaseResponse(id),
+  });
   readonly inspect = mockInspect();
   readonly paging = mockPaging();
   readonly inbox = mockInbox();

@@ -102,10 +102,9 @@ max = 500
 # The thresholds are estimates: the strand reports whether they hold after the first measurement.
 # Strand A (scripts/perf/envcompare.mjs).
 [metrics.env_compare]
-description = "Comparing 200 reading requests in 3 environments (rt-testserver, 20 ms answers, 8 in parallel): from start to the finished comparison, median of 9"
+description = "Comparing 100 reading requests in 2 environments (fake transport, 100 differences): the run, the comparison of the steps and the result list, native release, median of 9"
 unit = "ms"
-pending = "wave 18, strand A"
-max = 4000
+max = 500
 
 # Strand B (scripts/perf/checks.mjs).
 [metrics.response_checks]

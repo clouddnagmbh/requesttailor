@@ -401,7 +401,7 @@ export class WebBackend implements Backend {
     this.rescue = webRescue(wave12);
     this.companions = webCompanions(() => this.session());
     this.folderScripts = webFolderScripts(() => this.session());
-    this.envCompare = webEnvCompare();
+    this.envCompare = webEnvCompare({ session: host.session, sendContext });
     this.egress = webEgress();
     this.journal = webJournal();
     this.access = webAccess();
