@@ -1,0 +1,7 @@
+opencollection: "1.0.0"
+info:
+  name: Lint demo clean
+request:
+  variables:
+    - name: baseUrl
+      value: https://clean.example.test

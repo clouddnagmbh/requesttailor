@@ -281,6 +281,12 @@ impl Workspace {
         Ok(())
     }
 
+    /// The format document, read only (wave 18, `lint`: the settings in `opencollection.yml`,
+    /// unsaved edits included).
+    pub(crate) fn doc(&self) -> &CollectionDoc {
+        &self.doc
+    }
+
     /// The format document, for edits composed of several steps (an import added as a folder,
     /// [`crate::import::add_to_workspace`]). Call [`Workspace::refresh`] afterwards.
     pub(crate) fn doc_mut(&mut self) -> &mut CollectionDoc {

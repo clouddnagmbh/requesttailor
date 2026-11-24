@@ -43,7 +43,8 @@ pub mod examples;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs;
 pub mod import;
-mod lint_config;
+/// Wave 18, strand F: `extensions.requesttailor.lint` of `opencollection.yml`.
+pub mod lint_config;
 /// Wave 8, strand D: saved MCP tests (`*.mcp.yaml`).
 pub mod mcp_test;
 /// Wave 12, strand B: three-way merge on the model.

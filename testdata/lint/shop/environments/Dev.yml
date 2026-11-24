@@ -1,0 +1,6 @@
+name: Dev
+variables:
+  - name: stage
+    value: dev
+  - secret: true
+    name: apiKey
