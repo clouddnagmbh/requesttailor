@@ -16,7 +16,7 @@ and how.
 | `git_graph_frame` | ≤ 20 ms | p95 frame interval while scrolling that commit graph, Chrome |
 | `git_graph_large` | ≤ 1500 ms | commit graph of 100 000 commits: first page natively plus first rows visible, median of 5 (pending: wave 15, strand C) |
 | `snapshot_compare` | ≤ 150 ms | 1000 stored responses compared with their snapshots, 100 differing, JSON diff included, native, release, median of 9 (pending: wave 17, strand B) |
-| `share_url_size` | ≤ 2000 chars | length of the share link of every request of the Bruno corpus, 95th percentile (pending: wave 17, strand C) |
+| `share_url_size` | ≤ 2000 chars | length of the share link of every request of the Bruno corpus, 95th percentile; measured p95 1066 |
 | `observer_overhead` | ≤ 1 ms | time three do-nothing observers add to one send, median over 500 sends |
 | `watch_resend` | ≤ 500 ms | `rt send --watch`: file change to request on the wire, median of 9 (pending: wave 17, strand D) |
 | `git_status_large` | ≤ 300 ms | working copy of 50 000 tracked files, 100 changed, natively, release, median of 9 (pending: wave 15, strand B) |

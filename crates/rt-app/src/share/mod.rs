@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! Sharing without a server and copying as code (wave 17, strand C). This module holds the
-//! types and the format, the interface the strands share; the encoding, the secret rules and
-//! the generators come with strand C.
+//! Sharing without a server and copying as code (wave 17, strand C): the types and the format
+//! ([`SharePayload`], [`ShareLink`]), the secret rules (`sanitize`), the text of a link
+//! (`codec`), the QR code (`qr`) and the generators of [`copy_as`] (`copy`).
 //!
 //! # The link
 //!
 //! `<base>#rt=<payload>`, with `payload` = `1.` + base64url(deflate(JSON of
 //! [`SharePayload`])). Everything is in the fragment, which no browser sends to a server;
 //! creating a link makes no network request and uploads nothing. On the web the base is the
-//! app's own origin; on the desktop it is the constant `SHARE_BASE` of the shell (empty until
-//! the project owner sets the address of the public web app), and with an empty base the
-//! desktop copies only the payload as text `rt:<payload>`. Pasting a link, a fragment or an
+//! app's own origin; on the desktop it is the constant `SHARE_BASE` of the shell
+//! (`https://app.requesttailor.com/`), and with an empty base a shell copies only the payload
+//! as text `rt:<payload>`. Pasting a link, a fragment or an
 //! `rt:` payload (as [`ShareApi::open`]) opens the request as an **unsaved draft**; nothing
 //! runs and nothing is sent.
 //!
@@ -30,9 +30,19 @@
 
 use serde::{Deserialize, Serialize};
 
-use rt_core::model::RequestSpec;
+use rt_core::model::{Environment, RequestSpec, Variable};
 
-use crate::AppError;
+use crate::{AppError, Workspace};
+
+mod codec;
+mod copy;
+mod qr;
+mod sanitize;
+
+pub use codec::{decode, encode, find_payload, looks_shared};
+pub use copy::copy_spec;
+pub use qr::qr_svg;
+pub use sanitize::{is_clean, is_sensitive_name, placeholder, sanitize};
 
 /// The version of the payload.
 pub const SHARE_VERSION: u32 = 1;
@@ -158,6 +168,156 @@ impl From<ShareError> for AppError {
             other => AppError::Format(other.to_string()),
         }
     }
+}
+
+/// The link for `spec` (named `name`), from the definition alone: `environment` supplies the
+/// names (and, with `include_values`, the non-secret values) of the variables it uses.
+pub fn build(
+    name: &str,
+    spec: &RequestSpec,
+    environment: Option<&Environment>,
+    options: &ShareOptions,
+) -> Result<ShareLink, ShareError> {
+    let clean = sanitize::sanitize(spec);
+    let mut request = clean.spec;
+    request.name = name.to_owned();
+    let variables = variables_of(&request, &clean.placeholders, environment, options);
+    let payload = SharePayload {
+        version: SHARE_VERSION,
+        name: name.to_owned(),
+        request,
+        variables,
+    };
+    let preview =
+        serde_json::to_string_pretty(&payload).map_err(|e| ShareError::Invalid(e.to_string()))?;
+    // The second net: whatever the rules above missed, the scanner of the commit sees.
+    let findings = crate::secret_scan::scan(&[("request.json", &preview)]);
+    if !findings.is_empty() {
+        return Err(ShareError::SecretsFound(crate::secret_scan::refusal(
+            &findings,
+        )));
+    }
+    let text = match options
+        .base
+        .as_deref()
+        .map(str::trim)
+        .filter(|b| !b.is_empty())
+    {
+        Some(base) => {
+            let base = base.split('#').next().unwrap_or(base);
+            format!("{base}#{FRAGMENT_KEY}={}", encode(&payload)?)
+        }
+        None => format!("{TEXT_PREFIX}{}", encode(&payload)?),
+    };
+    let length = text.chars().count();
+    if length > MAX_LINK_LEN {
+        return Err(ShareError::TooLong(length));
+    }
+    Ok(ShareLink {
+        fits_qr: length <= MAX_QR_LEN,
+        text,
+        preview,
+        payload,
+        length,
+    })
+}
+
+fn variables_of(
+    request: &RequestSpec,
+    placeholders: &[String],
+    environment: Option<&Environment>,
+    options: &ShareOptions,
+) -> Vec<ShareVariable> {
+    let own: Vec<&Variable> = request
+        .vars
+        .iter()
+        .filter(|v| v.enabled && (v.secret || v.value.is_some()))
+        .collect();
+    let mut out: Vec<ShareVariable> = Vec::new();
+    for used in sanitize::used_names(request) {
+        let (name, placeholder) = match used.strip_prefix("secret:") {
+            Some(n) => (n.trim().to_owned(), true),
+            None => (used, false),
+        };
+        // The request carries its own definition of the variable.
+        if own.iter().any(|v| v.name == name) || out.iter().any(|v| v.name == name) {
+            continue;
+        }
+        let known =
+            environment.and_then(|e| e.variables.iter().find(|v| v.enabled && v.name == name));
+        let secret = placeholder
+            || placeholders.contains(&name)
+            || sanitize::is_sensitive_name(&name)
+            || known.is_some_and(|v| v.secret);
+        let value = match known {
+            Some(v) if options.include_values && !secret => v.value.clone(),
+            _ => None,
+        };
+        out.push(ShareVariable {
+            name,
+            value,
+            secret,
+        });
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// The link for the request at `path` of `workspace` as it is in memory (unsaved edits
+/// included). No request is made and nothing is uploaded.
+pub fn link(
+    workspace: &Workspace,
+    path: &str,
+    options: &ShareOptions,
+) -> Result<ShareLink, AppError> {
+    let spec = workspace.request(path)?;
+    let environment = match options.environment.as_deref() {
+        Some(name) => Some(
+            workspace
+                .environments()
+                .into_iter()
+                .find(|e| e.name == name)
+                .ok_or_else(|| AppError::EnvironmentNotFound(name.to_owned()))?,
+        ),
+        None => None,
+    };
+    Ok(build(
+        &spec.name.clone(),
+        &spec,
+        environment.as_ref(),
+        options,
+    )?)
+}
+
+/// Reads a pasted link, fragment or `rt:` payload. Nothing runs and nothing is created.
+pub fn open(input: &str) -> Result<SharePayload, AppError> {
+    Ok(decode(input)?)
+}
+
+/// The request at `path` as curl, `fetch` or Python.
+pub fn copy_as(
+    workspace: &Workspace,
+    path: &str,
+    kind: CopyKind,
+    options: &CopyOptions,
+) -> Result<CopiedAs, AppError> {
+    let spec = workspace.request(path)?;
+    let environment = match options.environment.as_deref() {
+        Some(name) => Some(
+            workspace
+                .environments()
+                .into_iter()
+                .find(|e| e.name == name)
+                .ok_or_else(|| AppError::EnvironmentNotFound(name.to_owned()))?,
+        ),
+        None => None,
+    };
+    Ok(copy_spec(&spec, kind, environment.as_ref(), options)?)
+}
+
+/// The QR code of a link as SVG. Rejects a link longer than [`MAX_QR_LEN`].
+pub fn qr(link: &str) -> Result<String, AppError> {
+    Ok(qr_svg(link)?)
 }
 
 #[cfg(test)]

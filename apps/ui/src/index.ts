@@ -21,6 +21,9 @@ export * from "./commands/wave12-stubs";
 export * from "./commands/wave14-stubs";
 // Wave 17 interface: snapshots, sharing and staging the spec (strands A, B, C replace them).
 export * from "./commands/wave17-stubs";
+// Wave 17: a link that reached the app from outside waits in the share inbox (`apps/web/src/main.ts`).
+export { offerSharedLink } from "./share/inbox.svelte";
+export { looksShared } from "./share/detect";
 export * from "./commands/git-methods";
 export { applyLineSelection, chosenLines, splitLines } from "./commands/line-selection";
 export * from "./commands/repositories";

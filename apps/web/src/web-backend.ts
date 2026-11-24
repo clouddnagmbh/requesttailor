@@ -75,7 +75,7 @@ import { webMerges } from "./merges";
 import { webRescue } from "./rescue";
 import { webCompanions } from "./companions";
 import { webFolderScripts } from "./folder-scripts";
-import { webShare } from "./share";
+import { webShare, type CoreShare } from "./share";
 import { webSnapshots } from "./snapshots";
 import { webVariables } from "./variables";
 import { webReview } from "./review";
@@ -353,7 +353,10 @@ export class WebBackend implements Backend {
       () => this.session(),
       async (s, environment) => (await this.secretValues(s, environment)).map(([, value]) => value),
     );
-    this.share = webShare(() => this.session());
+    this.share = webShare(
+      () => this.session(),
+      async () => (await deps.loadCore()) as unknown as CoreShare,
+    );
     this.variables = webVariables(
       () => this.session(),
       (s, input) => this.coreInput(s, input),
