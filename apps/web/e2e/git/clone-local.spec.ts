@@ -79,7 +79,7 @@ test("clone dialog fits at 900 px and in both themes", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 700 });
   await page.goto("/?backend=mock");
   await page.getByTestId("start-clone").click();
-  await page.getByTestId("git-clone-url").fill("/Users/martinkoch/ClaudeCode/requesttailor-git-playground-origin.git");
+  await page.getByTestId("git-clone-url").fill("/Users/alex/Projects/a-rather-long-repository-name-for-the-layout-test.git");
   const dialog = page.getByTestId("clone-dialog");
   for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
