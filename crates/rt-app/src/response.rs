@@ -39,6 +39,19 @@ pub struct StoredResponse {
     pub line_count: u64,
     /// Whether the body looks like text (valid UTF-8 in the first `PREVIEW_BYTES`).
     pub is_text: bool,
+    /// Wave 17: `false` if the collection switched exchange observers off
+    /// (`extensions.requesttailor.observe.enabled: false`); then `AppExtension.onExchange`
+    /// is not called for this send. Omitted from the JSON when `true`.
+    #[serde(default = "observed", skip_serializing_if = "is_observed")]
+    pub observe: bool,
+}
+
+fn observed() -> bool {
+    true
+}
+
+fn is_observed(observe: &bool) -> bool {
+    *observe
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,6 +94,7 @@ impl ResponseStore {
                 size: 0,
                 line_count: 0,
                 is_text: false,
+                observe: true,
             };
         };
         let placeholder = ReportBody::Utf8(String::new());
@@ -124,6 +138,7 @@ impl ResponseStore {
             size,
             line_count,
             is_text,
+            observe: true,
         }
     }
 

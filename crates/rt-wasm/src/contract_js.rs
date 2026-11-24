@@ -13,7 +13,7 @@ use js_sys::Uint8Array;
 use rt_format::FileSet;
 use wasm_bindgen::prelude::*;
 
-use crate::workspace_js::{app_error, from_js, to_js};
+use crate::workspace_js::{WorkspaceJs, app_error, from_js, to_js};
 
 fn file_set(files: &JsValue) -> Result<FileSet, JsValue> {
     let list: Vec<(String, String)> = from_js(files, "files")?;
@@ -145,4 +145,15 @@ pub fn contract_changelog_facts(
     )
     .map_err(app_error)?;
     to_js(&facts)
+}
+
+/// Wave 17: stages `text` as the contract's spec at `path` (the spec the shell found:
+/// `opencollection.yml`'s, else `openapi.{yaml,yml,json}`), unsaved. The core refuses any other
+/// path and a text that is no spec; `prepareSave` then returns the file like a request edit.
+#[wasm_bindgen(js_class = Workspace)]
+impl WorkspaceJs {
+    #[wasm_bindgen(js_name = contractStageSpec)]
+    pub fn contract_stage_spec(&self, path: &str, text: &str) -> Result<String, JsValue> {
+        rt_app::contract::stage_spec(&mut self.workspace_mut(), path, text).map_err(app_error)
+    }
 }

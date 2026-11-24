@@ -527,7 +527,9 @@ mod workspace_js {
                 };
                 let mut report = report;
                 parts.scripts.finish(&snapshot.collection, &mut report);
-                let stored = inner.borrow_mut().responses.insert(report);
+                let observe = snapshot.collection.config.observe.enabled;
+                let mut stored = inner.borrow_mut().responses.insert(report);
+                stored.observe = observe;
                 to_js(&stored)
             }))
         }

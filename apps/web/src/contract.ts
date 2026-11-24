@@ -47,6 +47,11 @@ export interface CoreContractModule {
   ): ChangelogFacts;
 }
 
+/** The contract part of rt-wasm's `Workspace` (`contract_js.rs`). */
+export interface CoreContractWorkspace {
+  contractStageSpec(path: string, text: string): string;
+}
+
 /** The commits of a range with their messages: the web Git adds this to `GitApi`
  *  (`ChangelogCommitSource`). Without it (a Git that cannot) only the summaries are known. */
 type WithMessages = {
@@ -186,8 +191,16 @@ export function webContract(w: Wave12Host): ContractApi {
         );
       }),
 
-    // Wave 17, strand A: writes the spec through the web Git scope, unsaved.
-    stageSpec: () =>
-      Promise.reject(new BackendError("unsupported", "Staging the spec is not implemented yet (wave 17, strand A).")),
+    // Wave 17, strand A: the spec the contract names (found as `spec()` does), staged in the
+    // core workspace like a request edit; `save` writes it. The core refuses any other file
+    // and a text that is no spec. In the browser a leading `/` is the collection folder.
+    stageSpec: (text) =>
+      guard(async () => {
+        const c = await core();
+        const side = await saved(c);
+        if (!side.spec) throw new BackendError("format", NO_SPEC);
+        const ws = w.host.session().ws as unknown as CoreContractWorkspace;
+        return ws.contractStageSpec(side.spec.path, text);
+      }),
   };
 }

@@ -368,6 +368,37 @@ fn current_files(workspace: &crate::Workspace, dirty: &[String]) -> Result<FileS
     Ok(files)
 }
 
+/// Largest spec [`stage_spec`] accepts.
+pub const MAX_STAGED_SPEC: usize = 16 * 1024 * 1024;
+
+/// Stages `text` as the spec of the contract, unsaved (wave 17): the file `path`, which the
+/// shell found with [`locate`] (the spec `opencollection.yml` names, else the first of
+/// [`SPEC_CANDIDATES`] that exists, in the collection folder or, with a leading `/`, at the
+/// repository root). Writes nothing but that one file: a path that is not the contract's spec
+/// is refused, and so is a text that does not parse as a spec. `save` writes it and the commit
+/// scans it like any file. Returns the path.
+pub fn stage_spec(workspace: &mut crate::Workspace, path: &str, text: &str) -> Result<String> {
+    safe_path(path)?;
+    let allowed = match configured_spec(workspace)? {
+        Some(configured) => configured == path,
+        None => SPEC_CANDIDATES.contains(&path),
+    };
+    if !allowed {
+        return Err(AppError::Format(format!(
+            "{path:?} is not the spec of this collection's contract; only that file can be written"
+        )));
+    }
+    if text.len() > MAX_STAGED_SPEC {
+        return Err(AppError::Format(format!(
+            "the spec is larger than {} MB",
+            MAX_STAGED_SPEC / (1024 * 1024)
+        )));
+    }
+    rt_format::contract::spec_info(text.as_bytes())?;
+    workspace.stage_spec_file(path, text.as_bytes().to_vec());
+    Ok(path.to_owned())
+}
+
 /// The spec path the open collection names in `opencollection.yml`, unsaved edits included
 /// (`None`: it names none, so [`load`] looks for `openapi.{yaml,yml,json}`). For shells that
 /// read the spec's bytes before calling [`requirements`] (the web shell).
@@ -384,6 +415,10 @@ fn spec_of(
     let dirty = workspace.dirty();
     let files = current_files(workspace, &dirty)?;
     let staged = |p: &str| -> Result<Option<Vec<u8>>> {
+        // A spec staged by `stage_spec` (any path) takes precedence over the saved file.
+        if let Some(bytes) = workspace.staged_spec_file(p) {
+            return Ok(Some(bytes.to_vec()));
+        }
         if !p.starts_with('/') && dirty.iter().any(|d| d == p) {
             return Ok(workspace.companion_file(p).map(<[u8]>::to_vec));
         }
