@@ -1403,6 +1403,7 @@ fn base_fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
                 size: 2,
                 line_count: 1,
                 is_text: true,
+                observe: true,
             }),
         ),
         (

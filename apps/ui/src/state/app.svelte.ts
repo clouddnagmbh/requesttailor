@@ -19,6 +19,7 @@ import type {
   RequestSpec,
   StoredResponse,
   TreeNode,
+  VarUse,
 } from "../commands/types";
 import type { ExtensionDialog } from "../extensions";
 import type { GitView } from "../git/views.svelte";
@@ -78,6 +79,15 @@ const NO_RESULTS: Record<string, StoredResponse> = Object.freeze({}) as Record<s
 const NO_SENDING: Record<string, boolean> = Object.freeze({}) as Record<string, boolean>;
 
 const isName = (v: unknown): v is string => typeof v === "string";
+
+/** What `AppState.onSent` reports (the shell turns it into `AppExtension.onExchange`). */
+export interface SentExchange {
+  collection: string;
+  path: string;
+  response: StoredResponse;
+  request: RequestSpec;
+  variables: VarUse[];
+}
 
 export class AppState {
   readonly backend: Backend;
@@ -208,6 +218,8 @@ export class AppState {
    *  runs). */
   private backendActive: string | null = null;
 
+  /** Wave 17: listeners of `onSent`. */
+  private readonly sentListeners = new Set<(sent: SentExchange) => void>();
   /** Wave 10: listeners of `onEdit`. */
   private readonly editListeners = new Set<(path: string, spec: RequestSpec) => void>();
 
@@ -752,7 +764,8 @@ export class AppState {
    *  when another one becomes active meanwhile. */
   async send(path: string | null = this.active): Promise<void> {
     const view = this.current;
-    if (!path || !view) return;
+    const collectionId = this.collection?.id;
+    if (!path || !view || !collectionId) return;
     view.sending[path] = true;
     await this.lastEdit;
     if (this.sendGate && !(await this.sendGate(path).catch(() => true))) {
@@ -764,9 +777,40 @@ export class AppState {
       const result = await this.backend.send(path, { environment: view.environment, vars: [] });
       view.results[path] = result;
       if (previous?.response_id != null) await this.backend.releaseResponse(previous.response_id);
+      await this.announceSent(collectionId, view, path, result);
     });
     view.sending[path] = false;
     this.sendCount++;
+  }
+
+  /** Wave 17: calls `listener` after every send of the app, in every collection, with the
+   *  result and the request as it was sent (variables not resolved). Not called when the
+   *  collection switched observers off (`extensions.requesttailor.observe`). Listener errors
+   *  are logged. Returns the unsubscribe; the shell connects `AppExtension.onExchange` here. */
+  onSent(listener: (sent: SentExchange) => void): () => void {
+    this.sentListeners.add(listener);
+    return () => this.sentListeners.delete(listener);
+  }
+
+  private async announceSent(collection: string, view: CollectionView, path: string, result: StoredResponse): Promise<void> {
+    if (this.sentListeners.size === 0 || result.observe === false) return;
+    // The request as the send used it: the edits are flushed (`lastEdit`) before the send. Ask
+    // the backend only while the sending collection still is the active one.
+    const draft = view.drafts[path];
+    const request = draft
+      ? ($state.snapshot(draft) as RequestSpec)
+      : this.collection?.id === collection
+        ? await this.backend.getRequest(path).catch(() => null)
+        : null;
+    if (!request) return;
+    const sent: SentExchange = { collection, path, response: result, request, variables: result.report.variables };
+    for (const listener of this.sentListeners) {
+      try {
+        listener(sent);
+      } catch (e) {
+        console.warn("RequestTailor: a send listener failed:", e);
+      }
+    }
   }
 
   /** Selects the active collection's environment (remembered per collection and device). */

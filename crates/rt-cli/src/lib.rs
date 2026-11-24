@@ -643,8 +643,9 @@ pub struct Distribution<'a> {
     /// [`EXIT_BLOCKED`], `rt mcp` answers the tool call with the reason and records the rule
     /// in the audit log.
     pub guard: GuardHandle,
-    /// Handed every finished send of `rt send`, `rt run` and `rt mcp`, and of `rt agent` where
-    /// the distribution starts it with [`agent::run_with`] (wave 17, `rt_core::observe`).
+    /// Handed every finished send of `rt send`, `rt run`, `rt mcp` and `rt agent` (every
+    /// `/v1/send`, without collection and request path; wave 17, `rt_core::observe`). A
+    /// distribution that starts the companion itself uses [`agent::run_with`].
     /// They only ever see masked exchanges and must be quick. The builds of this repository
     /// have none.
     pub observers: ObserverSet,
@@ -766,7 +767,7 @@ where
             return EXIT_OK;
         }
         Ok(Command::Send(args)) => args,
-        Ok(Command::Agent(args)) => return agent::run(args, stderr),
+        Ok(Command::Agent(args)) => return agent::run_with(args, hooks.1.clone(), stderr),
         Ok(Command::Import(args)) => return import::run(args, stdout, stderr),
         Ok(Command::Scan(args)) => return scan::run(args, stdout, stderr),
         Ok(Command::Snapshot(args)) => return snapshot::run(args, stdout, stderr),

@@ -159,6 +159,10 @@ pub struct Workspace {
     /// Companion files staged for the next save (wave 8: saved MCP tests): files of the
     /// collection folder that are not part of the OpenCollection document.
     staged: std::collections::BTreeMap<String, Vec<u8>>,
+    /// Wave 17: the contract's spec staged for the next save (`rt_app::contract::stage_spec`),
+    /// keyed by its path as the contract names it: in the collection folder, or with a leading
+    /// `/` at the repository root. Outside the document, the companion files and `files`.
+    staged_spec: std::collections::BTreeMap<String, Vec<u8>>,
 }
 
 impl Workspace {
@@ -172,6 +176,7 @@ impl Workspace {
             files,
             dirty: Vec::new(),
             staged: Default::default(),
+            staged_spec: Default::default(),
         })
     }
 
@@ -299,9 +304,33 @@ impl Workspace {
                 .filter(|(path, bytes)| self.files.files.get(*path) != Some(*bytes))
                 .map(|(path, _)| path.clone()),
         );
+        dirty.extend(
+            self.staged_spec
+                .iter()
+                .filter(|(path, bytes)| self.files.files.get(*path) != Some(*bytes))
+                .map(|(path, _)| path.clone()),
+        );
         dirty.sort();
         dirty.dedup();
         dirty
+    }
+
+    /// Whether a spec is staged at `path` (wave 17).
+    pub fn staged_spec_path(&self, path: &str) -> bool {
+        self.staged_spec.contains_key(path)
+    }
+
+    /// The staged spec's bytes at `path` (wave 17), if one is staged.
+    pub(crate) fn staged_spec_file(&self, path: &str) -> Option<&[u8]> {
+        self.staged_spec.get(path).map(Vec::as_slice)
+    }
+
+    /// Stages the contract's spec for the next save (wave 17). The caller
+    /// (`rt_app::contract::stage_spec`) has checked that `path` is the contract's spec and
+    /// that `bytes` parse; this is the one way to stage a `.yml` file or a path with a
+    /// leading `/`.
+    pub(crate) fn stage_spec_file(&mut self, path: &str, bytes: Vec<u8>) {
+        self.staged_spec.insert(path.to_owned(), bytes);
     }
 
     /// Paths of the companion files (wave 8) for which `wanted` is true: files of the
@@ -378,6 +407,20 @@ impl Workspace {
                     deleted: false,
                 });
                 written.push((path, bytes));
+            }
+        }
+        for (path, bytes) in std::mem::take(&mut self.staged_spec) {
+            if self.files.files.get(&path) != Some(&bytes) {
+                changes.push(FileChange {
+                    path: path.clone(),
+                    text: String::from_utf8_lossy(&bytes).into_owned(),
+                    deleted: false,
+                });
+                // A spec in the collection folder is a file of the collection from now on;
+                // one at the repository root is not (its path has a leading `/`).
+                if !path.starts_with('/') {
+                    written.push((path, bytes));
+                }
             }
         }
         changes.sort_by(|a, b| a.path.cmp(&b.path));

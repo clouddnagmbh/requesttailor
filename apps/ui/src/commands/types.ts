@@ -515,6 +515,9 @@ export interface StoredResponse {
   size: number;
   line_count: number;
   is_text: boolean;
+  /** `false`: the collection switched exchange observers off (`extensions.requesttailor.observe`);
+   *  `AppExtension.onExchange` is not called. Absent: on. */
+  observe?: boolean;
 }
 
 export interface LineSlice {

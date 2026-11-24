@@ -540,7 +540,12 @@ export class WebBackend implements Backend {
         changes.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
         if (changes.length > 0) {
           await ensureReadWrite(s.handle);
-          await writeChanges(s.handle, changes);
+          // A spec staged at the repository root has a path with a leading `/` (wave 17); in
+          // the browser the repository root is the collection folder.
+          await writeChanges(
+            s.handle,
+            changes.map((c) => (c.path.startsWith("/") ? { ...c, path: c.path.replace(/^\/+/, "") } : c)),
+          );
         }
         s.ws.commit(prepared);
         s.created = undefined;

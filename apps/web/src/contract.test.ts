@@ -15,6 +15,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { GitApi } from "@requesttailor/ui";
 
 import { webContract } from "./contract";
+import { fill, memoryFolder } from "./git/fake-handle.test-util";
+import { writeChanges } from "./fs/directory";
 import type { FsClient } from "./git/fs";
 import * as repoOps from "./git/repo";
 import type { Repo } from "./git/repo";
@@ -137,5 +139,57 @@ describe.skipIf(!built)("web contract API over the real core", () => {
     const c = api(r, await core());
     await expect(c.check("HEAD")).rejects.toMatchObject({ kind: "format" });
     expect((await c.changes("HEAD~1", "HEAD")).changes.every((x) => x.kind === "operation-removed")).toBe(true);
+  });
+});
+
+describe.skipIf(!built)("stageSpec over the real core", () => {
+  const SPEC = nodeFs.readFileSync(join(FIXTURES, "specs", "v1.yaml"), "utf8");
+  const NEWER = SPEC.replace(/version: .*\n/, "version: 9.9.9\n");
+
+  async function staged(files: Record<string, string>) {
+    const loaded = await core();
+    const handle = memoryFolder();
+    await fill(handle, files);
+    const ws = (loaded as unknown as { Workspace: { open(f: Map<string, string>): unknown } }).Workspace.open(
+      new Map(Object.entries(files)),
+    ) as {
+      prepareSave(): { changes: { path: string; text: string; deleted: boolean }[]; free(): void };
+      commit(p: unknown): void;
+      dirty(): string[];
+    };
+    const host = { deps: { loadCore: async () => loaded }, session: () => ({ handle, ws }) } as unknown as Wave12Host["host"];
+    const c = webContract({ host, git: {} as GitApi, sendContext: async () => Promise.reject(new Error("unused")) });
+    return { c, handle, ws };
+  }
+
+  it("stages the located spec unsaved and a save writes it", async () => {
+    const { c, handle, ws } = await staged({
+      "opencollection.yml": "opencollection: 1.0.0\ninfo:\n  name: Orders\n",
+      "openapi.yaml": SPEC,
+    });
+    expect(await c.stageSpec(NEWER)).toBe("openapi.yaml");
+    expect(ws.dirty()).toEqual(["openapi.yaml"]);
+    const prepared = ws.prepareSave();
+    try {
+      expect(prepared.changes.map((x) => x.path)).toEqual(["openapi.yaml"]);
+      await writeChanges(handle, [...prepared.changes]);
+      ws.commit(prepared);
+    } finally {
+      prepared.free();
+    }
+    const file = await (await handle.getFileHandle("openapi.yaml")).getFile();
+    expect(await file.text()).toBe(NEWER);
+    expect(ws.dirty()).toEqual([]);
+  });
+
+  it("refuses a text that is no spec and a collection without one", async () => {
+    const { c, ws } = await staged({
+      "opencollection.yml": "opencollection: 1.0.0\ninfo:\n  name: Orders\n",
+      "openapi.yaml": SPEC,
+    });
+    await expect(c.stageSpec("info:\n  name: x\nhttp:\n  method: GET\n  url: http://x\n")).rejects.toMatchObject({ kind: "format" });
+    expect(ws.dirty()).toEqual([]);
+    const none = await staged({ "opencollection.yml": "opencollection: 1.0.0\ninfo:\n  name: Orders\n" });
+    await expect(none.c.stageSpec(NEWER)).rejects.toMatchObject({ kind: "format" });
   });
 });

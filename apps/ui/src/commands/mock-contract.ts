@@ -147,10 +147,18 @@ export class MockContract implements ContractApi {
     return render(`${SPEC.title} ${c.from_version} → ${c.to_version}`, c.changes);
   }
 
-  /** Wave 17, strand A: writes the spec, unsaved. */
-  stageSpec(text: string): Promise<string> {
-    void text;
-    return Promise.reject(new BackendError("unsupported", "Staging the spec is not implemented yet (wave 17, strand A)."));
+  /** Wave 17, strand A: writes the spec, unsaved (as a companion file, so `dirty` and `save`
+   *  see it). Like the core it refuses a text that is no spec; the mock's check is a plain
+   *  look for the `openapi` and `info` keys. */
+  async stageSpec(text: string): Promise<string> {
+    this.calls.push("stageSpec");
+    this.need();
+    const looksLikeSpec = /^\s*(openapi|"openapi")\s*:/m.test(text) && /^\s*(info|"info")\s*:/m.test(text);
+    if (!looksLikeSpec || text.length > 16 * 1024 * 1024) {
+      throw new BackendError("format", "the text is not an OpenAPI spec");
+    }
+    await this.host.backend.companions.stage(SPEC.path, text);
+    return SPEC.path;
   }
 
   /** Wave 16, strand D: the changelog and its parts, with the commits of the mock history. */

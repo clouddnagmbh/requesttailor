@@ -87,6 +87,7 @@
   import { isNumber, load, store } from "./storage";
   import TabBar from "./TabBar.svelte";
   import { Theme } from "./theme.svelte";
+  import { connectExchange } from "./extension-exchange";
   import { requestPaths, tabElementId } from "./tree";
 
   let { backend, extensions = [] }: { backend: Backend; extensions?: readonly AppExtension[] } = $props();
@@ -232,6 +233,8 @@
   const adoptAdded = (info: CollectionInfo) => openWith(() => app.adoptAdded(info));
 
   onMount(() => {
+    // Wave 17: `AppExtension.onExchange` after every send.
+    const disconnectExchange = connectExchange(app, extensions, extensionContext);
     for (const x of extensions) {
       Promise.resolve()
         .then(() => x.start?.(extensionContext))
@@ -243,6 +246,7 @@
       },
       (e: unknown) => console.warn("RequestTailor: reopening the last collection failed:", e),
     );
+    return disconnectExchange;
   });
 
   // ---- the assistant panel of an extension (wave 16): header button, palette, Mod+J ----

@@ -188,18 +188,66 @@ pub async fn contract_changelog_facts(
     blocking(app, move |core| changelog_facts(core, &from, &to)).await
 }
 
-/// Wave 17 interface: writes the spec of the collection (`ContractApi.stageSpec`), unsaved.
-/// Strand A answers it; until then it is "not implemented yet".
+/// Wave 17: the spec the contract names for `workspace` (the file `opencollection.yml`
+/// configures, unsaved edits included, else the first of the usual names that exists in the
+/// collection folder, staged files included, or at the repository root), written with `text`,
+/// unsaved. Returns its path.
+pub(crate) fn stage_spec_in(
+    root: &Path,
+    workspace: &mut rt_app::Workspace,
+    text: &str,
+) -> Result<String> {
+    let work = work_dir(root);
+    let exists = |path: &str| -> Result<bool> {
+        if workspace.staged_spec_path(path) {
+            return Ok(true);
+        }
+        if !path.starts_with('/') && workspace.companion_file(path).is_some() {
+            return Ok(true);
+        }
+        Ok(read_disk(root, &work, path)?.is_some())
+    };
+    let path = match contract::configured_spec(workspace)? {
+        Some(configured) => {
+            safe_path(&configured)?;
+            if !exists(&configured)? {
+                return Err(AppError::Format(format!(
+                    "the spec {configured} named in opencollection.yml does not exist"
+                )));
+            }
+            configured
+        }
+        None => {
+            let mut found = None;
+            for candidate in contract::SPEC_CANDIDATES {
+                if exists(candidate)? {
+                    found = Some((*candidate).to_owned());
+                    break;
+                }
+            }
+            found.ok_or_else(|| {
+                AppError::Format(
+                    "no OpenAPI spec found: add openapi.yaml next to the collection or at the \
+                     repository root, or name it in opencollection.yml under \
+                     extensions.requesttailor.contract.spec"
+                        .into(),
+                )
+            })?
+        }
+    };
+    contract::stage_spec(workspace, &path, text)
+}
+
+/// Wave 17: writes the spec of the collection (`ContractApi.stageSpec`), unsaved; `save`
+/// writes it, the commit scans it.
 #[tauri::command]
 pub async fn contract_stage_spec(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     text: String,
 ) -> Result<String, CommandError> {
-    let _ = text;
-    Err(AppError::Unsupported(
-        "Staging the spec is not implemented yet (wave 17, strand A).".into(),
-    )
-    .into())
+    // Parsing and the existence checks are quick; no blocking thread needed, but the file
+    // reads are file I/O, so keep them off the async runtime like the other commands.
+    blocking(app, move |core| core.stage_spec(&text)).await
 }
 
 #[cfg(test)]

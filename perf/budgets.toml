@@ -85,11 +85,11 @@ unit = "chars"
 pending = "wave 17, strand C"
 max = 2000
 
-# Strand A (scripts/perf/observe.mjs); confirm the threshold after the first measurement.
+# Strand A (scripts/perf/observe.mjs, crates/rt-core/tests/observer_perf.rs). First measurement:
+# 0.003 ms, so the threshold of 1 ms stands.
 [metrics.observer_overhead]
 description = "Time three do-nothing observers add to a send against rt-testserver: median difference to no observers over 500 sends"
 unit = "ms"
-pending = "wave 17, strand A"
 max = 1
 
 # Strand D (scripts/perf/watch.mjs, crates/rt-cli/tests/watch.rs).

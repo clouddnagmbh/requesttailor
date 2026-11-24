@@ -681,6 +681,18 @@ async fn finish<T: Transport>(
     for note in &mut report.notes {
         note.text = mask(&note.text, &secrets);
     }
+    // Wave 17: hand the masked exchange to the distribution's observers.
+    if let Some(observers) = services.observers
+        && !observers.is_empty()
+        && context.collection.config.observe.enabled
+    {
+        observers.notify(&crate::observe::exchange_of(
+            &report,
+            &secrets,
+            services.caller,
+            Some(context.collection.name.clone()),
+        ));
+    }
     report
 }
 

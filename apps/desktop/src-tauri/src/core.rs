@@ -108,8 +108,25 @@ impl Session {
             }
             changes.sort_by(|a, b| a.path.cmp(&b.path));
         }
-        files::write_changes(&self.root, &changes)
+        // Wave 17: a spec at the repository root has a path with a leading `/` and is written
+        // relative to the repository's work tree.
+        let (outer, inner): (Vec<FileChange>, Vec<FileChange>) = changes
+            .iter()
+            .cloned()
+            .partition(|c| c.path.starts_with('/'));
+        files::write_changes(&self.root, &inner)
             .map_err(|e| AppError::Shell(format!("cannot save: {e}")))?;
+        if !outer.is_empty() {
+            let outer: Vec<FileChange> = outer
+                .into_iter()
+                .map(|c| FileChange {
+                    path: c.path.trim_start_matches('/').to_owned(),
+                    ..c
+                })
+                .collect();
+            files::write_changes(&crate::contract::work_dir(&self.root), &outer)
+                .map_err(|e| AppError::Shell(format!("cannot save: {e}")))?;
+        }
         self.workspace = next;
         self.created.clear();
         Ok(changes)
@@ -1021,6 +1038,12 @@ impl<S: SecretStore> Core<S> {
         self.with_session(Session::save)
     }
 
+    /// Wave 17: stages `text` as the contract's spec of the active collection, unsaved (see
+    /// [`crate::contract::stage_spec`]). Returns the spec's path.
+    pub fn stage_spec(&self, text: &str) -> Result<String, AppError> {
+        self.with_session(|s| crate::contract::stage_spec_in(&s.root, &mut s.workspace, text))
+    }
+
     pub fn environments(&self) -> Result<Vec<Environment>, AppError> {
         self.with_session(|s| Ok(s.workspace.environments()))
     }
@@ -1078,6 +1101,7 @@ impl<S: SecretStore> Core<S> {
         let transport = self.transport.clone();
         let parts = std::sync::Arc::clone(&self.services);
         let send_collection = collection.clone();
+        let observe = snapshot.collection.config.observe.enabled;
         // The core's send future is not `Send` (response bodies are `!Send` streams, as in
         // the browser), so it runs on a blocking thread driven by the app's tokio runtime.
         let runtime = tokio::runtime::Handle::current();
@@ -1103,7 +1127,9 @@ impl<S: SecretStore> Core<S> {
         self.services.session.keep(&collection, &report);
         self.history
             .record(&collection, &spec.name, &spec.method, &report);
-        Ok(lock(&self.responses).insert(report))
+        let mut stored = lock(&self.responses).insert(report);
+        stored.observe = observe;
+        Ok(stored)
     }
 
     /// The request at `path` ready to open as a session (wave 8, strand A, `streams.rs`), and
