@@ -91,6 +91,7 @@
   import Sidebar from "./Sidebar.svelte";
   import { isNumber, load, store } from "./storage";
   import TabBar from "./TabBar.svelte";
+  import { getTabGroups } from "./tab-groups.svelte";
   import { Theme } from "./theme.svelte";
   import { connectExchange } from "./extension-exchange";
   import { requestPaths, tabElementId } from "./tree";
@@ -99,6 +100,8 @@
   // The backend is fixed for the lifetime of the shell.
   // svelte-ignore state_referenced_locally
   const app = provideApp(new AppState(backend));
+  const tabGroups = getTabGroups(app);
+  tabGroups.attach();
   // Wave 9: extensions of a distribution (none in the builds of this repository); fixed like the backend.
   // svelte-ignore state_referenced_locally
   const extensionContext: ExtensionContext = createExtensionContext(backend, app);
@@ -292,10 +295,20 @@
     "go-to-tab": () => {
       if (app.openTabs.length > 0) app.tabList = true;
     },
-    "next-tab": () => app.stepTab(1),
-    "previous-tab": () => app.stepTab(-1),
+    // Tab groups (tab-groups.svelte.ts): collapsed groups are skipped.
+    "next-tab": () => tabGroups.step(1),
+    "previous-tab": () => tabGroups.step(-1),
+    "group-new": () => tabGroups.newFromCurrent(),
+    "group-toggle": () => {
+      const g = tabGroups.current;
+      if (g) void tabGroups.toggle(g.id);
+    },
+    "group-close": () => {
+      const g = tabGroups.current;
+      if (g) void tabGroups.closeGroup(g.id);
+    },
     ...(Object.fromEntries(
-      TAB_NUMBERS.map((id, i) => [id, () => app.gotoTab(i + 1, id === "tab-9")]),
+      TAB_NUMBERS.map((id, i) => [id, () => tabGroups.goto(i + 1, id === "tab-9")]),
     ) as Record<TabNumber, () => unknown>),
   };
   // ---- collection tabs of plugins (wave 6) ----
@@ -447,7 +460,7 @@
   });
 
   const commands = $derived([
-    ...buildCommands(app, actions, mac),
+    ...buildCommands(app, actions, mac, tabGroups.current !== undefined),
     ...collectionTabs.map((t) => ({
       id: `collection-tab:${t.key}`,
       label: t.label,

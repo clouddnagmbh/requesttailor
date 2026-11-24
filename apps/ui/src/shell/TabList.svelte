@@ -12,9 +12,12 @@
   import { portal, rectOf, viewport } from "../ui/floating";
   import { place } from "../ui/position";
   import { fuzzyFilter } from "./fuzzy";
+  import { groupLabel, type TabGroup } from "./tab-groups";
+  import { getTabGroups } from "./tab-groups.svelte";
 
   let { open = $bindable(false), anchor }: { open?: boolean; anchor: HTMLElement | undefined } = $props();
   const app = getApp();
+  const tabGroups = getTabGroups(app);
 
   let query = $state("");
   let index = $state(0);
@@ -27,12 +30,15 @@
   const same = (a: RequestRef, b: RequestRef) => a.collection === b.collection && a.path === b.path;
 
   const shown = $derived(fuzzyFilter(app.openTabs, query, (r) => `${nameOf(r)} ${collectionName(r.collection)} ${r.path}`));
-  /** The shown tabs in groups, in tab order of their first tab. */
+  /** The shown tabs in sections, in tab order of their first tab: one per tab group (with its
+   *  colour), the others by collection. */
   const groups = $derived.by(() => {
-    const out: { id: string; name: string; refs: RequestRef[] }[] = [];
+    const out: { id: string; name: string; refs: RequestRef[]; group?: TabGroup }[] = [];
     for (const r of shown) {
-      let g = out.find((x) => x.id === r.collection);
-      if (!g) out.push((g = { id: r.collection, name: collectionName(r.collection), refs: [] }));
+      const tg = tabGroups.groupOfRef(r);
+      const id = tg ? `group:${tg.id}` : r.collection;
+      let g = out.find((x) => x.id === id);
+      if (!g) out.push((g = { id, name: tg ? groupLabel(tg) : collectionName(r.collection), refs: [], group: tg }));
       g.refs.push(r);
     }
     return out;
@@ -141,7 +147,15 @@
     />
     <div id="rt-tab-list-options" class="options" role="listbox" aria-label="Open tabs">
       {#each groups as group (group.id)}
-        <div class="group" role="presentation">{group.name}</div>
+        <div
+          class="group"
+          class:tab-group={group.group !== undefined}
+          role="presentation"
+          data-testid={group.group ? "tab-list-group" : undefined}
+          style:--grp={group.group ? `var(--rt-lane-${group.group.color + 1})` : undefined}
+        >
+          {#if group.group}<span class="swatch" aria-hidden="true"></span>{/if}{group.name}{group.group?.collapsed ? " (collapsed)" : ""}
+        </div>
         {#each group.refs as ref (ref.path)}
           {@const i = flat.indexOf(ref)}
           {@const draft = app.draftOf(ref)}
@@ -227,6 +241,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .group.tab-group {
+    display: flex;
+    align-items: center;
+    gap: var(--rt-space-3);
+  }
+  .swatch {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--rt-radius-pill);
+    background: var(--grp);
   }
   .row {
     display: flex;

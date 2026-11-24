@@ -26,6 +26,9 @@ export type CommandId =
   | "go-to-tab"
   | "next-tab"
   | "previous-tab"
+  | "group-new"
+  | "group-toggle"
+  | "group-close"
   | TabNumber;
 
 /** `tab-1` … `tab-8` jump to that tab, `tab-9` to the last one (the browser convention). */

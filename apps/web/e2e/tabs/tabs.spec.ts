@@ -155,6 +155,8 @@ test("context menu: close variants and reveal in sidebar", async ({ page }) => {
     "Close tabs to the right",
     "Close saved tabs",
     "Reveal in sidebar",
+    "Add tab to new group",
+    "Add tab to group",
   ]);
   await menu.getByRole("menuitem", { name: "Close tabs to the right" }).click();
   await expect(tabs(page)).toHaveCount(2);
