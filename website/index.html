@@ -85,6 +85,7 @@ fails the build.</p>
 <tr><td>Scrolling that history, 95th percentile frame time</td><td>at most <span data-budget="git_graph_frame">20</span> ms</td></tr>
 <tr><td>Opening the history of a repository with 100 000 commits, first rows visible</td><td>at most <span data-budget="git_graph_large">1500</span> ms</td></tr>
 <tr><td>Status of a working copy with 50 000 files, 100 of them changed</td><td>at most <span data-budget="git_status_large">300</span> ms</td></tr>
+<tr><td>What three extensions that listen to every answer add to sending a request</td><td>at most <span data-budget="observer_overhead">1</span> ms</td></tr>
 </tbody>
 </table>
 <p>How each number is measured is described in <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/perf/README.md">perf/README.md</a>. The <a href="benchmark/">benchmark</a> measures the same numbers for other API clients on the same machine, with a script you can run yourself.</p>

@@ -52,6 +52,11 @@ web-time = "1"
 name = "guard"
 harness = false
 
+# Wave 17: same pattern for the exchange observers (see the file).
+[[test]]
+name = "observe"
+harness = false
+
 [dev-dependencies]
 rt-testserver = { path = "../rt-testserver" }
 serde = { version = "1", features = ["derive"] }

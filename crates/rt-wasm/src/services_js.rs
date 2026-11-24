@@ -47,7 +47,8 @@ impl SendServices {
             scripts: self.scripts.runner(),
             guard: self.guard.guard(),
             caller: rt_core::guard::Caller::App,
-            // Strand A wires the web observers (the companion records for the web app).
+            // The web app has no native observers: its extensions hear sends through the UI's
+            // `AppExtension.onExchange`, and a companion (`rt agent`) delivers to its own observers.
             observers: None,
             snapshots: None,
         }

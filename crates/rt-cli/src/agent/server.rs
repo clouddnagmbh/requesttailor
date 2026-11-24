@@ -396,6 +396,15 @@ async fn send(
         );
     }
     let started = Instant::now();
+    // Wave 17: what an observer needs of the request, kept only if there is one.
+    let observers = agent.observers();
+    let sent = (!observers.is_empty()).then(|| {
+        (
+            request.url.clone(),
+            request.headers.clone(),
+            request.body.as_ref().map_or(0, |b| b.bytes.len() as u64),
+        )
+    });
     match agent.transport.send(request).await {
         Ok(response) => {
             log(format_args!(
@@ -408,7 +417,26 @@ async fn send(
                 let e = TransportError::Other("response head cannot be encoded".to_owned());
                 return json(StatusCode::BAD_GATEWAY, &e, cors);
             };
-            let mut reply = Response::new(AgentBody::Stream(response.body));
+            let body = match sent {
+                Some((url, headers, body_size)) => {
+                    let head = response.head.clone();
+                    let tap = super::observe::Tap::new(
+                        observers,
+                        super::observe::Wire {
+                            method: method.clone(),
+                            url,
+                            headers,
+                            body_size,
+                            head,
+                            started,
+                        },
+                        response.body,
+                    );
+                    Box::pin(tap) as BodyStream
+                }
+                None => response.body,
+            };
+            let mut reply = Response::new(AgentBody::Stream(body));
             let h = reply.headers_mut();
             h.insert(HEAD_HEADER, head);
             h.insert(
