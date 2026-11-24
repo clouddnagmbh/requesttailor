@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The RequestTailor Authors
+
+//! Time segments reported by a server (wave 18): a general extension point. A plugin's
+//! `response` hook (`NotesReply.segments`) or, one day, the transport names parts of the time
+//! the server spent, e.g. "gateway", "application", "database". The segments live in
+//! [`crate::send::SendReport::segments`] and are shown as their own line under the timing bar.
+//!
+//! They are **never** part of the client's own phase sum (DNS, connect, TLS, server wait,
+//! download): the numbers come from the server and its clock is not the client's. A segment
+//! longer than the time to first byte is not cut; the UI shows a hint instead.
+
+use serde::{Deserialize, Serialize};
+
+/// One part of the time the server says it spent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TimingSegment {
+    /// Stable id within the report, e.g. `"db"`.
+    pub id: String,
+    /// What the user reads, e.g. `"Database"`.
+    pub label: String,
+    /// Milliseconds, as the server reported them.
+    pub ms: u64,
+    /// `Some("server")`: inside the wait for the server (time to first byte); `None`: not
+    /// attributed to a client phase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+}
+
+/// The value of [`TimingSegment::parent`] for segments inside the wait for the server.
+pub const SEGMENT_PARENT_SERVER: &str = "server";

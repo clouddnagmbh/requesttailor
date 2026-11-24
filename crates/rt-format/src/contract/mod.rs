@@ -32,7 +32,9 @@ use crate::{COLLECTION_FILE, FileSet};
 mod changelog;
 mod changes;
 mod check;
+pub mod graphql;
 mod matching;
+pub mod protobuf;
 mod run;
 mod schema;
 mod spec;
@@ -125,6 +127,17 @@ pub enum SpecChangeKind {
     ResponseChanged,
     /// Anything else (descriptions, examples, …): never breaking.
     Other,
+    /// A type, message or service was removed (wave 18: GraphQL, Protobuf).
+    TypeRemoved,
+    /// An enum value was removed (wave 18).
+    EnumValueRemoved,
+    /// Nullability changed in the direction that breaks clients (wave 18, GraphQL), or a
+    /// field switched between `repeated` and singular or `optional` (Protobuf).
+    NullabilityChanged,
+    /// A Protobuf field number changed or was reused (wave 18).
+    NumberChanged,
+    /// The streaming kind of an `rpc` changed (wave 18, Protobuf).
+    StreamingChanged,
 }
 
 /// One change of the spec between two versions.
@@ -154,6 +167,38 @@ pub struct SpecChanges {
 impl SpecChanges {
     pub fn breaking(&self) -> impl Iterator<Item = &SpecChange> {
         self.changes.iter().filter(|c| c.breaking)
+    }
+}
+
+/// Which kind of schema file `schema_changes` compares (wave 18, strand H).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SchemaKind {
+    /// GraphQL SDL (`schema.graphql`, `schema.gql`, `*.graphqls`; or
+    /// `extensions.requesttailor.contract.graphql`).
+    Graphql,
+    /// The `.proto` files named by the collection's `config.protobuf`.
+    Protobuf,
+}
+
+/// The files of one side of a schema comparison: file name (collection-relative, or with a
+/// leading `/` relative to the repository root) and bytes. `None` on a side: the schema did
+/// not exist there.
+pub type SchemaSources = std::collections::BTreeMap<String, Vec<u8>>;
+
+/// Changes of a GraphQL or Protobuf schema between two versions, in the shape of
+/// [`changes`] (`SpecChange`, `SpecChanges`); `files` is the new collection, used to name the
+/// requests (GraphQL operations, gRPC methods) each change affects. Wave 18 interface:
+/// `Unsupported` until strand H.
+pub fn schema_changes(
+    kind: SchemaKind,
+    old: Option<&SchemaSources>,
+    new: Option<&SchemaSources>,
+    files: &FileSet,
+) -> Result<SpecChanges, ContractError> {
+    match kind {
+        SchemaKind::Graphql => graphql::changes(old, new, files),
+        SchemaKind::Protobuf => protobuf::changes(old, new, files),
     }
 }
 

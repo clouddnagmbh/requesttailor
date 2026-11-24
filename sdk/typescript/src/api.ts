@@ -72,7 +72,35 @@ export interface Contributions {
   importers?: ImporterContribution[];
   /** First-start choice (bundled plugins only). Wave 6. */
   welcome?: WelcomeChoice | null;
+  /** Rules for following pages of responses, as data. Wave 18. */
+  paging?: PagingContribution[];
 }
+
+/** Wave 18: a paging rule a plugin ships; a rule of the collection or request wins. */
+export interface PagingContribution {
+  id: string;
+  match: PagingMatch;
+  rule: PagingSpec;
+}
+
+/** Empty lists mean "any". */
+export interface PagingMatch {
+  hosts?: string[];
+  content_types?: string[];
+  /** A glob over the request URL's path and query. */
+  url_pattern?: string | null;
+}
+
+export interface PagingSpec {
+  rule: PagingRule;
+  /** JSONPath of the array whose items of all pages are appended to the first page's. */
+  merge?: string | null;
+}
+
+export type PagingRule =
+  | { kind: "link-header" }
+  | { kind: "json-url"; next: string }
+  | { kind: "cursor"; next: string; param: { place: "query" | "body" | "header"; name: string } };
 
 export interface WelcomeChoice {
   label: string;
@@ -193,6 +221,16 @@ export interface RequestPatch {
 
 export interface NotesReply {
   notes?: PluginNote[];
+  /** Parts of the server's time, shown under the timing bar, never part of its sum. Wave 18. */
+  segments?: TimingSegment[];
+}
+
+export interface TimingSegment {
+  id: string;
+  label: string;
+  ms: number;
+  /** `"server"`: inside the wait for the server. */
+  parent?: string | null;
 }
 
 export interface PluginNote {

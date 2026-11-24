@@ -5,6 +5,8 @@
 // so behaviour stays the same in every component. Components get it with `getApp()`.
 // Adding fields or methods is an interface change (working rule 1).
 
+import type { ToolId } from "../shell/tool-host";
+import { runSendGates } from "../shell/send-gates";
 import { getContext, setContext } from "svelte";
 
 import { BackendError, type Backend, type CollectionInfo } from "../commands/backend";
@@ -41,7 +43,10 @@ export type MainView =
   | { kind: "runner"; folder: string | null }
   /** Wave 15: a Git view of the active repository (`git/views.svelte.ts`), e.g. an extension's
    *  `{ kind: "extension", id: "<extension>/<view>" }`. */
-  | { kind: "git"; view: GitView };
+  | { kind: "git"; view: GitView }
+  /** Wave 18: one of the new tools in the main area (`shell/tool-host.ts`); nothing happens if
+   *  this build has no such tool. */
+  | { kind: "tool"; tool: ToolId };
 
 /** Wave 14: what the "New…" dialog opens with. */
 export interface NewDialogRequest {
@@ -819,6 +824,11 @@ export class AppState {
     }
     if (this.sendGate && !(await this.sendGate(path).catch(() => true))) {
       this.sending[path] = false;
+      return;
+    }
+    // Wave 18: the gates of the parts (`shell/send-gates.ts`), after the OpenAPI one.
+    if (!(await runSendGates(this, path))) {
+      view.sending[path] = false;
       return;
     }
     await this.guard(async () => {

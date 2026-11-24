@@ -68,6 +68,13 @@ pub struct RunPlan {
     /// Stop at the first failed request, test or assertion.
     #[serde(default)]
     pub bail: bool,
+    /// Wave 18: waiting for rate limits (`rt run --respect-limits`). Off by default; it adds to
+    /// nothing: with `delay_ms` the longer wait applies.
+    #[serde(
+        default,
+        skip_serializing_if = "crate::ratelimit::Throttle::is_default"
+    )]
+    pub throttle: crate::ratelimit::Throttle,
 }
 
 fn one() -> u32 {
@@ -113,6 +120,14 @@ pub enum RunEvent {
     },
     /// A request finished (also when skipped or failed).
     Step { step: Box<RunStep> },
+    /// Wave 18: the runner waits for a rate limit (`RunPlan.throttle`) before sending
+    /// `request_path` again. `until` is Unix milliseconds; `reason` is a sentence for the
+    /// user, e.g. `rate limit: 0 left, resets in 12 s`.
+    Waiting {
+        request_path: String,
+        until: i64,
+        reason: String,
+    },
     /// Last event, always, also after bail, cancel or `setNext(null)`.
     Finished { summary: RunSummary },
 }

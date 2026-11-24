@@ -357,6 +357,9 @@ mod tests {
             variables: vec![],
             unresolved: vec![],
             error: None,
+            checks: Vec::new(),
+            rate_limit: None,
+            segments: Vec::new(),
         };
         let id = store.insert(report).response_id.unwrap();
         let entry = store.entry(id).unwrap();

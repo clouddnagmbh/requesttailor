@@ -46,6 +46,9 @@
   import { gitApiCommands } from "../git/api-commands";
   import GitPanel from "../git/GitPanel.svelte";
   import GitViewHost from "../git/GitViewHost.svelte";
+  import ToolHost from "./ToolHost.svelte";
+  import { Tools } from "./tool-host";
+  import { builtinCommands } from "./builtin-commands";
   import { GitViews, provideGitViews } from "../git/views.svelte";
   import HistoryPanel from "../history/HistoryPanel.svelte";
   import { McpState } from "../mcp/mcp.svelte";
@@ -353,6 +356,7 @@
       } else if (v.kind === "mcp") void openMcp(v.test);
       else if (v.kind === "environments") managing = true;
       else if (v.kind === "git") gitViews.open(v.view);
+      else if (v.kind === "tool") tools.open(v.tool);
       else void openRunner(v.folder);
     });
   });
@@ -432,6 +436,26 @@
     void app.collection?.id;
     untrack(() => gitViews.close());
   });
+  // ---- tools of wave 18 (`tool-host.ts`): one in the main area at a time ----
+  const tools = new Tools();
+  $effect(() => {
+    void app.active;
+    void app.collection?.id;
+    untrack(() => tools.close());
+  });
+  $effect(() => {
+    if (tools.current) {
+      untrack(() => {
+        gitViews.close();
+        runner.close();
+        mcp.close();
+        collectionTab = null;
+      });
+    }
+  });
+  $effect(() => {
+    if (gitViews.current || runner.target || mcp.open || showingCollection) untrack(() => tools.close());
+  });
   // A Git view replaces the runner, the MCP client and a collection tab, and the other way round.
   $effect(() => {
     if (gitViews.current) {
@@ -448,6 +472,7 @@
 
   const commands = $derived([
     ...buildCommands(app, actions, mac),
+    ...builtinCommands(app),
     ...collectionTabs.map((t) => ({
       id: `collection-tab:${t.key}`,
       label: t.label,
@@ -652,7 +677,9 @@
       />
       <TrustPrompt />
       <AgentsHost />
-      {#if gitViews.current}
+      {#if tools.current}
+        <ToolHost {tools} {app} />
+      {:else if gitViews.current}
         <GitViewHost views={gitViews} />
       {:else if mcp.open}
         <McpPanel {mcp} />

@@ -19,6 +19,17 @@ function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown)
   return { backend: new TauriBackend(invoke, () => "channel", () => "stream-channel", () => "step-channel", () => "progress-channel", () => "ai-channel"), calls };
 }
 
+const PLAN = {
+  source: "https://example.com/plugins.json",
+  entry: { id: "acme", name: "Acme", version: "1.0.0", api: 1, wasm: { url: "https://example.com/a.wasm", sha256: "ab", size: 1 } },
+  sha256: "ab",
+  permissions: { network: [], storage: false, variables: false },
+  permissions_differ: false,
+  update: false,
+  more_permissions: false,
+  warnings: [],
+};
+
 describe("TauriBackend", () => {
   it("maps every Backend method to its command with camelCase arguments", async () => {
     const { backend: b, calls } = fake(() => null);
@@ -293,6 +304,42 @@ describe("TauriBackend", () => {
     await b.share.copyAs("users/get.yml", "curl", {});
     await b.share.qr("rt:1.abc");
     await b.contract.stageSpec("openapi: 3.0.3");
+    // Wave 18 (interface).
+    await b.envCompare.run({ environments: ["Dev", "Test"] });
+    await b.inspect.jwt("a.b.c");
+    await b.inspect.tokens({ path: "a.yml" });
+    await b.inspect.checks({ path: "a.yml", response_id: 1 });
+    await b.inspect.ignoreCheck("cookie/no-secure", "device");
+    await b.paging.rule("a.yml");
+    await b.paging.setRule("a.yml", null, "request");
+    await b.paging.run({ path: "a.yml", input: { environment: null, vars: [], secrets: [] }, mode: "next" });
+    await b.inbox.settings();
+    await b.inbox.setSettings({ port: 47855, status: 200, body: "", delay_ms: 0 });
+    await b.inbox.start();
+    await b.inbox.stop();
+    await b.inbox.status();
+    await b.inbox.events(0);
+    await b.inbox.get(1);
+    await b.inbox.clear();
+    await b.inbox.makeRequest(1);
+    await b.lint.run();
+    await b.lint.settings();
+    await b.lint.setSettings({ rules: {}, ignore: [] });
+    await b.lint.ignore("a.yml", "no-tests");
+    await b.views.list("a.yml");
+    await b.views.save("a.yml", { name: "ids", language: "jsonpath", expression: "$.id", display: "json" });
+    await b.views.remove("a.yml", "ids");
+    await b.views.apply("a.yml", 1, { name: "ids", language: "jsonpath", expression: "$.id", display: "json" });
+    await b.views.languages();
+    await b.catalogue.sources();
+    await b.catalogue.addSource("https://example.com/plugins.json");
+    await b.catalogue.removeSource("https://example.com/plugins.json");
+    await b.catalogue.refresh();
+    await b.catalogue.plan("https://example.com/plugins.json", "acme");
+    await b.catalogue.install(PLAN);
+    await b.catalogue.installed();
+    await b.catalogue.checkUpdates();
+    await b.contract.schemaChanges("graphql", "a", "b");
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -533,6 +580,41 @@ describe("TauriBackend", () => {
       ["share_copy_as", { path: "users/get.yml", kind: "curl", options: {} }],
       ["share_qr", { link: "rt:1.abc" }],
       ["contract_stage_spec", { text: "openapi: 3.0.3" }],
+      ["envcompare_run", { request: { environments: ["Dev", "Test"] } }],
+      ["inspect_jwt", { token: "a.b.c" }],
+      ["inspect_tokens", { target: { path: "a.yml" } }],
+      ["inspect_checks", { target: { path: "a.yml", response_id: 1 } }],
+      ["inspect_ignore_check", { id: "cookie/no-secure", scope: "device" }],
+      ["paging_rule", { path: "a.yml" }],
+      ["paging_set_rule", { path: "a.yml", spec: null, scope: "request" }],
+      ["paging_run", { run: { path: "a.yml", input: { environment: null, vars: [], secrets: [] }, mode: "next" } }],
+      ["inbox_settings", undefined],
+      ["inbox_set_settings", { settings: { port: 47855, status: 200, body: "", delay_ms: 0 } }],
+      ["inbox_start", undefined],
+      ["inbox_stop", undefined],
+      ["inbox_status", undefined],
+      ["inbox_events", { since: 0 }],
+      ["inbox_get", { id: 1 }],
+      ["inbox_clear", undefined],
+      ["inbox_make_request", { id: 1 }],
+      ["lint_run", undefined],
+      ["lint_settings", undefined],
+      ["lint_set_settings", { settings: { rules: {}, ignore: [] } }],
+      ["lint_ignore", { path: "a.yml", rule: "no-tests" }],
+      ["views_list", { path: "a.yml" }],
+      ["views_save", { path: "a.yml", view: { name: "ids", language: "jsonpath", expression: "$.id", display: "json" } }],
+      ["views_remove", { path: "a.yml", name: "ids" }],
+      ["views_apply", { path: "a.yml", responseId: 1, view: { name: "ids", language: "jsonpath", expression: "$.id", display: "json" } }],
+      ["views_languages", undefined],
+      ["catalogue_sources", undefined],
+      ["catalogue_add_source", { url: "https://example.com/plugins.json" }],
+      ["catalogue_remove_source", { url: "https://example.com/plugins.json" }],
+      ["catalogue_refresh", undefined],
+      ["catalogue_plan", { source: "https://example.com/plugins.json", id: "acme" }],
+      ["catalogue_install", { plan: PLAN }],
+      ["catalogue_installed", undefined],
+      ["catalogue_check_updates", undefined],
+      ["contract_schema_changes", { kind: "graphql", from: "a", to: "b" }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

@@ -290,6 +290,7 @@ mod tests {
             iterations: 1,
             delay_ms: 0,
             bail: false,
+            throttle: Default::default(),
         };
         let events = Arc::new(Mutex::new(Vec::new()));
         let sink = Arc::clone(&events);

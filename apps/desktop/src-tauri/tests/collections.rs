@@ -285,6 +285,7 @@ async fn a_run_keeps_its_collection_while_another_becomes_active() {
         iterations: 1,
         delay_ms: 0,
         bail: false,
+        throttle: Default::default(),
     };
     let transport = rt_core::transport::native::NativeTransport::new().unwrap();
     let mut urls = Vec::new();

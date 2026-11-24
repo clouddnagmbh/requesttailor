@@ -83,6 +83,36 @@ pub struct Contributions {
     /// are offered; choosing it enables the plugin. Added in wave 6.
     #[serde(default)]
     pub welcome: Option<WelcomeChoice>,
+    /// Rules for following pages of responses of certain hosts (data, no WASM call per
+    /// response). Added in wave 18.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paging: Vec<PagingContribution>,
+}
+
+/// A paging rule a plugin ships as data (wave 18): which responses it is for and how the next
+/// page is found. A rule of the collection or the request wins over it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PagingContribution {
+    /// Unique within the plugin.
+    pub id: String,
+    /// Which responses the rule is offered for (all given conditions must hold).
+    #[serde(rename = "match")]
+    pub matches: PagingMatch,
+    pub rule: rt_core::paging::PagingSpec,
+}
+
+/// The responses a [`PagingContribution`] applies to. Empty lists mean "any".
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct PagingMatch {
+    /// Host names as in [`Permissions::network`] (exact or `*.example.com`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hosts: Vec<String>,
+    /// Media types of the response, e.g. `application/json`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_types: Vec<String>,
+    /// A glob over the request URL's path and query, `*` for any characters.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url_pattern: Option<String>,
 }
 
 /// A first-start choice of a bundled plugin (wave 6).
@@ -285,6 +315,10 @@ pub struct RequestPatch {
 pub struct NotesReply {
     #[serde(default)]
     pub notes: Vec<PluginNote>,
+    /// Parts of the server's time (`rt_core::TimingSegment`), shown under the timing bar and
+    /// never part of its sum. Added in wave 18.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub segments: Vec<rt_core::TimingSegment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

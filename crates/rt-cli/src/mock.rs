@@ -20,6 +20,7 @@
 //!
 //! Matching: `mock/router.rs` (pure, unit-tested); the HTTP server: `mock/server.rs`.
 
+mod hook;
 mod router;
 mod server;
 
@@ -27,7 +28,13 @@ use std::io::Write;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 
+pub use hook::{AbortKind, HookAction, MockHook, MockHookEntry};
 pub use router::{Answer, Mock, MockRequest, RouteInfo};
+
+/// Accepts connections on `listener` until the process ends, asking `hooks` (wave 18) about
+/// every request. `rt mock` is this with the collection's examples; tests and distributions
+/// can call it too.
+pub use server::serve;
 
 /// Port unless `--port` says otherwise.
 pub const DEFAULT_PORT: u16 = 4010;
@@ -42,6 +49,9 @@ pub struct Args {
     pub environment: Option<String>,
     /// `--help`: print [`help`] and exit.
     pub help: bool,
+    /// `--hook NAME[=ARG]`, repeatable (wave 18): hooks a distribution registered
+    /// ([`MockHookEntry`]); an unknown name is an error.
+    pub hooks: Vec<(String, Option<String>)>,
 }
 
 impl Default for Args {
@@ -52,6 +62,7 @@ impl Default for Args {
             host: IpAddr::V4(Ipv4Addr::LOCALHOST),
             environment: None,
             help: false,
+            hooks: Vec::new(),
         }
     }
 }
@@ -79,6 +90,10 @@ Options:
   -p, --port <PORT>     Listen on PORT (default {DEFAULT_PORT}; 0 picks a free one)
       --host <ADDR>     Listen on ADDR (default 127.0.0.1, this machine only)
   -e, --env <NAME>      Resolve {{{{variables}}}} with the environment NAME
+      --hook <NAME[=ARG]>  Switch on a hook this installation has (repeatable); a hook
+                        decides per request before the examples answer (delay, errors,
+                        dropped connections). Without a registered hook this is an
+                        error: \"unknown hook\".
   -h, --help            Show this help
 
 The first line on stdout is `rt mock: listening on http://<addr>:<port>`,
@@ -102,6 +117,13 @@ pub fn parse(parser: &mut lexopt::Parser) -> Result<Option<Args>, String> {
             Short('h') | Long("help") => args.help = true,
             Short('p') | Long("port") => {
                 args.port = parser.value().map_err(err)?.parse().map_err(err)?
+            }
+            Long("hook") => {
+                let spec = parser.value().map_err(err)?.string().map_err(err)?;
+                match spec.split_once('=') {
+                    Some((name, arg)) => args.hooks.push((name.to_owned(), Some(arg.to_owned()))),
+                    None => args.hooks.push((spec, None)),
+                }
             }
             Long("host") => args.host = parser.value().map_err(err)?.parse().map_err(err)?,
             Short('e') | Long("env") => {
@@ -147,9 +169,39 @@ pub fn load(args: &Args) -> Result<Mock, String> {
 }
 
 pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
+    run_with(args, &[], stdout, stderr)
+}
+
+/// [`run`] with the hooks a distribution registered (wave 18, `Distribution::mock_hooks`).
+pub fn run_with(
+    args: Args,
+    registered: &[MockHookEntry],
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
     if args.help {
         let _ = stdout.write_all(help().as_bytes());
+        if !registered.is_empty() {
+            let _ = stdout.write_all(b"\nHooks of this installation (--hook NAME[=ARG]):\n");
+            for h in registered {
+                let _ = writeln!(stdout, "  {:<12} {}", h.name, h.summary);
+            }
+        }
         return crate::EXIT_OK;
+    }
+    let mut hooks: Vec<std::sync::Arc<dyn MockHook>> = Vec::new();
+    for (name, arg) in &args.hooks {
+        let Some(entry) = registered.iter().find(|h| h.name == name) else {
+            let _ = writeln!(stderr, "rt mock: unknown hook {name:?}");
+            return crate::EXIT_USAGE;
+        };
+        match (entry.create)(arg.as_deref()) {
+            Ok(hook) => hooks.push(hook),
+            Err(e) => {
+                let _ = writeln!(stderr, "rt mock: hook {name}: {e}");
+                return crate::EXIT_USAGE;
+            }
+        }
     }
     let mock = match load(&args) {
         Ok(m) => m,
@@ -186,7 +238,16 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
             args.host
         );
     }
-    let result = runtime.block_on(server::serve(listener, std::sync::Arc::new(mock)));
+    let hooks = std::sync::Arc::new(hooks);
+    let result = runtime.block_on(async {
+        tokio::select! {
+            served = server::serve(listener, std::sync::Arc::new(mock), hooks.clone()) => served,
+            _ = tokio::signal::ctrl_c(), if !hooks.is_empty() => Ok(()),
+        }
+    });
+    for hook in hooks.iter() {
+        hook.finish(stderr);
+    }
     match result {
         Ok(()) => crate::EXIT_OK,
         Err(e) => {

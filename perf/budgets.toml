@@ -96,3 +96,69 @@ max = 1
 description = "`rt send --watch`: from the file change to the request on the wire (a local server, release build, median of 9)"
 unit = "ms"
 max = 500
+
+# Wave 18: Checking and Watching. `pending` names the strand that builds the measurement; the
+# strand removes it in the commit that adds the measurement (same rule as waves 15 and 17).
+# The thresholds are estimates: the strand reports whether they hold after the first measurement.
+# Strand A (scripts/perf/envcompare.mjs).
+[metrics.env_compare]
+description = "Comparing 200 reading requests in 3 environments (rt-testserver, 20 ms answers, 8 in parallel): from start to the finished comparison, median of 9"
+unit = "ms"
+pending = "wave 18, strand A"
+max = 4000
+
+# Strand B (scripts/perf/checks.mjs).
+[metrics.response_checks]
+description = "Passive response checks (headers, cookies, CORS, tokens) on a 1 MiB response: Observation list, native release, median of 9"
+unit = "ms"
+pending = "wave 18, strand B"
+max = 20
+
+# Strand C (scripts/perf/paging.mjs).
+[metrics.paging_merge]
+description = "Following and merging 100 pages of 100 items (rt-testserver) into one stored response, median of 9"
+unit = "ms"
+pending = "wave 18, strand C"
+max = 2500
+
+# Strand D (scripts/perf/ratelimit.mjs).
+[metrics.ratelimit_wait]
+description = "Error of the wait before the next send when a response says Retry-After 1 s (rt run with --respect-limits), median of 9"
+unit = "ms"
+pending = "wave 18, strand D"
+max = 50
+
+# Strand E (scripts/perf/inbox.mjs).
+[metrics.inbox_latency]
+description = "Webhook inbox: from the request on the loopback port to the event in InboxApi.events, median of 100"
+unit = "ms"
+pending = "wave 18, strand E"
+max = 50
+
+# Strand F (scripts/perf/lint.mjs).
+[metrics.lint_1000]
+description = "rt lint on a collection with 1000 requests (native release, median of 9)"
+unit = "ms"
+pending = "wave 18, strand F"
+max = 500
+
+# Strand G (scripts/perf/views.mjs).
+[metrics.view_apply]
+description = "Applying a saved view (JSONPath) to a 10 MiB JSON response (native release, median of 9)"
+unit = "ms"
+pending = "wave 18, strand G"
+max = 300
+
+# Strand H (scripts/perf/schemas.mjs).
+[metrics.schema_changes]
+description = "Changes between two GraphQL schemas of 2000 types each (100 changed), rt-format release, median of 9"
+unit = "ms"
+pending = "wave 18, strand H"
+max = 300
+
+# Strand I (scripts/perf/catalogue.mjs).
+[metrics.catalogue_index]
+description = "Reading and checking a plugin index with 1000 entries (rt-app release, median of 9)"
+unit = "ms"
+pending = "wave 18, strand I"
+max = 100

@@ -168,6 +168,37 @@ import type {
   Variable,
   VariableScope,
 } from "./types";
+import type {
+  CapturedRequest,
+  CatalogueSource,
+  CatalogueUpdate,
+  CheckScope,
+  EffectivePaging,
+  EnvCompareRequest,
+  EnvComparison,
+  FoundToken,
+  InboxDraft,
+  InboxPage,
+  InboxSettings,
+  InboxStatus,
+  InspectTarget,
+  InstallPlan,
+  InstalledSource,
+  JwtInfo,
+  LintReport,
+  LintRule,
+  LintSettings,
+  Observation,
+  PagedResult,
+  PagingRuleScope,
+  PagingRun,
+  PagingSpec,
+  ResponseView,
+  SchemaKind,
+  SourceIndex,
+  ViewLanguage,
+  ViewResult,
+} from "./types";
 
 export interface CollectionInfo {
   /** Stable id for this collection on this device (used as `SecretKey.collection`). */
@@ -470,6 +501,10 @@ export interface ContractApi {
    *  repository root) with `text`, unsaved (`save` writes it, a commit scans it). Refuses any
    *  other file and a text that is no valid spec; returns the spec's path. */
   stageSpec(text: string): Promise<string>;
+  /** Wave 18 (strand H): changes of a GraphQL schema (SDL) or Protobuf files from `from` to `to`,
+   *  breaking ones marked, as `changes` does for the OpenAPI spec. The schema files are the
+   *  ones `extensions.requesttailor.contract` names. */
+  schemaChanges(kind: SchemaKind, from: string, to: string): Promise<SpecChanges>;
 }
 
 /** Credentials anywhere in the history, and rewriting it so they become variables. The
@@ -903,6 +938,15 @@ export interface Backend {
   readonly variables: VariablesApi;
   /** Wave 16: the scripts of the collection and its folders (suggested edits). */
   readonly folderScripts: FolderScriptsApi;
+  /** Wave 18: comparing environments, response checks, paging, the webhook inbox, lint, saved
+   *  views and the plugin catalogue (placeholders until the strands, `wave18-stubs.ts`). */
+  readonly envCompare: EnvCompareApi;
+  readonly inspect: InspectApi;
+  readonly paging: PagingApi;
+  readonly inbox: InboxApi;
+  readonly lint: LintApi;
+  readonly views: ViewsApi;
+  readonly catalogue: CatalogueApi;
   /** Wave 17: snapshot tests (`rt_app::snapshots`) and sharing (`rt_app::share`). */
   readonly snapshots: SnapshotApi;
   readonly share: ShareApi;
@@ -999,4 +1043,68 @@ export class BackendError extends Error {
     super(message);
     this.name = "BackendError";
   }
+}
+
+// ---- wave 18 ----
+
+/** Comparing environments (wave 18, strand A; `rt_app::envcompare`). */
+export interface EnvCompareApi {
+  run(request: EnvCompareRequest): Promise<EnvComparison>;
+}
+
+/** Response checks (wave 18, strand B; `rt_app::inspect`). */
+export interface InspectApi {
+  jwt(token: string): Promise<JwtInfo>;
+  tokens(target: InspectTarget): Promise<FoundToken[]>;
+  checks(target: InspectTarget): Promise<Observation[]>;
+  ignoreCheck(id: string, scope: CheckScope): Promise<void>;
+}
+
+/** Paging (wave 18, strand C; `rt_app::paging`). */
+export interface PagingApi {
+  rule(path: string): Promise<EffectivePaging | null>;
+  setRule(path: string, spec: PagingSpec | null, scope: PagingRuleScope): Promise<void>;
+  run(run: PagingRun): Promise<PagedResult>;
+}
+
+/** The webhook inbox (wave 18, strand E; `rt_app::inbox`). */
+export interface InboxApi {
+  settings(): Promise<InboxSettings>;
+  setSettings(settings: InboxSettings): Promise<void>;
+  start(): Promise<InboxStatus>;
+  stop(): Promise<InboxStatus>;
+  status(): Promise<InboxStatus>;
+  events(since: number): Promise<InboxPage>;
+  get(id: number): Promise<CapturedRequest | null>;
+  clear(): Promise<void>;
+  makeRequest(id: number): Promise<InboxDraft>;
+}
+
+/** Lint (wave 18, strand F; `rt_app::lint`). */
+export interface LintApi {
+  run(): Promise<LintReport>;
+  settings(): Promise<LintSettings>;
+  setSettings(settings: LintSettings): Promise<void>;
+  ignore(path: string, rule: LintRule): Promise<void>;
+}
+
+/** Saved views (wave 18, strand G; `rt_app::views`). */
+export interface ViewsApi {
+  list(path: string): Promise<ResponseView[]>;
+  save(path: string, view: ResponseView): Promise<ResponseView[]>;
+  remove(path: string, name: string): Promise<ResponseView[]>;
+  apply(path: string, responseId: number, view: ResponseView): Promise<ViewResult>;
+  languages(): Promise<ViewLanguage[]>;
+}
+
+/** The plugin catalogue (wave 18, strand I; `rt_app::catalogue`). */
+export interface CatalogueApi {
+  sources(): Promise<CatalogueSource[]>;
+  addSource(url: string): Promise<CatalogueSource>;
+  removeSource(url: string): Promise<void>;
+  refresh(): Promise<SourceIndex[]>;
+  plan(source: string, id: string): Promise<InstallPlan>;
+  install(plan: InstallPlan): Promise<InstalledSource>;
+  installed(): Promise<InstalledSource[]>;
+  checkUpdates(): Promise<CatalogueUpdate[]>;
 }

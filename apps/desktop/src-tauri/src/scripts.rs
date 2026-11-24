@@ -237,6 +237,9 @@ mod tests {
             logs: Vec::new(),
             var_changes: Vec::new(),
             flow: None,
+            segments: Vec::new(),
+            rate_limit: None,
+            checks: Vec::new(),
         };
         let mut r = report();
         parts.note_untrusted("/c", &model, &mut r);

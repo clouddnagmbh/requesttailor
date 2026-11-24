@@ -87,6 +87,7 @@ pub fn response(
     }
     let warn = |text: String| NotesReply {
         notes: vec![rt_plugin_sdk::warning(text)],
+        segments: Vec::new(),
     };
     if response.truncated {
         return Ok(warn(
@@ -113,6 +114,7 @@ pub fn response(
     }
     Ok(NotesReply {
         notes: vec![rt_plugin_sdk::info(browser::cached_text(&model))],
+        segments: Vec::new(),
     })
 }
 

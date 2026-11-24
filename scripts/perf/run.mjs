@@ -7,7 +7,9 @@
 //
 // Usage: node scripts/perf/run.mjs [options]
 //   --only <list>       comma-separated parts: desktop, frames, keystrokes, diff, graph, compare,
-//                       status, graph-large, snapshots, share, observe, watch (default: all)
+//                       status, graph-large, snapshots, share, observe, watch,
+//                       envcompare, checks, paging, ratelimit, inbox, lint, views, schemas,
+//                       catalogue (default: all)
 //   --binary <path>     desktop release binary (default: <target dir>/release/rt-desktop)
 //   --collection <dir>  collection the desktop app reopens (default: testdata/conformance/collection)
 //   --collections <n>   copies of it in one folder that the app reopens (default 10, wave 14;
@@ -36,10 +38,19 @@ import { measureShare } from "./share.mjs";
 import { measureSnapshots } from "./snapshots.mjs";
 import { measureStatus } from "./status.mjs";
 import { measureWatch } from "./watch.mjs";
+import { measureEnvCompare } from "./envcompare.mjs";
+import { measureChecks } from "./checks.mjs";
+import { measurePaging } from "./paging.mjs";
+import { measureRateLimit } from "./ratelimit.mjs";
+import { measureInbox } from "./inbox.mjs";
+import { measureLint } from "./lint.mjs";
+import { measureViews } from "./views.mjs";
+import { measureSchemas } from "./schemas.mjs";
+import { measureCatalogue } from "./catalogue.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WEB = join(ROOT, "apps", "web");
-const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare", "status", "graph-large", "snapshots", "share", "observe", "watch"];
+const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare", "status", "graph-large", "snapshots", "share", "observe", "watch", "envcompare", "checks", "paging", "ratelimit", "inbox", "lint", "views", "schemas", "catalogue"];
 
 export function parseArgs(argv) {
   const opts = { only: PARTS, runs: 10, memoryRuns: 3, check: false, out: join(ROOT, "perf", "results.json") };
@@ -202,6 +213,43 @@ async function watch(opts) {
   return measureWatch({ root: ROOT, run, readJson, opts });
 }
 
+/** Wave 18: one part per strand (A to I), each in its own file; placeholders until the strand. */
+async function envcompare(opts) {
+  return measureEnvCompare({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function checks(opts) {
+  return measureChecks({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function paging(opts) {
+  return measurePaging({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function ratelimit(opts) {
+  return measureRateLimit({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function inbox(opts) {
+  return measureInbox({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function lint(opts) {
+  return measureLint({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function views(opts) {
+  return measureViews({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function schemas(opts) {
+  return measureSchemas({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function catalogue(opts) {
+  return measureCatalogue({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
 const STEPS = {
   desktop,
   frames,
@@ -215,6 +263,15 @@ const STEPS = {
   share,
   observe,
   watch,
+  envcompare,
+  checks,
+  paging,
+  ratelimit,
+  inbox,
+  lint,
+  views,
+  schemas,
+  catalogue,
 };
 
 async function main() {

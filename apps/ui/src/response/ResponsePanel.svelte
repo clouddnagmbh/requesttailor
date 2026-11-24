@@ -14,6 +14,7 @@
   import CodeView from "./CodeView.svelte";
   import { formatDuration, formatSize, header, PRETTY_LIMIT, reasonPhrase, statusClass, waterfall } from "./format";
   import TimingBar from "./TimingBar.svelte";
+  import { responseSlots } from "./slots";
   import { timingBar } from "./timing-bar";
   import { contentTypeOf, tabsFor } from "../plugins/permissions";
   import PluginTab from "../plugins/PluginTab.svelte";
@@ -54,7 +55,7 @@
   const PREVIEW_BYTES = 64 * 1024;
 
   /** Built-in tabs, `plugin:<plugin>/<tab>` (wave 5) or `extension:<extension>/<tab>` (wave 13). */
-  type Tab = "body" | "headers" | "tests" | "console" | "timing" | `plugin:${string}` | `extension:${string}`;
+  type Tab = "body" | "headers" | "tests" | "console" | "timing" | `plugin:${string}` | `extension:${string}` | `slot:${string}`;
   type Mode = "pretty" | "raw" | "tree" | "hex";
 
   // The props are fixed for the lifetime of this component (it is keyed by response id).
@@ -107,6 +108,12 @@
   const extensionTab = $derived(
     tab.startsWith("extension:") ? (extensionTabs.find((t) => `extension:${t.key}` === tab) ?? null) : null,
   );
+  // ---- tabs and chips of the built-in parts (wave 18, `slots.ts`) ----
+  // svelte-ignore state_referenced_locally
+  const slots = responseSlots().filter((x) => !x.show || x.show(result));
+  const slotTabs = slots.filter((x) => x.kind === "tab");
+  const slotChips = slots.filter((x) => x.kind === "chip");
+  const slotTab = $derived(tab.startsWith("slot:") ? (slotTabs.find((t) => `slot:${t.id}` === tab) ?? null) : null);
   const settle = () => Promise.resolve();
   // svelte-ignore state_referenced_locally
   let mode = $state<Mode>(prettyViewable ? "pretty" : result.is_text ? "raw" : "hex");
@@ -283,6 +290,10 @@
     {#if reasonPhrase(response.status)}<span class="reason {cls}">{reasonPhrase(response.status)}</span>{/if}
     <span class="metric" title="Total time"><span class="label">Time</span><span data-testid="response-time">{formatDuration(response.total)}</span></span>
     <TimingBar data={bar} />
+    {#each slotChips as c (c.id)}
+      {@const Chip = c.component}
+      <Chip {app} requestPath={result.report.request_path} response={result} />
+    {/each}
     <span class="metric" title="Body size"><span class="label">Size</span><span data-testid="response-size">{formatSize(result.size)}</span></span>
     {#if response.truncated}
       <span class="warn" title="The body was cut at the send limit">cut at the limit, {formatSize(response.size)} received</span>
@@ -331,6 +342,15 @@
           aria-selected={tab === `extension:${t.key}`}
           data-testid="response-tab-extension-{t.key}"
           onclick={() => (tab = `extension:${t.key}`)}>{t.tab.title}</button
+        >
+      {/each}
+      {#each slotTabs as t (t.id)}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === `slot:${t.id}`}
+          data-testid="response-tab-slot-{t.id}"
+          onclick={() => (tab = `slot:${t.id}`)}>{t.title}</button
         >
       {/each}
     </div>
@@ -382,6 +402,9 @@
       <Tab ctx={extensions.ctx} requestPath={result.report.request_path} response={result} {settle} />
     {:else if tab.startsWith("extension:")}
       <p class="note">This tab is no longer available.</p>
+    {:else if slotTab}
+      {@const Tab = slotTab.component}
+      <Tab {app} requestPath={result.report.request_path} response={result} />
     {:else if tab === "headers"}
       <HeadersTable response={response.headers} request={result.report.request?.headers ?? null} />
     {:else if tab === "timing"}

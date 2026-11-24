@@ -30,7 +30,9 @@ use rt_app::plugins::{
     plugin_import,
 };
 use rt_app::{AppError, ImportPlan, SecretStore};
-use rt_core::services::{HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
+use rt_core::services::{
+    AfterResponse, HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks,
+};
 use rt_core::transport::native::NativeTransport;
 use rt_core::transport::{HttpRequest, ResponseHead};
 use rt_format::import::MAX_INPUT_BYTES;
@@ -689,6 +691,21 @@ impl RequestHooks for PluginSend<'_> {
             let hooks = session.as_ref().map(|s| s as &dyn RequestHooks);
             self.recording(hooks)
                 .after_response(head, body, context)
+                .await
+        })
+    }
+
+    fn after_response_full<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, AfterResponse> {
+        Box::pin(async move {
+            let session = self.session();
+            let hooks = session.as_ref().map(|s| s as &dyn RequestHooks);
+            self.recording(hooks)
+                .after_response_full(head, body, context)
                 .await
         })
     }

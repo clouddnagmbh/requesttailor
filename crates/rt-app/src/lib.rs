@@ -38,6 +38,21 @@ pub mod contract;
 pub mod cookies;
 pub mod diffs;
 pub mod git;
+// Wave 18 (interface): checking, observing and automating; the strands fill the modules in.
+/// Plugin catalogue without a server (strand I).
+pub mod catalogue;
+/// Comparing responses across environments (strand A).
+pub mod envcompare;
+/// The local webhook inbox (strand E).
+pub mod inbox;
+/// JWT inspector and passive response checks (strand B).
+pub mod inspect;
+/// Collection lint and the health score (strand F).
+pub mod lint;
+/// Following pages and merging them (strand C).
+pub mod paging;
+/// Saved views of a response (strand G).
+pub mod views;
 // Wave 8, strand B: gRPC services and templates, GraphQL schemas.
 pub mod graphql;
 pub mod grpc;

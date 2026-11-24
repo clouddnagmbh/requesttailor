@@ -191,4 +191,28 @@ pub trait RequestHooks {
         body: &'a [u8],
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Vec<Note>>;
+
+    /// [`RequestHooks::after_response`] with the time segments the plugins reported (wave
+    /// 18, [`crate::segments`]). `send_with` calls this one. The default reports none;
+    /// implementations that forward to a plugin host override it.
+    fn after_response_full<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, AfterResponse> {
+        Box::pin(async move {
+            AfterResponse {
+                notes: self.after_response(head, body, context).await,
+                segments: Vec::new(),
+            }
+        })
+    }
+}
+
+/// What the `after_response` hooks answer (wave 18).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AfterResponse {
+    pub notes: Vec<Note>,
+    pub segments: Vec<crate::segments::TimingSegment>,
 }

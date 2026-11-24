@@ -79,5 +79,8 @@ pub fn failed(request_path: &str, args: &SendArgs, error: SendError) -> SendRepo
         unresolved: Vec::new(),
         error: Some(error),
         notes: Vec::new(),
+        checks: Vec::new(),
+        rate_limit: None,
+        segments: Vec::new(),
     }
 }

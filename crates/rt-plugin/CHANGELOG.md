@@ -3,6 +3,18 @@
 Every change to the plugin API (`API.md`, `src/api.rs`) is listed here, newest first.
 Additive changes keep `API_VERSION`; breaking changes bump it.
 
+## API version 1, additions (wave 18)
+
+Additive; `API_VERSION` stays 1, plugins built earlier run unchanged:
+- `NotesReply.segments` (reply of the `response` hook): a list of
+  `{ "id", "label", "ms", "parent" }` (`parent`: `"server"` or absent). They are parts of the
+  time the server says it spent. The app shows them in their own line under the timing bar,
+  as "reported by the server", never as part of the client's own phases.
+- `contributes.paging`: a list of `{ "id", "match": { "hosts", "content_types",
+  "url_pattern" }, "rule": { "rule": { "kind": "json-url" | "link-header" | "cursor", … },
+  "merge": "<JSONPath>" } }`. Data only, no call per response; the rule is offered for
+  matching responses. A rule of the collection or of the request wins.
+
 ## API version 1, clarifications (wave 17)
 
 Host behavior only, no API change; `API_VERSION` stays 1:

@@ -436,6 +436,10 @@ async fn prepare(
         observers: server.opts.observers.clone(),
         caller: rt_core::guard::Caller::Agent,
         watch: Default::default(),
+        paging: Default::default(),
+        checks: false,
+        view: Default::default(),
+        throttle: Default::default(),
     };
     Ok(Prepared {
         collection,
@@ -840,6 +844,7 @@ async fn run_folder(
         iterations: 1,
         delay_ms: 0,
         bail: false,
+        throttle: Default::default(),
     };
     let input = PrepareInput {
         environment: prepared.environment.as_deref(),
@@ -856,7 +861,7 @@ async fn run_folder(
             *gate.current.borrow_mut() = (request_path, None);
         }
         RunEvent::Step { step } => steps.borrow_mut().push(*step),
-        RunEvent::Started { .. } | RunEvent::Finished { .. } => {}
+        RunEvent::Started { .. } | RunEvent::Waiting { .. } | RunEvent::Finished { .. } => {}
     };
     let cancelled = || gate.cancelled.get();
     let summary = rt_core::runner::run(

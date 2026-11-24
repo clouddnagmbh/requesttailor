@@ -55,6 +55,13 @@ import { DEMO_ID, MockCollections, mockTree } from "./mock-collections";
 import { mockFolderScripts } from "./mock-folder-scripts";
 import { mockShare } from "./mock-share";
 import { evaluateSnapshots, mockSnapshots } from "./mock-snapshots";
+import { mockEnvCompare } from "./mock-envcompare";
+import { mockInspect } from "./mock-inspect";
+import { mockPaging } from "./mock-paging";
+import { mockInbox } from "./mock-inbox";
+import { mockLint } from "./mock-lint";
+import { mockViews } from "./mock-views";
+import { mockCatalogue } from "./mock-catalogue";
 import { mockVariables } from "./mock-variables";
 import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
@@ -362,6 +369,14 @@ export class MockBackend implements Backend {
 
   /** Wave 16: scripts of the collection and its folders. */
   readonly folderScripts = mockFolderScripts(() => this.requests);
+  /** Wave 18: placeholders until the strands (`wave18-stubs.ts`). */
+  readonly envCompare = mockEnvCompare();
+  readonly inspect = mockInspect();
+  readonly paging = mockPaging();
+  readonly inbox = mockInbox();
+  readonly lint = mockLint();
+  readonly views = mockViews();
+  readonly catalogue = mockCatalogue();
   /** Wave 17 (strands B and C replace the placeholders in their own files). */
   readonly snapshots = mockSnapshots({
     companions: this.companions,

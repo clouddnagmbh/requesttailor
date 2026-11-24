@@ -33,6 +33,12 @@
 //!   native session, or `Failed`). One session per WebSocket. `Status.features` lists
 //!   `"stream"` when the companion supports it.
 //!
+//! - `GET /v1/inbox?token=<token>` (wave 18): a WebSocket upgrade on loopback like
+//!   `/v1/stream`, for the webhook inbox (`crate::inbox`): the browser sends an
+//!   [`InboxClientMessage`], the companion answers with [`InboxServerMessage`]s. The inbox
+//!   itself listens on loopback only and keeps its requests in memory. `Status.features`
+//!   lists `"inbox"` when the companion supports it.
+//!
 //! The pairing flow and the origin/host checks are owned by the companion (wave 3, strand G)
 //! and documented in `crates/rt-cli/README.md`.
 //!
@@ -433,6 +439,29 @@ pub enum StreamServerMessage {
     Event { event: crate::stream::StreamEvent },
     /// Opening or sending failed; the session is over.
     Failed { error: super::TransportError },
+}
+
+/// Browser → companion on `/v1/inbox` (wave 18).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "kebab-case")]
+pub enum InboxClientMessage {
+    /// Starts the inbox (it answers with `Status`, or `Failed` if the port is taken).
+    Start {
+        settings: crate::inbox::InboxSettings,
+    },
+    Stop,
+    Clear,
+    /// Asks for the current status.
+    Status,
+}
+
+/// Companion → browser on `/v1/inbox` (wave 18).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "kebab-case")]
+pub enum InboxServerMessage {
+    Status { status: crate::inbox::InboxStatus },
+    Event { event: crate::inbox::InboxEvent },
+    Failed { message: String },
 }
 
 impl From<crate::stream::StreamOpen> for WireStreamOpen {

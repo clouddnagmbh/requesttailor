@@ -20,6 +20,10 @@ pub mod approvals;
 pub mod bisect;
 /// Wave 12, strand F: `rt changelog`.
 pub mod changelog;
+/// Wave 18, strand B: `rt send --checks`.
+pub mod checks;
+/// Wave 18, strand A: `rt compare-env`.
+pub mod compare_env;
 pub mod cookies;
 /// Wave 12, strand A: `rt diff`.
 pub mod diff;
@@ -27,6 +31,10 @@ pub mod docs;
 /// Wave 8, strand B: `rt send` on gRPC requests.
 pub mod grpc;
 pub mod import;
+/// Wave 18, strand E: `rt inbox`.
+pub mod inbox;
+/// Wave 18, strand F: `rt lint`.
+pub mod lint;
 pub mod mcp;
 /// Wave 14: `rt mcp-demo`, the MCP demo server.
 pub mod mcp_demo;
@@ -35,6 +43,10 @@ pub mod mcp_test;
 pub mod merge_driver;
 pub mod mock;
 pub mod oauth;
+/// Wave 18, strand C: `rt send --all-pages`.
+pub mod paging;
+/// Wave 18, strand I: `rt plugin`.
+pub mod plugin_cmd;
 pub mod plugins;
 pub mod report;
 pub mod run;
@@ -46,6 +58,8 @@ pub mod services;
 pub mod snapshot;
 /// `rt send` on WebSocket, gRPC and SSE requests (wave 8, strand A).
 pub mod stream;
+/// Wave 18, strand G: `rt send --view`.
+pub mod views;
 pub mod watch;
 
 use std::ffi::OsString;
@@ -71,6 +85,9 @@ pub const EXIT_PREPARE: i32 = 3;
 pub const EXIT_TESTS: i32 = 4;
 /// Wave 10: the send guard of the distribution refused a request; nothing was sent.
 pub const EXIT_BLOCKED: i32 = 5;
+/// Wave 18: `rt lint` found what it was told to fail on (a finding at `--fail-on`, or a score
+/// below `--min-score`). 6 is taken by distributions (`EXIT_LOAD`).
+pub const EXIT_LINT: i32 = lint::EXIT_LINT;
 
 pub fn help() -> String {
     let limit = SendOptions::default().body_limit;
@@ -88,7 +105,7 @@ Usage:
   rt scan [<path>...] [--json]
   rt snapshot update [<path>...] [--all] [-e <NAME>] [--var <NAME=VALUE>]...
   rt mcp-test [<path>...] [-e <NAME>] [--var <NAME=VALUE>]...
-{mcp_demo_usage}{git_usage}  rt --help | --version
+{mcp_demo_usage}{git_usage}{check_usage}  rt --help | --version
 
 Options for send:
   -e, --env <NAME>          Use the environment named NAME
@@ -107,6 +124,16 @@ Options for send:
                             reading requests, and never against production, unless
                             --allow-writes (never against production). Ctrl-C exits with the
                             code of the last send.
+      --all-pages           Follow the pages of a reading request and merge them (rule of the
+                            request, the collection or a plugin; limits always apply)
+      --max-pages <N>       With --all-pages: at most N pages (default 20, hard maximum 1000)
+      --checks              Passive checks of the response (headers, cookies, CORS, tokens),
+                            one line per observation on stderr and in the report's checks
+      --view <NAME>         Print what the saved view NAME of the request picks, not the report
+      --view-expr <EXPR>    The same with an expression (JSONPath) of your own
+      --respect-limits      Wait for rate limits (also with rt run); --max-wait <T> bounds one
+                            wait (default 60s, hard maximum 600s)
+      --max-wait <T>        See --respect-limits
       --allow-writes        With --watch: also send writing requests (not to production)
   -h, --help                Show this help
 
@@ -199,6 +226,7 @@ rt import openapi imports an OpenAPI 3.x or Swagger 2.0 spec with choices:
                             for the contract check
 
 {git_help}
+{check_help}
 The collection root is the nearest folder above <request-file> that contains
 {COLLECTION_FILE}.
 
@@ -215,6 +243,7 @@ Exit codes:
      authentication failed, a plugin or a pre-request script stopped it
   {EXIT_TESTS}  a response was received but a test or assertion failed
   {EXIT_BLOCKED}  a policy of this installation refused the request; nothing was sent
+  {EXIT_LINT}  rt lint found what it was told to fail on
 ",
         version = env!("CARGO_PKG_VERSION"),
         agent_port = agent::DEFAULT_PORT,
@@ -230,6 +259,14 @@ Exit codes:
             changelog::USAGE
         ]
         .concat(),
+        check_usage = [
+            compare_env::USAGE,
+            lint::USAGE,
+            inbox::USAGE,
+            plugin_cmd::USAGE
+        ]
+        .concat(),
+        check_help = [compare_env::HELP, lint::HELP, inbox::HELP, plugin_cmd::HELP].join("\n"),
         git_help = [
             diff::HELP,
             merge_driver::HELP,
@@ -277,6 +314,14 @@ pub enum Command {
     Bisect(bisect::Args),
     /// Wave 12, strand F: `rt changelog`.
     Changelog(changelog::Args),
+    /// Wave 18, strand A: `rt compare-env`.
+    CompareEnv(compare_env::Args),
+    /// Wave 18, strand F: `rt lint`.
+    Lint(lint::Args),
+    /// Wave 18, strand E: `rt inbox`.
+    Inbox(inbox::Args),
+    /// Wave 18, strand I: `rt plugin`.
+    Plugin(plugin_cmd::Args),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -311,6 +356,14 @@ pub struct SendArgs {
     pub caller: Caller,
     /// Wave 17: `--watch`, `--allow-writes`, `--timing`, `--json` (`watch.rs`).
     pub watch: watch::WatchArgs,
+    /// Wave 18: `--all-pages`, `--max-pages` (`paging.rs`).
+    pub paging: paging::PagingArgs,
+    /// Wave 18: `--checks` (`checks.rs`).
+    pub checks: bool,
+    /// Wave 18: `--view`, `--view-expr` (`views.rs`).
+    pub view: views::ViewArgs,
+    /// Wave 18: `--respect-limits`, `--max-wait` (used by the page follower and `rt run`).
+    pub throttle: rt_core::ratelimit::Throttle,
 }
 
 impl Default for SendArgs {
@@ -331,6 +384,10 @@ impl Default for SendArgs {
             observers: ObserverSet::new(),
             caller: Caller::Cli,
             watch: watch::WatchArgs::default(),
+            paging: paging::PagingArgs::default(),
+            checks: false,
+            view: views::ViewArgs::default(),
+            throttle: rt_core::ratelimit::Throttle::default(),
         }
     }
 }
@@ -414,6 +471,18 @@ where
             Ok(changelog::parse(&mut parser, changelog_writers)?
                 .map_or(Command::Help, Command::Changelog))
         }
+        Some(Value(cmd)) if cmd == "compare-env" => {
+            Ok(compare_env::parse(&mut parser)?.map_or(Command::Help, Command::CompareEnv))
+        }
+        Some(Value(cmd)) if cmd == "lint" => {
+            Ok(lint::parse(&mut parser)?.map_or(Command::Help, Command::Lint))
+        }
+        Some(Value(cmd)) if cmd == "inbox" => {
+            Ok(inbox::parse(&mut parser)?.map_or(Command::Help, Command::Inbox))
+        }
+        Some(Value(cmd)) if cmd == "plugin" => {
+            Ok(plugin_cmd::parse(&mut parser)?.map_or(Command::Help, Command::Plugin))
+        }
         Some(Value(cmd)) => Err(format!("unknown command {:?}", cmd.to_string_lossy())),
         Some(other) => Err(other.unexpected().to_string()),
     }
@@ -452,6 +521,24 @@ fn parse_send(parser: &mut lexopt::Parser) -> Result<Command, String> {
             Long("allow-writes") => args.watch.allow_writes = true,
             Long("timing") => args.watch.timing = true,
             Long("json") => args.watch.json = true,
+            Long("all-pages") => args.paging.all_pages = true,
+            Long("max-pages") => {
+                args.paging.max_pages = Some(parser.value().map_err(err)?.parse().map_err(err)?);
+            }
+            Long("checks") => args.checks = true,
+            Long("view") => {
+                args.view.name = Some(parser.value().map_err(err)?.string().map_err(err)?)
+            }
+            Long("view-expr") => {
+                args.view.expression = Some(parser.value().map_err(err)?.string().map_err(err)?);
+            }
+            Long("respect-limits") => {
+                args.throttle.mode = rt_core::ratelimit::ThrottleMode::Respect
+            }
+            Long("max-wait") => {
+                args.throttle.max_wait_ms =
+                    crate::duration_ms(&parser.value().map_err(err)?.string().map_err(err)?)?;
+            }
             Long(name @ ("sse" | "message" | "duration" | "until-close")) => {
                 let name = name.to_owned();
                 stream::parse_option(&name, parser, &mut args.session)?;
@@ -680,6 +767,9 @@ pub struct Distribution<'a> {
     /// (since wave 16, `rt_app::contract::ChangelogWriter`). Without writers every
     /// such flag is an unknown flag.
     pub changelog_writers: &'a [&'a dyn rt_app::contract::ChangelogWriter],
+    /// Hooks `rt mock --hook NAME[=ARG]` can switch on (since wave 18, [`mock::MockHook`]).
+    /// Without entries every `--hook` is an error.
+    pub mock_hooks: &'a [mock::MockHookEntry],
 }
 
 /// [`run_with`] with everything a distribution adds.
@@ -718,6 +808,7 @@ where
         stderr,
         (&distribution.guard, &distribution.observers),
         (distribution.changelog, distribution.changelog_writers),
+        distribution.mock_hooks,
     )
 }
 
@@ -732,6 +823,7 @@ where
         stderr,
         (&GuardHandle::none(), &ObserverSet::new()),
         (&[], &[]),
+        &[],
     )
 }
 
@@ -767,6 +859,7 @@ fn run_guarded<I>(
         &[&dyn rt_app::contract::ChangelogSection],
         &[&dyn rt_app::contract::ChangelogWriter],
     ),
+    mock_hooks: &[mock::MockHookEntry],
 ) -> i32
 where
     I: IntoIterator,
@@ -819,7 +912,7 @@ where
         }
         Ok(Command::McpTest(args)) => return mcp_test::run(args, stdout, stderr),
         Ok(Command::McpDemo(args)) => return mcp_demo::run(args, stderr),
-        Ok(Command::Mock(args)) => return mock::run(args, stdout, stderr),
+        Ok(Command::Mock(args)) => return mock::run_with(args, mock_hooks, stdout, stderr),
         Ok(Command::Docs(args)) => return docs::run(args, stdout, stderr),
         Ok(Command::Diff(args)) => return diff::run(args, stdout, stderr),
         Ok(Command::MergeDriver(args)) => return merge_driver::run(args, stdout, stderr),
@@ -827,6 +920,10 @@ where
         Ok(Command::Changelog(args)) => {
             return changelog::run(args, stdout, stderr, changelog_sections, changelog_writers);
         }
+        Ok(Command::CompareEnv(args)) => return compare_env::run(args, stdout, stderr),
+        Ok(Command::Lint(args)) => return lint::run(args, stdout, stderr),
+        Ok(Command::Inbox(args)) => return inbox::run(args, stdout, stderr),
+        Ok(Command::Plugin(args)) => return plugin_cmd::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
     let (root, request_path) = match find_root(&args.file) {
@@ -875,7 +972,25 @@ where
         let _ = stdout.flush();
         return output.exit_code();
     }
-    let mut report = runtime.block_on(send_request(&doc, &request_path, &args, &files, &transport));
+    // Wave 18: the hooks of paging (C), checks (B) and views (G); each is a plain send, a plain
+    // report and the usual output until its strand fills it in.
+    let paged = match runtime.block_on(paging::send_pages(
+        &args,
+        &doc,
+        &request_path,
+        &files,
+        &transport,
+    )) {
+        Ok(p) => p,
+        Err(e) => return fail(stderr, EXIT_USAGE, &e),
+    };
+    let mut report = match paged {
+        Some(report) => report,
+        None => runtime.block_on(send_request(&doc, &request_path, &args, &files, &transport)),
+    };
+    if let Err(e) = checks::attach(&args, &mut report) {
+        return fail(stderr, EXIT_USAGE, &e);
+    }
     // Wave 17: a production environment is said out loud, never refused.
     if let Some(text) =
         send_banner::banner_for(doc.model(), &request_path, args.environment.as_deref())
@@ -888,9 +1003,41 @@ where
     {
         let _ = writeln!(stderr, "{line}");
     }
-    let _ = stdout.write_all(render(&report, args.pretty).as_bytes());
+    match views::render(&args, &report) {
+        Ok(Some(text)) => {
+            let _ = stdout.write_all(text.as_bytes());
+        }
+        Ok(None) => {
+            let _ = stdout.write_all(render(&report, args.pretty).as_bytes());
+        }
+        Err(e) => return fail(stderr, EXIT_USAGE, &e),
+    }
     let _ = stdout.flush();
     exit_code(&report)
+}
+
+/// A duration as `rt` flags write it: `90`, `90s`, `1500ms` or `2m` → milliseconds. Bare
+/// numbers are seconds.
+pub(crate) fn duration_ms(text: &str) -> Result<u64, String> {
+    let text = text.trim();
+    let (number, unit) = match text.find(|c: char| !c.is_ascii_digit()) {
+        Some(i) => text.split_at(i),
+        None => (text, "s"),
+    };
+    let value: u64 = number
+        .parse()
+        .map_err(|_| format!("expected a duration like 30s, 1500ms or 2m, got {text:?}"))?;
+    let factor = match unit {
+        "ms" => 1,
+        "s" => 1_000,
+        "m" => 60_000,
+        _ => {
+            return Err(format!(
+                "expected a duration like 30s, 1500ms or 2m, got {text:?}"
+            ));
+        }
+    };
+    Ok(value.saturating_mul(factor))
 }
 
 #[cfg(test)]
@@ -1066,6 +1213,9 @@ mod tests {
             variables: vec![],
             unresolved: vec![],
             error: None,
+            checks: Vec::new(),
+            rate_limit: None,
+            segments: Vec::new(),
         };
         assert_eq!(exit_code(&r), EXIT_OK);
         r.error = Some(SendError::Transport(TransportError::Timeout));

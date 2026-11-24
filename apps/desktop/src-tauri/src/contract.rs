@@ -238,6 +238,21 @@ pub(crate) fn stage_spec_in(
     contract::stage_spec(workspace, &path, text)
 }
 
+/// Wave 18 (interface, strand H): changes of a GraphQL or Protobuf schema between revisions.
+#[tauri::command]
+pub async fn contract_schema_changes(
+    _app: tauri::AppHandle,
+    kind: rt_app::contract::SchemaKind,
+    from: String,
+    to: String,
+) -> Result<rt_app::contract::SpecChanges, CommandError> {
+    let _ = (kind, from, to);
+    Err(rt_app::AppError::Unsupported(
+        "GraphQL and Protobuf contracts are not implemented yet (wave 18, strand H).".into(),
+    )
+    .into())
+}
+
 /// Wave 17: writes the spec of the collection (`ContractApi.stageSpec`), unsaved; `save`
 /// writes it, the commit scans it.
 #[tauri::command]

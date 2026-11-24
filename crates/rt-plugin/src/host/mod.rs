@@ -25,7 +25,9 @@ pub mod services;
 
 use std::cell::RefCell;
 
-use rt_core::services::{CookieJar, HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
+use rt_core::services::{
+    AfterResponse, CookieJar, HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks,
+};
 use rt_core::transport::{HttpRequest, ResponseHead};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -179,6 +181,18 @@ impl RequestHooks for SessionHooks<'_> {
         Box::pin(
             self.host
                 .response(head, body, context, session(self.jar, context)),
+        )
+    }
+
+    fn after_response_full<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, AfterResponse> {
+        Box::pin(
+            self.host
+                .response_full(head, body, context, session(self.jar, context)),
         )
     }
 }
@@ -494,11 +508,23 @@ impl PluginHost {
         context: &HookContext,
         session: Option<Session<'_>>,
     ) -> Vec<Note> {
+        self.response_full(head, body, context, session).await.notes
+    }
+
+    /// [`Self::response`] with the time segments the plugins reported (wave 18).
+    async fn response_full(
+        &self,
+        head: &ResponseHead,
+        body: &[u8],
+        context: &HookContext,
+        session: Option<Session<'_>>,
+    ) -> AfterResponse {
         let (request, masker) = match self.current.borrow().as_ref() {
             Some(c) => (Some(c.request.clone()), c.masker.clone()),
             None => (None, Masker::default()),
         };
         let mut notes = Vec::new();
+        let mut segments = Vec::new();
         for i in 0..self.plugins.len() {
             let p = &self.plugins[i];
             if !p.enabled || !p.manifest.contributes.response {
@@ -529,13 +555,16 @@ impl PluginHost {
                     ..
                 }) => notes.push(error(message)),
                 Ok(reply) => match self.decode::<NotesReply>(i, reply.ok) {
-                    Ok(r) => notes.extend(self.notes(i, r.notes)),
+                    Ok(r) => {
+                        notes.extend(self.notes(i, r.notes));
+                        segments.extend(r.segments);
+                    }
                     Err(e) => notes.push(error(e.to_string())),
                 },
                 Err(e) => notes.push(error(e.to_string())),
             }
         }
-        notes
+        AfterResponse { notes, segments }
     }
 
     /// Renders a tab, or runs one of its actions (`action: Some`), without a context.
@@ -700,6 +729,15 @@ impl RequestHooks for PluginHost {
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Vec<Note>> {
         Box::pin(self.response(head, body, context, None))
+    }
+
+    fn after_response_full<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, AfterResponse> {
+        Box::pin(self.response_full(head, body, context, None))
     }
 }
 

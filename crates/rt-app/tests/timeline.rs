@@ -141,6 +141,7 @@ fn record(request: &str, time: i64, passed: bool) -> TestRecord {
             name: "status is 200".into(),
             passed,
         }],
+        duration_ms: None,
     }
 }
 

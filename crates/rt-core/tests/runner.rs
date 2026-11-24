@@ -404,6 +404,7 @@ fn runs_in_order_with_events_and_a_summary() {
                 request_path,
             } => format!("request {iteration} {request_path}"),
             RunEvent::Step { step } => format!("step {} {}", step.iteration, step.request_path),
+            RunEvent::Waiting { .. } => "waiting".into(),
             RunEvent::Finished { .. } => "finished".into(),
         })
         .collect();

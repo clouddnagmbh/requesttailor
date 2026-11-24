@@ -43,11 +43,13 @@ pub mod examples;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs;
 pub mod import;
+mod lint_config;
 /// Wave 8, strand D: saved MCP tests (`*.mcp.yaml`).
 pub mod mcp_test;
 /// Wave 12, strand B: three-way merge on the model.
 pub mod merge;
 mod observe_config;
+mod paging_config;
 /// Wave 8: GraphQL, gRPC and WebSocket items.
 mod protocols;
 mod read;
