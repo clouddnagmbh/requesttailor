@@ -3,6 +3,12 @@
 Every change to the plugin API (`API.md`, `src/api.rs`) is listed here, newest first.
 Additive changes keep `API_VERSION`; breaking changes bump it.
 
+## API version 1, clarifications (wave 17)
+
+Host behavior only, no API change; `API_VERSION` stays 1:
+- The app shows a "Copy" button on every `code` block of a plugin view; it copies `text`.
+  Plugins need to do nothing; a view that wants a snippet copied just renders it as `code`.
+
 ## API version 1, additions (wave 8)
 
 Additive; `API_VERSION` stays 1:
