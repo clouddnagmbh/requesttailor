@@ -259,6 +259,7 @@ describe("TauriBackend", () => {
     await b.repositories.summary("/work/api");
     await b.repositories.clone({ url: "https://example.com/r.git" });
     await b.repositories.init();
+    await b.repositories.openPath?.("/work/checkout");
     await b.git.workingCopy();
     await b.git.fileTree(null, "/");
     await b.git.blob("HEAD", "/logo.png");
@@ -489,6 +490,7 @@ describe("TauriBackend", () => {
       ["repositories_summary", { id: "/work/api" }],
       ["repositories_clone", { request: { url: "https://example.com/r.git" } }],
       ["repositories_init", undefined],
+      ["repositories_open_path", { path: "/work/checkout" }],
       ["git_working_copy", undefined],
       ["git_file_tree", { rev: null, dir: "/" }],
       ["git_blob", { rev: "HEAD", path: "/logo.png" }],

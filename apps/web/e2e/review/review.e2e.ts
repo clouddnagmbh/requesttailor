@@ -165,6 +165,61 @@ for (const [kind, port] of [
   });
 }
 
+// Wave 15, strand E: "Create pull request" against the fake host. The pull request is made from
+// a local branch that is on the server (`feature/currency`, as cloned) into `chore/tenant`: the
+// host already has one for `main`, so this pair is free, and the same pair again is refused.
+for (const [kind, port] of [
+  ["github", GITHUB_PORT],
+  ["gitlab", GITLAB_PORT],
+] as const) {
+  test(`creates a ${kind === "github" ? "pull" : "merge"} request on the host and says what it refused`, async ({ page }) => {
+    // The host's state is shared by both ports and by the tests: start and leave it as new.
+    await page.request.post(`http://127.0.0.1:${port}/__reset`);
+    await cloneRepo(page, port);
+    await page.evaluate(() =>
+      (window as unknown as W).__rt.backend.git.apply({ action: "create-branch", name: "feature/currency", start: "origin/feature/currency" }),
+    );
+    await openReview(page);
+    await addHost(page, port, kind);
+    await expect(page.getByTestId("review-row")).toHaveCount(2);
+    await page.getByTestId("review-new").click();
+    await expect(page.getByTestId("new-pull")).toBeVisible();
+    await expect(page.getByTestId("new-pull-repo")).toContainText("acme/orders");
+    await page.getByTestId("new-pull-head").selectOption("feature/currency");
+    await page.getByTestId("new-pull-base").selectOption("chore/tenant");
+    await page.getByTestId("new-pull-title").fill("Currency on top of the tenant");
+    await page.getByTestId("new-pull-draft").check();
+    await page.getByTestId("new-pull-create").click();
+    await expect(page.getByTestId("new-pull-done")).toContainText("Currency on top of the tenant", { timeout: 30_000 });
+
+    // What the host received: the right branches, a draft, the user's token.
+    const s = await state(page, port);
+    expect(s.created).toHaveLength(1);
+    const made = s.created[0];
+    if (kind === "github") expect(made).toMatchObject({ title: "Currency on top of the tenant", head: "feature/currency", base: "chore/tenant", draft: true });
+    else expect(made).toMatchObject({ title: "Draft: Currency on top of the tenant", source_branch: "feature/currency", target_branch: "chore/tenant" });
+    expect(s.authorizations.length).toBeGreaterThan(0);
+    expect(await page.content()).not.toContain(TOKEN);
+
+    await page.getByTestId("new-pull-close").click();
+    await expect(page.getByTestId("review-row")).toHaveCount(3);
+    await expect(page.getByTestId("review-row").filter({ hasText: "Currency on top of the tenant" }).getByTestId("review-draft")).toBeVisible();
+
+    // The same pair again: the host's own words.
+    await page.getByTestId("review-new").click();
+    await page.getByTestId("new-pull-head").selectOption("feature/currency");
+    await page.getByTestId("new-pull-base").selectOption("chore/tenant");
+    await page.getByTestId("new-pull-title").fill("Again");
+    await page.getByTestId("new-pull-create").click();
+    await expect(page.getByTestId("new-pull-error")).toContainText(/already/i);
+    // The host saw the second attempt (it records every body) and made no third pull request.
+    expect((await state(page, port)).created).toHaveLength(2);
+    await page.getByTestId("new-pull-cancel").click();
+    await expect(page.getByTestId("review-row")).toHaveCount(3);
+    await page.request.post(`http://127.0.0.1:${port}/__reset`);
+  });
+}
+
 test("without the companion the list works (fetch) and opening explains what is needed", async ({ page }) => {
   await cloneRepoWithoutCompanion(page);
   await openReview(page);

@@ -361,6 +361,11 @@ export interface RepositoryApi {
   /** Folder picker, then `git init` there (an existing repository is refused), added as a root
    *  and made active; `null` if cancelled. */
   init(): Promise<RepositoryEntry | null>;
+  /** Desktop only (absent in the browser and the mock): adds an existing folder that is a Git
+   *  repository (a worktree or submodule checkout an extension made, say) as a root and makes
+   *  its repository active, without a picker. Refused for a folder outside Git. The UI then
+   *  calls `AppState.adoptRepository(entry)`. */
+  openPath?(path: string): Promise<RepositoryEntry>;
 }
 
 /** Semantic diffs: per request, folder, collection and environment field, secrets only by

@@ -109,6 +109,30 @@ fn a_folder_without_collection_in_git_opens_as_a_repository_root() {
 }
 
 #[test]
+fn open_path_adds_a_checkout_without_a_picker_and_refuses_other_folders() {
+    let first = temp("first");
+    repo(&first.0);
+    write(&first.0.join("a.txt"), "a\n");
+    let core = core();
+    repositories::open(&core, &first.0).unwrap();
+
+    let second = temp("second");
+    repo(&second.0);
+    write(&second.0.join("b.txt"), "b\n");
+    let entry = repositories::open_path(&core, &second.0).unwrap();
+    let id = second.0.to_string_lossy().into_owned();
+    assert_eq!(entry.id, id);
+    let set = core.collection_set();
+    assert_eq!(set.repositories.len(), 2);
+    assert_eq!(set.active_repository.as_deref(), Some(id.as_str()));
+    assert_eq!(changed(&core), ["b.txt"]);
+
+    let plain = temp("plain-path");
+    assert!(repositories::open_path(&core, &plain.0).is_err());
+    assert!(repositories::open_path(&core, &plain.0.join("missing")).is_err());
+}
+
+#[test]
 fn outside_git_a_folder_without_collection_is_not_a_repository_root() {
     // As before wave 15: no collection and no repository, nothing to add (a new collection is
     // made with New…, which scaffolds it).

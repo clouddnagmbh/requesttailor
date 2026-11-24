@@ -158,6 +158,21 @@ pub fn init<S: SecretStore>(core: &Core<S>, folder: &Path) -> Result<RepositoryE
     added(core, folder)
 }
 
+/// Adds an existing folder (a worktree or submodule checkout an extension has just made, say)
+/// as a root and makes the repository it is in active; a folder outside Git is refused.
+pub fn open_path<S: SecretStore>(core: &Core<S>, path: &Path) -> Result<RepositoryEntry> {
+    if !path.is_dir() {
+        return Err(AppError::Git(format!("{} is not a folder", path.display())));
+    }
+    if !matches!(Repo::open(path, &Options::default()), Ok(Some(_))) {
+        return Err(AppError::Git(format!(
+            "{} is not a Git repository",
+            path.display()
+        )));
+    }
+    added(core, path)
+}
+
 /// Adds `dir` as a root and returns the repository it is in, active.
 fn added<S: SecretStore>(core: &Core<S>, dir: &Path) -> Result<RepositoryEntry> {
     let set = core.add_root(dir)?;
@@ -230,6 +245,16 @@ pub async fn repositories_clone(
     Ok(Some(
         blocking(app, move |core| clone(core, &request, &parent)).await?,
     ))
+}
+
+/// Adds the folder `path` (no picker) and makes its repository active.
+#[tauri::command]
+pub async fn repositories_open_path(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<RepositoryEntry, CommandError> {
+    let path = PathBuf::from(path);
+    blocking(app, move |core| open_path(core, &path)).await
 }
 
 /// Folder picker, then `git init` there.

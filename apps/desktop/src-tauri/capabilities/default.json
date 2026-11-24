@@ -206,6 +206,7 @@
     "allow-repositories-summary",
     "allow-repositories-clone",
     "allow-repositories-init",
+    "allow-repositories-open-path",
     "allow-git-working-copy",
     "allow-git-file-tree",
     "allow-git-blob",
