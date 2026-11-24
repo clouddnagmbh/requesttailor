@@ -5,6 +5,6 @@
 // Interface placeholder: no view yet, so the app looks as before. The strand exports its
 // definition here (`{ id: "consumers", title, component }`).
 
-import type { ToolDefinition } from "../shell/tool-host";
+import type { ToolDefinition } from "../shell/tool-host.svelte";
 
 export const consumersTool: ToolDefinition | null = null;
