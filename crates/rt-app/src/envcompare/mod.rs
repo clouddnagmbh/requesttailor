@@ -11,8 +11,15 @@
 //! an environment that is production ([`crate::agents::is_production`]) needs
 //! [`EnvCompareRequest::production_confirmed`] (the UI asks once); the guard is asked per
 //! request; secrets, cookies, tokens and session variables stay per environment; everything
-//! shown is masked ([`crate::compare::ResponseSnapshot`], `SNAPSHOT_BODY_LIMIT`). Interface:
-//! types only.
+//! shown is masked ([`crate::compare::ResponseSnapshot`], `SNAPSHOT_BODY_LIMIT`).
+//!
+//! [`compare_environments`] (in `run.rs`) is the one implementation for the desktop app, the
+//! web app (`rt-wasm`) and `rt compare-env`; the shell builds one [`EnvRun`] per environment
+//! (the run snapshot with that environment's secret values, and the services of the send).
+
+mod run;
+
+pub use run::{EnvRun, compare_environments};
 
 use serde::{Deserialize, Serialize};
 
