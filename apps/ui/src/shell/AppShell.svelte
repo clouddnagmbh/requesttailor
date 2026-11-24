@@ -94,6 +94,8 @@
   import { Theme } from "./theme.svelte";
   import { connectExchange } from "./extension-exchange";
   import { requestPaths, tabElementId } from "./tree";
+  import brandMark from "../brand/requesttailor-icon-klein.svg";
+  import brandLogo from "../brand/requesttailor-logo.svg";
 
   let { backend, extensions = [] }: { backend: Backend; extensions?: readonly AppExtension[] } = $props();
   // The backend is fixed for the lifetime of the shell.
@@ -517,6 +519,7 @@
 <div class="shell">
   <ProductionFrame />
   <header>
+    <img class="brand-mark" data-testid="brand-mark" src={brandMark} alt="RequestTailor" width="20" height="20" />
     <button class="button" data-testid="open-collection" title="Open folder ({keys('open-folder')})" onclick={openFolder}>
       Open folder
     </button>
@@ -701,6 +704,7 @@
         </div>
       {:else}
         <div class="start" data-testid="start">
+          <img class="brand-logo" data-testid="brand-logo" src={brandLogo} alt="RequestTailor" width="88" height="88" />
           <p>{app.collection ? "Open a request from the sidebar." : "Open a folder with a collection to start."}</p>
           {#if !app.collection}
             <button class="button" data-testid="start-clone" onclick={() => (cloning = true)}>Clone a repository…</button>
@@ -765,6 +769,23 @@
     padding: 6px 10px;
     border-bottom: 1px solid var(--rt-border);
     background: var(--rt-bg-panel);
+  }
+  .brand-mark {
+    flex: none;
+    width: 20px;
+    height: 20px;
+  }
+  /* The header is full at this width; the mark gives way before anything overflows. */
+  @media (max-width: 520px) {
+    .brand-mark {
+      display: none;
+    }
+  }
+  .brand-logo {
+    display: block;
+    width: 88px;
+    height: 88px;
+    margin: 0 auto var(--rt-space-4);
   }
   .collection {
     font-weight: 600;

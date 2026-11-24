@@ -109,6 +109,9 @@ summary:focus-visible {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 700;
   font-size: 1.15rem;
   color: var(--fg);
@@ -359,4 +362,9 @@ td code {
   html {
     scroll-behavior: smooth;
   }
+}
+
+.brand img {
+  display: block;
+  flex: none;
 }
