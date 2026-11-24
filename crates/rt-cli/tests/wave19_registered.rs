@@ -19,7 +19,7 @@ fn rt(args: &[&str]) -> (i32, String, String) {
 #[test]
 fn new_commands_are_registered_and_not_implemented_yet() {
     let cases: &[(&[&str], &str)] = &[
-        (&["audit", "."], "wave 19"),
+        (&["security", "audit", "."], "wave 19"),
         (&["notebook", "run", "a.notebook.md"], "wave 19"),
         (
             &["access", "check", "a.yml", "--as", "A", "--as", "B"],
@@ -46,11 +46,11 @@ fn new_commands_are_registered_and_not_implemented_yet() {
 fn help_lists_the_wave_19_commands_and_the_audit_exit_code() {
     let (_, out, _) = rt(&["--help"]);
     for word in [
-        "rt audit",
+        "rt security audit",
         "rt notebook run",
         "--debug",
         "--trace",
-        "9  rt audit",
+        "9  rt security audit",
     ] {
         assert!(out.contains(word), "--help misses {word:?}");
     }

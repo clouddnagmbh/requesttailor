@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! Passive API security checks (wave 19, strand R): `Backend.security`, `rt audit` for CI.
+//! Passive API security checks (wave 19, strand R): `Backend.security`, `rt security audit` for CI.
 //! Rules are pure functions over a masked [`rt_core::send::SendReport`] (and, natively, the
 //! [`rt_core::transport::TlsInfo`] of its response). They run on responses that were sent
 //! anyway: **no extra request**, ever. The findings are calm hints in the manner of the
@@ -122,7 +122,7 @@ pub fn passive(report: &SendReport, settings: &SecuritySettings) -> Vec<Security
     Vec::new()
 }
 
-/// The report formats of an audit (`rt audit --out`), shared by the CLI and distributions.
+/// The report formats of an audit (`rt security audit --out`), shared by the CLI and distributions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum AuditFormat {

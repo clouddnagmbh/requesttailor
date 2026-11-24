@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! `rt audit [<folder>] [--env <name>] [--out text|markdown|html|json|sarif] [--fail-on
+//! `rt security audit [<folder>] [--env <name>] [--out text|markdown|html|json|sarif] [--fail-on
 //! <severity>] [--i-am-authorized]` (wave 19, strands R and S): the API security audit of a
 //! collection. The passive checks (`rt_app::security`) run over the responses of a run; a
 //! distribution may add active probes, which run only with `--i-am-authorized`, never
@@ -13,12 +13,12 @@ use std::path::PathBuf;
 
 use rt_app::security::{AuditFormat, Severity};
 
-/// Exit code of `rt audit` when a finding reaches `--fail-on` (wave 19).
+/// Exit code of `rt security audit` when a finding reaches `--fail-on` (wave 19).
 pub const EXIT_AUDIT: i32 = 9;
 
-pub const USAGE: &str = "  rt audit [<folder>] [-e <env>] [--out text|markdown|html|json|sarif] [--fail-on <severity>]\n            [--allow-writes] [--i-am-authorized]\n";
+pub const USAGE: &str = "  rt security audit [<folder>] [-e <env>] [--out text|markdown|html|json|sarif] [--fail-on <severity>]\n            [--allow-writes] [--i-am-authorized]\n";
 
-pub const HELP: &str = "rt audit checks the responses of a collection run against the OWASP API Security Top\n10: open CORS, weak tokens, missing security headers, no sign of rate limiting, TLS\nproblems and revealing error pages. It sends the requests of the collection as they are\n(reading ones; writing ones only with --allow-writes) and nothing else. Exit code 9 when a\nfinding reaches --fail-on (info, low, medium, high, critical). Never run against\nproduction; only against APIs you are allowed to test.\n";
+pub const HELP: &str = "rt security audit checks the responses of a collection run against the OWASP API Security Top\n10: open CORS, weak tokens, missing security headers, no sign of rate limiting, TLS\nproblems and revealing error pages. It sends the requests of the collection as they are\n(reading ones; writing ones only with --allow-writes) and nothing else. Exit code 9 when a\nfinding reaches --fail-on (info, low, medium, high, critical). Never run against\nproduction; only against APIs you are allowed to test.\n";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Args {
@@ -48,6 +48,12 @@ pub fn severity(text: &str) -> Result<Severity, String> {
 pub fn parse(parser: &mut lexopt::Parser) -> Result<Option<Args>, String> {
     use lexopt::prelude::*;
     let err = |e: lexopt::Error| e.to_string();
+    // `rt security <subcommand>`: only `audit` so far; later subcommands get their own arm.
+    match parser.next().map_err(err)? {
+        Some(Short('h') | Long("help")) => return Ok(None),
+        Some(Value(v)) if v == "audit" => {}
+        _ => return Err("security: expected `rt security audit [<folder>]`".into()),
+    }
     let mut folder = None;
     let mut args = Args {
         folder: PathBuf::from("."),
@@ -98,7 +104,7 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
     let _ = (args, stdout);
     let _ = writeln!(
         stderr,
-        "rt: audit is not implemented yet (wave 19, strand R)."
+        "rt: security audit is not implemented yet (wave 19, strand R)."
     );
     crate::EXIT_USAGE
 }

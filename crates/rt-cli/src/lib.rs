@@ -18,8 +18,6 @@
 pub mod access;
 pub mod agent;
 pub mod approvals;
-/// Wave 19, strands R and S: `rt audit`.
-pub mod audit;
 /// Wave 12, strand C: `rt bisect`.
 pub mod bisect;
 /// Wave 12, strand F: `rt changelog`.
@@ -63,6 +61,8 @@ pub mod run;
 pub mod scan;
 pub mod scripts;
 pub mod secrets;
+/// Wave 19, strands R and S: `rt security audit`.
+pub mod security_cmd;
 pub mod send_banner;
 /// Wave 19, strand G: `--sequence` of `rt send`, `rt run` and `rt mcp`.
 pub mod sequence_flag;
@@ -109,8 +109,8 @@ pub const EXIT_LINT: i32 = lint::EXIT_LINT;
 /// Wave 19: `rt verify-consumers` found a consumer that breaks. (`rt access check` uses
 /// `EXIT_TESTS` for broken access.)
 pub const EXIT_CONSUMERS: i32 = verify_consumers::EXIT_CONSUMERS;
-/// Wave 19: `rt audit` found a finding at or above `--fail-on`.
-pub const EXIT_AUDIT: i32 = audit::EXIT_AUDIT;
+/// Wave 19: `rt security audit` found a finding at or above `--fail-on`.
+pub const EXIT_AUDIT: i32 = security_cmd::EXIT_AUDIT;
 
 pub fn help() -> String {
     let limit = SendOptions::default().body_limit;
@@ -269,7 +269,7 @@ Exit codes:
   {EXIT_BLOCKED}  a policy of this installation refused the request; nothing was sent
   {EXIT_LINT}  rt lint found what it was told to fail on
   {EXIT_CONSUMERS}  rt verify-consumers found a consumer that breaks
-  {EXIT_AUDIT}  rt audit found a finding at or above --fail-on
+  {EXIT_AUDIT}  rt security audit found a finding at or above --fail-on
 ",
         version = env!("CARGO_PKG_VERSION"),
         agent_port = agent::DEFAULT_PORT,
@@ -297,7 +297,7 @@ Exit codes:
             shrink::USAGE,
             verify_consumers::USAGE,
             journal::USAGE,
-            audit::USAGE,
+            security_cmd::USAGE,
             notebook::USAGE
         ]
         .concat(),
@@ -306,7 +306,7 @@ Exit codes:
             shrink::HELP,
             verify_consumers::HELP,
             journal::HELP,
-            audit::HELP,
+            security_cmd::HELP,
             notebook::HELP
         ]
         .join("\n"),
@@ -377,8 +377,8 @@ pub enum Command {
     VerifyConsumers(verify_consumers::Args),
     /// Wave 19, strand C: `rt journal`.
     Journal(journal::Args),
-    /// Wave 19, strands R and S: `rt audit`.
-    Audit(audit::Args),
+    /// Wave 19, strands R and S: `rt security audit`.
+    Security(security_cmd::Args),
     /// Wave 19, strand W: `rt notebook run`.
     Notebook(notebook::Args),
 }
@@ -558,8 +558,8 @@ where
             Ok(verify_consumers::parse(&mut parser)?
                 .map_or(Command::Help, Command::VerifyConsumers))
         }
-        Some(Value(cmd)) if cmd == "audit" => {
-            Ok(audit::parse(&mut parser)?.map_or(Command::Help, Command::Audit))
+        Some(Value(cmd)) if cmd == "security" => {
+            Ok(security_cmd::parse(&mut parser)?.map_or(Command::Help, Command::Security))
         }
         Some(Value(cmd)) if cmd == "notebook" => {
             Ok(notebook::parse(&mut parser)?.map_or(Command::Help, Command::Notebook))
@@ -1025,7 +1025,7 @@ where
         Ok(Command::Shrink(args)) => return shrink::run(args, stdout, stderr),
         Ok(Command::VerifyConsumers(args)) => return verify_consumers::run(args, stdout, stderr),
         Ok(Command::Journal(args)) => return journal::run(args, stdout, stderr),
-        Ok(Command::Audit(args)) => return audit::run(args, stdout, stderr),
+        Ok(Command::Security(args)) => return security_cmd::run(args, stdout, stderr),
         Ok(Command::Notebook(args)) => return notebook::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
