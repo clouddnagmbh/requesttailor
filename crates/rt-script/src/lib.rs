@@ -28,6 +28,8 @@ use web_time::Instant;
 
 #[cfg(feature = "test-cases")]
 pub mod cases;
+/// The script debugger (wave 19, strand Y).
+pub mod debug;
 mod engine;
 mod timer;
 

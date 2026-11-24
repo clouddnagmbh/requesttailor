@@ -54,6 +54,8 @@ pub struct Args {
     pub guard: rt_core::guard::GuardHandle,
     /// Wave 17: the distribution's exchange observers (never from the command line).
     pub observers: rt_core::observe::ObserverSet,
+    /// Wave 19: `--sequence`, `--sequence-values` (`sequence_flag.rs`).
+    pub sequence: crate::sequence_flag::SequenceArgs,
 }
 
 impl Default for Args {
@@ -69,6 +71,7 @@ impl Default for Args {
             body_limit: DEFAULT_BODY_LIMIT,
             guard: Default::default(),
             observers: Default::default(),
+            sequence: Default::default(),
         }
     }
 }
@@ -105,6 +108,9 @@ Options:
                                 client does not send one
       --body-limit <BYTES>      Keep at most BYTES of each response body for the
                                 agent (default {limit})
+      --sequence <FILE>         Write a Mermaid sequence diagram of the session to FILE
+                                when it ends (and every 5 s)
+      --sequence-values         Include short, masked excerpts of values
   -h, --help                    Show this help
 
 Configure a client, e.g. Claude Code:
@@ -140,6 +146,10 @@ pub fn parse(parser: &mut lexopt::Parser) -> Result<Option<Args>, String> {
                 args.approval_timeout = parser.value().map_err(err)?.parse().map_err(err)?;
             }
             Long("no-scripts") => args.no_scripts = true,
+            Long(name @ ("sequence" | "sequence-values")) => {
+                let name = name.to_owned();
+                crate::sequence_flag::parse_option(&name, parser, &mut args.sequence)?;
+            }
             Long("agent-name") => {
                 args.agent_name = Some(parser.value().map_err(err)?.string().map_err(err)?);
             }
@@ -164,6 +174,10 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
     if args.help {
         let _ = stdout.write_all(help().as_bytes());
         return crate::EXIT_OK;
+    }
+    if let Err(e) = crate::sequence_flag::check(&args.sequence) {
+        let _ = writeln!(stderr, "rt: {e}");
+        return crate::EXIT_USAGE;
     }
     let lines = server::stdin_lines();
     match server::Server::new(args, stdout, stderr) {

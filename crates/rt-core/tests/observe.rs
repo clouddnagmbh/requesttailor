@@ -52,9 +52,11 @@ fn exchange(path: &str) -> Exchange {
             flow: None,
             segments: Vec::new(),
             rate_limit: None,
+            trace: None,
             checks: Vec::new(),
         },
         truncated: false,
+        trace: None,
     }
 }
 

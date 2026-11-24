@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CapturedRequest, CatalogueUpdate, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, CopiedAs, CopyKind, CopyOptions, DiffScope, Effect, EffectivePaging, EnvCompareRequest, EnvComparison, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, FoundToken, Frame, FreezeOptions, GitAction, GitActionResult, GitBlame, GitBlob, GitBlockReason, GitBranch, GitChangedFile, GitCloneRequest, GitCommit, GitCommitDetails, GitCommitWrite, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitHistoryPage, GitHistoryQuery, GitIdentity, GitIndexDiff, GitOperation, GitPatchRequest, GitPickRequest, GitPickResult, GitPlan, GitPullResult, GitReflogEntry, GitRemote, GitRepoSummary, GitResolution, GitSignatureCheck, GitSignatureKind, GitSignatureState, GitStagedCommit, GitStash, GitStatus, GitTree, GitTreeEntry, GitTreeWrite, GitWorkingCopy, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, InboxPage, InboxSettings, InboxStatus, InspectTarget, InstallPlan, InstalledSource, JwtInfo, LineSlice, LintReport, LintSettings, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewPullRequest, NewReviewComment, Observation, OpenApiOptions, PagingContribution, PagingRun, PagingSpec, PagingStop, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, RateLimits, ReportBody, RepositoryEntry, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ResponseView, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, ShareLink, ShareOptions, SharePayload, Snapshot, SnapshotCheck, SnapshotEntry, SnapshotFreeze, SourceIndex, SpecChange, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, Throttle, TimingSegment, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, ViewResult, WelcomeState } from "./types";
+import type { AccessCheck, AccessOptions, AccessProfile, AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CapturedRequest, CatalogueUpdate, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, CompensationItem, ConflictChoice, ConsumerRef, ConsumerReport, ConsumerVerifyRequest, ContractReport, ContractSpec, CookieInfo, CopiedAs, CopyKind, CopyOptions, DebugCommand, DebugState, DebugTarget, DiffScope, Effect, EffectivePaging, EgressError, EgressHost, EgressRequest, EgressResponse, EntryStates, EnvCompareRequest, EnvComparison, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, FoundToken, Frame, FreezeOptions, GitAction, GitActionResult, GitBlame, GitBlob, GitBlockReason, GitBranch, GitChangedFile, GitCloneRequest, GitCommit, GitCommitDetails, GitCommitWrite, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitHistoryPage, GitHistoryQuery, GitIdentity, GitIndexDiff, GitOperation, GitPatchRequest, GitPickRequest, GitPickResult, GitPlan, GitPullResult, GitReflogEntry, GitRemote, GitRepoSummary, GitResolution, GitSignatureCheck, GitSignatureKind, GitSignatureState, GitStagedCommit, GitStash, GitStatus, GitTree, GitTreeEntry, GitTreeWrite, GitWorkingCopy, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, InboxPage, InboxSettings, InboxStatus, InspectTarget, InstallPlan, InstalledSource, JournalPage, JournalQuery, JournalSettings, JwtInfo, LineSlice, LintReport, LintSettings, LossEffect, LossKind, ManualRevert, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewPullRequest, NewReviewComment, Notebook, NotebookEntry, NotebookOutcome, NotebookRun, Observation, OpenApiOptions, PagingContribution, PagingRun, PagingSpec, PagingStop, PendingApproval, PluginCompensationRule, PluginInfo, Preview, Protocol, PullRequest, RateLimits, ReportBody, RepositoryEntry, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ResponseView, RevertOptions, RevertOutcome, RevertPlan, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SecurityFinding, SecurityRule, SecuritySettings, SecurityTarget, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SequenceModel, SequenceOptions, SequenceSource, SequenceText, ShareLink, ShareOptions, SharePayload, ShrinkPredicate, ShrinkRequest, ShrinkResult, Snapshot, SnapshotCheck, SnapshotEntry, SnapshotFreeze, SourceIndex, SpecChange, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, Throttle, TimingSegment, TlsInfo, TokenInfo, TraceRef, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, ViewResult, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -7136,3 +7136,804 @@ export const specChangeKinds: SpecChange[] = [
     "requests": []
   }
 ];
+
+export const egressRequest: EgressRequest = {
+  "body": "{}",
+  "collection": "shop",
+  "extension": "acme",
+  "headers": [
+    [
+      "accept",
+      "application/json"
+    ]
+  ],
+  "method": "POST",
+  "purpose": "licence check",
+  "url": "https://api.example.com/v1"
+};
+
+export const egressResponse: EgressResponse = {
+  "body": "ok",
+  "headers": [
+    [
+      "content-type",
+      "text/plain"
+    ]
+  ],
+  "status": 200,
+  "took_ms": 12,
+  "truncated": false
+};
+
+export const egressHosts: EgressHost[] = [
+  {
+    "allowed_at": 1900000000,
+    "extension": "acme",
+    "host": "api.example.com",
+    "port": 443,
+    "purpose": "p"
+  },
+  {
+    "allowed_at": 1,
+    "extension": "acme",
+    "host": "x.example.com",
+    "purpose": "p"
+  }
+];
+
+export const egressErrors: EgressError[] = [
+  {
+    "host": "a",
+    "kind": "not-allowed",
+    "port": null
+  },
+  {
+    "kind": "blocked",
+    "reason": "r",
+    "rule": "air-gap"
+  },
+  {
+    "kind": "limit",
+    "message": "m"
+  },
+  {
+    "kind": "transport",
+    "message": "m"
+  }
+];
+
+export const journalSettings: JournalSettings = {
+  "enabled": true,
+  "id_path": "$.id"
+};
+
+export const journalQuery: JournalQuery = {
+  "before": 9,
+  "limit": 50,
+  "only_open": true,
+  "session": "s"
+};
+
+export const journalPage: JournalPage = {
+  "entries": [
+    {
+      "at": 1900000000,
+      "environment": "Test",
+      "etag": "\"1\"",
+      "id": 1,
+      "location": "/orders/7",
+      "method": "POST",
+      "request_path": "a.yml",
+      "resource_id": "7",
+      "reverted_at": 1900000100,
+      "session": "s",
+      "status": 201,
+      "url": "https://x/orders"
+    }
+  ],
+  "total": 1
+};
+
+export const manualRevert: ManualRevert = {
+  "entry_id": 1,
+  "request_path": "orders/delete.yml"
+};
+
+export const compensationItems: CompensationItem[] = [
+  {
+    "answer": {
+      "compensation": {
+        "description": "Delete the order again",
+        "kind": "delete",
+        "probe": {
+          "actions": [],
+          "assertions": [],
+          "auth": {
+            "type": "inherit"
+          },
+          "body": {
+            "type": "none"
+          },
+          "headers": [],
+          "method": "",
+          "name": "",
+          "params": [],
+          "scripts": [],
+          "seq": null,
+          "settings": {
+            "encode_url": null,
+            "follow_redirects": null,
+            "max_redirects": null,
+            "timeout_ms": null
+          },
+          "url": "",
+          "vars": []
+        },
+        "request": {
+          "actions": [],
+          "assertions": [],
+          "auth": {
+            "type": "inherit"
+          },
+          "body": {
+            "type": "none"
+          },
+          "headers": [],
+          "method": "",
+          "name": "",
+          "params": [],
+          "scripts": [],
+          "seq": null,
+          "settings": {
+            "encode_url": null,
+            "follow_redirects": null,
+            "max_redirects": null,
+            "timeout_ms": null
+          },
+          "url": "",
+          "vars": []
+        },
+        "state_hash": "ab12"
+      },
+      "kind": "compensation"
+    },
+    "entry_id": 1
+  },
+  {
+    "answer": {
+      "kind": "not-reversible",
+      "reason": "r"
+    },
+    "entry_id": 2
+  }
+];
+
+export const revertPlan: RevertPlan = {
+  "environment": "Test",
+  "production": false,
+  "steps": [
+    {
+      "compensation": {
+        "description": "Delete the order again",
+        "kind": "delete",
+        "probe": {
+          "actions": [],
+          "assertions": [],
+          "auth": {
+            "type": "inherit"
+          },
+          "body": {
+            "type": "none"
+          },
+          "headers": [],
+          "method": "",
+          "name": "",
+          "params": [],
+          "scripts": [],
+          "seq": null,
+          "settings": {
+            "encode_url": null,
+            "follow_redirects": null,
+            "max_redirects": null,
+            "timeout_ms": null
+          },
+          "url": "",
+          "vars": []
+        },
+        "request": {
+          "actions": [],
+          "assertions": [],
+          "auth": {
+            "type": "inherit"
+          },
+          "body": {
+            "type": "none"
+          },
+          "headers": [],
+          "method": "",
+          "name": "",
+          "params": [],
+          "scripts": [],
+          "seq": null,
+          "settings": {
+            "encode_url": null,
+            "follow_redirects": null,
+            "max_redirects": null,
+            "timeout_ms": null
+          },
+          "url": "",
+          "vars": []
+        },
+        "state_hash": "ab12"
+      },
+      "description": "Delete order 7",
+      "effect": "write",
+      "entry_id": 1,
+      "method": "POST",
+      "state": "planned",
+      "url": "https://x/orders"
+    },
+    {
+      "description": "Mail sent",
+      "effect": "write",
+      "entry_id": 2,
+      "method": "POST",
+      "reason": "a sent mail cannot be undone",
+      "state": "not-reversible",
+      "url": "https://x/mail"
+    }
+  ],
+  "truncated": false
+};
+
+export const revertOptions: RevertOptions = {
+  "production_confirmed": true
+};
+
+export const revertOutcome: RevertOutcome = {
+  "steps": [
+    {
+      "entry_id": 1,
+      "message": "ok",
+      "result": "reverted"
+    },
+    {
+      "entry_id": 2,
+      "message": "changed",
+      "result": "skipped-conflict"
+    },
+    {
+      "entry_id": 3,
+      "message": "n",
+      "result": "skipped-not-reversible"
+    },
+    {
+      "entry_id": 4,
+      "message": "f",
+      "result": "failed"
+    }
+  ]
+};
+
+export const pluginCompensationRules: PluginCompensationRule[] = [];
+
+export const entryStates: EntryStates[] = [
+  {
+    "after": null,
+    "before": {
+      "body": "{}",
+      "etag": "\"1\"",
+      "status": 200
+    },
+    "entry_id": 1
+  }
+];
+
+export const accessProfile: AccessProfile = {
+  "a": "alice",
+  "b": "bob"
+};
+
+export const accessOptions: AccessOptions = {
+  "allow_writes": false,
+  "b_must_be_denied": true,
+  "rate": 5
+};
+
+export const accessCheck: AccessCheck = {
+  "findings": [
+    {
+      "evidence": [
+        {
+          "header_names": [
+            "content-type"
+          ],
+          "profile": "B",
+          "status": 200,
+          "values": [
+            [
+              "id",
+              "7"
+            ]
+          ]
+        }
+      ],
+      "message": "B read A's order",
+      "verdict": {
+        "kind": "broken-object-access"
+      }
+    }
+  ],
+  "path": "orders/get.yml",
+  "status_a": 200,
+  "status_b": 200,
+  "verdict": {
+    "kind": "broken-object-access"
+  }
+};
+
+export const shrinkRequest: ShrinkRequest = {
+  "confirmed_writes": false,
+  "environment": "Test",
+  "keep": [
+    "header:x-a"
+  ],
+  "max_probes": 100,
+  "max_seconds": 60,
+  "path": "a.yml",
+  "predicate": {
+    "kind": "status",
+    "status": 500
+  },
+  "simplify_values": true
+};
+
+export const shrinkPredicates: ShrinkPredicate[] = [
+  {
+    "kind": "status",
+    "status": 500
+  },
+  {
+    "kind": "server-error"
+  },
+  {
+    "assertion": "res.status eq 200",
+    "kind": "assertion-fails"
+  },
+  {
+    "kind": "assertion-fails"
+  },
+  {
+    "kind": "body-matches",
+    "pattern": "boom"
+  },
+  {
+    "kind": "header-present",
+    "name": "x"
+  },
+  {
+    "kind": "header-missing",
+    "name": "x"
+  },
+  {
+    "kind": "last-failure"
+  }
+];
+
+export const shrinkResult: ShrinkResult = {
+  "flaky": false,
+  "not_reproduced": false,
+  "one_minimal": true,
+  "probes": 12,
+  "removed": [
+    {
+      "kind": "header",
+      "part": "header:x-a"
+    }
+  ],
+  "request": {
+    "actions": [],
+    "assertions": [],
+    "auth": {
+      "type": "inherit"
+    },
+    "body": {
+      "type": "none"
+    },
+    "headers": [],
+    "method": "",
+    "name": "",
+    "params": [],
+    "scripts": [],
+    "seq": null,
+    "settings": {
+      "encode_url": null,
+      "follow_redirects": null,
+      "max_redirects": null,
+      "timeout_ms": null
+    },
+    "url": "",
+    "vars": []
+  }
+};
+
+export const consumerRefs: ConsumerRef[] = [
+  {
+    "environment": "Test",
+    "name": "mobile",
+    "path": "tests",
+    "ref": "main",
+    "source": "../mobile",
+    "vars": [
+      [
+        "k",
+        "v"
+      ]
+    ]
+  }
+];
+
+export const consumerVerify: ConsumerVerifyRequest = {
+  "allow_writes": false,
+  "base_url": "http://localhost:3000",
+  "fetch": true,
+  "keep_going": true,
+  "only": [
+    "mobile"
+  ],
+  "trust_scripts": false
+};
+
+export const consumerReport: ConsumerReport = {
+  "consumers": [
+    {
+      "commit": "abc",
+      "failures": [
+        {
+          "assertion": "res.status eq 200",
+          "difference": "got 404",
+          "request": "Get",
+          "request_path": "a.yml"
+        }
+      ],
+      "name": "mobile",
+      "requests": 3
+    }
+  ]
+};
+
+export const sequenceSources: SequenceSource[] = [
+  {
+    "kind": "run",
+    "run_id": 1
+  },
+  {
+    "kind": "session"
+  },
+  {
+    "kind": "pages",
+    "request_path": "a.yml"
+  },
+  {
+    "kind": "mcp",
+    "since": null
+  },
+  {
+    "ids": [
+      1,
+      2
+    ],
+    "kind": "history"
+  }
+];
+
+export const sequenceOptions: SequenceOptions = {
+  "include_query": true,
+  "include_values": false
+};
+
+export const sequenceModel: SequenceModel = {
+  "groups": [
+    {
+      "from": 0,
+      "kind": "loop",
+      "label": "pages",
+      "to": 1
+    }
+  ],
+  "messages": [
+    {
+      "from": "client",
+      "kind": "request",
+      "label": "GET /orders",
+      "request_path": "orders/get.yml",
+      "to": "api"
+    },
+    {
+      "from": "api",
+      "kind": "response",
+      "label": "200 12 ms",
+      "to": "client"
+    }
+  ],
+  "notes": [
+    {
+      "after": 0,
+      "anchor": {
+        "kind": "over",
+        "participant": "api"
+      },
+      "text": "cached"
+    },
+    {
+      "after": 1,
+      "anchor": {
+        "from": "client",
+        "kind": "between",
+        "to": "api"
+      },
+      "text": "n"
+    }
+  ],
+  "omitted": 0,
+  "participants": [
+    {
+      "id": "client",
+      "kind": "client",
+      "label": "Client"
+    },
+    {
+      "id": "api",
+      "kind": "server",
+      "label": "api.example.com"
+    }
+  ]
+};
+
+export const sequenceText: SequenceText = {
+  "markdown": "```mermaid\n```",
+  "mermaid": "sequenceDiagram"
+};
+
+export const securityTarget: SecurityTarget = {
+  "path": "a.yml",
+  "response_id": 3
+};
+
+export const securityFindings: SecurityFinding[] = [
+  {
+    "category": "API8:2023",
+    "fix": "f",
+    "location": "header:access-control-allow-origin",
+    "rule": "cors-wildcard-credentials",
+    "severity": "high",
+    "why": "w"
+  }
+];
+
+export const securityRules: SecurityRule[] = [
+  {
+    "category": "API8:2023",
+    "id": "tls-expiry",
+    "native_only": true,
+    "severity": "medium",
+    "title": "t"
+  },
+  {
+    "category": "API1:2023",
+    "id": "x",
+    "native_only": false,
+    "severity": "info",
+    "title": "t"
+  }
+];
+
+export const securitySettings: SecuritySettings = {
+  "disabled": [
+    "x"
+  ],
+  "enabled": true
+};
+
+export const tlsInfo: TlsInfo = {
+  "cipher": "TLS_AES_128_GCM_SHA256",
+  "key_algorithm": "rsa",
+  "key_bits": 2048,
+  "names": [
+    "a.example.com"
+  ],
+  "not_after": 2,
+  "not_before": 1,
+  "protocol": "TLSv1.3"
+};
+
+export const traceRef: TraceRef = {
+  "injected": true,
+  "span_id": "00f067aa0ba902b7",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+};
+
+export const offsetSegment: TimingSegment = {
+  "id": "db",
+  "label": "Database",
+  "ms": 5,
+  "offset_ms": 1.5,
+  "parent": "server"
+};
+
+export const notebookEntries: NotebookEntry[] = [
+  {
+    "blocks": 3,
+    "path": "a.notebook.md",
+    "title": "Orders"
+  }
+];
+
+export const notebook: Notebook = {
+  "blocks": [
+    {
+      "kind": "text",
+      "markdown": "# Orders"
+    },
+    {
+      "id": "list",
+      "kind": "request",
+      "ref": "orders/list.yml",
+      "set": [
+        [
+          "n",
+          "5"
+        ]
+      ],
+      "show": [
+        {
+          "kind": "response"
+        },
+        {
+          "kind": "table",
+          "path": "$.items"
+        },
+        {
+          "kind": "chart",
+          "path": "$.items[*].n"
+        }
+      ]
+    },
+    {
+      "embedded": {
+        "actions": [],
+        "assertions": [],
+        "auth": {
+          "type": "inherit"
+        },
+        "body": {
+          "type": "none"
+        },
+        "headers": [],
+        "method": "",
+        "name": "",
+        "params": [],
+        "scripts": [],
+        "seq": null,
+        "settings": {
+          "encode_url": null,
+          "follow_redirects": null,
+          "max_redirects": null,
+          "timeout_ms": null
+        },
+        "url": "",
+        "vars": []
+      },
+      "id": "adhoc",
+      "kind": "request"
+    }
+  ],
+  "title": "Orders"
+};
+
+export const notebookRun: NotebookRun = {
+  "allow_writes": false,
+  "block": "list",
+  "environment": "Test",
+  "path": "a.notebook.md"
+};
+
+export const notebookOutcome: NotebookOutcome = {
+  "results": [
+    {
+      "block": "list",
+      "set": [
+        [
+          "id",
+          "7"
+        ]
+      ]
+    },
+    {
+      "block": "x",
+      "set": [],
+      "skipped": "writes need confirmation"
+    }
+  ]
+};
+
+export const debugTarget: DebugTarget = {
+  "breakpoints": [
+    {
+      "condition": "x > 1",
+      "line": 3
+    }
+  ],
+  "environment": "Test",
+  "folder": "orders",
+  "phase": "tests",
+  "request_path": "a.yml",
+  "stop_on_entry": true
+};
+
+export const debugCommands: DebugCommand[] = [
+  {
+    "kind": "continue"
+  },
+  {
+    "kind": "step-over"
+  },
+  {
+    "kind": "step-into"
+  },
+  {
+    "kind": "step-out"
+  },
+  {
+    "expression": "x",
+    "kind": "evaluate"
+  },
+  {
+    "breakpoints": [
+      {
+        "line": 1
+      }
+    ],
+    "kind": "set-breakpoints"
+  },
+  {
+    "kind": "abort"
+  }
+];
+
+export const debugState: DebugState = {
+  "output": [
+    "hello"
+  ],
+  "pause": {
+    "evaluated": {
+      "children": 0,
+      "kind": "number",
+      "name": "x",
+      "preview": "1"
+    },
+    "frames": [
+      {
+        "function": "main",
+        "line": 3
+      }
+    ],
+    "line": 3,
+    "reason": "breakpoint",
+    "scopes": [
+      {
+        "name": "local",
+        "values": [
+          {
+            "children": 0,
+            "kind": "number",
+            "name": "x",
+            "preview": "1"
+          }
+        ]
+      }
+    ]
+  },
+  "session": 1,
+  "status": "paused"
+};

@@ -231,6 +231,31 @@ pub struct CollectionConfig {
     /// observers ([`crate::observe`]) for this collection. The team's decision, in the file.
     #[serde(default)]
     pub observe: ObserveCollectionConfig,
+    /// `extensions.requesttailor.trace` (wave 19): whether `send_with` puts a W3C
+    /// `traceparent` on requests that have none. Off by default.
+    #[serde(default, skip_serializing_if = "TraceCollectionConfig::is_default")]
+    pub trace: TraceCollectionConfig,
+}
+
+/// `extensions.requesttailor.trace` of `opencollection.yml`:
+///
+/// ```yaml
+/// extensions:
+///   requesttailor:
+///     trace:
+///       inject: true
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct TraceCollectionConfig {
+    /// `true` only if the file says exactly `inject: true`. The default is off.
+    #[serde(default)]
+    pub inject: bool,
+}
+
+impl TraceCollectionConfig {
+    fn is_default(&self) -> bool {
+        !self.inject
+    }
 }
 
 /// `extensions.requesttailor.ai` of `opencollection.yml`:

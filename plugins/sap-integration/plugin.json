@@ -1,0 +1,10 @@
+{
+  "id": "sap-integration",
+  "name": "SAP Integration Suite",
+  "version": "0.0.1",
+  "api": 1,
+  "description": "SAP Integration Suite (Cloud Integration): flows, message processing logs and the OData API of the tenant.",
+  "license": "Apache-2.0",
+  "permissions": { "network": [], "storage": false, "variables": false },
+  "contributes": {}
+}

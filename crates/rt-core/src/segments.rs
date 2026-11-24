@@ -13,7 +13,7 @@
 use serde::{Deserialize, Serialize};
 
 /// One part of the time the server says it spent.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TimingSegment {
     /// Stable id within the report, e.g. `"db"`.
     pub id: String,
@@ -22,10 +22,20 @@ pub struct TimingSegment {
     /// Milliseconds, as the server reported them.
     pub ms: u64,
     /// `Some("server")`: inside the wait for the server (time to first byte); `None`: not
-    /// attributed to a client phase.
+    /// attributed to a client phase. Since wave 19 it may also be the `id` of another segment
+    /// of the same report (a tree: a database call inside the application). An id that is not
+    /// in the report counts as `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
+    /// Wave 19: where the segment starts, in milliseconds after the server began handling the
+    /// request (the first span). `None`: unknown, the UI lays it out after its siblings. The
+    /// server's clock is not the client's, so this is never an offset on the client's bar.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset_ms: Option<f64>,
 }
 
 /// The value of [`TimingSegment::parent`] for segments inside the wait for the server.
 pub const SEGMENT_PARENT_SERVER: &str = "server";
+
+// `offset_ms` is a JSON number, which is never NaN, so equality is total.
+impl Eq for TimingSegment {}

@@ -20,11 +20,13 @@ import type {
   RequestRef,
   RequestSpec,
   StoredResponse,
+  TimingSegment,
   TreeNode,
   VarUse,
 } from "../commands/types";
 import type { ExtensionDialog } from "../extensions";
 import type { GitView } from "../git/views.svelte";
+import { SegmentContributions } from "../response/segments";
 import { sharedInbox } from "../share/inbox.svelte";
 import { load as loadSetting, store as storeSetting } from "../shell/storage";
 
@@ -779,6 +781,14 @@ export class AppState {
 
   /** Re-reads the unsaved files of the active collection, after a change that did not go through
    *  `edit` (staged companion files, folder scripts), so "Save" and the dirty marks follow. */
+  /** Segments extensions added to stored responses (wave 19; `ExtensionContext.segments`). */
+  readonly segmentContributions = new SegmentContributions();
+
+  /** Adds time segments to a stored response, replacing the earlier ones of `source`. */
+  contributeSegments(responseId: number, source: string, segments: TimingSegment[]): void {
+    this.segmentContributions.contribute(responseId, source, segments);
+  }
+
   async refreshDirty(): Promise<void> {
     await this.lastEdit;
     const id = this.collection?.id;

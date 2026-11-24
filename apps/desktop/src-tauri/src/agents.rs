@@ -52,6 +52,16 @@ pub async fn agents_check(
     Ok(core.agent_check(&path, environment.as_deref())?)
 }
 
+/// The agent rules for a request that is not saved (wave 19).
+#[tauri::command]
+pub async fn agents_check_spec(
+    core: State<'_, AppCore>,
+    spec: rt_core::model::RequestSpec,
+    environment: Option<String>,
+) -> Result<agents::AgentCheck, CommandError> {
+    Ok(core.agent_check_spec(&spec, environment.as_deref())?)
+}
+
 #[tauri::command]
 pub async fn agents_pending(
     core: State<'_, AppCore>,

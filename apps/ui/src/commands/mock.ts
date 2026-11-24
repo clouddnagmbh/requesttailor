@@ -56,6 +56,16 @@ import { mockFolderScripts } from "./mock-folder-scripts";
 import { mockShare } from "./mock-share";
 import { evaluateSnapshots, mockSnapshots } from "./mock-snapshots";
 import { mockEnvCompare } from "./mock-envcompare";
+import { mockEgress } from "./mock-egress";
+import { mockJournal } from "./mock-journal";
+import { mockAccess } from "./mock-access";
+import { mockShrink } from "./mock-shrink";
+import { mockConsumers } from "./mock-consumers";
+import { mockSequence } from "./mock-sequence";
+import { mockSecurity } from "./mock-security";
+import { mockNotebook } from "./mock-notebook";
+import { mockDebugger } from "./mock-debugger";
+
 import { mockInspect } from "./mock-inspect";
 import { mockPaging } from "./mock-paging";
 import { mockInbox } from "./mock-inbox";
@@ -369,6 +379,16 @@ export class MockBackend implements Backend {
 
   /** Wave 16: scripts of the collection and its folders. */
   readonly folderScripts = mockFolderScripts(() => this.requests);
+  /** Wave 19: placeholders until the strands (`wave19-stubs.ts`). */
+  readonly egress = mockEgress();
+  readonly journal = mockJournal();
+  readonly access = mockAccess();
+  readonly shrink = mockShrink();
+  readonly consumers = mockConsumers();
+  readonly sequence = mockSequence();
+  readonly security = mockSecurity();
+  readonly notebook = mockNotebook();
+  readonly debugger = mockDebugger();
   /** Wave 18: placeholders until the strands (`wave18-stubs.ts`). */
   readonly envCompare = mockEnvCompare();
   readonly inspect = mockInspect();

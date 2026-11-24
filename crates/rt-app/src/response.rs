@@ -338,6 +338,7 @@ mod tests {
             environment: None,
             request: None,
             response: Some(rt_core::send::ReceivedResponse {
+                tls: None,
                 status: 200,
                 version: rt_core::transport::HttpVersion::Http11,
                 headers: vec![],
@@ -359,6 +360,7 @@ mod tests {
             error: None,
             checks: Vec::new(),
             rate_limit: None,
+            trace: None,
             segments: Vec::new(),
         };
         let id = store.insert(report).response_id.unwrap();

@@ -273,6 +273,7 @@ fn stored(store: &mut ResponseStore, status: u16, body: &str) -> u64 {
         environment: Some("Dev".into()),
         request: None,
         response: Some(ReceivedResponse {
+            tls: None,
             status,
             version: HttpVersion::Http11,
             headers: vec![("Content-Type".into(), "application/json".into())],
@@ -294,6 +295,7 @@ fn stored(store: &mut ResponseStore, status: u16, body: &str) -> u64 {
         error: None,
         checks: Vec::new(),
         rate_limit: None,
+        trace: None,
         segments: Vec::new(),
     };
     store.insert(report).response_id.unwrap()

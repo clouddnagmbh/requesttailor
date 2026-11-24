@@ -97,6 +97,8 @@ pub struct RunArgs {
     pub observers: rt_core::observe::ObserverSet,
     /// Wave 18: `--respect-limits`, `--max-wait` (`rt_core::ratelimit::Throttle`).
     pub throttle: rt_core::ratelimit::Throttle,
+    /// Wave 19: `--sequence`, `--sequence-values` (`sequence_flag.rs`).
+    pub sequence: crate::sequence_flag::SequenceArgs,
 }
 
 impl Default for RunArgs {
@@ -119,6 +121,7 @@ impl Default for RunArgs {
             guard: Default::default(),
             observers: Default::default(),
             throttle: Default::default(),
+            sequence: Default::default(),
         }
     }
 }
@@ -146,6 +149,9 @@ impl RunArgs {
             checks: false,
             view: Default::default(),
             throttle: self.throttle.clone(),
+            trace: false,
+            sequence: Default::default(),
+            debug: Default::default(),
         }
     }
 }
@@ -180,6 +186,10 @@ pub(crate) fn parse(parser: &mut lexopt::Parser) -> Result<Option<RunArgs>, Stri
             }
             Long("delay") => args.delay_ms = parser.value().map_err(err)?.parse().map_err(err)?,
             Long("bail") => args.bail = true,
+            Long(name @ ("sequence" | "sequence-values")) => {
+                let name = name.to_owned();
+                crate::sequence_flag::parse_option(&name, parser, &mut args.sequence)?;
+            }
             Long("respect-limits") => {
                 args.throttle.mode = rt_core::ratelimit::ThrottleMode::Respect
             }
@@ -355,6 +365,9 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
             EXIT_USAGE,
             "--respect-limits is not implemented yet (wave 18, strand D).",
         );
+    }
+    if let Err(e) = crate::sequence_flag::check(&args.sequence) {
+        return fail(stderr, EXIT_USAGE, &e);
     }
     let (root, folder) = match locate(args.path.as_deref().unwrap_or(Path::new("."))) {
         Ok(r) => r,

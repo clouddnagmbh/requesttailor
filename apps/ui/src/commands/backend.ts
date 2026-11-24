@@ -200,6 +200,47 @@ import type {
   ViewResult,
 } from "./types";
 
+import type {
+  AccessCheck,
+  AccessOptions,
+  AccessProfile,
+  CompensationItem,
+  ConsumerRef,
+  ConsumerReport,
+  ConsumerVerifyRequest,
+  DebugCommand,
+  DebugState,
+  DebugTarget,
+  EgressHost,
+  EgressRequest,
+  EgressResponse,
+  EntryStates,
+  JournalPage,
+  JournalQuery,
+  JournalSettings,
+  ManualRevert,
+  Notebook,
+  NotebookEntry,
+  NotebookOutcome,
+  NotebookRun,
+  PluginCompensationRule,
+  PreRead,
+  RevertOptions,
+  RevertOutcome,
+  RevertPlan,
+  SecurityFinding,
+  SecurityRule,
+  SecuritySettings,
+  SecurityTarget,
+  SequenceModel,
+  SequenceOptions,
+  SequenceSource,
+  SequenceText,
+  ShrinkPredicate,
+  ShrinkRequest,
+  ShrinkResult,
+} from "./types";
+
 export interface CollectionInfo {
   /** Stable id for this collection on this device (used as `SecretKey.collection`). */
   id: string;
@@ -729,6 +770,12 @@ export interface AgentsApi {
    * `needs-approval` means ask the user first.
    */
   check(path: string, environment: string | null): Promise<AgentCheck>;
+  /**
+   * The same rules for a request that is not saved in the collection (wave 19): one an
+   * extension builds in memory, such as a probe of the API explorer
+   * (`rt_app::agents::check_spec`). Never sends anything.
+   */
+  checkSpec(spec: RequestSpec, environment: string | null): Promise<AgentCheck>;
 }
 
 /** Wave 8, strand E: the AI assistant. Off until configured; keys never leave the keychain
@@ -947,6 +994,16 @@ export interface Backend {
   readonly lint: LintApi;
   readonly views: ViewsApi;
   readonly catalogue: CatalogueApi;
+  /** Wave 19: evidence and cleaning up (placeholders until the strands, `wave19-stubs.ts`). */
+  readonly egress: EgressApi;
+  readonly journal: JournalApi;
+  readonly access: AccessApi;
+  readonly shrink: ShrinkApi;
+  readonly consumers: ConsumersApi;
+  readonly sequence: SequenceApi;
+  readonly security: SecurityApi;
+  readonly notebook: NotebookApi;
+  readonly debugger: DebuggerApi;
   /** Wave 17: snapshot tests (`rt_app::snapshots`) and sharing (`rt_app::share`). */
   readonly snapshots: SnapshotApi;
   readonly share: ShareApi;
@@ -1108,3 +1165,77 @@ export interface CatalogueApi {
   installed(): Promise<InstalledSource[]>;
   checkUpdates(): Promise<CatalogueUpdate[]>;
 }
+
+// ---- wave 19 ----
+
+/** Guided network access for extensions (wave 19, strand B; `rt_app::egress`). */
+export interface EgressApi {
+  hosts(): Promise<EgressHost[]>;
+  allow(host: string, port: number | null, extension: string, purpose: string): Promise<EgressHost>;
+  remove(host: string, port: number | null): Promise<void>;
+  request(request: EgressRequest): Promise<EgressResponse>;
+}
+
+/** The test-data journal and reverting (wave 19, strand C; `rt_app::journal`). */
+export interface JournalApi {
+  settings(): Promise<JournalSettings>;
+  setSettings(settings: JournalSettings): Promise<void>;
+  entries(query: JournalQuery): Promise<JournalPage>;
+  clear(): Promise<void>;
+  planManual(revert: ManualRevert): Promise<RevertPlan>;
+  planCompensations(items: CompensationItem[]): Promise<RevertPlan>;
+  execute(plan: RevertPlan, options: RevertOptions): Promise<RevertOutcome>;
+  pluginRules(): Promise<PluginCompensationRule[]>;
+  preRead(request: RequestSpec, environment: string | null): Promise<PreRead>;
+  states(entryIds: number[]): Promise<EntryStates[]>;
+}
+
+/** The two-user access check of one request (wave 19, strand D; `rt_app::access`). */
+export interface AccessApi {
+  check(path: string, profile: AccessProfile, options: AccessOptions): Promise<AccessCheck>;
+}
+
+/** Minimal failing request (wave 19, strand E; `rt_app::shrink`). */
+export interface ShrinkApi {
+  run(request: ShrinkRequest): Promise<ShrinkResult>;
+  cancel(): Promise<void>;
+  predicate(path: string, responseId: number | null): Promise<ShrinkPredicate>;
+}
+
+/** Consumer contracts without a broker (wave 19, strand F; `rt_app::consumers`). */
+export interface ConsumersApi {
+  list(): Promise<ConsumerRef[]>;
+  verify(request: ConsumerVerifyRequest): Promise<ConsumerReport>;
+}
+
+/** Sequence diagrams from runs (wave 19, strand G; `rt_app::sequence`). */
+export interface SequenceApi {
+  model(source: SequenceSource, options: SequenceOptions): Promise<SequenceModel>;
+  render(model: SequenceModel, options: SequenceOptions): Promise<SequenceText>;
+  clear(): Promise<void>;
+}
+
+/** Passive API security checks (wave 19, strand R; `rt_app::security`). */
+export interface SecurityApi {
+  check(target: SecurityTarget): Promise<SecurityFinding[]>;
+  rules(): Promise<SecurityRule[]>;
+  settings(): Promise<SecuritySettings>;
+  setSettings(settings: SecuritySettings): Promise<void>;
+}
+
+/** API notebooks (wave 19, strand W; `rt_app::notebook`). */
+export interface NotebookApi {
+  list(): Promise<NotebookEntry[]>;
+  read(path: string): Promise<Notebook>;
+  stage(path: string, notebook: Notebook): Promise<void>;
+  run(run: NotebookRun): Promise<NotebookOutcome>;
+}
+
+/** The script debugger (wave 19, strand Y; `rt_script::debug`). */
+export interface DebuggerApi {
+  start(target: DebugTarget): Promise<DebugState>;
+  command(session: number, command: DebugCommand): Promise<DebugState>;
+  state(session: number): Promise<DebugState>;
+  stop(session: number): Promise<void>;
+}
+

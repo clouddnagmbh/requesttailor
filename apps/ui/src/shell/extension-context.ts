@@ -5,11 +5,20 @@
 // since wave 16). One place, so tests build the same context as the shell.
 
 import { createExtensionAi } from "../ai/extension-ai";
+import { createExtensionEgress } from "../egress/extension-egress";
 import type { Backend } from "../commands/backend";
 import type { ExtensionContext } from "../extensions";
 import type { AppState } from "../state/app.svelte";
 import { createSuggest, createSuggestOutcome } from "../suggest/suggest";
 
 export function createExtensionContext(backend: Backend, app: AppState): ExtensionContext {
-  return { backend, app, ai: createExtensionAi(backend, app), suggest: createSuggest(backend, app), suggestOutcome: createSuggestOutcome(backend, app) };
+  return {
+    backend,
+    app,
+    ai: createExtensionAi(backend, app),
+    suggest: createSuggest(backend, app),
+    suggestOutcome: createSuggestOutcome(backend, app),
+    egress: createExtensionEgress(backend, app),
+    segments: (responseId, source, segments) => app.contributeSegments(responseId, source, segments),
+  };
 }

@@ -10,6 +10,8 @@ import type { Component } from "svelte";
 import type { StoredResponse } from "../commands/types";
 import type { AppState } from "../state/app.svelte";
 import { inspectSlots } from "../inspect";
+import { securitySlots } from "../security";
+import { traceSlots } from "../trace";
 import { pagingSlots } from "../paging";
 import { ratelimitSlots } from "../ratelimit";
 import { viewsSlots } from "../views";
@@ -25,5 +27,5 @@ export type ResponseSlotContribution =
   | { kind: "chip"; id: string; component: Component<ResponseSlotProps>; show?: (r: StoredResponse) => boolean };
 
 export function responseSlots(): ResponseSlotContribution[] {
-  return [...inspectSlots, ...viewsSlots, ...ratelimitSlots, ...pagingSlots];
+  return [...inspectSlots, ...viewsSlots, ...ratelimitSlots, ...pagingSlots, ...traceSlots, ...securitySlots];
 }

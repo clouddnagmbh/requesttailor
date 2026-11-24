@@ -78,6 +78,7 @@ impl Tap {
                 body_size: wire.body_size,
             }),
             response: Some(ReceivedResponse {
+                tls: None,
                 status: wire.head.status,
                 version: wire.head.version,
                 headers: wire.head.headers,
@@ -100,6 +101,7 @@ impl Tap {
             flow: None,
             checks: Vec::new(),
             rate_limit: None,
+            trace: None,
             segments: Vec::new(),
         };
         let mut exchange = exchange_of(&report, &secrets, Caller::App, None);

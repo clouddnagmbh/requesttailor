@@ -239,6 +239,7 @@ mod tests {
             flow: None,
             segments: Vec::new(),
             rate_limit: None,
+            trace: None,
             checks: Vec::new(),
         };
         let mut r = report();

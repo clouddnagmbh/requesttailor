@@ -148,6 +148,10 @@ export function mockAgents(
       const effect = mockEffect(await options.getRequest(path));
       return { effect, verdict: mockVerdict(policy, environment, effect) } satisfies AgentCheck;
     },
+    async checkSpec(spec, environment) {
+      const effect = mockEffect(spec);
+      return { effect, verdict: mockVerdict(policy, environment, effect) } satisfies AgentCheck;
+    },
     async audit(limit) {
       return [...audit].reverse().slice(0, limit);
     },

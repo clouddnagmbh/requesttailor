@@ -19,7 +19,7 @@ pub use auth::{
     AiCollectionConfig, AwsSigV4, CertificateSource, ClientCertificate, CollectionConfig,
     CredentialsPlacement, ExternalSecret, ExternalSecrets, OAuth2, OAuth2Flow, OAuth2Param,
     OAuth2Step, ObserveCollectionConfig, ParamPlacement, PkceMethod, SecretProvider,
-    TokenPlacement, TokenSource, TokenUse,
+    TokenPlacement, TokenSource, TokenUse, TraceCollectionConfig,
 };
 pub use collection::{Collection, Folder, Item, RequestContext, RequestDefaults, RequestEntry};
 pub use env::{Environment, Variable};

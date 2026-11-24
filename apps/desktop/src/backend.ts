@@ -66,6 +66,16 @@ import { tauriRepositories } from "./repositories";
 import { tauriShare } from "./share";
 import { tauriSnapshots } from "./snapshots";
 import { tauriEnvCompare } from "./envcompare";
+import { tauriEgress } from "./egress";
+import { tauriJournal } from "./journal";
+import { tauriAccess } from "./access";
+import { tauriShrink } from "./shrink";
+import { tauriConsumers } from "./consumers";
+import { tauriSequence } from "./sequence";
+import { tauriSecurity } from "./security";
+import { tauriNotebook } from "./notebook";
+import { tauriDebugger } from "./debugger";
+
 import { tauriInspect } from "./inspect";
 import { tauriPaging } from "./paging";
 import { tauriInbox } from "./inbox";
@@ -195,6 +205,7 @@ export const COMMANDS = [
   "agents_decide",
   "agents_audit",
   "agents_check",
+  "agents_check_spec",
   // Wave 8, strand B.
   "grpc_services",
   "grpc_template",
@@ -327,6 +338,42 @@ export const COMMANDS = [
   "share_copy_as",
   "share_qr",
   "contract_stage_spec",
+  // Wave 19.
+  "egress_hosts",
+  "egress_allow",
+  "egress_remove",
+  "egress_request",
+  "journal_settings",
+  "journal_set_settings",
+  "journal_entries",
+  "journal_clear",
+  "journal_plan_manual",
+  "journal_plan_compensations",
+  "journal_execute",
+  "journal_plugin_rules",
+  "journal_pre_read",
+  "journal_states",
+  "access_check",
+  "shrink_run",
+  "shrink_cancel",
+  "shrink_predicate",
+  "consumers_list",
+  "consumers_verify",
+  "sequence_model",
+  "sequence_render",
+  "sequence_clear",
+  "security_check",
+  "security_rules",
+  "security_settings",
+  "security_set_settings",
+  "notebook_list",
+  "notebook_read",
+  "notebook_stage",
+  "notebook_run",
+  "debugger_start",
+  "debugger_command",
+  "debugger_state",
+  "debugger_stop",
   // Wave 18.
   "envcompare_run",
   "inspect_jwt",
@@ -397,6 +444,16 @@ export class TauriBackend implements Backend {
   readonly collections = tauriCollections((cmd, args) => this.call(cmd, args));
   /** Wave 15: repositories in the set (`repositories.ts`). */
   readonly repositories = tauriRepositories((cmd, args) => this.call(cmd, args));
+  /** Wave 19 (one file per group, `<name>.ts`). */
+  readonly egress = tauriEgress((cmd, args) => this.call(cmd, args));
+  readonly journal = tauriJournal((cmd, args) => this.call(cmd, args));
+  readonly access = tauriAccess((cmd, args) => this.call(cmd, args));
+  readonly shrink = tauriShrink((cmd, args) => this.call(cmd, args));
+  readonly consumers = tauriConsumers((cmd, args) => this.call(cmd, args));
+  readonly sequence = tauriSequence((cmd, args) => this.call(cmd, args));
+  readonly security = tauriSecurity((cmd, args) => this.call(cmd, args));
+  readonly notebook = tauriNotebook((cmd, args) => this.call(cmd, args));
+  readonly debugger = tauriDebugger((cmd, args) => this.call(cmd, args));
   /** Wave 18 (one file per group, `<name>.ts`). */
   readonly envCompare = tauriEnvCompare((cmd, args) => this.call(cmd, args));
   readonly inspect = tauriInspect((cmd, args) => this.call(cmd, args));

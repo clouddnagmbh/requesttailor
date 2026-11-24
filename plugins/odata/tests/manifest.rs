@@ -68,3 +68,16 @@ fn plugin_json_lists_what_the_wave_18_modules_contribute() {
         );
     }
 }
+
+/// Wave 19: everything the modules of the wave contribute is in `plugin.json`.
+#[test]
+fn plugin_json_lists_what_the_wave_19_modules_contribute() {
+    let m = rt_plugin_sdk::parse_manifest(MANIFEST).unwrap();
+    for rule in &rt_plugin_odata::manifest::wave19().compensations {
+        assert!(
+            m.contributes.compensations.iter().any(|c| c == rule),
+            "compensation rule {}",
+            rule.id
+        );
+    }
+}

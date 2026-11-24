@@ -8,6 +8,7 @@
 //! Workspace.agentPolicy() -> AgentPolicy
 //! Workspace.setAgentPolicy(policy)          unsaved edit, like updateEnvironment
 //! Workspace.agentCheck(path, environment) -> AgentCheck   effect and verdict of one request
+//! Workspace.agentCheckSpec(spec, environment) -> AgentCheck   the same for an unsaved request
 //! ```
 //!
 //! Approvals and the audit log belong to `rt mcp` on the user's machine; the web app has
@@ -33,6 +34,21 @@ impl WorkspaceJs {
             rt_app::agents::check(self.workspace().collection(), path, environment.as_deref())
                 .map_err(app_error)?;
         to_js(&check)
+    }
+
+    /// `AgentCheck` for a request that is not saved in the collection (wave 19).
+    #[wasm_bindgen(js_name = agentCheckSpec)]
+    pub fn agent_check_spec(
+        &self,
+        spec: JsValue,
+        environment: Option<String>,
+    ) -> Result<JsValue, JsValue> {
+        let spec: rt_core::model::RequestSpec = from_js(&spec, "spec")?;
+        to_js(&rt_app::agents::check_spec(
+            self.workspace().collection(),
+            &spec,
+            environment.as_deref(),
+        ))
     }
 
     #[wasm_bindgen(js_name = setAgentPolicy)]

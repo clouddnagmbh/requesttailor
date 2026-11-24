@@ -28,6 +28,8 @@
 //! Hooks that several modules contribute to are combined here, in a fixed order.
 
 pub mod abap;
+/// Clean-up rules as data: how writing requests are put back (wave 19, strand H).
+pub mod compensations;
 pub mod destinations;
 pub mod edm;
 pub mod gateway;

@@ -107,6 +107,10 @@ impl SendGuard for NoScriptRequests {
                 reason: "scripts may not send".into(),
             },
             Purpose::Main => GuardVerdict::Allow,
+            Purpose::Egress | Purpose::Audit => GuardVerdict::Refuse {
+                rule: "egress".into(),
+                reason: "no egress".into(),
+            },
         }
     }
 }
