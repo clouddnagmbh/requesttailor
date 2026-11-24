@@ -225,6 +225,7 @@
     "allow-git-discard-patch",
     "allow-git-commit-staged",
     "allow-git-verify",
+    "allow-git-config",
     "allow-review-create",
     "core:event:allow-listen",
     "core:event:allow-unlisten"

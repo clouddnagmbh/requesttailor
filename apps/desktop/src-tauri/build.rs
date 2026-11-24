@@ -248,6 +248,7 @@ const COMMANDS: &[&str] = &[
     "git_discard_patch",
     "git_commit_staged",
     "git_verify",
+    "git_config",
     "review_create",
 ];
 

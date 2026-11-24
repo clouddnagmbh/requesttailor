@@ -339,6 +339,10 @@ export interface GitApi {
   commitStaged(commit: GitStagedCommit): Promise<GitCommit>;
   /** Signature state of each commit; without a verifier `unverified` or `unsigned`. */
   verify(oids: string[]): Promise<GitSignatureCheck[]>;
+  /** An effective Git configuration value (`commit.template`, `user.signingkey`, `gpg.format`,
+   *  `commit.gpgsign`, ...) or `null` when unset: natively the repository's own configuration,
+   *  then the user's global and system configuration; in the browser the repository's own. */
+  config(key: string): Promise<string | null>;
 }
 
 /** Wave 15 (interface, strand A): repositories in the collection set. The list is part of
