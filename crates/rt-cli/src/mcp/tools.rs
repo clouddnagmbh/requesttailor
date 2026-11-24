@@ -435,6 +435,7 @@ async fn prepare(
         guard: server.opts.guard.clone(),
         observers: server.opts.observers.clone(),
         caller: rt_core::guard::Caller::Agent,
+        watch: Default::default(),
     };
     Ok(Prepared {
         collection,

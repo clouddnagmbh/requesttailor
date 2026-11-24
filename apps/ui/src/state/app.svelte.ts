@@ -208,6 +208,9 @@ export class AppState {
   /** Asked before every `send` once the request's edits have reached the backend (the
    *  OpenAPI run wizard, `openapi/gate.ts`); `false` cancels the send. Errors let it through. */
   sendGate: ((path: string) => Promise<boolean>) | null = null;
+  /** Asked before `sendGate` (wave 17: "Send POST to prod?", `environments/production.svelte.ts`);
+   *  `false` cancels the send. Errors let it through. */
+  sendConfirm: ((path: string) => Promise<boolean>) | null = null;
 
   /** Resolves when every `edit` so far has reached the backend; `send`/`save` wait for it so
    *  shells with concurrent commands (Tauri) never send or save a stale request. Wave 14:
@@ -768,6 +771,10 @@ export class AppState {
     if (!path || !view || !collectionId) return;
     view.sending[path] = true;
     await this.lastEdit;
+    if (this.sendConfirm && !(await this.sendConfirm(path).catch(() => true))) {
+      view.sending[path] = false;
+      return;
+    }
     if (this.sendGate && !(await this.sendGate(path).catch(() => true))) {
       this.sending[path] = false;
       return;

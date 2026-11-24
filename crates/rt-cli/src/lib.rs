@@ -41,10 +41,12 @@ pub mod run;
 pub mod scan;
 pub mod scripts;
 pub mod secrets;
+pub mod send_banner;
 pub mod services;
 pub mod snapshot;
 /// `rt send` on WebSocket, gRPC and SSE requests (wave 8, strand A).
 pub mod stream;
+pub mod watch;
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -98,7 +100,19 @@ Options for send:
       --cookie-jar <FILE>   Send cookies from FILE and store new ones in it
       --no-prompt           Fail instead of asking for an OAuth 2.0 login
       --no-scripts          Do not run the collection's scripts
+      --timing              Also print one timing bar with the share of server wait (stderr)
+      --watch               Send again whenever the request, its body file, the folder files,
+                            opencollection.yml, the environment or a companion file changes;
+                            prints one line per send (--json: one report per line). Only
+                            reading requests, and never against production, unless
+                            --allow-writes (never against production). Ctrl-C exits with the
+                            code of the last send.
+      --allow-writes        With --watch: also send writing requests (not to production)
   -h, --help                Show this help
+
+Against a production environment (the collection's agent policy, or a name with prod, prd or
+live) rt send and rt run print a PRODUCTION: line on stderr and add it to the report's notes.
+They never refuse because of it.
 
 Sessions (WebSocket and gRPC requests, HTTP requests with --sse): rt send opens
 the session, sends the selected message and prints the message history as JSON
@@ -295,6 +309,8 @@ pub struct SendArgs {
     pub observers: ObserverSet,
     /// Wave 10: who sends, for the guard: [`Caller::Cli`], or [`Caller::Agent`] in `rt mcp`.
     pub caller: Caller,
+    /// Wave 17: `--watch`, `--allow-writes`, `--timing`, `--json` (`watch.rs`).
+    pub watch: watch::WatchArgs,
 }
 
 impl Default for SendArgs {
@@ -314,6 +330,7 @@ impl Default for SendArgs {
             guard: GuardHandle::none(),
             observers: ObserverSet::new(),
             caller: Caller::Cli,
+            watch: watch::WatchArgs::default(),
         }
     }
 }
@@ -431,6 +448,10 @@ fn parse_send(parser: &mut lexopt::Parser) -> Result<Command, String> {
             Long("cookie-jar") => args.cookie_jar = Some(parser.value().map_err(err)?.into()),
             Long("no-prompt") => args.prompt = false,
             Long("no-scripts") => args.no_scripts = true,
+            Long("watch") => args.watch.watch = true,
+            Long("allow-writes") => args.watch.allow_writes = true,
+            Long("timing") => args.watch.timing = true,
+            Long("json") => args.watch.json = true,
             Long(name @ ("sse" | "message" | "duration" | "until-close")) => {
                 let name = name.to_owned();
                 stream::parse_option(&name, parser, &mut args.session)?;
@@ -440,6 +461,9 @@ fn parse_send(parser: &mut lexopt::Parser) -> Result<Command, String> {
         }
     }
     args.file = file.ok_or("send: missing <request-file>")?;
+    if args.watch.allow_writes && !args.watch.watch {
+        return Err("--allow-writes only applies with --watch".into());
+    }
     Ok(Command::Send(args))
 }
 
@@ -766,6 +790,9 @@ where
             let _ = stdout.write_all(version().as_bytes());
             return EXIT_OK;
         }
+        Ok(Command::Send(args)) if args.watch.watch => {
+            return watch::run(args, stdout, stderr);
+        }
         Ok(Command::Send(args)) => args,
         Ok(Command::Agent(args)) => return agent::run_with(args, hooks.1.clone(), stderr),
         Ok(Command::Import(args)) => return import::run(args, stdout, stderr),
@@ -848,7 +875,19 @@ where
         let _ = stdout.flush();
         return output.exit_code();
     }
-    let report = runtime.block_on(send_request(&doc, &request_path, &args, &files, &transport));
+    let mut report = runtime.block_on(send_request(&doc, &request_path, &args, &files, &transport));
+    // Wave 17: a production environment is said out loud, never refused.
+    if let Some(text) =
+        send_banner::banner_for(doc.model(), &request_path, args.environment.as_deref())
+    {
+        let _ = writeln!(stderr, "rt: {text}");
+        send_banner::add_note(&mut report, &text);
+    }
+    if args.watch.timing
+        && let Some(line) = send_banner::timing_line(&report)
+    {
+        let _ = writeln!(stderr, "{line}");
+    }
     let _ = stdout.write_all(render(&report, args.pretty).as_bytes());
     let _ = stdout.flush();
     exit_code(&report)

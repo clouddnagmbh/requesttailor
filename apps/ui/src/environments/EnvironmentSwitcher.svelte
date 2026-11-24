@@ -1,13 +1,15 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- Active environment picker. Owner: wave 3, strand D. Production-looking names (prod, prd,
-     live) are shown in the warning colour; that is visual only and changes no behaviour. -->
+<!-- Active environment picker. Owner: wave 3, strand D. Production environments (policy flag, else a name with prod, prd or live; wave 17) carry
+     a PRODUCTION badge and the warning colour. -->
 <script lang="ts">
   import { getApp } from "../state/app.svelte";
-  import { isProductionName } from "./ops";
+  import { getProduction } from "./production.svelte";
 
   const app = getApp();
-  const prod = $derived(isProductionName(app.environment));
+  // Wave 17: the policy flag decides, the name only for environments it does not list.
+  const production = getProduction(app);
+  const prod = $derived(production.active);
 </script>
 
 <span class="switcher" class:prod class:none={!app.environment}>
@@ -25,6 +27,7 @@
       <option value={env.name}>{env.name}</option>
     {/each}
   </select>
+  {#if prod}<span class="badge" data-testid="env-production-badge">PRODUCTION</span>{/if}
   <span class="visually-hidden" data-testid="env-active" aria-live="polite">{app.environment ?? ""}</span>
 </span>
 
@@ -59,6 +62,16 @@
     border-color: var(--rt-warn);
     color: var(--rt-warn);
     font-weight: 600;
+  }
+
+  .badge {
+    padding: 0 var(--rt-space-3);
+    border-radius: var(--rt-radius-pill);
+    background: var(--rt-danger-solid);
+    color: #fff;
+    font-size: var(--rt-text-xs, 11px);
+    font-weight: 700;
+    letter-spacing: 0.05em;
   }
 
   .none .dot {

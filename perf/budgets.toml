@@ -93,7 +93,6 @@ max = 1
 
 # Strand D (scripts/perf/watch.mjs, crates/rt-cli/tests/watch.rs).
 [metrics.watch_resend]
-description = "`rt send --watch`: from the file change to the request on the wire (rt-testserver, median of 9)"
+description = "`rt send --watch`: from the file change to the request on the wire (a local server, release build, median of 9)"
 unit = "ms"
-pending = "wave 17, strand D"
 max = 500

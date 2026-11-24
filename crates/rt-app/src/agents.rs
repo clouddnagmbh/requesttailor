@@ -80,6 +80,38 @@ pub fn verdict(policy: &AgentPolicy, environment: Option<&str>, effect: Effect) 
     }
 }
 
+/// Whether `environment` is a production system: the one answer for the app (frame, label,
+/// confirmation), `rt send`/`rt run` (banner) and every extension that sends in bulk.
+///
+/// The collection's [`AgentPolicy`] decides when it lists the environment (its `production`
+/// flag, either way). For an environment it does not list, the name decides
+/// ([`looks_like_production`]): `prod`, `prd` or the word `live` anywhere in it. Sending
+/// without an environment is never production.
+pub fn is_production(policy: &AgentPolicy, environment: Option<&str>) -> bool {
+    let Some(name) = environment else {
+        return false;
+    };
+    match policy.environments.iter().find(|e| e.environment == name) {
+        Some(entry) => entry.production,
+        None => looks_like_production(name),
+    }
+}
+
+/// The name heuristic of [`is_production`], the same as `isProductionName` in the UI
+/// (`/prod|prd|\blive\b/i`).
+pub fn looks_like_production(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    if lower.contains("prod") || lower.contains("prd") {
+        return true;
+    }
+    let is_word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    lower.match_indices("live").any(|(at, _)| {
+        let before = lower[..at].chars().next_back();
+        let after = lower[at + 4..].chars().next();
+        !before.is_some_and(is_word) && !after.is_some_and(is_word)
+    })
+}
+
 /// What the agent rules say about sending one request (`Backend.agents.check`): its
 /// [`Effect`] and the [`Verdict`] of the collection's [`AgentPolicy`] for `environment`.
 /// The same two functions `rt mcp` calls, so a UI extension that sends on a model's behalf

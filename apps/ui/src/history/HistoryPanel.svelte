@@ -9,6 +9,7 @@
 
   import type { HistoryEntry } from "../commands/types";
   import { describeError, formatDuration } from "../response/format";
+  import { durationBar } from "../response/timing-bar";
   import MethodBadge from "../shell/MethodBadge.svelte";
   import { getApp } from "../state/app.svelte";
   import { entryClass, statusLabel, timeAgo } from "./format";
@@ -26,6 +27,8 @@
   let focusIndex = $state(0);
   let confirming = $state(false);
   let now = $state(Date.now());
+  // Wave 17: each row's duration as a bar against the slowest row shown (history keeps no phases).
+  const slowest = $derived(Math.max(0, ...entries.map((e) => e.duration_ms ?? 0)));
   let listEl = $state<HTMLElement>();
   let clearButton = $state<HTMLButtonElement>();
 
@@ -239,7 +242,14 @@
           {:else}
             <span class="url">{entry.url ?? ""}</span>
           {/if}
-          {#if entry.duration_ms != null}<span data-testid="history-duration">{formatDuration(entry.duration_ms)}</span>{/if}
+          {#if entry.duration_ms != null}
+            {@const bar = durationBar(entry.duration_ms, slowest)}
+            <span class="dur" data-testid="history-duration"
+              ><span class="dur-bar" data-testid="history-timing-bar" aria-hidden="true"
+                ><span style:width="{bar?.pct ?? 0}%"></span></span
+              >{formatDuration(entry.duration_ms)}</span
+            >
+          {/if}
           <time datetime={new Date(entry.at).toISOString()} data-testid="history-time">{timeAgo(entry.at, now)}</time>
         </div>
       </div>
@@ -364,6 +374,24 @@
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .dur {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rt-space-2);
+  }
+  .dur-bar {
+    display: inline-block;
+    width: 40px;
+    height: 4px;
+    overflow: hidden;
+    border-radius: var(--rt-radius-pill);
+    background: var(--rt-border);
+  }
+  .dur-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--rt-accent);
   }
   .meta {
     color: var(--rt-fg-muted);
