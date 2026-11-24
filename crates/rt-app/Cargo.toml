@@ -16,6 +16,10 @@ bytes = "1"
 futures-core = "0.3"
 # Line index of large response bodies (SIMD newline search).
 memchr = "2"
+# Share links (wave 17, `share`): deflate (pure Rust, already in the tree via rt-format) and the
+# QR code as SVG (MIT OR Apache-2.0, no image library).
+miniz_oxide = { version = "0.9.1", default-features = false, features = ["with-alloc"] }
+qrcode = { version = "0.15", default-features = false, features = ["svg"] }
 rt-core = { path = "../rt-core" }
 rt-format = { path = "../rt-format" }
 # gRPC descriptors and JSON <-> protobuf (wave 8, strand B).

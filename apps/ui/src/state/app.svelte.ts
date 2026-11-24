@@ -23,6 +23,7 @@ import type {
 } from "../commands/types";
 import type { ExtensionDialog } from "../extensions";
 import type { GitView } from "../git/views.svelte";
+import { sharedInbox } from "../share/inbox.svelte";
 import { load as loadSetting, store as storeSetting } from "../shell/storage";
 
 const KEY = Symbol("requesttailor-app");
@@ -525,12 +526,35 @@ export class AppState {
   }
 
   /** Wave 17: opens a shared request (a link, a fragment or an `rt:` payload; `ShareApi.open`)
-   *  as an unsaved draft in the active collection or, without one, in a new empty session.
-   *  Nothing runs and nothing is sent. Strand C fills it in; until then it rejects with kind
-   *  `unsupported`. */
+   *  as an unsaved draft in the active collection or, without one, in a new collection the
+   *  user chooses a folder for. Nothing runs and nothing is sent; the request is not saved. */
   async openShared(input: string): Promise<void> {
-    void input;
-    throw new BackendError("unsupported", "Opening a shared request is not implemented yet (wave 17, strand C).");
+    const payload = await this.backend.share.open(input);
+    if (!this.collection) {
+      const made = await this.createCollection({ name: "Shared requests", root: null, dir: "shared-requests" });
+      if (!made) return;
+    }
+    await this.create("", payload.name || payload.request.name || "Shared request");
+    const path = this.active;
+    if (!path) throw new BackendError("shell", "The shared request could not be opened.");
+    const created = await this.backend.getRequest(path);
+    // The values the link carried (never secrets) become variables of the request itself.
+    const have = new Set(payload.request.vars.map((v) => v.name));
+    const vars = [...payload.request.vars];
+    for (const v of payload.variables) {
+      if (v.value !== null && !v.secret && !have.has(v.name)) vars.push({ name: v.name, value: v.value, enabled: true, secret: false });
+    }
+    await this.applyExternal(path, { ...payload.request, name: created.name, seq: created.seq, vars });
+    const defined = new Set(vars.filter((v) => v.secret || v.value !== null).map((v) => v.name));
+    const needs = payload.variables.filter((v) => !defined.has(v.name));
+    sharedInbox.offer = null;
+    sharedInbox.error = null;
+    sharedInbox.opened = {
+      name: created.name,
+      path,
+      needs: needs.map((v) => v.name),
+      secrets: needs.filter((v) => v.secret).map((v) => v.name),
+    };
   }
 
   /** Wave 14: opens the "New…" dialog (default: the active collection's root). */

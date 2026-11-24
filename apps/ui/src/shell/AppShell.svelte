@@ -54,6 +54,8 @@
   import CloneDialog from "../git/CloneDialog.svelte";
   import ImportDialog from "../import/ImportDialog.svelte";
   import { openApiCommands } from "../openapi/commands";
+  import { shareCommands } from "../share/commands";
+  import SharedBanner from "./SharedBanner.svelte";
   import OpenApiHost from "../openapi/OpenApiHost.svelte";
   import CollectionPanel, { type CollectionTab } from "../plugins/CollectionPanel.svelte";
   import { tabsFor } from "../plugins/permissions";
@@ -469,6 +471,7 @@
         }))
       : []),
     ...openApiCommands(),
+    ...shareCommands(app),
     ...(app.collection ? [{ id: "mcp", label: "Test an MCP server", run: () => openMcp() }] : []),
     ...extensions.flatMap((x) =>
       (x.commands?.(extensionContext) ?? []).map((c) => ({ id: `${x.id}:${c.id}`, label: c.label, run: c.run })),
@@ -714,6 +717,7 @@
   </div>
 
   <footer>
+    <SharedBanner />
     {#if app.error}<p class="error" role="alert">{app.error}</p>{/if}
   </footer>
 </div>

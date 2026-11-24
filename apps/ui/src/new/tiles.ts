@@ -10,6 +10,7 @@ import type { ExtensionNewItemRef } from "./items";
 import { NEW_ITEMS, type NewItemKind } from "./kinds";
 import { aiFor } from "../ai/ai.svelte";
 import { openOpenApiWizard } from "../openapi/store.svelte";
+import { openPasteLink } from "../share/commands";
 import CloneRepositoryDialog from "../git/CloneRepositoryDialog.svelte";
 
 /** "From OpenAPI": opens the OpenAPI import wizard (it asks for the target itself). */
@@ -42,6 +43,20 @@ const CLONE_TILE: Tile = {
       description: "",
       run: (ctx) => void ctx.app.showDialog({ title: "Clone a repository", component: CloneRepositoryDialog, width: 520 }),
     },
+  },
+};
+
+/** "Paste link" (wave 17): a shared link or a cURL command opens as an unsaved draft. */
+const PASTE_LINK_TILE: Tile = {
+  key: "paste-link",
+  title: "Paste link",
+  description: "A shared request link or a cURL command, as an unsaved draft.",
+  group: "Requests",
+  icon: "link",
+  extension: {
+    key: "paste-link",
+    extension: "core",
+    item: { id: "paste-link", title: "Paste link", description: "", run: (ctx) => openPasteLink(ctx.app) },
   },
 };
 
@@ -139,7 +154,7 @@ export function allTiles(extensions: readonly ExtensionNewItemRef[], hasCollecti
     }),
   );
   const ai: Tile[] = aiReady ? [hasCollection ? AI_TILE : { ...AI_TILE, disabled: "Open or create a collection first." }] : [];
-  return [...builtin, OPENAPI_TILE, CLONE_TILE, OPEN_REPOSITORY_TILE, ...ai, ...more];
+  return [...builtin, PASTE_LINK_TILE, OPENAPI_TILE, CLONE_TILE, OPEN_REPOSITORY_TILE, ...ai, ...more];
 }
 
 export interface TileGroup {

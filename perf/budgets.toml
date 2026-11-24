@@ -77,11 +77,11 @@ description = "Comparing 1000 stored responses (2 KB JSON, 20 ignored paths each
 unit = "ms"
 max = 150
 
-# Strand C (scripts/perf/share.mjs); confirm the threshold after the first measurement.
+# Strand C (scripts/perf/share.mjs, crates/rt-app/tests/share_perf.rs). First measurement: p95
+# 1066 chars (median 450) over 228 requests, so the threshold of 2000 stands.
 [metrics.share_url_size]
 description = "Length of the share link of every request of the Bruno corpus, 95th percentile"
 unit = "chars"
-pending = "wave 17, strand C"
 max = 2000
 
 # Strand A (scripts/perf/observe.mjs, crates/rt-core/tests/observer_perf.rs). First measurement:

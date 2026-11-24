@@ -7,8 +7,9 @@
      the page (or of the open dialog), so no overflow of a narrow field ever clips them. -->
 <script lang="ts">
   import { isolateHistory } from "@codemirror/commands";
-  import { Annotation, Compartment, EditorState } from "@codemirror/state";
-  import { EditorView, placeholder as cmPlaceholder, tooltips } from "@codemirror/view";
+  import { Annotation, Compartment, EditorState, Prec } from "@codemirror/state";
+  import { closeCompletion } from "@codemirror/autocomplete";
+  import { EditorView, keymap, placeholder as cmPlaceholder, tooltips } from "@codemirror/view";
   import { onMount } from "svelte";
 
   import EditorShell, { type EditorKind } from "../suggest/EditorShell.svelte";
@@ -29,6 +30,9 @@
     placeholder = "",
     readonly = false,
     onenter,
+    onpastetext,
+    onescape,
+    ontake,
     complete = true,
     editor,
   }: {
@@ -42,6 +46,12 @@
     placeholder?: string;
     readonly?: boolean;
     onenter?: () => void;
+    /** Wave 17: the plain text of a paste, before it is inserted (the paste itself goes on). */
+    onpastetext?: (text: string) => void;
+    /** Wave 17: Escape; return `true` when it was used (otherwise it is not handled here). */
+    onescape?: () => boolean;
+    /** Wave 17: Enter while a paste hint waits; return `true` when it took the paste. */
+    ontake?: () => boolean;
     /** `{{` completion of variables (needs a `provideVarSource` above). */
     complete?: boolean;
     /** Wave 16: which editor this is, so extensions can add actions and propose text (`EditorShell`). */
@@ -71,6 +81,24 @@
           // svelte-ignore state_referenced_locally
           varSource && complete ? varCompletion(varSource) : [],
           multiline ? multiLine() : singleLine(() => onenter?.()),
+          EditorView.domEventHandlers({
+            paste: (event) => {
+              const text = event.clipboardData?.getData("text/plain");
+              if (text) {
+                onpastetext?.(text);
+                // A completion list open at the paste would take Enter; the hint needs it.
+                queueMicrotask(() => view && closeCompletion(view));
+                setTimeout(() => view && closeCompletion(view), 0);
+              }
+              return false;
+            },
+          }),
+          Prec.high(
+            keymap.of([
+              { key: "Escape", run: () => onescape?.() ?? false },
+              { key: "Enter", run: () => ontake?.() ?? false },
+            ]),
+          ),
           langSlot.of(language(lang)),
           editSlot.of(editable(readonly)),
           cmPlaceholder(placeholder),

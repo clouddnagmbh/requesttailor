@@ -21,7 +21,8 @@ describe("tiles", () => {
       true,
     );
     expect(groupTiles(tiles).map((g) => [g.group, g.tiles.length])).toEqual([
-      ["Requests", 5],
+      // ... and "Paste link" (wave 17).
+      ["Requests", 6],
       // Collection, Folder, Environment, From OpenAPI (the OpenAPI wizard) and the two
       // repository tiles (wave 15).
       ["Organise", 6],
@@ -38,6 +39,8 @@ describe("tiles", () => {
     const tiles = allTiles([ext("x/one")], false);
     expect(tiles.filter((t) => !t.disabled).map((t) => t.key)).toEqual([
       "collection",
+      // "Paste link" works without a collection: it asks for a folder to put the draft in.
+      "paste-link",
       "openapi",
       "clone-repository",
       "open-repository",

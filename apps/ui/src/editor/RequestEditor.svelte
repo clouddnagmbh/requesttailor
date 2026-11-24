@@ -34,6 +34,8 @@
   import ExtensionActions from "../shell/ExtensionActions.svelte";
   import { extensionRequestActions } from "../shell/extension-actions";
   import CodeField from "./CodeField.svelte";
+  import PasteHint from "../share/PasteHint.svelte";
+  import { offerFor, takeOffer, type PasteOffer } from "./paste-curl";
   import { canFormat, describeFormat, formatBody, onFormatRequest } from "./format-body";
   import KeyValueTable, { type Row } from "./KeyValueTable.svelte";
   import { paramsFromUrl, urlFromParams } from "./url";
@@ -160,6 +162,49 @@
   );
 
   // ---- method and URL ----
+
+  // Wave 17: a pasted cURL command or share link in the URL field gets a hint (Enter takes it,
+  // Escape leaves the text). The core reads it; nothing is sent.
+  let offer = $state<PasteOffer | null>(null);
+  let offerReplaces = $state(false);
+  let pasteNote = $state<string | null>(null);
+  $effect(() => {
+    void path;
+    offer = null;
+    pasteNote = null;
+  });
+  function pasted(text: string) {
+    pasteNote = null;
+    offer = offerFor(text);
+    const s = spec;
+    offerReplaces = !!s && (s.url.trim() !== "" || s.headers.length > 0 || s.body.type !== "none");
+  }
+  async function takePaste() {
+    const o = offer;
+    if (!o) return;
+    offer = null;
+    flush();
+    try {
+      pasteNote = await takeOffer(app, path, o);
+      } catch (e) {
+        app.error = e instanceof Error ? e.message : String(e);
+    }
+    revision++;
+  }
+  function urlEnter() {
+    sendNow();
+  }
+  function urlTake(): boolean {
+    if (!offer) return false;
+    void takePaste();
+    return true;
+  }
+  function urlEscape(): boolean {
+    if (!offer && !pasteNote) return false;
+    offer = null;
+    pasteNote = null;
+    return true;
+  }
 
   /** Path whose method is being typed freely. */
   let customFor = $state<string | null>(null);
@@ -357,7 +402,10 @@
           value={spec.url}
           {lookup}
           onchange={setUrl}
-          onenter={sendNow}
+          onenter={urlEnter}
+          onpastetext={pasted}
+          onescape={urlEscape}
+          ontake={urlTake}
         />
         {#if actions}
           <!-- Actions (Send) act on the request: pending typing reaches the backend first,
@@ -372,6 +420,7 @@
           </div>
         {/if}
       </div>
+      <PasteHint {offer} replaces={offerReplaces} note={pasteNote} ontake={() => void takePaste()} ondismiss={() => ((offer = null), (pasteNote = null))} />
       {#if shown?.error}
         <p class="resolved error" data-testid="url-preview-error">{shown.error}</p>
       {:else if shown?.url}

@@ -6,7 +6,7 @@
 // (rt-wasm). Owner of the real backend: wave 3, strand E. `?gallery=1` shows the UI primitive
 // gallery instead of the app, in the dev server only (production builds drop the branch).
 
-import { MockBackend, startApp, type AppExtension, type Backend } from "@requesttailor/ui";
+import { MockBackend, offerSharedLink, startApp, type AppExtension, type Backend } from "@requesttailor/ui";
 
 import { createWebBackend } from "./web-backend";
 
@@ -34,4 +34,14 @@ async function startShell() {
   }
 
   startApp(document.getElementById("app")!, backend, { extensions });
+  await takeSharedFragment(backend);
+}
+
+/** A link `<app>#rt=<payload>` waits in the banner until the user opens it (wave 17); the
+ *  fragment never reaches a server, and leaves the address bar once it is read. */
+async function takeSharedFragment(backend: Backend) {
+  if (!/^#rt=/.test(location.hash)) return;
+  const input = location.hash;
+  history.replaceState(null, "", location.pathname + location.search);
+  await offerSharedLink(backend, input);
 }

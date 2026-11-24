@@ -374,7 +374,10 @@ export class MockBackend implements Backend {
       return s?.text != null && meta ? { ...meta, body: s.text } : undefined;
     },
   });
-  readonly share = mockShare();
+  readonly share = mockShare({
+    getRequest: (p) => this.getRequest(p),
+    environments: () => this.environments(),
+  });
 
   async openCollection(): Promise<CollectionInfo | null> {
     const info = this.collections.openDemo();
