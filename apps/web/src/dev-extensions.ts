@@ -196,3 +196,34 @@ export const demo15Extension: AppExtension = {
     },
   ],
 };
+
+// ---- Wave 17: exchanges and batch suggestions (`?backend=mock&extensions=demo17`) ----
+// `onExchange` leaves a line per send in `window.__demo17` (path, status, whether the request
+// still has `{{variables}}`); the palette command suggests one edit to two requests.
+
+type Demo17Window = { __demo17?: string[] };
+const log17 = (line: string) => ((window as unknown as Demo17Window).__demo17 ??= []).push(line);
+
+export const demo17Extension: AppExtension = {
+  id: "demo17",
+  onExchange: (_ctx, event) =>
+    log17(`${event.path}:${event.response.report.response?.status ?? "none"}:${event.request.url.includes("{{") ? "template" : "resolved"}`),
+  commands: (ctx) => [
+    {
+      id: "chain",
+      label: "Demo17: chain a header into two requests",
+      run: async () => {
+        const [a, b] = await Promise.all([ctx.backend.getRequest("users/list-users.yml"), ctx.backend.getRequest("users/create-user.yml")]);
+        const applied = await ctx.suggest({
+          kind: "batch",
+          edits: [
+            { kind: "request", path: "users/list-users.yml", spec: { ...a, headers: [...a.headers, { name: "X-Chain", value: "{{chain}}", enabled: true }] } },
+            { kind: "request", path: "users/create-user.yml", spec: { ...b, headers: [...b.headers, { name: "X-Chain", value: "{{chain}}", enabled: true }] } },
+          ],
+          note: { title: "Pass the chained value on" },
+        });
+        log17(`batch:${applied}`);
+      },
+    },
+  ],
+};
