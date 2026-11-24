@@ -1,0 +1,31 @@
+[
+  {
+    "Name": "RT_S4_DEV",
+    "Type": "HTTP",
+    "URL": "https://s4-dev.example.invalid/sap/opu/odata/sap",
+    "Authentication": "BasicAuthentication",
+    "ProxyType": "Internet",
+    "User": "DEV_USER",
+    "Password": "RT-CANARY-destination-password-multi-1",
+    "sap-client": "100"
+  },
+  {
+    "Name": "RT_S4_PRD",
+    "Type": "HTTP",
+    "URL": "https://s4-prd.example.invalid/sap/opu/odata/sap",
+    "Authentication": "BasicAuthentication",
+    "ProxyType": "Internet",
+    "User": "PRD_USER",
+    "Password": "RT-CANARY-destination-password-multi-2",
+    "sap-client": "300"
+  },
+  {
+    "Name": "RT_CAP_DEV",
+    "Type": "HTTP",
+    "URL": "https://cap-dev.example.invalid/odata/v4/admin",
+    "Authentication": "OAuth2ClientCredentials",
+    "clientId": "sb-multi!t2",
+    "clientSecret": "RT-CANARY-destination-client-secret-multi",
+    "tokenServiceURL": "https://auth-dev.example.invalid/oauth/token"
+  }
+]

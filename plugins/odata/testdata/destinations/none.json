@@ -1,0 +1,8 @@
+{
+  "Name": "RT_PUBLIC",
+  "Type": "HTTP",
+  "URL": "https://public.example.invalid/odata/v4/catalog",
+  "Authentication": "NoAuthentication",
+  "ProxyType": "Internet",
+  "sap-client": "200"
+}

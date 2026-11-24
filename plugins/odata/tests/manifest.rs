@@ -37,7 +37,7 @@ fn manifest_is_valid() {
         .iter()
         .map(|i| i.id.as_str())
         .collect();
-    assert_eq!(importers, vec!["edmx", "sap-hub"]);
+    assert_eq!(importers, vec!["edmx", "sap-hub", "btp-destinations"]);
     assert!(m.contributes.welcome.is_some());
 }
 

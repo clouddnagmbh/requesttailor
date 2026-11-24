@@ -1,0 +1,50 @@
+[
+  {
+    "Name": "RT_SAML",
+    "Type": "HTTP",
+    "URL": "https://saml.example.invalid/odata",
+    "Authentication": "OAuth2SAMLBearerAssertion",
+    "audience": "https://saml.example.invalid/audience",
+    "clientKey": "RT-CANARY-destination-client-key-saml",
+    "tokenServiceURL": "https://saml-auth.example.invalid/token",
+    "sap-client": "100"
+  },
+  {
+    "Name": "RT_EXCHANGE",
+    "Type": "HTTP",
+    "URL": "https://exchange.example.invalid/odata",
+    "Authentication": "OAuth2UserTokenExchange",
+    "clientSecret": "RT-CANARY-destination-client-secret-exchange"
+  },
+  {
+    "Name": "RT_PRINCIPAL",
+    "Type": "HTTP",
+    "URL": "https://principal.example.invalid/odata",
+    "Authentication": "PrincipalPropagation",
+    "ProxyType": "OnPremise",
+    "sap-client": "400"
+  },
+  {
+    "Name": "RT_CERT",
+    "Type": "HTTP",
+    "URL": "https://cert.example.invalid/odata",
+    "Authentication": "ClientCertificateAuthentication",
+    "KeyStorePassword": "RT-CANARY-destination-keystore-password"
+  },
+  {
+    "Name": "RT_CLOUD_CONNECTOR",
+    "Type": "HTTP",
+    "URL": "http://s4-onprem.example.invalid:8000/sap/opu/odata/sap/ZRT_SALES_SRV",
+    "Authentication": "BasicAuthentication",
+    "ProxyType": "OnPremise",
+    "User": "ONPREM_USER",
+    "Password": "RT-CANARY-destination-password-onprem",
+    "sap-client": "100"
+  },
+  {
+    "Name": "RT_MAIL",
+    "Type": "MAIL",
+    "mail.smtp.host": "smtp.example.invalid",
+    "mail.password": "RT-CANARY-destination-mail-password"
+  }
+]

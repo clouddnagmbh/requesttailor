@@ -47,7 +47,7 @@
   import GitPanel from "../git/GitPanel.svelte";
   import GitViewHost from "../git/GitViewHost.svelte";
   import ToolHost from "./ToolHost.svelte";
-  import { Tools } from "./tool-host";
+  import { Tools } from "./tool-host.svelte";
   import { builtinCommands } from "./builtin-commands";
   import { GitViews, provideGitViews } from "../git/views.svelte";
   import HistoryPanel from "../history/HistoryPanel.svelte";
@@ -451,7 +451,7 @@
     void app.collection?.id;
     untrack(() => gitViews.close());
   });
-  // ---- tools of wave 18 (`tool-host.ts`): one in the main area at a time ----
+  // ---- tools of wave 18 (`tool-host.svelte.ts`): one in the main area at a time ----
   const tools = new Tools();
   $effect(() => {
     void app.active;

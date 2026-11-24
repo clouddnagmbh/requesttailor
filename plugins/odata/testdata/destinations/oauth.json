@@ -1,0 +1,13 @@
+{
+  "Name": "RT_CAP_QAS",
+  "Type": "HTTP",
+  "URL": "https://cap-qas.example.invalid/odata/v4/admin",
+  "Authentication": "OAuth2ClientCredentials",
+  "ProxyType": "Internet",
+  "clientId": "sb-rt-demo!t1",
+  "clientSecret": "RT-CANARY-destination-client-secret-4e7b",
+  "tokenServiceURL": "https://auth.example.invalid/oauth/token",
+  "tokenServiceURLType": "Dedicated",
+  "tokenServiceUser": "sb-rt-demo!t1",
+  "tokenServicePassword": "RT-CANARY-destination-token-service-password-b08d"
+}
