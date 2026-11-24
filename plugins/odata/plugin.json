@@ -14,6 +14,7 @@
       { "id": "query", "title": "Query", "place": "request", "content_types": [] },
       { "id": "batch", "title": "Batch", "place": "request", "content_types": [] },
       { "id": "draft", "title": "Draft", "place": "request", "content_types": [] },
+      { "id": "abap", "title": "ABAP", "place": "request", "content_types": [] },
       { "id": "landscape", "title": "SAP systems", "place": "collection", "content_types": [] }
     ],
     "importers": [

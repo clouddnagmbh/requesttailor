@@ -17,9 +17,13 @@
 //!   environments with `sap-client` and language), the `sap-client`/`sap-language` query
 //!   parameters (`prepare`), and the `sap-hub` importer.
 //!
+//! - [`abap`] (wave 17, E): "Copy as ABAP" (request tab `abap`), a snippet for ABAP Platform or
+//!   ABAP Cloud from the request as edited, with placeholders instead of logon data.
+//!
 //! Shared: [`edm`] (the service model) and [`service`] (service root of a URL, storage keys).
 //! Hooks that several modules contribute to are combined here, in a fixed order.
 
+pub mod abap;
 pub mod edm;
 pub mod landscape;
 pub mod metadata;
@@ -74,6 +78,7 @@ impl Plugin for OData {
             "batch" => write::render_batch(tab),
             "draft" => write::render_draft(tab),
             "landscape" => landscape::render(tab),
+            "abap" => abap::render(tab),
             other => Err(Error::new(format!("unknown tab {other}"))),
         }
     }
@@ -85,6 +90,7 @@ impl Plugin for OData {
             "batch" => write::action_batch(action),
             "draft" => write::action_draft(action),
             "landscape" => landscape::action(action),
+            "abap" => abap::action(action),
             other => Err(Error::new(format!("unknown tab {other}"))),
         }
     }

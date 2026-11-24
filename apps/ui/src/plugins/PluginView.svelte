@@ -6,6 +6,7 @@
      strand A. -->
 <script lang="ts">
   import type { Block, FormField, TreeItem, View } from "../commands/types";
+  import { Button } from "../ui";
 
   let {
     view,
@@ -16,6 +17,21 @@
   /** Values of form fields the user changed, by `form/field`. */
   let values = $state<Record<string, string>>({});
   const valueOf = (form: string, f: FormField) => values[`${form}/${f.name}`] ?? f.value;
+
+  /** The code block that was copied last (its index), shown as "Copied" for a moment. */
+  let copied = $state<number | null>(null);
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  async function copy(text: string, index: number) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = index;
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => (copied = null), 1500);
+    } catch {
+      copied = null; // No clipboard (insecure context, denied): the text stays selectable.
+    }
+  }
 
   function submit(e: SubmitEvent, block: Extract<Block, { type: "form" }>) {
     e.preventDefault();
@@ -64,7 +80,14 @@
         </table>
       </div>
     {:else if block.type === "code"}
-      <pre class="code" data-language={block.language ?? ""}>{block.text}</pre>
+      <div class="code-block">
+        <pre class="code" data-language={block.language ?? ""} data-testid="plugin-code">{block.text}</pre>
+        <span class="copy">
+          <Button variant="ghost" size="sm" icon="copy" data-testid="plugin-code-copy" onclick={() => copy(block.text, i)}>
+            {copied === i ? "Copied" : "Copy"}
+          </Button>
+        </span>
+      </div>
     {:else if block.type === "tree"}
       <div class="tree">{@render tree(block.nodes)}</div>
     {:else if block.type === "form"}
@@ -165,6 +188,14 @@
     text-align: left;
     padding: 2px var(--rt-gap);
     border-bottom: 1px solid var(--rt-border);
+  }
+  .code-block {
+    position: relative;
+  }
+  .copy {
+    position: absolute;
+    top: var(--rt-space-1);
+    right: var(--rt-space-1);
   }
   .code {
     margin: 0;

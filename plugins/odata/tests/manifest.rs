@@ -27,6 +27,7 @@ fn manifest_is_valid() {
             ("query", TabPlace::Request),
             ("batch", TabPlace::Request),
             ("draft", TabPlace::Request),
+            ("abap", TabPlace::Request),
             ("landscape", TabPlace::Collection),
         ]
     );

@@ -11,6 +11,13 @@ OData or SAP.
 - Query builder for `$filter`, `$expand`, `$select`, `$orderby`, `$top`, `$skip`, `$count`
 - CSRF token handshake, ETag and `If-Match`, `$batch` with changesets, draft actions
 - SAP system landscapes (DEV/QAS/PRD) with `sap-client` and `sap-language`
+- Copy as ABAP: the request tab "ABAP" turns the request into a snippet for ABAP Platform
+  (`cl_http_client` through an RFC destination) or ABAP Cloud (`cl_web_http_client_manager`
+  through a communication arrangement), with `/ui2/cl_json` for the response. Reads, create,
+  update, delete and read-only `$batch`; the CSRF token is fetched when the code runs, `If-Match`
+  comes from a variable, and logon data, tokens and cookies are never copied (placeholders in
+  angle brackets instead). The snippets are checked against golden files
+  (`testdata/abap/`), not against a system: review them before use.
 - Importers for `$metadata` files and SAP Business Accelerator Hub API specifications
 
 The app ships it bundled; at first start it is enabled only if you choose "SAP and OData".
