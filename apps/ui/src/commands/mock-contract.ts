@@ -147,6 +147,12 @@ export class MockContract implements ContractApi {
     return render(`${SPEC.title} ${c.from_version} → ${c.to_version}`, c.changes);
   }
 
+  /** Wave 17, strand A: writes the spec, unsaved. */
+  stageSpec(text: string): Promise<string> {
+    void text;
+    return Promise.reject(new BackendError("unsupported", "Staging the spec is not implemented yet (wave 17, strand A)."));
+  }
+
   /** Wave 16, strand D: the changelog and its parts, with the commits of the mock history. */
   async changelogFacts(from: string, to: string): Promise<ChangelogFacts> {
     const c = await this.changes(from, to);

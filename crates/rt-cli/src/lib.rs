@@ -42,6 +42,7 @@ pub mod scan;
 pub mod scripts;
 pub mod secrets;
 pub mod services;
+pub mod snapshot;
 /// `rt send` on WebSocket, gRPC and SSE requests (wave 8, strand A).
 pub mod stream;
 
@@ -50,6 +51,7 @@ use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
 use rt_core::guard::{Caller, GuardHandle};
+use rt_core::observe::ObserverSet;
 use rt_core::prepare::{FileSource, PrepareInput};
 use rt_core::send::{REPORT_VERSION, SendError, SendOptions, SendReport, send_with};
 use rt_core::transport::Transport;
@@ -82,6 +84,7 @@ Usage:
   rt import openapi <file|url>... --out <dir> [--names operation-id]
             [--group tag|path|flat] [--keep-spec] [--json]
   rt scan [<path>...] [--json]
+  rt snapshot update [<path>...] [--all] [-e <NAME>] [--var <NAME=VALUE>]...
   rt mcp-test [<path>...] [-e <NAME>] [--var <NAME=VALUE>]...
 {mcp_demo_usage}{git_usage}  rt --help | --version
 
@@ -140,6 +143,12 @@ in auth, headers, URLs and bodies), for pipelines and as a pre-commit hook:
   only {{{{variables}}}} are fine; a line containing `rt-scan:allow` (e.g. as a
   `# rt-scan:allow` comment) is skipped. Exit code {EXIT_OK} when clean, {scan_found} with
   findings, {EXIT_USAGE} if a path cannot be read. See crates/rt-cli/README.md for a hook.
+
+rt snapshot update writes the snapshot files (<request>.snap.json) of the requests
+anew from a fresh response; `rt run` and `rt send` only compare, they never write.
+      --all                 Every request that has a snapshot assertion
+  -e, --env <NAME>, --var <NAME=VALUE> as for send. Exit code {EXIT_OK} when written,
+  {EXIT_USAGE} for usage errors.
 
 rt mcp-test runs saved MCP tests (*.mcp.yaml, saved in the app) against their
 servers: connect (stdio or Streamable HTTP), call the tool, check the assertions.
@@ -229,6 +238,8 @@ pub enum Command {
     Agent(agent::AgentArgs),
     Import(import::ImportArgs),
     Scan(scan::ScanArgs),
+    /// Wave 17, strand B: `rt snapshot update`.
+    Snapshot(snapshot::SnapshotArgs),
     /// Wave 7, strand E.
     Run(run::RunArgs),
     /// Wave 8, strand C: `rt mcp`.
@@ -279,6 +290,9 @@ pub struct SendArgs {
     /// Wave 10: the distribution's send guard (never from the command line; see
     /// [`run_distribution`]).
     pub guard: GuardHandle,
+    /// Wave 17: the distribution's exchange observers (never from the command line; see
+    /// [`run_distribution`]).
+    pub observers: ObserverSet,
     /// Wave 10: who sends, for the guard: [`Caller::Cli`], or [`Caller::Agent`] in `rt mcp`.
     pub caller: Caller,
 }
@@ -298,6 +312,7 @@ impl Default for SendArgs {
             no_scripts: false,
             session: stream::SessionArgs::default(),
             guard: GuardHandle::none(),
+            observers: ObserverSet::new(),
             caller: Caller::Cli,
         }
     }
@@ -341,6 +356,9 @@ where
         }
         Some(Value(cmd)) if cmd == "scan" => {
             Ok(scan::parse(&mut parser)?.map_or(Command::Help, Command::Scan))
+        }
+        Some(Value(cmd)) if cmd == "snapshot" => {
+            Ok(snapshot::parse(&mut parser)?.map_or(Command::Help, Command::Snapshot))
         }
         Some(Value(cmd)) if cmd == "mcp" => {
             Ok(mcp::parse(&mut parser)?.map_or(Command::Help, Command::Mcp))
@@ -625,6 +643,11 @@ pub struct Distribution<'a> {
     /// [`EXIT_BLOCKED`], `rt mcp` answers the tool call with the reason and records the rule
     /// in the audit log.
     pub guard: GuardHandle,
+    /// Handed every finished send of `rt send`, `rt run` and `rt mcp`, and of `rt agent` where
+    /// the distribution starts it with [`agent::run_with`] (wave 17, `rt_core::observe`).
+    /// They only ever see masked exchanges and must be quick. The builds of this repository
+    /// have none.
+    pub observers: ObserverSet,
     /// Sections `rt changelog` appends after the OpenAPI and collection changes (since wave
     /// 13), in this order.
     pub changelog: &'a [&'a dyn rt_app::contract::ChangelogSection],
@@ -668,7 +691,7 @@ where
         args,
         stdout,
         stderr,
-        &distribution.guard,
+        (&distribution.guard, &distribution.observers),
         (distribution.changelog, distribution.changelog_writers),
     )
 }
@@ -678,22 +701,32 @@ where
     I: IntoIterator,
     I::Item: Into<OsString>,
 {
-    run_guarded(args, stdout, stderr, &GuardHandle::none(), (&[], &[]))
+    run_guarded(
+        args,
+        stdout,
+        stderr,
+        (&GuardHandle::none(), &ObserverSet::new()),
+        (&[], &[]),
+    )
 }
 
-/// The parsed command with the distribution's guard on every command that sends.
-fn with_guard(command: Command, guard: &GuardHandle) -> Command {
+/// The parsed command with the distribution's guard and observers on every command that
+/// sends.
+fn with_guard(command: Command, (guard, observers): (&GuardHandle, &ObserverSet)) -> Command {
     match command {
         Command::Send(mut a) => {
             a.guard = guard.clone();
+            a.observers = observers.clone();
             Command::Send(a)
         }
         Command::Run(mut a) => {
             a.guard = guard.clone();
+            a.observers = observers.clone();
             Command::Run(a)
         }
         Command::Mcp(mut a) => {
             a.guard = guard.clone();
+            a.observers = observers.clone();
             Command::Mcp(a)
         }
         other => other,
@@ -704,7 +737,7 @@ fn run_guarded<I>(
     args: I,
     stdout: &mut dyn Write,
     stderr: &mut dyn Write,
-    guard: &GuardHandle,
+    hooks: (&GuardHandle, &ObserverSet),
     (changelog_sections, changelog_writers): (
         &[&dyn rt_app::contract::ChangelogSection],
         &[&dyn rt_app::contract::ChangelogWriter],
@@ -720,7 +753,7 @@ where
     };
     let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
     let for_changelog = args.first().is_some_and(|a| a == "changelog");
-    let args = match parse_args_with(args, changelog_writers).map(|c| with_guard(c, guard)) {
+    let args = match parse_args_with(args, changelog_writers).map(|c| with_guard(c, hooks)) {
         Ok(Command::Help) => {
             let _ = stdout.write_all(help().as_bytes());
             if for_changelog {
@@ -736,6 +769,7 @@ where
         Ok(Command::Agent(args)) => return agent::run(args, stderr),
         Ok(Command::Import(args)) => return import::run(args, stdout, stderr),
         Ok(Command::Scan(args)) => return scan::run(args, stdout, stderr),
+        Ok(Command::Snapshot(args)) => return snapshot::run(args, stdout, stderr),
         Ok(Command::Run(args)) => return run::run(args, stdout, stderr),
         Ok(Command::Mcp(args)) => return mcp::run(args, stdout, stderr),
         Ok(Command::Approvals(args)) => return approvals::run(args, stdout, stderr),

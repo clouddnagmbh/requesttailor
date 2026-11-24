@@ -47,6 +47,7 @@ pub mod import;
 pub mod mcp_test;
 /// Wave 12, strand B: three-way merge on the model.
 pub mod merge;
+mod observe_config;
 /// Wave 8: GraphQL, gRPC and WebSocket items.
 mod protocols;
 mod read;

@@ -227,6 +227,10 @@ pub struct CollectionConfig {
     /// on their device.
     #[serde(default)]
     pub ai: AiCollectionConfig,
+    /// `extensions.requesttailor.observe` (wave 17): whether finished sends may be handed to
+    /// observers ([`crate::observe`]) for this collection. The team's decision, in the file.
+    #[serde(default)]
+    pub observe: ObserveCollectionConfig,
 }
 
 /// `extensions.requesttailor.ai` of `opencollection.yml`:
@@ -249,6 +253,27 @@ fn enabled_by_default() -> bool {
 }
 
 impl Default for AiCollectionConfig {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
+/// `extensions.requesttailor.observe` of `opencollection.yml`:
+///
+/// ```yaml
+/// extensions:
+///   requesttailor:
+///     observe:
+///       enabled: false
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ObserveCollectionConfig {
+    /// `false` only if the file says exactly `enabled: false`.
+    #[serde(default = "enabled_by_default")]
+    pub enabled: bool,
+}
+
+impl Default for ObserveCollectionConfig {
     fn default() -> Self {
         Self { enabled: true }
     }

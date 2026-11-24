@@ -47,6 +47,9 @@ impl SendServices {
             scripts: self.scripts.runner(),
             guard: self.guard.guard(),
             caller: rt_core::guard::Caller::App,
+            // Strand A wires the web observers (the companion records for the web app).
+            observers: None,
+            snapshots: None,
         }
     }
 }

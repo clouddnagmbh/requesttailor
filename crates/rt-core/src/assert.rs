@@ -51,12 +51,67 @@ pub fn evaluate(
     response: &ScriptResponse,
     scope: &Scope,
 ) -> Vec<AssertionResult> {
+    evaluate_with(assertions, response, scope, None)
+}
+
+/// The operator of snapshot assertions (wave 17): `expression: res`, `operator:
+/// matchesSnapshot`, `value`: the companion file relative to the request file (default
+/// `<request name>.snap.json`). Older builds report it as an unknown operator, which fails.
+pub const MATCHES_SNAPSHOT: &str = "matchesSnapshot";
+
+/// Reads the companion files of snapshot assertions (wave 17). Read only: freezing and
+/// accepting are commands of the app and `rt snapshot`, never part of a send or a run.
+/// Implemented by the shells (files in the CLI and runner, the open collection in the app and
+/// the browser).
+pub trait SnapshotStore {
+    /// The text of the companion file `snapshot` (as written in the assertion, relative to the
+    /// request file) of the request at `request_path`; `None` if it does not exist.
+    fn read(&self, request_path: &str, snapshot: &str) -> Option<String>;
+}
+
+/// A [`SnapshotStore`] and the request the assertions belong to.
+#[derive(Clone, Copy)]
+pub struct SnapshotContext<'a> {
+    pub store: &'a dyn SnapshotStore,
+    pub request_path: &'a str,
+}
+
+/// [`evaluate`] with a snapshot store. Without one a `matchesSnapshot` assertion fails with a
+/// message. Wave 17 strand B fills in the comparison.
+pub fn evaluate_with(
+    assertions: &[Assertion],
+    response: &ScriptResponse,
+    scope: &Scope,
+    snapshots: Option<SnapshotContext<'_>>,
+) -> Vec<AssertionResult> {
     let body = ParsedBody::new(&response.body);
     assertions
         .iter()
         .filter(|a| a.enabled)
-        .map(|a| evaluate_one(a, response, &body, scope))
+        .map(|a| {
+            if a.operator.trim() == MATCHES_SNAPSHOT {
+                snapshot_result(a, snapshots)
+            } else {
+                evaluate_one(a, response, &body, scope)
+            }
+        })
         .collect()
+}
+
+/// Wave 17 strand B replaces this body with the comparison; until then the assertion fails
+/// (never a silent pass).
+fn snapshot_result(
+    assertion: &Assertion,
+    _snapshots: Option<SnapshotContext<'_>>,
+) -> AssertionResult {
+    AssertionResult {
+        expression: assertion.expression.clone(),
+        operator: assertion.operator.clone(),
+        expected: assertion.value.clone(),
+        actual: None,
+        passed: false,
+        error: Some("snapshots arrive with wave 17".into()),
+    }
 }
 
 /// The variable changes of the enabled `set-variable` actions, in order.

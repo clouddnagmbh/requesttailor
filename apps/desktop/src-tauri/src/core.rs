@@ -411,6 +411,17 @@ impl<S: SecretStore> Core<S> {
         self
     }
 
+    /// Wave 17: every send of this core hands its masked exchange to `observers`
+    /// (`rt_core::observe`; a distribution's, managed on the builder as
+    /// `rt_core::observe::ObserverHandle`). Call it right after creating the core, before it is
+    /// shared.
+    pub fn with_observers(mut self, observers: rt_core::observe::ObserverHandle) -> Self {
+        std::sync::Arc::get_mut(&mut self.services)
+            .expect("with_observers is called before the core is shared")
+            .observers = observers;
+        self
+    }
+
     /// The secret store (Git credentials are kept there too).
     pub fn secrets(&self) -> &S {
         &self.secrets

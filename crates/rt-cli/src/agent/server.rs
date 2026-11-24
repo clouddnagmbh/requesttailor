@@ -63,6 +63,8 @@ pub struct Agent {
     transport: NativeTransport,
     /// `POST /v1/secrets` is answered (`--allow-secrets`).
     allow_secrets: bool,
+    /// Wave 17: handed every request of `/v1/send` (strand A wires the delivery).
+    observers: RefCell<rt_core::observe::ObserverSet>,
 }
 
 impl Agent {
@@ -75,7 +77,19 @@ impl Agent {
             pairing: RefCell::new(Pairing::new(Instant::now())),
             transport,
             allow_secrets,
+            observers: RefCell::new(rt_core::observe::ObserverSet::new()),
         }))
+    }
+
+    /// Sets the exchange observers ([`super::run_with`]); call before serving.
+    pub fn set_observers(&self, observers: rt_core::observe::ObserverSet) {
+        *self.observers.borrow_mut() = observers;
+    }
+
+    /// The exchange observers, for the `/v1/send` handler (strand A wires it in).
+    #[allow(dead_code)]
+    pub fn observers(&self) -> rt_core::observe::ObserverSet {
+        self.observers.borrow().clone()
     }
 
     pub fn print_banner(&self) {

@@ -26,6 +26,8 @@ pub struct CliServices {
     scripts: CliScripts,
     /// Wave 10: the distribution's send guard and who sends.
     guard: rt_core::guard::GuardHandle,
+    /// Wave 17: the distribution's exchange observers.
+    observers: rt_core::observe::ObserverSet,
     caller: rt_core::guard::Caller,
 }
 
@@ -40,6 +42,7 @@ impl CliServices {
             cookies,
             scripts: CliScripts::new(args),
             guard: args.guard.clone(),
+            observers: args.observers.clone(),
             caller: args.caller,
         })
     }
@@ -53,6 +56,8 @@ impl CliServices {
             scripts: self.scripts.runner(),
             guard: self.guard.get(),
             caller: self.caller,
+            observers: Some(&self.observers),
+            snapshots: None,
         }
     }
 }

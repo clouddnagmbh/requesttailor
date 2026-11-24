@@ -89,6 +89,18 @@ pub fn normalize_origin(value: &str) -> Result<String, String> {
 
 /// Runs the companion until the process is stopped. Returns an exit code on startup errors.
 pub fn run(args: AgentArgs, stderr: &mut dyn Write) -> i32 {
+    run_with(args, rt_core::observe::ObserverSet::new(), stderr)
+}
+
+/// [`run`] with exchange observers (wave 17, `rt_core::observe`): every request of `/v1/send`
+/// is handed to them, masked, with `collection` and `request_path` unset and caller
+/// [`rt_core::guard::Caller::App`]. A distribution starts the companion this way to record
+/// the web app's traffic. Pairing, origin checks and the token are the same as in [`run`].
+pub fn run_with(
+    args: AgentArgs,
+    observers: rt_core::observe::ObserverSet,
+    stderr: &mut dyn Write,
+) -> i32 {
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -110,6 +122,7 @@ pub fn run(args: AgentArgs, stderr: &mut dyn Write) -> i32 {
             args.allow_secrets,
         )
         .map_err(std::io::Error::other)?;
+        agent.set_observers(observers);
         agent.print_banner();
         server::serve(listener, agent).await
     });

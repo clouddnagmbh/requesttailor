@@ -24,6 +24,7 @@ import type {
   Script,
   ScriptPhase,
   StoredResponse,
+  VarUse,
 } from "./commands/types";
 import type { AppState } from "./state/app.svelte";
 
@@ -99,7 +100,28 @@ export type SuggestedEdit =
   | { kind: "folder-scripts"; collection?: string; path: string; scripts: Script[]; note?: SuggestionNote }
   /** A text file of the collection that is not a request (e.g. `CHANGELOG.md`), staged like a
    *  companion file (`Backend.companions.stage`); `*.yml` is refused. */
-  | { kind: "file"; collection?: string; path: string; text: string; note?: SuggestionNote };
+  | { kind: "file"; collection?: string; path: string; text: string; note?: SuggestionNote }
+  /** Several edits as one (since wave 17): one diff dialog, one undo step, applied entirely or
+   *  not at all (e.g. a producer request and a consumer request). The edits are not batches
+   *  themselves and all belong to `collection`; their own `collection` is ignored. */
+  | { kind: "batch"; collection?: string; edits: SuggestedEditPart[]; note?: SuggestionNote };
+
+/** An edit that can be part of a `batch`. */
+export type SuggestedEditPart = Exclude<SuggestedEdit, { kind: "batch" }>;
+
+/** What `AppExtension.onExchange` gets (since wave 17). */
+export interface ExchangeEvent {
+  /** The collection that sent (`CollectionInfo.id`). */
+  collection: string;
+  /** The request's path. */
+  path: string;
+  /** The stored response: the report with its body preview and the handle to the full body. */
+  response: StoredResponse;
+  /** The request as it was sent, before variables were resolved (`{{variables}}` still in it). */
+  request: RequestSpec;
+  /** Where each variable of the request got its value from. */
+  variables: VarUse[];
+}
 
 /** A code editor an action runs in (since wave 16). */
 export type EditorTarget =
@@ -509,6 +531,14 @@ export interface AppExtension {
   overlay?: Component<{ ctx: ExtensionContext }>;
   /** Runs once after the first frame; errors are logged, never shown. */
   start?(ctx: ExtensionContext): void | Promise<void>;
+  /**
+   * Called after every send of the app (since wave 17), with what went out and what came back.
+   * An event, not a reactive scope: quick and synchronous, errors are logged, never shown. The
+   * response is the masked report as the app shows it; `collection.observe.enabled: false`
+   * (`extensions.requesttailor.observe`) stops the calls. The native shells' own observers are
+   * `rt_core::observe::ExchangeObserver`.
+   */
+  onExchange?(ctx: ExtensionContext, event: ExchangeEvent): void;
   /**
    * Request, response and collection tabs (since wave 13). Called inside a reactive scope like
    * `commands`, so an extension can show tabs only while it is allowed to. Collection tabs

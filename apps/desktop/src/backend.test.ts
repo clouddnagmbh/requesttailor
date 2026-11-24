@@ -282,6 +282,17 @@ describe("TauriBackend", () => {
     await b.git.verify(["abc"]);
     await b.git.config("commit.template");
     await b.review.create({ title: "T", body: "", head: "feature", base: "main", draft: false });
+    // Wave 17 (interface).
+    await b.snapshots.read("users/get.yml");
+    await b.snapshots.freeze("users/get.yml", 1, {});
+    await b.snapshots.setIgnore("users/get.yml", ["$.id"]);
+    await b.snapshots.check("users/get.yml", 1);
+    await b.snapshots.list();
+    await b.share.link("users/get.yml", {});
+    await b.share.open("rt:1.abc");
+    await b.share.copyAs("users/get.yml", "curl", {});
+    await b.share.qr("rt:1.abc");
+    await b.contract.stageSpec("openapi: 3.0.3");
     expect(calls).toEqual([
       ["open_collection", undefined],
       ["tree", undefined],
@@ -512,6 +523,16 @@ describe("TauriBackend", () => {
       ["git_verify", { oids: ["abc"] }],
       ["git_config", { key: "commit.template" }],
       ["review_create", { pull: { title: "T", body: "", head: "feature", base: "main", draft: false } }],
+      ["snapshots_read", { path: "users/get.yml" }],
+      ["snapshots_freeze", { path: "users/get.yml", responseId: 1, options: {} }],
+      ["snapshots_set_ignore", { path: "users/get.yml", ignore: ["$.id"] }],
+      ["snapshots_check", { path: "users/get.yml", responseId: 1 }],
+      ["snapshots_list", undefined],
+      ["share_link", { path: "users/get.yml", options: {} }],
+      ["share_open", { input: "rt:1.abc" }],
+      ["share_copy_as", { path: "users/get.yml", kind: "curl", options: {} }],
+      ["share_qr", { link: "rt:1.abc" }],
+      ["contract_stage_spec", { text: "openapi: 3.0.3" }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));
   });

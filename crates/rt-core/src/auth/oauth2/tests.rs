@@ -369,6 +369,8 @@ fn services<'a>(tokens: Option<&'a MemTokens>, prompt: Option<&'a FakePrompt>) -
         scripts: None,
         guard: None,
         caller: Default::default(),
+        observers: None,
+        snapshots: None,
     }
 }
 

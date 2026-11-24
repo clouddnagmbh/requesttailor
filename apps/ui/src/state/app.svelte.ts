@@ -7,7 +7,7 @@
 
 import { getContext, setContext } from "svelte";
 
-import type { Backend, CollectionInfo } from "../commands/backend";
+import { BackendError, type Backend, type CollectionInfo } from "../commands/backend";
 import type {
   CollectionEntry,
   CollectionRoot,
@@ -507,6 +507,15 @@ export class AppState {
    *  offers that tab for the active request; a later request replaces it. */
   openRequestTab(key: string): void {
     this.requestTab = { key, seq: ++this.seq };
+  }
+
+  /** Wave 17: opens a shared request (a link, a fragment or an `rt:` payload; `ShareApi.open`)
+   *  as an unsaved draft in the active collection or, without one, in a new empty session.
+   *  Nothing runs and nothing is sent. Strand C fills it in; until then it rejects with kind
+   *  `unsupported`. */
+  async openShared(input: string): Promise<void> {
+    void input;
+    throw new BackendError("unsupported", "Opening a shared request is not implemented yet (wave 17, strand C).");
   }
 
   /** Wave 14: opens the "New…" dialog (default: the active collection's root). */

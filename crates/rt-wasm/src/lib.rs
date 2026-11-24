@@ -679,6 +679,10 @@ mod scripts_js;
 #[cfg(target_arch = "wasm32")]
 mod services_js;
 #[cfg(target_arch = "wasm32")]
+mod share_js;
+#[cfg(target_arch = "wasm32")]
+mod snapshots_js;
+#[cfg(target_arch = "wasm32")]
 mod streams_js;
 /// Wave 14: variable completion.
 #[cfg(target_arch = "wasm32")]

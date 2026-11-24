@@ -188,6 +188,20 @@ pub async fn contract_changelog_facts(
     blocking(app, move |core| changelog_facts(core, &from, &to)).await
 }
 
+/// Wave 17 interface: writes the spec of the collection (`ContractApi.stageSpec`), unsaved.
+/// Strand A answers it; until then it is "not implemented yet".
+#[tauri::command]
+pub async fn contract_stage_spec(
+    _app: tauri::AppHandle,
+    text: String,
+) -> Result<String, CommandError> {
+    let _ = text;
+    Err(AppError::Unsupported(
+        "Staging the spec is not implemented yet (wave 17, strand A).".into(),
+    )
+    .into())
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

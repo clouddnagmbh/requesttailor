@@ -19,6 +19,8 @@ export { MockBackend } from "./commands/mock";
 export * from "./commands/wave12-stubs";
 // Wave 14 interface: the collection set over the single open collection (strand A replaces it).
 export * from "./commands/wave14-stubs";
+// Wave 17 interface: snapshots, sharing and staging the spec (strands A, B, C replace them).
+export * from "./commands/wave17-stubs";
 export * from "./commands/git-methods";
 export { applyLineSelection, chosenLines, splitLines } from "./commands/line-selection";
 export * from "./commands/repositories";

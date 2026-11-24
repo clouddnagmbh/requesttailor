@@ -53,6 +53,8 @@ import { mockRescue } from "./mock-rescue";
 import { mockCompanions } from "./mock-companions";
 import { DEMO_ID, MockCollections, mockTree } from "./mock-collections";
 import { mockFolderScripts } from "./mock-folder-scripts";
+import { mockShare } from "./mock-share";
+import { mockSnapshots } from "./mock-snapshots";
 import { mockVariables } from "./mock-variables";
 import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
@@ -358,6 +360,9 @@ export class MockBackend implements Backend {
 
   /** Wave 16: scripts of the collection and its folders. */
   readonly folderScripts = mockFolderScripts(() => this.requests);
+  /** Wave 17 (strands B and C replace the placeholders in their own files). */
+  readonly snapshots = mockSnapshots();
+  readonly share = mockShare();
 
   async openCollection(): Promise<CollectionInfo | null> {
     const info = this.collections.openDemo();

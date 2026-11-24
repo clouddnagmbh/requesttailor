@@ -63,6 +63,8 @@ import { tauriScripts } from "./scripts";
 import { tauriGit } from "./git";
 import { tauriCollections } from "./collections";
 import { tauriRepositories } from "./repositories";
+import { tauriShare } from "./share";
+import { tauriSnapshots } from "./snapshots";
 import { tauriHistory } from "./history";
 import { tauriImports } from "./import";
 import { tauriPlugins } from "./plugins";
@@ -307,6 +309,17 @@ export const COMMANDS = [
   "git_verify",
   "git_config",
   "review_create",
+  // Wave 17.
+  "snapshots_read",
+  "snapshots_freeze",
+  "snapshots_set_ignore",
+  "snapshots_check",
+  "snapshots_list",
+  "share_link",
+  "share_open",
+  "share_copy_as",
+  "share_qr",
+  "contract_stage_spec",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -341,6 +354,9 @@ export class TauriBackend implements Backend {
   readonly collections = tauriCollections((cmd, args) => this.call(cmd, args));
   /** Wave 15: repositories in the set (`repositories.ts`). */
   readonly repositories = tauriRepositories((cmd, args) => this.call(cmd, args));
+  /** Wave 17: snapshot tests (`snapshots.ts`) and sharing (`share.ts`). */
+  readonly snapshots = tauriSnapshots((cmd, args) => this.call(cmd, args));
+  readonly share = tauriShare((cmd, args) => this.call(cmd, args));
   readonly secrets: SecretsApi;
   readonly transport: TransportApi;
   readonly git: GitApi;

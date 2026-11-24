@@ -327,15 +327,25 @@ async fn after_response<T: Transport>(
         }
     }
     let spec = &context.request.spec;
-    report.assertions = crate::assert::evaluate(&spec.assertions, &response, &scope)
-        .into_iter()
-        .map(|mut a| {
-            a.expected = mask(&a.expected, secrets);
-            a.actual = a.actual.map(|v| mask(&v, secrets));
-            a.error = a.error.map(|e| mask(&e, secrets));
-            a
-        })
-        .collect();
+    report.assertions = crate::assert::evaluate_with(
+        &spec.assertions,
+        &response,
+        &scope,
+        services
+            .snapshots
+            .map(|store| crate::assert::SnapshotContext {
+                store,
+                request_path: &context.request.path,
+            }),
+    )
+    .into_iter()
+    .map(|mut a| {
+        a.expected = mask(&a.expected, secrets);
+        a.actual = a.actual.map(|v| mask(&v, secrets));
+        a.error = a.error.map(|e| mask(&e, secrets));
+        a
+    })
+    .collect();
     report.var_changes.extend(
         crate::assert::apply_actions(&spec.actions, &response)
             .into_iter()

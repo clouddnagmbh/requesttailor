@@ -15,6 +15,7 @@ pub mod auth;
 pub mod cookies;
 pub mod guard;
 pub mod model;
+pub mod observe;
 pub mod prepare;
 pub mod runner;
 pub mod script;

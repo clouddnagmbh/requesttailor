@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, GitAction, GitActionResult, GitBlame, GitBlob, GitBlockReason, GitBranch, GitChangedFile, GitCloneRequest, GitCommit, GitCommitDetails, GitCommitWrite, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitHistoryPage, GitHistoryQuery, GitIdentity, GitIndexDiff, GitOperation, GitPatchRequest, GitPickRequest, GitPickResult, GitPlan, GitPullResult, GitReflogEntry, GitRemote, GitRepoSummary, GitResolution, GitSignatureCheck, GitSignatureKind, GitSignatureState, GitStagedCommit, GitStash, GitStatus, GitTree, GitTreeEntry, GitTreeWrite, GitWorkingCopy, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewPullRequest, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RepositoryEntry, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, CopiedAs, CopyKind, CopyOptions, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, FreezeOptions, GitAction, GitActionResult, GitBlame, GitBlob, GitBlockReason, GitBranch, GitChangedFile, GitCloneRequest, GitCommit, GitCommitDetails, GitCommitWrite, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitHistoryPage, GitHistoryQuery, GitIdentity, GitIndexDiff, GitOperation, GitPatchRequest, GitPickRequest, GitPickResult, GitPlan, GitPullResult, GitReflogEntry, GitRemote, GitRepoSummary, GitResolution, GitSignatureCheck, GitSignatureKind, GitSignatureState, GitStagedCommit, GitStash, GitStatus, GitTree, GitTreeEntry, GitTreeWrite, GitWorkingCopy, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewPullRequest, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RepositoryEntry, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, ShareLink, ShareOptions, SharePayload, Snapshot, SnapshotCheck, SnapshotEntry, SnapshotFreeze, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -5782,4 +5782,381 @@ export const newPullRequest: NewPullRequest = {
   "draft": true,
   "head": "feature/login",
   "title": "Login with passkeys"
+};
+
+export const snapshot: Snapshot = {
+  "body": {
+    "items": [
+      {
+        "id": 1
+      }
+    ]
+  },
+  "headers": {
+    "content-type": "application/json"
+  },
+  "ignore": [
+    "$.items[*].createdAt"
+  ],
+  "status": 200,
+  "version": 1
+};
+
+export const snapshotBodies: Snapshot[] = [
+  {
+    "body": "plain text",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "ignore": [
+      "$.items[*].createdAt"
+    ],
+    "status": 200,
+    "version": 1
+  },
+  {
+    "body": null,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "ignore": [
+      "$.items[*].createdAt"
+    ],
+    "status": 200,
+    "version": 1
+  },
+  {
+    "body": {
+      "$digest": "9f86d081884c7d659a2feaa0c55ad015",
+      "$length": 4194304
+    },
+    "headers": {
+      "content-type": "application/json"
+    },
+    "ignore": [
+      "$.items[*].createdAt"
+    ],
+    "status": 200,
+    "version": 1
+  }
+];
+
+export const snapshotChecks: SnapshotCheck[] = [
+  {
+    "differences": [],
+    "request_path": "orders/get.yml",
+    "snapshot": "orders/get.snap.json",
+    "state": "matches"
+  },
+  {
+    "differences": [
+      {
+        "actual": 201,
+        "expected": 200,
+        "kind": "changed",
+        "path": "status"
+      },
+      {
+        "actual": "Ada",
+        "expected": null,
+        "kind": "added",
+        "path": "body.name"
+      },
+      {
+        "actual": null,
+        "expected": 36,
+        "kind": "removed",
+        "path": "body.age"
+      },
+      {
+        "actual": "1",
+        "expected": 1,
+        "kind": "type",
+        "path": "body.id"
+      }
+    ],
+    "request_path": "orders/get.yml",
+    "snapshot": "orders/get.snap.json",
+    "state": "differs"
+  },
+  {
+    "differences": [],
+    "request_path": "orders/get.yml",
+    "snapshot": "orders/get.snap.json",
+    "state": "missing"
+  },
+  {
+    "differences": [],
+    "request_path": "orders/get.yml",
+    "snapshot": "orders/get.snap.json",
+    "state": "none"
+  }
+];
+
+export const snapshotFreeze: SnapshotFreeze = {
+  "assertion_added": true,
+  "content": {
+    "body": {
+      "ok": true
+    },
+    "headers": {
+      "content-type": "application/json"
+    },
+    "ignore": [
+      "$.items[*].createdAt"
+    ],
+    "status": 200,
+    "version": 1
+  },
+  "request_path": "orders/get.yml",
+  "snapshot": "orders/get.snap.json"
+};
+
+export const freezeOptions: FreezeOptions[] = [
+  {
+    "file": null,
+    "keep_etag": false
+  },
+  {
+    "file": "orders.snap.json",
+    "keep_etag": true
+  }
+];
+
+export const snapshotEntries: SnapshotEntry[] = [
+  {
+    "exists": true,
+    "request_path": "orders/get.yml",
+    "snapshot": "orders/get.snap.json"
+  },
+  {
+    "exists": false,
+    "request_path": "orders/list.yml",
+    "snapshot": "orders/list.snap.json"
+  }
+];
+
+export const sharePayload: SharePayload = {
+  "name": "Get order",
+  "request": {
+    "actions": [
+      {
+        "enabled": false,
+        "expression": "res.body.id",
+        "method": "jsonq",
+        "phase": "after-response",
+        "scope": "environment",
+        "variable": "userId"
+      }
+    ],
+    "assertions": [
+      {
+        "description": "created",
+        "enabled": true,
+        "expression": "res.status",
+        "operator": "eq",
+        "value": "201"
+      }
+    ],
+    "auth": {
+      "token": "{{token}}",
+      "type": "bearer"
+    },
+    "body": {
+      "data": "{}",
+      "kind": "json",
+      "type": "raw"
+    },
+    "headers": [
+      {
+        "enabled": true,
+        "name": "Accept",
+        "value": "application/json"
+      }
+    ],
+    "method": "POST",
+    "name": "Create user",
+    "params": [
+      {
+        "enabled": true,
+        "kind": "query",
+        "name": "x",
+        "value": "1"
+      },
+      {
+        "enabled": false,
+        "kind": "path",
+        "name": "id",
+        "value": "7"
+      }
+    ],
+    "scripts": [
+      {
+        "code": "rt.vars.set('a', '1');",
+        "phase": "before-request"
+      },
+      {
+        "code": "test('ok', () => expect(rt.response.status).to.equal(201));",
+        "phase": "tests"
+      }
+    ],
+    "seq": 2.0,
+    "settings": {
+      "encode_url": false,
+      "follow_redirects": true,
+      "max_redirects": null,
+      "timeout_ms": 0
+    },
+    "url": "{{baseUrl}}/users/:id?x=1",
+    "vars": [
+      {
+        "enabled": true,
+        "name": "v",
+        "secret": false,
+        "value": "1"
+      }
+    ]
+  },
+  "variables": [
+    {
+      "name": "baseUrl",
+      "secret": false,
+      "value": "https://api.example.com"
+    },
+    {
+      "name": "token",
+      "secret": true,
+      "value": null
+    }
+  ],
+  "version": 1
+};
+
+export const shareOptions: ShareOptions[] = [
+  {
+    "base": null,
+    "environment": null,
+    "include_values": false
+  },
+  {
+    "base": "https://app.example.com/",
+    "environment": "Local",
+    "include_values": true
+  }
+];
+
+export const shareLink: ShareLink = {
+  "fits_qr": true,
+  "length": 21,
+  "payload": {
+    "name": "Get order",
+    "request": {
+      "actions": [
+        {
+          "enabled": false,
+          "expression": "res.body.id",
+          "method": "jsonq",
+          "phase": "after-response",
+          "scope": "environment",
+          "variable": "userId"
+        }
+      ],
+      "assertions": [
+        {
+          "description": "created",
+          "enabled": true,
+          "expression": "res.status",
+          "operator": "eq",
+          "value": "201"
+        }
+      ],
+      "auth": {
+        "token": "{{token}}",
+        "type": "bearer"
+      },
+      "body": {
+        "data": "{}",
+        "kind": "json",
+        "type": "raw"
+      },
+      "headers": [
+        {
+          "enabled": true,
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "method": "POST",
+      "name": "Create user",
+      "params": [
+        {
+          "enabled": true,
+          "kind": "query",
+          "name": "x",
+          "value": "1"
+        },
+        {
+          "enabled": false,
+          "kind": "path",
+          "name": "id",
+          "value": "7"
+        }
+      ],
+      "scripts": [
+        {
+          "code": "rt.vars.set('a', '1');",
+          "phase": "before-request"
+        },
+        {
+          "code": "test('ok', () => expect(rt.response.status).to.equal(201));",
+          "phase": "tests"
+        }
+      ],
+      "seq": 2.0,
+      "settings": {
+        "encode_url": false,
+        "follow_redirects": true,
+        "max_redirects": null,
+        "timeout_ms": 0
+      },
+      "url": "{{baseUrl}}/users/:id?x=1",
+      "vars": [
+        {
+          "enabled": true,
+          "name": "v",
+          "secret": false,
+          "value": "1"
+        }
+      ]
+    },
+    "variables": [],
+    "version": 1
+  },
+  "preview": "{\n  \"version\": 1\n}",
+  "text": "rt:1.eJxLzs8tSM0rSS0q"
+};
+
+export const copyKinds: CopyKind[] = [
+  "curl",
+  "fetch",
+  "python"
+];
+
+export const copyOptions: CopyOptions[] = [
+  {
+    "environment": null,
+    "resolve_variables": false
+  },
+  {
+    "environment": "Local",
+    "resolve_variables": true
+  }
+];
+
+export const copiedAs: CopiedAs = {
+  "kind": "curl",
+  "notes": [
+    "GraphQL variables are left out"
+  ],
+  "text": "curl -H \"Authorization: Bearer $TOKEN\" \"$BASE_URL/orders/1\""
 };
