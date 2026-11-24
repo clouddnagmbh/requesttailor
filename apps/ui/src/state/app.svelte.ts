@@ -205,6 +205,9 @@ export class AppState {
   dialog = $state<OpenDialog | null>(null);
   /** A request tab asked for with `openRequestTab`; the request editor takes it. */
   requestTab = $state<{ key: string; seq: number } | null>(null);
+  /** A commit message an extension asked the commit form to show (`prefillCommitMessage`);
+   *  the Git panel takes it when it is on screen. */
+  commitPrefill = $state<{ text: string; seq: number } | null>(null);
   private seq = 0;
   /** Asked before every `send` once the request's edits have reached the backend (the
    *  OpenAPI run wizard, `openapi/gate.ts`); `false` cancels the send. Errors let it through. */
@@ -579,6 +582,21 @@ export class AppState {
     return new Promise((resolve) => {
       this.dialog = { dialog, seq: ++this.seq, resolve };
     });
+  }
+
+  /** Wave 17: asks the commit form of the Git panel to show `text` as the message. The form
+   *  takes it once it is shown and the message field is empty (a message the user already
+   *  typed stays); the user still commits. Open the Git changes view with `show` first or
+   *  after. */
+  prefillCommitMessage(text: string): void {
+    this.commitPrefill = { text, seq: ++this.seq };
+  }
+
+  /** The panel took the prefill (or has no use for it). */
+  takeCommitPrefill(): string | null {
+    const taken = this.commitPrefill;
+    this.commitPrefill = null;
+    return taken?.text ?? null;
   }
 
   closeDialog(result?: unknown): void {

@@ -54,3 +54,14 @@ describe("AppState views and dialogs (wave 14 interface)", () => {
     expect(await p).toBe(1);
   });
 });
+
+describe("commit message prefill (wave 17)", () => {
+  it("hands the text to the form once", () => {
+    const app = new AppState(new MockBackend());
+    expect(app.takeCommitPrefill()).toBeNull();
+    app.prefillCommitMessage("spec: document responses");
+    expect(app.commitPrefill?.text).toBe("spec: document responses");
+    expect(app.takeCommitPrefill()).toBe("spec: document responses");
+    expect(app.takeCommitPrefill()).toBeNull();
+  });
+});

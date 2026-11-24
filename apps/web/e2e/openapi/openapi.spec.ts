@@ -209,6 +209,8 @@ test("'Send anyway' sends as is, 'Don't ask for this request' stops asking", asy
   await page.getByTestId("tree-request").filter({ hasText: "Place an order" }).click();
   const before = await page.getByTestId("response-status").count();
   await page.getByTestId("send").click();
+  // The imported server is named "Production": a writing request asks first (wave 17).
+  await page.getByTestId("confirm-send-yes").click();
   await expect(page.getByTestId("ready-to-send")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("ready-to-send")).toBeHidden();

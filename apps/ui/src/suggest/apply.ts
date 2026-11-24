@@ -9,7 +9,7 @@
 // merged.
 
 import { BackendError, type Backend } from "../commands/backend";
-import type { RequestSpec } from "../commands/types";
+import type { Environment, RequestSpec } from "../commands/types";
 import type { SuggestedEdit, SuggestionNote } from "../extensions";
 import type { AppState } from "../state/app.svelte";
 import { requestBlocks, scriptBlocks, textBlock, type PreviewBlock } from "./model";
@@ -23,6 +23,8 @@ export interface Prepared {
   blocks: PreviewBlock[];
   /** The change can be undone after applying. */
   undoable: boolean;
+  /** `SuggestedEdit.dismissKey`: the dialog offers "Don't suggest this again". */
+  dismissKey?: string;
   /** Rejects with kind `stale` when the target changed after `prepare`, without changing
    *  anything. `apply` checks the same; a batch checks all its parts before it applies one. */
   verify(): Promise<void>;
@@ -57,6 +59,10 @@ async function currentRequest(backend: Backend, app: AppState, path: string): Pr
 export async function prepare(backend: Backend, app: AppState, edit: SuggestedEdit): Promise<Prepared> {
   await activate(app, edit.collection);
   const note = edit.note;
+  return { ...(await prepareKind(backend, app, edit, note)), dismissKey: edit.dismissKey };
+}
+
+async function prepareKind(backend: Backend, app: AppState, edit: SuggestedEdit, note: SuggestionNote | undefined): Promise<Prepared> {
   switch (edit.kind) {
     case "request": {
       const base = await currentRequest(backend, app, edit.path);
@@ -173,6 +179,55 @@ export async function prepare(backend: Backend, app: AppState, edit: SuggestedEd
         },
       };
     }
+    case "environment": {
+      await app.settled();
+      const base = (await backend.environments()).find((e) => e.name === edit.environment);
+      if (!base) throw new BackendError("not-found", `The environment ${edit.environment} does not exist (any more).`);
+      const have = new Set(base.variables.map((v) => v.name));
+      const added: Environment["variables"] = [];
+      for (const v of edit.variables) {
+        if (!v.name.trim() || have.has(v.name)) continue;
+        have.add(v.name);
+        const secret = v.secret === true;
+        added.push({ name: v.name, value: secret ? null : (v.value ?? ""), enabled: true, secret });
+      }
+      const next: Environment = { ...clone(base), variables: [...clone(base.variables), ...added] };
+      const current = async () => (await backend.environments()).find((e) => e.name === edit.environment) ?? null;
+      const reload = async () => {
+        await app.reloadEnvironments();
+        await app.refreshDirty();
+      };
+      return {
+        title: "Change environment",
+        subtitle: edit.environment,
+        note,
+        blocks: added.map((v) => ({
+          label: `Variable › ${v.name}`,
+          old: null,
+          next: v.secret ? "(secret, no value yet)" : (v.value ?? ""),
+          code: false,
+        })),
+        undoable: true,
+        async verify() {
+          if (!same(await current(), base)) throw stale(`The environment ${edit.environment}`);
+        },
+        async apply() {
+          await (this as Prepared).verify();
+          await backend.updateEnvironment(next);
+          await reload();
+          const left = async () => same(await current(), next);
+          return {
+            canUndo: left,
+            async undo() {
+              if (!(await left())) return false;
+              await backend.updateEnvironment(base);
+              await reload();
+              return true;
+            },
+          };
+        },
+      };
+    }
     case "batch":
       return prepareBatch(backend, app, edit, note);
   }
@@ -194,7 +249,7 @@ async function prepareBatch(
   const seen = new Set<string>();
   for (const part of edit.edits) {
     if ((part as { kind: string }).kind === "batch") throw new BackendError("invalid", "A batch cannot contain a batch.");
-    const key = part.kind === "new-request" ? null : `${part.kind}:${"path" in part ? part.path : ""}`;
+    const key = part.kind === "new-request" ? null : `${part.kind}:${part.kind === "environment" ? part.environment : "path" in part ? part.path : ""}`;
     if (key !== null) {
       if (seen.has(key)) throw new BackendError("invalid", `The suggestion changes ${key.slice(key.indexOf(":") + 1) || "the collection"} twice.`);
       seen.add(key);

@@ -28,6 +28,7 @@
     undoable = true,
     onapply,
     ondiscard,
+    ondismiss,
   }: {
     blocks: PreviewBlock[];
     title?: string;
@@ -41,6 +42,8 @@
     undoable?: boolean;
     onapply: () => void;
     ondiscard: () => void;
+    /** "Don't suggest this again" (only when the suggestion has a `dismissKey`). */
+    ondismiss?: () => void;
   } = $props();
 
   const stats = $derived(totalStats(blocks));
@@ -78,6 +81,9 @@
 
 {#snippet buttons()}
   <span class="buttons">
+    {#if ondismiss}
+      <Button variant="ghost" size={mode === "inline" ? "sm" : "md"} data-testid="suggest-dismiss" onclick={ondismiss}>Don't suggest this again</Button>
+    {/if}
     <Button variant="ghost" size={mode === "inline" ? "sm" : "md"} data-testid="suggest-discard" onclick={ondiscard}>
       {empty ? "Close" : "Discard"}{#if mode === "inline"}<span class="key"><Kbd keys="Esc" size="sm" /></span>{/if}
     </Button>

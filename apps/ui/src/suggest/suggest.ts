@@ -6,12 +6,12 @@
 // (`undo.svelte.ts`). Also used by the app's own assistant features. No model calls here.
 
 import type { Backend } from "../commands/backend";
-import type { SuggestedEdit } from "../extensions";
+import type { SuggestedEdit, SuggestOutcome } from "../extensions";
 import type { AppState } from "../state/app.svelte";
 import { prepare } from "./apply";
 import SuggestDialog from "./SuggestDialog.svelte";
 
-export function createSuggest(backend: Backend, app: AppState): (edit: SuggestedEdit) => Promise<boolean> {
+export function createSuggestOutcome(backend: Backend, app: AppState): (edit: SuggestedEdit) => Promise<SuggestOutcome> {
   return async (edit) => {
     const prepared = await prepare(backend, app, edit);
     const result = await app.showDialog({
@@ -20,6 +20,13 @@ export function createSuggest(backend: Backend, app: AppState): (edit: Suggested
       props: { prepared },
       width: 760,
     });
-    return result === true;
+    if (result === true) return { applied: true };
+    if (result === "dismissed") return { applied: false, dismissed: true };
+    return { applied: false };
   };
+}
+
+export function createSuggest(backend: Backend, app: AppState): (edit: SuggestedEdit) => Promise<boolean> {
+  const outcome = createSuggestOutcome(backend, app);
+  return async (edit) => (await outcome(edit)).applied;
 }

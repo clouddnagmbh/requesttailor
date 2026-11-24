@@ -19,8 +19,6 @@ export { MockBackend } from "./commands/mock";
 export * from "./commands/wave12-stubs";
 // Wave 14 interface: the collection set over the single open collection (strand A replaces it).
 export * from "./commands/wave14-stubs";
-// Wave 17 interface: snapshots, sharing and staging the spec (strands A, B, C replace them).
-export * from "./commands/wave17-stubs";
 // Wave 17: a link that reached the app from outside waits in the share inbox (`apps/web/src/main.ts`).
 export { offerSharedLink } from "./share/inbox.svelte";
 export { looksShared } from "./share/detect";
@@ -51,3 +49,7 @@ export * from "./ui";
 export function startApp(target: HTMLElement, backend: Backend, options: StartOptions = {}) {
   return mount(AppShell, { target, props: { backend, extensions: options.extensions ?? [] } });
 }
+
+// Wave 17: the production rule (policy flag of a listed environment, else the name) for extensions.
+export { isProduction } from "./environments/production";
+export { isProductionName } from "./environments/ops";
