@@ -48,7 +48,7 @@ fn root<S: SecretStore>(core: &Core<S>) -> Result<PathBuf> {
 }
 
 pub(crate) fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
-    Repo::require(&root(core)?, &options())
+    Ok(Repo::require(&root(core)?, &options())?.with_signing(core.signing.clone()))
 }
 
 fn refuse_unsaved<S: SecretStore>(core: &Core<S>, what: &str) -> Result<()> {

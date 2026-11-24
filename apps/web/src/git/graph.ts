@@ -72,6 +72,8 @@ interface CommitInfo {
   summary: string;
   author: string;
   email: string;
+  /** Carries a `gpgsig` header (wave 15). */
+  signed: boolean;
   authorTime: number;
   /** Committer time: the order. */
   time: number;
@@ -91,6 +93,7 @@ async function commitOf(git: Git, repo: Repo, oid: string): Promise<CommitInfo> 
     summary: commit.message.split("\n")[0].trim(),
     author: commit.author.name,
     email: commit.author.email,
+    signed: Boolean(commit.gpgsig),
     authorTime: commit.author.timestamp,
     time: commit.committer.timestamp,
   };

@@ -355,6 +355,9 @@ pub struct Core<S> {
     pub services: std::sync::Arc<crate::services::ServiceParts>,
     /// Reads external secrets with the managers' CLIs; values cached per session (wave 5).
     pub external_secrets: std::sync::Arc<rt_app::secret_sources::SecretResolver>,
+    /// Wave 15: what the commits of this core are signed and verified with (`rt_git::sign`);
+    /// the default signs nothing.
+    pub signing: rt_git::sign::Signing,
 }
 
 fn shell(e: impl std::fmt::Display) -> AppError {
@@ -387,7 +390,16 @@ impl<S: SecretStore> Core<S> {
             )),
             secrets,
             data_dir,
+            signing: rt_git::sign::Signing::default(),
         })
+    }
+
+    /// Wave 15: every commit this core writes goes through `signing` (a distribution's hook,
+    /// managed on the builder as `rt_git::sign::Signing`); `GitApi.verify` asks its verifier.
+    /// Call it right after creating the core.
+    pub fn with_signing(mut self, signing: rt_git::sign::Signing) -> Self {
+        self.signing = signing;
+        self
     }
 
     /// Wave 10: every send of this core (send, runner, streams, gRPC) asks `guard` first

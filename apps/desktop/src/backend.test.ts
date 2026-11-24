@@ -279,6 +279,7 @@ describe("TauriBackend", () => {
     await b.git.discardPatch(patch);
     await b.git.commitStaged({ message: "m" });
     await b.git.verify(["abc"]);
+    await b.git.config("commit.template");
     await b.review.create({ title: "T", body: "", head: "feature", base: "main", draft: false });
     expect(calls).toEqual([
       ["open_collection", undefined],
@@ -507,6 +508,7 @@ describe("TauriBackend", () => {
       ["git_discard_patch", { patch: { path: "/a.txt", side: "unstaged", old: "o", new: "n", hunks: [{ hunk: 0 }] } }],
       ["git_commit_staged", { commit: { message: "m" } }],
       ["git_verify", { oids: ["abc"] }],
+      ["git_config", { key: "commit.template" }],
       ["review_create", { pull: { title: "T", body: "", head: "feature", base: "main", draft: false } }],
     ]);
     expect(new Set(calls.map(([c]) => c))).toEqual(new Set(COMMANDS));

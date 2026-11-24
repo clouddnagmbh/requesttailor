@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// Wave 15, strand F: the index and signatures (`src-tauri/src/git_index.rs`, placeholders
-// until strand F).
+// Wave 15, strand F: the index, signatures and Git configuration (`src-tauri/src/git_index.rs`).
 
 import type { GitIndexMethods } from "@requesttailor/ui";
 
@@ -18,5 +17,6 @@ export function tauriGitIndex(call: Call): GitIndexMethods {
     discardPatch: (patch) => call("git_discard_patch", { patch }),
     commitStaged: (commit) => call("git_commit_staged", { commit }),
     verify: (oids) => call("git_verify", { oids }),
+    config: (key) => call("git_config", { key }),
   };
 }

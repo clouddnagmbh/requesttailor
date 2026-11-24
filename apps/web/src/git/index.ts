@@ -26,7 +26,6 @@ import {
   type SecretsApi,
   LOCAL_CLONE_UNSUPPORTED,
   looksLocal,
-  stubGitIndex,
 } from "@requesttailor/ui";
 
 import type { WebHost } from "../web-backend";
@@ -37,6 +36,7 @@ import { refuseSecrets, scanPaths } from "./scan";
 import { webGitActions } from "./actions";
 import { webGitFiles } from "./files";
 import { webGitHistory } from "./history";
+import { webGitIndex } from "./index-ops";
 import { webGitPlumbing } from "./plumbing";
 import { webGitGraph, type WebGitContext } from "./graph";
 
@@ -360,11 +360,11 @@ export function webGit(host: WebHost): GitApi & ChangelogCommitSource & Reposito
     // Wave 14 (interface): graph (strand F, ./graph.ts) and wizards (strand G, ./actions.ts).
     ...webGitGraph(wave14),
     ...webGitActions({ ...wave14, network, identity: () => identity.get() }),
-    // Wave 15 (interface): placeholders until strands B (working copy), C (history), D (building
-    // blocks) and F (index): only the index is still a placeholder (strand F).
+    // Wave 15: working copy (strand B), history (C), building blocks (D), the index, signature
+    // checks and `config` (F).
     ...webGitFiles(wave14),
     ...webGitHistory(wave14),
     ...webGitPlumbing({ ...wave14, identity: () => identity.get() }),
-    ...stubGitIndex(),
+    ...webGitIndex({ ...wave14, identity: () => identity.get() }),
   };
 }

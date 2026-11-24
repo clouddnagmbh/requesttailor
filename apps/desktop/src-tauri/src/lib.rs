@@ -41,7 +41,7 @@ mod git_actions;
 mod git_files;
 mod git_graph;
 mod git_history;
-mod git_index;
+pub mod git_index;
 mod git_plumbing;
 mod grpc;
 pub mod history;
@@ -84,6 +84,11 @@ pub use crate::core::{CollectionInfo, Core};
 /// Wave 10: a distribution that checks every send manages its guard before `run`:
 /// `builder().manage(rt_core::guard::GuardHandle::new(guard))`; the app's sends (Send, runner,
 /// streams, gRPC) then ask it (`rt_core::guard`).
+///
+/// Wave 15: a distribution that signs commits manages `rt_git::sign::Signing` the same way:
+/// `builder().manage(Signing { signer, verifier })`. Every commit the app writes (commit,
+/// commit-staged, merge, cherry-pick, revert, amend, `writeCommit`) goes through the signer;
+/// without it commits stay unsigned.
 pub fn builder() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -100,11 +105,17 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
                 .try_state::<rt_core::guard::GuardHandle>()
                 .map(|g| g.inner().clone())
                 .unwrap_or_default();
+            // Wave 15: a distribution's commit signing, managed the same way.
+            let signing = app
+                .try_state::<rt_git::sign::Signing>()
+                .map(|s| s.inner().clone())
+                .unwrap_or_default();
             let core = commands::AppCore::with_data_dir(
                 rt_app::secrets::keychain::KeychainStore::default(),
                 data_dir,
             )?
-            .with_guard(guard);
+            .with_guard(guard)
+            .with_signing(signing);
             // OAuth 2.0 prompts reach the UI as the `auth-prompt` event (wave 5, strand C).
             core.services.auth.attach(app.handle().clone());
             // Bundled plugins (wave 6): only located here; installed on the first
@@ -351,6 +362,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             git_index::git_discard_patch,
             git_index::git_commit_staged,
             git_index::git_verify,
+            git_index::git_config,
             review::review_create,
         ])
 }
