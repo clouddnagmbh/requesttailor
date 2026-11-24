@@ -141,6 +141,30 @@ fn manifest() -> Manifest {
                     merge: Some("$.items".into()),
                 },
             }],
+            compensations: vec![rt_plugin::api::CompensationContribution {
+                id: "created-resources".into(),
+                matches: rt_plugin::api::CompensationMatch {
+                    hosts: vec!["*.example.com".into()],
+                    content_types: vec!["application/json".into()],
+                    url_pattern: Some("/items*".into()),
+                    methods: vec!["POST".into()],
+                },
+                rule: rt_plugin::api::CompensationRule {
+                    id_from: vec!["header:Location".into(), "$.id".into()],
+                    resource_url: Some("{collection}/{id}".into()),
+                    etag_from: vec!["header:ETag".into()],
+                    token: Some(rt_plugin::api::CompensationToken {
+                        fetch_header: "x-token".into(),
+                        fetch_value: "fetch".into(),
+                        read_header: "x-token".into(),
+                        send_header: "x-token".into(),
+                    }),
+                    not_reversible: vec![rt_plugin::api::NotReversibleRule {
+                        url_pattern: "/items/draft*".into(),
+                        reason: "drafts are not reverted".into(),
+                    }],
+                },
+            }],
         },
     }
 }
@@ -343,6 +367,7 @@ fn fixtures() -> Vec<(&'static str, &'static str, Value)> {
                     label: "Database".into(),
                     ms: 41,
                     parent: Some("server".into()),
+                    offset_ms: Some(1.5),
                 }],
             }),
         ),

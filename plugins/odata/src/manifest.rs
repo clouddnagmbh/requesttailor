@@ -23,3 +23,12 @@ pub fn wave18() -> Contributions {
     }
     all
 }
+
+/// What the modules of wave 19 contribute (the clean-up rules), in a fixed order.
+pub fn wave19() -> Contributions {
+    let mut all = Contributions::default();
+    // One module so far; strands add theirs here, in a fixed order.
+    all.compensations
+        .extend(crate::compensations::contributions().compensations);
+    all
+}

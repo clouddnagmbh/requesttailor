@@ -139,6 +139,20 @@ pub fn check(
     })
 }
 
+/// Like [`check`] for a request that is not saved in the collection (wave 19): the agents
+/// explorer and other callers that build requests in memory ask with the same rules.
+pub fn check_spec(
+    collection: &rt_core::model::Collection,
+    spec: &rt_core::model::RequestSpec,
+    environment: Option<&str>,
+) -> AgentCheck {
+    let effect = effect(spec);
+    AgentCheck {
+        effect,
+        verdict: verdict(&collection.config.agents, environment, effect),
+    }
+}
+
 /// The reason the approval banner shows for a writing request in `environment`.
 pub fn approval_reason(environment: Option<&str>) -> String {
     match environment {

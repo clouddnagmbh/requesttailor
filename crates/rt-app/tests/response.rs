@@ -31,6 +31,7 @@ fn report(body: ReportBody) -> SendReport {
         environment: None,
         request: None,
         response: Some(ReceivedResponse {
+            tls: None,
             status: 200,
             version: HttpVersion::Http11,
             headers: vec![("content-type".into(), "application/json".into())],
@@ -52,6 +53,7 @@ fn report(body: ReportBody) -> SendReport {
         error: None,
         checks: Vec::new(),
         rate_limit: None,
+        trace: None,
         segments: Vec::new(),
     }
 }

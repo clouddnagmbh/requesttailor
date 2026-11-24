@@ -3,6 +3,19 @@
 Every change to the plugin API (`API.md`, `src/api.rs`) is listed here, newest first.
 Additive changes keep `API_VERSION`; breaking changes bump it.
 
+## API version 1, additions (wave 19)
+
+Additive; `API_VERSION` stays 1, plugins built earlier run unchanged:
+- `contributes.compensations`: a list of `{ "id", "match": { "hosts", "content_types",
+  "url_pattern", "methods" }, "rule": { "id_from", "resource_url", "etag_from", "token",
+  "not_reversible" } }`. Data only, no call per response. It tells the test-data journal how
+  writing requests to matching hosts are undone: where the created resource's id is
+  (`header:<Name>` or a JSONPath), how one resource's URL is made (`{collection}`, `{id}`),
+  where the version for `If-Match` is, a token to fetch before writing, and entries that
+  cannot be reverted with a reason. The app executes the undoing under its own rules
+  (guard, production question, conflict check, audit); the plugin cannot send anything
+  through this.
+
 ## API version 1, additions (wave 18)
 
 Additive; `API_VERSION` stays 1, plugins built earlier run unchanged:

@@ -43,14 +43,32 @@ pub mod git;
 pub mod catalogue;
 /// Comparing responses across environments (strand A).
 pub mod envcompare;
+// Wave 19 (interface): evidence, cleaning up and consumer contracts; the strands fill the
+// modules in.
+/// The two-user access check of one request (strand D).
+pub mod access;
+/// Consumer contracts without a broker (strand F).
+pub mod consumers;
+/// Guided network access for extensions (strand B).
+pub mod egress;
 /// The local webhook inbox (strand E).
 pub mod inbox;
 /// JWT inspector and passive response checks (strand B).
 pub mod inspect;
+/// The test-data journal and reverting (strand C).
+pub mod journal;
 /// Collection lint and the health score (strand F).
 pub mod lint;
+/// API notebooks (strand W).
+pub mod notebook;
 /// Following pages and merging them (strand C).
 pub mod paging;
+/// Passive API security checks (strand R).
+pub mod security;
+/// Sequence diagrams from runs (strand G).
+pub mod sequence;
+/// Minimal failing request (strand E).
+pub mod shrink;
 /// Saved views of a response (strand G).
 pub mod views;
 // Wave 8, strand B: gRPC services and templates, GraphQL schemas.

@@ -74,6 +74,39 @@ export interface Contributions {
   welcome?: WelcomeChoice | null;
   /** Rules for following pages of responses, as data. Wave 18. */
   paging?: PagingContribution[];
+  /** Rules that say how writing requests are put back, as data. Wave 19. */
+  compensations?: CompensationContribution[];
+}
+
+/** Wave 19: how writing requests to matching hosts are undone; the app executes, the plugin
+ *  supplies data only. */
+export interface CompensationContribution {
+  id: string;
+  match: CompensationMatch;
+  rule: CompensationRule;
+}
+
+/** Empty lists mean "any". */
+export interface CompensationMatch {
+  hosts?: string[];
+  content_types?: string[];
+  /** A glob over the request URL's path and query. */
+  url_pattern?: string | null;
+  /** Upper-case methods; empty: all writing methods. */
+  methods?: string[];
+}
+
+export interface CompensationRule {
+  /** Where a created resource is named, tried in order: `header:<Name>` or a JSONPath. */
+  id_from?: string[];
+  /** URL of one resource: `{collection}` and `{id}`. */
+  resource_url?: string | null;
+  /** Where the version for `If-Match` is, tried in order. */
+  etag_from?: string[];
+  /** A token to fetch before a writing call. */
+  token?: { fetch_header: string; fetch_value: string; read_header: string; send_header: string } | null;
+  /** Entries this rule cannot undo, with a reason. */
+  not_reversible?: { url_pattern: string; reason: string }[];
 }
 
 /** Wave 18: a paging rule a plugin ships; a rule of the collection or request wins. */
@@ -229,8 +262,10 @@ export interface TimingSegment {
   id: string;
   label: string;
   ms: number;
-  /** `"server"`: inside the wait for the server. */
+  /** `"server"`: inside the wait for the server; since wave 19 also the `id` of another segment. */
   parent?: string | null;
+  /** Wave 19: milliseconds after the server began handling the request. */
+  offset_ms?: number | null;
 }
 
 export interface PluginNote {

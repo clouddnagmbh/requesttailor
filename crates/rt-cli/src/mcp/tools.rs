@@ -440,6 +440,9 @@ async fn prepare(
         checks: false,
         view: Default::default(),
         throttle: Default::default(),
+        trace: false,
+        sequence: Default::default(),
+        debug: Default::default(),
     };
     Ok(Prepared {
         collection,

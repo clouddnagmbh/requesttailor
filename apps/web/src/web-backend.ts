@@ -41,6 +41,16 @@ import {
   type ShareApi,
   type SnapshotApi,
   type EnvCompareApi,
+  type EgressApi,
+  type JournalApi,
+  type AccessApi,
+  type ShrinkApi,
+  type ConsumersApi,
+  type SequenceApi,
+  type SecurityApi,
+  type NotebookApi,
+  type DebuggerApi,
+
   type InspectApi,
   type PagingApi,
   type InboxApi,
@@ -85,6 +95,16 @@ import { webFolderScripts } from "./folder-scripts";
 import { webShare, type CoreShare } from "./share";
 import { webSnapshots } from "./snapshots";
 import { webEnvCompare } from "./envcompare";
+import { webEgress } from "./egress";
+import { webJournal } from "./journal";
+import { webAccess } from "./access";
+import { webShrink } from "./shrink";
+import { webConsumers } from "./consumers";
+import { webSequence } from "./sequence";
+import { webSecurity } from "./security";
+import { webNotebook } from "./notebook";
+import { webDebugger } from "./debugger";
+
 import { webInspect } from "./inspect";
 import { webPaging } from "./paging";
 import { webInbox } from "./inbox";
@@ -250,6 +270,16 @@ export class WebBackend implements Backend {
   readonly variables: VariablesApi;
   /** Wave 16: scripts of the collection and its folders (`folder-scripts.ts`). */
   readonly folderScripts: FolderScriptsApi;
+  /** Wave 19: placeholders until the strands (one file each, `<name>.ts`). */
+  readonly egress: EgressApi;
+  readonly journal: JournalApi;
+  readonly access: AccessApi;
+  readonly shrink: ShrinkApi;
+  readonly consumers: ConsumersApi;
+  readonly sequence: SequenceApi;
+  readonly security: SecurityApi;
+  readonly notebook: NotebookApi;
+  readonly debugger: DebuggerApi;
   /** Wave 18: placeholders until the strands (one file each, `<name>.ts`). */
   readonly envCompare: EnvCompareApi;
   readonly inspect: InspectApi;
@@ -372,6 +402,15 @@ export class WebBackend implements Backend {
     this.companions = webCompanions(() => this.session());
     this.folderScripts = webFolderScripts(() => this.session());
     this.envCompare = webEnvCompare();
+    this.egress = webEgress();
+    this.journal = webJournal();
+    this.access = webAccess();
+    this.shrink = webShrink();
+    this.consumers = webConsumers();
+    this.sequence = webSequence();
+    this.security = webSecurity();
+    this.notebook = webNotebook();
+    this.debugger = webDebugger();
     this.inspect = webInspect();
     this.paging = webPaging();
     this.inbox = webInbox();

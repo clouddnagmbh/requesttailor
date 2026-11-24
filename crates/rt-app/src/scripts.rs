@@ -137,6 +137,7 @@ mod tests {
             flow: None,
             checks: Vec::new(),
             rate_limit: None,
+            trace: None,
             segments: Vec::new(),
         }
     }

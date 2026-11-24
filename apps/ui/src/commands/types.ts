@@ -389,7 +389,7 @@ export type SendError =
 
 export type Caller = "app" | "cli" | "agent";
 
-export type SendPurpose = "main" | "script";
+export type SendPurpose = "main" | "script" | "egress" | "audit";
 
 /** What a distribution's send guard is asked before a request goes out. */
 export interface SendCheck {
@@ -463,6 +463,17 @@ export interface SendReport {
   segments?: TimingSegment[];
   rate_limit?: RateLimits;
   checks?: Observation[];
+  /** Wave 19: the trace of the send (`traceparent` the app set, or the id the response
+   *  carried); only when there is one. */
+  trace?: TraceRef;
+}
+
+/** Wave 19 (`rt_core::trace`). Never carries a secret. */
+export interface TraceRef {
+  trace_id: string;
+  span_id?: string;
+  /** The app put the `traceparent` on the request. */
+  injected: boolean;
 }
 
 // ---- app (rt_app) ----
@@ -2632,8 +2643,12 @@ export interface TimingSegment {
   id: string;
   label: string;
   ms: number;
-  /** `"server"` puts it inside the server wait. */
+  /** `"server"` puts it inside the server wait; since wave 19 also the `id` of another
+   *  segment of the same report (a tree). */
   parent?: string;
+  /** Wave 19: milliseconds after the server began handling the request (its own clock);
+   *  `undefined`: unknown. */
+  offset_ms?: number;
 }
 
 export interface RateWindow {
@@ -2978,4 +2993,504 @@ export interface CatalogueUpdate {
   source: string;
   installed: string;
   available: string;
+}
+
+// ---- wave 19 ----
+
+// Egress for extensions (`rt_app::egress`, strand B).
+export interface EgressRequest {
+  method: "GET" | "POST";
+  url: string;
+  headers?: [string, string][];
+  body?: string;
+  extension: string;
+  purpose: string;
+  collection?: string;
+}
+
+export interface EgressResponse {
+  status: number;
+  headers: [string, string][];
+  body: string;
+  truncated?: boolean;
+  took_ms: number;
+}
+
+export interface EgressHost {
+  host: string;
+  port?: number;
+  extension: string;
+  purpose: string;
+  allowed_at: number;
+}
+
+export type EgressError =
+  | { kind: "not-allowed"; host: string; port: number | null }
+  | { kind: "blocked"; rule: string; reason: string }
+  | { kind: "limit"; message: string }
+  | { kind: "transport"; message: string };
+
+// The test-data journal (`rt_app::journal`, strand C).
+export interface JournalSettings {
+  enabled?: boolean;
+  id_path?: string;
+}
+
+export interface JournalEntry {
+  id: number;
+  session: string;
+  at: number;
+  environment?: string;
+  request_path: string;
+  method: string;
+  url: string;
+  status: number;
+  location?: string;
+  etag?: string;
+  resource_id?: string;
+  reverted_at?: number;
+}
+
+export interface JournalQuery {
+  limit?: number;
+  before?: number;
+  session?: string;
+  only_open?: boolean;
+}
+
+export interface JournalPage {
+  entries: JournalEntry[];
+  total: number;
+}
+
+export type CompensationKind = "delete" | "restore" | "recreate" | "manual";
+
+export interface Compensation {
+  kind: CompensationKind;
+  request: RequestSpec;
+  state_hash?: string;
+  probe?: RequestSpec;
+  description: string;
+}
+
+export interface NotReversible {
+  reason: string;
+}
+
+export type CompensationAnswer =
+  | { kind: "compensation"; compensation: Compensation }
+  | { kind: "not-reversible"; reason: string };
+
+export interface CompensationItem {
+  entry_id: number;
+  answer: CompensationAnswer;
+}
+
+export interface ManualRevert {
+  entry_id: number;
+  request_path: string;
+}
+
+export type StepState = "planned" | "not-reversible";
+
+export interface RevertStep {
+  entry_id: number;
+  state: StepState;
+  method: string;
+  url: string;
+  effect: Effect;
+  description: string;
+  compensation?: Compensation;
+  reason?: string;
+}
+
+export interface RevertPlan {
+  environment: string | null;
+  production: boolean;
+  steps: RevertStep[];
+  truncated?: boolean;
+}
+
+export interface RevertOptions {
+  production_confirmed?: boolean;
+}
+
+export type StepResult = "reverted" | "skipped-conflict" | "skipped-not-reversible" | "failed";
+
+export interface StepOutcome {
+  entry_id: number;
+  result: StepResult;
+  message: string;
+}
+
+export interface RevertOutcome {
+  steps: StepOutcome[];
+}
+
+export interface PluginCompensationRule {
+  plugin: string;
+  rule: CompensationContribution;
+}
+
+export interface PreRead {
+  status: number;
+  body: string | null;
+  etag: string | null;
+}
+
+export interface EntryStates {
+  entry_id: number;
+  before: PreRead | null;
+  after: PreRead | null;
+}
+
+/** `contributes.compensations` of a plugin manifest (wave 19). */
+export interface CompensationContribution {
+  id: string;
+  match: {
+    hosts?: string[];
+    content_types?: string[];
+    url_pattern?: string;
+    methods?: string[];
+  };
+  rule: {
+    id_from?: string[];
+    resource_url?: string;
+    etag_from?: string[];
+    token?: { fetch_header: string; fetch_value: string; read_header: string; send_header: string };
+    not_reversible?: { url_pattern: string; reason: string }[];
+  };
+}
+
+// The two-user access check (`rt_app::access`, strand D).
+export interface AccessProfile {
+  a: string;
+  b: string;
+}
+
+export interface AccessOptions {
+  allow_writes?: boolean;
+  b_must_be_denied?: boolean;
+  rate?: number;
+}
+
+export type AccessVerdict =
+  | { kind: "ok" }
+  | { kind: "broken-object-access" }
+  | { kind: "broken-function-access" }
+  | { kind: "inconclusive" }
+  | { kind: "skipped"; reason: string };
+
+export interface AccessEvidence {
+  profile: string;
+  status: number | null;
+  header_names: string[];
+  values: [string, string][];
+}
+
+export interface AccessFinding {
+  verdict: AccessVerdict;
+  message: string;
+  evidence: AccessEvidence[];
+}
+
+export interface AccessCheck {
+  path: string;
+  verdict: AccessVerdict;
+  findings: AccessFinding[];
+  status_a: number | null;
+  status_b: number | null;
+}
+
+// Minimal failing request (`rt_app::shrink`, strand E).
+export type ShrinkPredicate =
+  | { kind: "status"; status: number }
+  | { kind: "server-error" }
+  | { kind: "assertion-fails"; assertion?: string }
+  | { kind: "body-matches"; pattern: string }
+  | { kind: "header-present"; name: string }
+  | { kind: "header-missing"; name: string }
+  | { kind: "last-failure" };
+
+export interface ShrinkRequest {
+  path: string;
+  environment?: string;
+  predicate: ShrinkPredicate;
+  keep?: string[];
+  max_probes?: number;
+  max_seconds?: number;
+  simplify_values?: boolean;
+  confirmed_writes?: boolean;
+}
+
+export interface ShrinkStep {
+  part: string;
+  kind: string;
+}
+
+export interface ShrinkResult {
+  request: RequestSpec;
+  removed: ShrinkStep[];
+  probes: number;
+  not_reproduced?: boolean;
+  flaky?: boolean;
+  one_minimal?: boolean;
+  stopped_by?: string;
+}
+
+// Consumer contracts (`rt_app::consumers`, strand F).
+export interface ConsumerRef {
+  name: string;
+  source: string;
+  ref?: string;
+  path?: string;
+  environment: string;
+  vars?: [string, string][];
+}
+
+export interface ConsumerVerifyRequest {
+  base_url: string;
+  only?: string[];
+  fetch?: boolean;
+  keep_going?: boolean;
+  trust_scripts?: boolean;
+  allow_writes?: boolean;
+}
+
+export interface ConsumerFailure {
+  request_path: string;
+  request: string;
+  assertion: string;
+  difference: string;
+}
+
+export interface ConsumerResult {
+  name: string;
+  commit?: string;
+  requests: number;
+  failures: ConsumerFailure[];
+  error?: string;
+}
+
+export interface ConsumerReport {
+  consumers: ConsumerResult[];
+}
+
+// Sequence diagrams (`rt_app::sequence`, strand G).
+export type ParticipantKind = "client" | "server" | "script" | "plugin" | "agent";
+
+export interface SequenceParticipant {
+  id: string;
+  label: string;
+  kind: ParticipantKind;
+}
+
+export interface SequenceMessage {
+  kind: "request" | "response";
+  from: string;
+  to: string;
+  label: string;
+  request_path?: string;
+}
+
+export type SequenceNoteAnchor =
+  | { kind: "over"; participant: string }
+  | { kind: "between"; from: string; to: string };
+
+export interface SequenceNote {
+  after: number;
+  anchor: SequenceNoteAnchor;
+  text: string;
+}
+
+export interface SequenceGroup {
+  kind: string;
+  label: string;
+  from: number;
+  to: number;
+}
+
+export interface SequenceModel {
+  participants: SequenceParticipant[];
+  messages: SequenceMessage[];
+  notes?: SequenceNote[];
+  groups?: SequenceGroup[];
+  omitted?: number;
+}
+
+export type SequenceSource =
+  | { kind: "run"; run_id: number }
+  | { kind: "session" }
+  | { kind: "pages"; request_path: string }
+  | { kind: "mcp"; since: number | null }
+  | { kind: "history"; ids: number[] };
+
+export interface SequenceOptions {
+  include_query?: boolean;
+  include_values?: boolean;
+}
+
+export interface SequenceText {
+  mermaid: string;
+  markdown: string;
+}
+
+// Passive API security checks (`rt_app::security`, strand R).
+export type OwaspCategory =
+  | "API1:2023"
+  | "API2:2023"
+  | "API3:2023"
+  | "API4:2023"
+  | "API5:2023"
+  | "API6:2023"
+  | "API7:2023"
+  | "API8:2023"
+  | "API9:2023"
+  | "API10:2023";
+
+export type SecuritySeverity = "info" | "low" | "medium" | "high" | "critical";
+
+export interface SecurityRule {
+  id: string;
+  title: string;
+  category: OwaspCategory;
+  severity: SecuritySeverity;
+  native_only?: boolean;
+}
+
+export interface SecurityFinding {
+  rule: string;
+  category: OwaspCategory;
+  severity: SecuritySeverity;
+  location: string;
+  why: string;
+  fix: string;
+}
+
+export interface SecurityTarget {
+  path: string;
+  response_id: number;
+}
+
+export interface SecuritySettings {
+  enabled?: boolean;
+  disabled?: string[];
+}
+
+export type AuditFormat = "text" | "markdown" | "html" | "json" | "sarif";
+
+/** What the native transport learned about the TLS connection (`rt_core::transport::TlsInfo`). */
+export interface TlsInfo {
+  protocol?: string;
+  cipher?: string;
+  not_before?: number;
+  not_after?: number;
+  key_algorithm?: string;
+  key_bits?: number;
+  names?: string[];
+}
+
+// API notebooks (`rt_app::notebook`, strand W).
+export type NotebookShow =
+  | { kind: "response" }
+  | { kind: "table"; path: string }
+  | { kind: "chart"; path: string };
+
+export type NotebookBlock =
+  | { kind: "text"; markdown: string }
+  | {
+      kind: "request";
+      id: string;
+      ref?: string;
+      embedded?: RequestSpec;
+      set?: [string, string][];
+      show?: NotebookShow[];
+    };
+
+export interface Notebook {
+  title: string;
+  blocks: NotebookBlock[];
+}
+
+export interface NotebookEntry {
+  path: string;
+  title: string;
+  blocks: number;
+}
+
+export interface NotebookRun {
+  path: string;
+  block?: string;
+  environment?: string;
+  allow_writes?: boolean;
+}
+
+export interface BlockResult {
+  block: string;
+  report?: SendReport;
+  set?: [string, string][];
+  skipped?: string;
+}
+
+export interface NotebookOutcome {
+  results: BlockResult[];
+}
+
+// The script debugger (`rt_script::debug`, strand Y).
+export interface Breakpoint {
+  line: number;
+  condition?: string;
+}
+
+export interface DebugTarget {
+  request_path: string;
+  phase: string;
+  folder?: string;
+  environment?: string;
+  breakpoints: Breakpoint[];
+  stop_on_entry?: boolean;
+}
+
+export type DebugCommand =
+  | { kind: "continue" }
+  | { kind: "step-over" }
+  | { kind: "step-into" }
+  | { kind: "step-out" }
+  | { kind: "evaluate"; expression: string }
+  | { kind: "set-breakpoints"; breakpoints: Breakpoint[] }
+  | { kind: "abort" };
+
+export interface DebugValue {
+  name: string;
+  kind: string;
+  preview: string;
+  children?: number;
+}
+
+export interface DebugFrame {
+  function: string;
+  line: number;
+}
+
+export interface DebugScope {
+  name: string;
+  values: DebugValue[];
+}
+
+export interface DebugPause {
+  line: number;
+  reason: string;
+  frames: DebugFrame[];
+  scopes: DebugScope[];
+  evaluated?: DebugValue;
+}
+
+export type DebugStatus = "running" | "paused" | "finished" | "aborted";
+
+export interface DebugState {
+  session: number;
+  status: DebugStatus;
+  pause?: DebugPause;
+  output?: string[];
+  error?: string;
 }

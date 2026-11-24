@@ -16,6 +16,7 @@ pub mod cookies;
 pub mod guard;
 pub mod inbox;
 pub mod inspect;
+pub mod journal;
 pub mod jwt;
 pub mod model;
 pub mod observe;
@@ -31,6 +32,7 @@ pub mod services;
 pub mod snapshot;
 pub mod stream;
 pub mod tls;
+pub mod trace;
 pub mod transport;
 pub mod vars;
 

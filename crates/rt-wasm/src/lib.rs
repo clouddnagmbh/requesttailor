@@ -654,12 +654,16 @@ mod auth_js;
 #[cfg(target_arch = "wasm32")]
 mod companions_js;
 // Wave 14, strand A: several collections in the sidebar.
+mod access_js;
 #[cfg(target_arch = "wasm32")]
 mod catalogue_js;
 #[cfg(target_arch = "wasm32")]
 mod collections_js;
+mod consumers_js;
 #[cfg(target_arch = "wasm32")]
 mod cookies_js;
+mod debugger_js;
+mod egress_js;
 #[cfg(target_arch = "wasm32")]
 mod envcompare_js;
 #[cfg(target_arch = "wasm32")]
@@ -678,10 +682,12 @@ mod import_js;
 mod inbox_js;
 #[cfg(target_arch = "wasm32")]
 mod inspect_js;
+mod journal_js;
 #[cfg(target_arch = "wasm32")]
 mod lint_js;
 #[cfg(target_arch = "wasm32")]
 mod mcp_js;
+mod notebook_js;
 #[cfg(target_arch = "wasm32")]
 mod paging_js;
 #[cfg(target_arch = "wasm32")]
@@ -690,10 +696,13 @@ mod plugins_js;
 mod runner_js;
 #[cfg(target_arch = "wasm32")]
 mod scripts_js;
+mod security_js;
+mod sequence_js;
 #[cfg(target_arch = "wasm32")]
 mod services_js;
 #[cfg(target_arch = "wasm32")]
 mod share_js;
+mod shrink_js;
 #[cfg(target_arch = "wasm32")]
 mod snapshots_js;
 #[cfg(target_arch = "wasm32")]

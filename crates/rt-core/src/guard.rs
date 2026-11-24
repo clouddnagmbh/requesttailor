@@ -47,6 +47,15 @@ pub enum Purpose {
     Main,
     /// A request a script builds with `rt.sendRequest`.
     Script,
+    /// A call an extension makes through `Backend.egress` (wave 19): to a host the user
+    /// allowed once for this device, e.g. to read a server trace. Not a request of the
+    /// collection. A guard that does not know this purpose must refuse it, never let it
+    /// pass; the policies of distributions block it under air-gap rules.
+    Egress,
+    /// A probe of an API audit (wave 19): a request an audit sends to a host of the collection
+    /// (never to production, never to other hosts). A guard that does not know this purpose
+    /// must refuse it; an air-gap policy allows it only for hosts of the collection.
+    Audit,
 }
 
 /// Whether a request changes something on the server. Writing: every method other than

@@ -304,6 +304,43 @@ describe("TauriBackend", () => {
     await b.share.copyAs("users/get.yml", "curl", {});
     await b.share.qr("rt:1.abc");
     await b.contract.stageSpec("openapi: 3.0.3");
+    // Wave 19 (interface).
+    await b.agents.checkSpec({} as never, null);
+    await b.egress.hosts();
+    await b.egress.allow("x", null, "x", "x");
+    await b.egress.remove("x", null);
+    await b.egress.request({ method: "GET", url: "https://x", extension: "e", purpose: "p" });
+    await b.journal.settings();
+    await b.journal.setSettings({ enabled: true });
+    await b.journal.entries({});
+    await b.journal.clear();
+    await b.journal.planManual({ entry_id: 1, request_path: "a.yml" });
+    await b.journal.planCompensations([]);
+    await b.journal.execute({ environment: null, production: false, steps: [] }, {});
+    await b.journal.pluginRules();
+    await b.journal.preRead({} as never, null);
+    await b.journal.states([1]);
+    await b.access.check("x", { a: "A", b: "B" }, {});
+    await b.shrink.run({ path: "a.yml", predicate: { kind: "last-failure" } });
+    await b.shrink.cancel();
+    await b.shrink.predicate("x", null);
+    await b.consumers.list();
+    await b.consumers.verify({ base_url: "http://x" });
+    await b.sequence.model({ kind: "session" }, {});
+    await b.sequence.render({ participants: [], messages: [] }, {});
+    await b.sequence.clear();
+    await b.security.check({ path: "a.yml", response_id: 1 });
+    await b.security.rules();
+    await b.security.settings();
+    await b.security.setSettings({ enabled: true });
+    await b.notebook.list();
+    await b.notebook.read("x");
+    await b.notebook.stage("x", { title: "t", blocks: [] });
+    await b.notebook.run({ path: "a.notebook.md" });
+    await b.debugger.start({ request_path: "a.yml", phase: "tests", breakpoints: [] });
+    await b.debugger.command(1, { kind: "continue" });
+    await b.debugger.state(1);
+    await b.debugger.stop(1);
     // Wave 18 (interface).
     await b.envCompare.run({ environments: ["Dev", "Test"] });
     await b.inspect.jwt("a.b.c");
@@ -580,6 +617,42 @@ describe("TauriBackend", () => {
       ["share_copy_as", { path: "users/get.yml", kind: "curl", options: {} }],
       ["share_qr", { link: "rt:1.abc" }],
       ["contract_stage_spec", { text: "openapi: 3.0.3" }],
+      ["agents_check_spec", { spec: {} as never, environment: null }],
+      ["egress_hosts", undefined],
+      ["egress_allow", { host: "x", port: null, extension: "x", purpose: "x" }],
+      ["egress_remove", { host: "x", port: null }],
+      ["egress_request", { request: { method: "GET", url: "https://x", extension: "e", purpose: "p" } }],
+      ["journal_settings", undefined],
+      ["journal_set_settings", { settings: { enabled: true } }],
+      ["journal_entries", { query: {} }],
+      ["journal_clear", undefined],
+      ["journal_plan_manual", { revert: { entry_id: 1, request_path: "a.yml" } }],
+      ["journal_plan_compensations", { items: [] }],
+      ["journal_execute", { plan: { environment: null, production: false, steps: [] }, options: {} }],
+      ["journal_plugin_rules", undefined],
+      ["journal_pre_read", { request: {} as never, environment: null }],
+      ["journal_states", { entryIds: [1] }],
+      ["access_check", { path: "x", profile: { a: "A", b: "B" }, options: {} }],
+      ["shrink_run", { request: { path: "a.yml", predicate: { kind: "last-failure" } } }],
+      ["shrink_cancel", undefined],
+      ["shrink_predicate", { path: "x", responseId: null }],
+      ["consumers_list", undefined],
+      ["consumers_verify", { request: { base_url: "http://x" } }],
+      ["sequence_model", { source: { kind: "session" }, options: {} }],
+      ["sequence_render", { model: { participants: [], messages: [] }, options: {} }],
+      ["sequence_clear", undefined],
+      ["security_check", { target: { path: "a.yml", response_id: 1 } }],
+      ["security_rules", undefined],
+      ["security_settings", undefined],
+      ["security_set_settings", { settings: { enabled: true } }],
+      ["notebook_list", undefined],
+      ["notebook_read", { path: "x" }],
+      ["notebook_stage", { path: "x", notebook: { title: "t", blocks: [] } }],
+      ["notebook_run", { run: { path: "a.notebook.md" } }],
+      ["debugger_start", { target: { request_path: "a.yml", phase: "tests", breakpoints: [] } }],
+      ["debugger_command", { session: 1, command: { kind: "continue" } }],
+      ["debugger_state", { session: 1 }],
+      ["debugger_stop", { session: 1 }],
       ["envcompare_run", { request: { environments: ["Dev", "Test"] } }],
       ["inspect_jwt", { token: "a.b.c" }],
       ["inspect_tokens", { target: { path: "a.yml" } }],

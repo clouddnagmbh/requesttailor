@@ -5083,6 +5083,7 @@ dependencies = [
  "rt-format",
  "rt-grpc",
  "rt-plugin",
+ "rt-script",
  "rt-testserver",
  "serde",
  "serde_json",
@@ -5276,6 +5277,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rt-plugin-sap-integration"
+version = "0.0.0"
+dependencies = [
+ "rt-plugin-sdk",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rt-plugin-sdk"
 version = "0.0.0"
 dependencies = [
@@ -5283,6 +5293,15 @@ dependencies = [
  "rt-core",
  "rt-format",
  "rt-plugin",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "rt-plugin-soap"
+version = "0.0.0"
+dependencies = [
+ "rt-plugin-sdk",
  "serde",
  "serde_json",
 ]

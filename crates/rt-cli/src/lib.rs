@@ -14,8 +14,12 @@
 //! Everything the binary does is here, so it can be tested without spawning a process:
 //! argument parsing, finding the collection root, the file-system [`FileSource`], exit codes.
 
+/// Wave 19, strand D: `rt access check`.
+pub mod access;
 pub mod agent;
 pub mod approvals;
+/// Wave 19, strands R and S: `rt audit`.
+pub mod audit;
 /// Wave 12, strand C: `rt bisect`.
 pub mod bisect;
 /// Wave 12, strand F: `rt changelog`.
@@ -25,6 +29,8 @@ pub mod checks;
 /// Wave 18, strand A: `rt compare-env`.
 pub mod compare_env;
 pub mod cookies;
+/// Wave 19, strand Y: `rt send --debug`.
+pub mod debug_flag;
 /// Wave 12, strand A: `rt diff`.
 pub mod diff;
 pub mod docs;
@@ -33,6 +39,8 @@ pub mod grpc;
 pub mod import;
 /// Wave 18, strand E: `rt inbox`.
 pub mod inbox;
+/// Wave 19, strand C: `rt journal`.
+pub mod journal;
 /// Wave 18, strand F: `rt lint`.
 pub mod lint;
 pub mod mcp;
@@ -42,6 +50,8 @@ pub mod mcp_test;
 /// Wave 12, strand B: `rt merge-driver`.
 pub mod merge_driver;
 pub mod mock;
+/// Wave 19, strand W: `rt notebook`.
+pub mod notebook;
 pub mod oauth;
 /// Wave 18, strand C: `rt send --all-pages`.
 pub mod paging;
@@ -54,11 +64,19 @@ pub mod scan;
 pub mod scripts;
 pub mod secrets;
 pub mod send_banner;
+/// Wave 19, strand G: `--sequence` of `rt send`, `rt run` and `rt mcp`.
+pub mod sequence_flag;
 pub mod services;
+/// Wave 19, strand E: `rt shrink`.
+pub mod shrink;
 pub mod snapshot;
 /// `rt send` on WebSocket, gRPC and SSE requests (wave 8, strand A).
 pub mod stream;
 /// Wave 18, strand G: `rt send --view`.
+/// Wave 19, strand A: `rt send --trace`.
+pub mod trace_flag;
+/// Wave 19, strand F: `rt verify-consumers`.
+pub mod verify_consumers;
 pub mod views;
 pub mod watch;
 
@@ -88,6 +106,11 @@ pub const EXIT_BLOCKED: i32 = 5;
 /// Wave 18: `rt lint` found what it was told to fail on (a finding at `--fail-on`, or a score
 /// below `--min-score`). 6 is taken by distributions (`EXIT_LOAD`).
 pub const EXIT_LINT: i32 = lint::EXIT_LINT;
+/// Wave 19: `rt verify-consumers` found a consumer that breaks. (`rt access check` uses
+/// `EXIT_TESTS` for broken access.)
+pub const EXIT_CONSUMERS: i32 = verify_consumers::EXIT_CONSUMERS;
+/// Wave 19: `rt audit` found a finding at or above `--fail-on`.
+pub const EXIT_AUDIT: i32 = audit::EXIT_AUDIT;
 
 pub fn help() -> String {
     let limit = SendOptions::default().body_limit;
@@ -105,7 +128,7 @@ Usage:
   rt scan [<path>...] [--json]
   rt snapshot update [<path>...] [--all] [-e <NAME>] [--var <NAME=VALUE>]...
   rt mcp-test [<path>...] [-e <NAME>] [--var <NAME=VALUE>]...
-{mcp_demo_usage}{git_usage}{check_usage}  rt --help | --version
+{mcp_demo_usage}{git_usage}{check_usage}{insight_usage}  rt --help | --version
 
 Options for send:
   -e, --env <NAME>          Use the environment named NAME
@@ -134,7 +157,7 @@ Options for send:
       --respect-limits      Wait for rate limits (also with rt run); --max-wait <T> bounds one
                             wait (default 60s, hard maximum 600s)
       --max-wait <T>        See --respect-limits
-      --allow-writes        With --watch: also send writing requests (not to production)
+{trace_help}{sequence_help}{debug_help}      --allow-writes        With --watch: also send writing requests (not to production)
   -h, --help                Show this help
 
 Against a production environment (the collection's agent policy, or a name with prod, prd or
@@ -227,6 +250,7 @@ rt import openapi imports an OpenAPI 3.x or Swagger 2.0 spec with choices:
 
 {git_help}
 {check_help}
+{insight_help}
 The collection root is the nearest folder above <request-file> that contains
 {COLLECTION_FILE}.
 
@@ -244,6 +268,8 @@ Exit codes:
   {EXIT_TESTS}  a response was received but a test or assertion failed
   {EXIT_BLOCKED}  a policy of this installation refused the request; nothing was sent
   {EXIT_LINT}  rt lint found what it was told to fail on
+  {EXIT_CONSUMERS}  rt verify-consumers found a consumer that breaks
+  {EXIT_AUDIT}  rt audit found a finding at or above --fail-on
 ",
         version = env!("CARGO_PKG_VERSION"),
         agent_port = agent::DEFAULT_PORT,
@@ -266,6 +292,27 @@ Exit codes:
             plugin_cmd::USAGE
         ]
         .concat(),
+        insight_usage = [
+            access::USAGE,
+            shrink::USAGE,
+            verify_consumers::USAGE,
+            journal::USAGE,
+            audit::USAGE,
+            notebook::USAGE
+        ]
+        .concat(),
+        insight_help = [
+            access::HELP,
+            shrink::HELP,
+            verify_consumers::HELP,
+            journal::HELP,
+            audit::HELP,
+            notebook::HELP
+        ]
+        .join("\n"),
+        trace_help = trace_flag::HELP,
+        debug_help = debug_flag::HELP,
+        sequence_help = sequence_flag::HELP,
         check_help = [compare_env::HELP, lint::HELP, inbox::HELP, plugin_cmd::HELP].join("\n"),
         git_help = [
             diff::HELP,
@@ -322,6 +369,18 @@ pub enum Command {
     Inbox(inbox::Args),
     /// Wave 18, strand I: `rt plugin`.
     Plugin(plugin_cmd::Args),
+    /// Wave 19, strand D: `rt access check`.
+    Access(access::Args),
+    /// Wave 19, strand E: `rt shrink`.
+    Shrink(shrink::Args),
+    /// Wave 19, strand F: `rt verify-consumers`.
+    VerifyConsumers(verify_consumers::Args),
+    /// Wave 19, strand C: `rt journal`.
+    Journal(journal::Args),
+    /// Wave 19, strands R and S: `rt audit`.
+    Audit(audit::Args),
+    /// Wave 19, strand W: `rt notebook run`.
+    Notebook(notebook::Args),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -364,6 +423,12 @@ pub struct SendArgs {
     pub view: views::ViewArgs,
     /// Wave 18: `--respect-limits`, `--max-wait` (used by the page follower and `rt run`).
     pub throttle: rt_core::ratelimit::Throttle,
+    /// Wave 19: `--trace` (`trace_flag.rs`).
+    pub trace: bool,
+    /// Wave 19: `--sequence`, `--sequence-values` (`sequence_flag.rs`).
+    pub sequence: sequence_flag::SequenceArgs,
+    /// Wave 19: `--debug`, `--break` (`debug_flag.rs`).
+    pub debug: debug_flag::DebugArgs,
 }
 
 impl Default for SendArgs {
@@ -388,6 +453,9 @@ impl Default for SendArgs {
             checks: false,
             view: views::ViewArgs::default(),
             throttle: rt_core::ratelimit::Throttle::default(),
+            trace: false,
+            sequence: Default::default(),
+            debug: Default::default(),
         }
     }
 }
@@ -480,6 +548,25 @@ where
         Some(Value(cmd)) if cmd == "inbox" => {
             Ok(inbox::parse(&mut parser)?.map_or(Command::Help, Command::Inbox))
         }
+        Some(Value(cmd)) if cmd == "access" => {
+            Ok(access::parse(&mut parser)?.map_or(Command::Help, Command::Access))
+        }
+        Some(Value(cmd)) if cmd == "shrink" => {
+            Ok(shrink::parse(&mut parser)?.map_or(Command::Help, Command::Shrink))
+        }
+        Some(Value(cmd)) if cmd == "verify-consumers" => {
+            Ok(verify_consumers::parse(&mut parser)?
+                .map_or(Command::Help, Command::VerifyConsumers))
+        }
+        Some(Value(cmd)) if cmd == "audit" => {
+            Ok(audit::parse(&mut parser)?.map_or(Command::Help, Command::Audit))
+        }
+        Some(Value(cmd)) if cmd == "notebook" => {
+            Ok(notebook::parse(&mut parser)?.map_or(Command::Help, Command::Notebook))
+        }
+        Some(Value(cmd)) if cmd == "journal" => {
+            Ok(journal::parse(&mut parser)?.map_or(Command::Help, Command::Journal))
+        }
         Some(Value(cmd)) if cmd == "plugin" => {
             Ok(plugin_cmd::parse(&mut parser)?.map_or(Command::Help, Command::Plugin))
         }
@@ -538,6 +625,16 @@ fn parse_send(parser: &mut lexopt::Parser) -> Result<Command, String> {
             Long("max-wait") => {
                 args.throttle.max_wait_ms =
                     crate::duration_ms(&parser.value().map_err(err)?.string().map_err(err)?)?;
+            }
+            Long("trace") => args.trace = true,
+            Long("debug") => args.debug.debug = true,
+            Long("break") => args
+                .debug
+                .breakpoints
+                .push(parser.value().map_err(err)?.parse().map_err(err)?),
+            Long(name @ ("sequence" | "sequence-values")) => {
+                let name = name.to_owned();
+                sequence_flag::parse_option(&name, parser, &mut args.sequence)?;
             }
             Long(name @ ("sse" | "message" | "duration" | "until-close")) => {
                 let name = name.to_owned();
@@ -924,8 +1021,21 @@ where
         Ok(Command::Lint(args)) => return lint::run(args, stdout, stderr),
         Ok(Command::Inbox(args)) => return inbox::run(args, stdout, stderr),
         Ok(Command::Plugin(args)) => return plugin_cmd::run(args, stdout, stderr),
+        Ok(Command::Access(args)) => return access::run(args, stdout, stderr),
+        Ok(Command::Shrink(args)) => return shrink::run(args, stdout, stderr),
+        Ok(Command::VerifyConsumers(args)) => return verify_consumers::run(args, stdout, stderr),
+        Ok(Command::Journal(args)) => return journal::run(args, stdout, stderr),
+        Ok(Command::Audit(args)) => return audit::run(args, stdout, stderr),
+        Ok(Command::Notebook(args)) => return notebook::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
+    // Wave 19: `--trace` (A) and `--sequence` (G); each refuses until its strand builds it.
+    if let Err(e) = trace_flag::check(args.trace)
+        .and_then(|()| sequence_flag::check(&args.sequence))
+        .and_then(|()| debug_flag::check(&args.debug))
+    {
+        return fail(stderr, EXIT_USAGE, &e);
+    }
     let (root, request_path) = match find_root(&args.file) {
         Ok(r) => r,
         Err(e) => return fail(stderr, EXIT_USAGE, &e),
@@ -1215,6 +1325,7 @@ mod tests {
             error: None,
             checks: Vec::new(),
             rate_limit: None,
+            trace: None,
             segments: Vec::new(),
         };
         assert_eq!(exit_code(&r), EXIT_OK);

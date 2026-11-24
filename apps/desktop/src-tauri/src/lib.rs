@@ -35,9 +35,17 @@ mod openapi;
 /// Wave 14: variable completion.
 mod variables;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
-/// Wave 17, strand B: snapshot tests.
+/// Wave 19 (interface): access.
+pub mod access;
 /// Wave 18 (interface): catalogue.
 pub mod catalogue;
+/// Wave 19 (interface): consumers.
+pub mod consumers;
+/// Wave 19 (interface): debugger.
+pub mod debugger;
+/// Wave 17, strand B: snapshot tests.
+/// Wave 19 (interface): egress.
+pub mod egress;
 /// Wave 18 (interface): envcompare.
 pub mod envcompare;
 pub mod git;
@@ -55,12 +63,16 @@ mod import;
 pub mod inbox;
 /// Wave 18 (interface): inspect.
 pub mod inspect;
+/// Wave 19 (interface): journal.
+pub mod journal;
 /// Wave 18 (interface): lint.
 pub mod lint;
 /// Wave 8, strand D.
 mod mcp_client;
 /// Wave 12, strand B: semantic merge.
 mod merges;
+/// Wave 19 (interface): notebook.
+pub mod notebook;
 /// Wave 18 (interface): paging.
 pub mod paging;
 mod plugins;
@@ -71,8 +83,14 @@ pub mod repositories;
 pub mod rescue;
 /// Wave 12, strand E: pull-request review.
 mod review;
+/// Wave 19 (interface): security.
+pub mod security;
+/// Wave 19 (interface): sequence.
+pub mod sequence;
 /// Wave 17, strand C: sharing without a server and copying as code.
 pub mod share;
+/// Wave 19 (interface): shrink.
+pub mod shrink;
 pub mod snapshots;
 /// Wave 18 (interface): views.
 pub mod views;
@@ -274,6 +292,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             agents::agents_decide,
             agents::agents_audit,
             agents::agents_check,
+            agents::agents_check_spec,
             // Wave 8, strand B.
             grpc::grpc_services,
             grpc::grpc_template,
@@ -399,6 +418,42 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             snapshots::snapshots_set_ignore,
             snapshots::snapshots_check,
             snapshots::snapshots_list,
+            // Wave 19 (interface).
+            egress::egress_hosts,
+            egress::egress_allow,
+            egress::egress_remove,
+            egress::egress_request,
+            journal::journal_settings,
+            journal::journal_set_settings,
+            journal::journal_entries,
+            journal::journal_clear,
+            journal::journal_plan_manual,
+            journal::journal_plan_compensations,
+            journal::journal_execute,
+            journal::journal_plugin_rules,
+            journal::journal_pre_read,
+            journal::journal_states,
+            access::access_check,
+            shrink::shrink_run,
+            shrink::shrink_cancel,
+            shrink::shrink_predicate,
+            consumers::consumers_list,
+            consumers::consumers_verify,
+            sequence::sequence_model,
+            sequence::sequence_render,
+            sequence::sequence_clear,
+            security::security_check,
+            security::security_rules,
+            security::security_settings,
+            security::security_set_settings,
+            notebook::notebook_list,
+            notebook::notebook_read,
+            notebook::notebook_stage,
+            notebook::notebook_run,
+            debugger::debugger_start,
+            debugger::debugger_command,
+            debugger::debugger_state,
+            debugger::debugger_stop,
             // Wave 18 (interface).
             envcompare::envcompare_run,
             inspect::inspect_jwt,

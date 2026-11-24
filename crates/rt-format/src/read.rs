@@ -119,6 +119,8 @@ impl<'a> Builder<'a> {
                 ai: crate::ai_config::read(root),
                 // Wave 17, strand A: `extensions.requesttailor.observe`.
                 observe: crate::observe_config::read(root),
+                // Wave 19, strand A: `extensions.requesttailor.trace`.
+                trace: crate::trace_config::read(root),
                 // Wave 8, strand B.
                 protobuf: crate::protocols::grpc::read_protobuf(
                     root.get("config").and_then(|c| c.get("protobuf")),

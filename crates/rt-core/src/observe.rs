@@ -56,6 +56,10 @@ pub struct Exchange {
     /// send's own body limit.
     #[serde(default)]
     pub truncated: bool,
+    /// The trace of the send (wave 19): the same as `report.trace`, so a consumer that only
+    /// wants the id need not read the report. Omitted when there is none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace: Option<crate::trace::TraceRef>,
 }
 
 /// Receives every [`Exchange`]. Quick and non-blocking; see the module docs.
@@ -200,6 +204,7 @@ pub fn exchange_of(
     // Clone everything but the body, which can be large and is built separately.
     let mut shell = SendReport {
         response: report.response.as_ref().map(|r| ReceivedResponse {
+            tls: None,
             body: ReportBody::Utf8(String::new()),
             ..r.clone()
         }),
@@ -226,6 +231,7 @@ pub fn exchange_of(
         request_path: Some(report.request_path.clone()),
         environment: report.environment.clone(),
         at: now_ms(),
+        trace: report.trace.clone(),
         report: shell,
         truncated,
     }
@@ -331,9 +337,11 @@ mod tests {
                 flow: None,
                 segments: Vec::new(),
                 rate_limit: None,
+                trace: None,
                 checks: Vec::new(),
             },
             truncated: false,
+            trace: None,
         }
     }
 

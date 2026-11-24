@@ -76,6 +76,11 @@ pub struct ReceivedResponse {
     pub timing: Timing,
     #[serde(with = "crate::serde_ms")]
     pub total: std::time::Duration,
+    /// What the native transport learned about the TLS connection (wave 19, strand R):
+    /// protocol version, cipher, certificate dates and key. `None` in the browser (`fetch`
+    /// tells nothing), for `http` URLs and until the transport fills it in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tls: Option<crate::transport::TlsInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -145,6 +150,11 @@ pub struct SendReport {
     /// (`rt send --checks`). Omitted when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub checks: Vec<crate::inspect::Observation>,
+    /// The trace of this send (wave 19, [`crate::trace`]): the `traceparent` the app put on
+    /// the request, or the id the response carried. Omitted when there is none, which is
+    /// always so unless the collection switched trace injection on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace: Option<crate::trace::TraceRef>,
 }
 
 /// What `rt send` prints in place of a secret value.
@@ -214,6 +224,7 @@ pub async fn send_with<T: Transport>(
         flow: None,
         segments: Vec::new(),
         rate_limit: None,
+        trace: None,
         checks: Vec::new(),
     };
     let Some(context) = collection.request(request_path) else {
@@ -642,6 +653,10 @@ async fn finish<T: Transport>(
         }
     };
 
+    // Wave 19: the trace context goes on the request before it is recorded and the guard
+    // looks at it; nothing happens unless the collection switched it on.
+    let mut request = request;
+    report.trace = crate::trace::inject(&mut request, &context.collection.config.trace);
     report.request = Some(sent_request(&request, &secrets));
     // Wave 18: notes about the resolved request (e.g. an expired token); none until strand B.
     report
@@ -711,16 +726,23 @@ async fn finish<T: Transport>(
         note.text = mask(&note.text, &secrets);
     }
     // Wave 17: hand the masked exchange to the distribution's observers.
-    if let Some(observers) = services.observers
-        && !observers.is_empty()
-        && context.collection.config.observe.enabled
-    {
-        observers.notify(&crate::observe::exchange_of(
+    let observed = services.observers.is_some_and(|o| !o.is_empty())
+        && context.collection.config.observe.enabled;
+    // Wave 19: and to the test-data journal, if one is listening (one atomic load otherwise).
+    let journaled = crate::journal::enabled();
+    if observed || journaled {
+        let exchange = crate::observe::exchange_of(
             &report,
             &secrets,
             services.caller,
             Some(context.collection.name.clone()),
-        ));
+        );
+        if let (true, Some(observers)) = (observed, services.observers) {
+            observers.notify(&exchange);
+        }
+        if journaled {
+            crate::journal::record(&exchange);
+        }
     }
     report
 }
@@ -884,6 +906,7 @@ fn sent_request(request: &HttpRequest, secrets: &[String]) -> SentRequest {
 
 fn received(c: CompletedResponse) -> ReceivedResponse {
     ReceivedResponse {
+        tls: None,
         status: c.head.status,
         version: c.head.version,
         // Cookie values are session secrets (wave 5): `Set-Cookie` keeps name and attributes.
@@ -1366,6 +1389,7 @@ mod tests {
             flow: None,
             segments: Vec::new(),
             rate_limit: None,
+            trace: None,
             checks: Vec::new(),
             notes: Vec::new(),
             version: REPORT_VERSION,

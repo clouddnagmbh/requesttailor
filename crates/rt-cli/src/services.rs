@@ -81,6 +81,7 @@ pub fn failed(request_path: &str, args: &SendArgs, error: SendError) -> SendRepo
         notes: Vec::new(),
         checks: Vec::new(),
         rate_limit: None,
+        trace: None,
         segments: Vec::new(),
     }
 }

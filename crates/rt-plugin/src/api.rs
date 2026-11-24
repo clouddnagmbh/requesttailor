@@ -87,6 +87,83 @@ pub struct Contributions {
     /// response). Added in wave 18.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub paging: Vec<PagingContribution>,
+    /// Rules that say how writing requests to certain hosts are put back (data, no WASM call
+    /// per response; the test-data journal's compensators use them). Added in wave 19.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub compensations: Vec<CompensationContribution>,
+}
+
+/// A rule a plugin ships as data (wave 19): which writing requests it knows how to undo and
+/// how the undoing request is built. The core executes it (guard, production question,
+/// conflict check, audit); the plugin supplies data only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompensationContribution {
+    /// Unique within the plugin.
+    pub id: String,
+    /// Which requests the rule is for (all given conditions must hold).
+    #[serde(rename = "match")]
+    pub matches: CompensationMatch,
+    pub rule: CompensationRule,
+}
+
+/// The requests a [`CompensationContribution`] applies to. Empty lists mean "any".
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CompensationMatch {
+    /// Host names as in [`Permissions::network`] (exact or `*.example.com`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hosts: Vec<String>,
+    /// Media types of the response.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_types: Vec<String>,
+    /// A glob over the request URL's path and query, `*` for any characters.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url_pattern: Option<String>,
+    /// Request methods the rule covers, upper case (`POST`, `PATCH`, `PUT`, `MERGE`,
+    /// `DELETE`). Empty: all writing methods.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub methods: Vec<String>,
+}
+
+/// How to undo: where the id of a created resource is, how the resource's own URL is made,
+/// which value is the version for `If-Match`, and a token to fetch before writing.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CompensationRule {
+    /// Where the created resource is named, tried in order: `header:<Name>` or a JSONPath
+    /// into the response body.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub id_from: Vec<String>,
+    /// The URL of one resource, with `{collection}` (the request URL without query), `{id}`
+    /// (what `id_from` found). Empty: the id itself if it is a URL.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_url: Option<String>,
+    /// Where the version of a resource is, tried in order (`header:ETag` or a JSONPath);
+    /// it becomes `If-Match` of the undoing request.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub etag_from: Vec<String>,
+    /// A token to fetch before a writing call (the request header and the value that asks
+    /// for it, then the header it goes back in).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token: Option<CompensationToken>,
+    /// Entries this rule must report as not reversible: a reason for a URL glob.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub not_reversible: Vec<NotReversibleRule>,
+}
+
+/// Fetch a token first: `GET` the resource with `fetch_header: fetch_value`, read
+/// `read_header` from the answer and send it as `send_header`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompensationToken {
+    pub fetch_header: String,
+    pub fetch_value: String,
+    pub read_header: String,
+    pub send_header: String,
+}
+
+/// A URL glob the rule knows it cannot undo, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NotReversibleRule {
+    pub url_pattern: String,
+    pub reason: String,
 }
 
 /// A paging rule a plugin ships as data (wave 18): which responses it is for and how the next

@@ -1,0 +1,10 @@
+{
+  "id": "soap",
+  "name": "SOAP and WSDL",
+  "version": "0.0.1",
+  "api": 1,
+  "description": "SOAP 1.1/1.2 and WSDL: operations as requests, envelopes, WS-Security.",
+  "license": "Apache-2.0",
+  "permissions": { "network": [], "storage": false, "variables": false },
+  "contributes": {}
+}

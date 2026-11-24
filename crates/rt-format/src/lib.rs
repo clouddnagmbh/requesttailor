@@ -54,6 +54,7 @@ mod paging_config;
 mod protocols;
 mod read;
 mod runtime;
+mod trace_config;
 mod write;
 mod yaml;
 

@@ -5,6 +5,8 @@ members = [
     "apps/desktop/src-tauri",
     "plugins/example",
     "plugins/odata",
+    "plugins/soap",
+    "plugins/sap-integration",
     "plugins/odata/testserver",
 ]
 # CI canaries are standalone workspaces that must never join the real build.

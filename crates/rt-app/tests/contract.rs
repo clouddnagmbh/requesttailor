@@ -473,6 +473,7 @@ fn manifest() -> Manifest {
                 extensions: vec!["edmx".into(), "xml".into()],
             }],
             paging: Vec::new(),
+            compensations: Vec::new(),
         },
     }
 }
@@ -690,6 +691,7 @@ fn report_ok() -> SendReport {
             body_size: 2,
         }),
         response: Some(ReceivedResponse {
+            tls: None,
             status: 201,
             version: HttpVersion::Http2,
             headers: vec![("content-type".into(), "application/json".into())],
@@ -721,6 +723,7 @@ fn report_ok() -> SendReport {
         error: None,
         checks: Vec::new(),
         rate_limit: None,
+        trace: None,
         segments: Vec::new(),
     }
 }
@@ -1327,6 +1330,7 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
     all.extend(wave15::fixtures());
     all.extend(wave17::fixtures());
     all.extend(wave18::fixtures());
+    all.extend(wave19::fixtures());
     all
 }
 
@@ -4434,6 +4438,365 @@ mod wave18 {
             ].iter().map(|k| json!({
                 "kind": k, "breaking": true, "operation": null, "location": "Query.user", "message": "m", "requests": []
             })).collect::<Vec<_>>())),
+        ]
+    }
+}
+
+mod wave19 {
+    use serde::Serialize;
+    use serde::de::DeserializeOwned;
+    use serde_json::json;
+
+    fn via<T: Serialize + DeserializeOwned>(v: serde_json::Value) -> serde_json::Value {
+        let typed: T = serde_json::from_value(v).expect("the fixture reads as its Rust type");
+        serde_json::to_value(typed).unwrap()
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        use rt_app::access::{AccessCheck, AccessOptions, AccessProfile};
+        use rt_app::consumers::{ConsumerRef, ConsumerReport, ConsumerVerifyRequest};
+        use rt_app::egress::{EgressError, EgressHost, EgressRequest, EgressResponse};
+        use rt_app::journal::{
+            CompensationItem, EntryStates, JournalPage, JournalQuery, JournalSettings,
+            ManualRevert, PluginCompensationRule, RevertOptions, RevertOutcome, RevertPlan,
+        };
+        use rt_app::notebook::{Notebook, NotebookEntry, NotebookOutcome, NotebookRun};
+        use rt_app::security::{SecurityFinding, SecurityRule, SecuritySettings, SecurityTarget};
+        use rt_app::sequence::{SequenceModel, SequenceOptions, SequenceSource, SequenceText};
+        use rt_app::shrink::{ShrinkRequest, ShrinkResult};
+        use rt_core::TimingSegment;
+        use rt_core::model::RequestSpec;
+        use rt_core::trace::TraceRef;
+        use rt_core::transport::TlsInfo;
+        use rt_script::debug::{DebugCommand, DebugState, DebugTarget};
+
+        let spec = serde_json::to_value(RequestSpec::default()).unwrap();
+        let compensation = json!({
+            "kind": "delete", "request": spec.clone(), "state_hash": "ab12", "probe": spec.clone(),
+            "description": "Delete the order again"
+        });
+        let plan = json!({
+            "environment": "Test", "production": false, "truncated": false,
+            "steps": [
+                { "entry_id": 1, "state": "planned", "method": "POST", "url": "https://x/orders",
+                  "effect": "write", "description": "Delete order 7", "compensation": compensation.clone() },
+                { "entry_id": 2, "state": "not-reversible", "method": "POST", "url": "https://x/mail",
+                  "effect": "write", "description": "Mail sent", "reason": "a sent mail cannot be undone" }
+            ]
+        });
+        let check = json!({
+            "path": "orders/get.yml",
+            "verdict": { "kind": "broken-object-access" },
+            "findings": [{
+                "verdict": { "kind": "broken-object-access" }, "message": "B read A's order",
+                "evidence": [{ "profile": "B", "status": 200, "header_names": ["content-type"], "values": [["id", "7"]] }]
+            }],
+            "status_a": 200, "status_b": 200
+        });
+        let shrink = json!({
+            "request": spec.clone(), "removed": [{ "part": "header:x-a", "kind": "header" }],
+            "probes": 12, "not_reproduced": false, "flaky": false, "one_minimal": true, "stopped_by": null
+        });
+        let model = json!({
+            "participants": [
+                { "id": "client", "label": "Client", "kind": "client" },
+                { "id": "api", "label": "api.example.com", "kind": "server" }
+            ],
+            "messages": [
+                { "kind": "request", "from": "client", "to": "api", "label": "GET /orders", "request_path": "orders/get.yml" },
+                { "kind": "response", "from": "api", "to": "client", "label": "200 12 ms" }
+            ],
+            "notes": [{ "after": 0, "anchor": { "kind": "over", "participant": "api" }, "text": "cached" },
+                      { "after": 1, "anchor": { "kind": "between", "from": "client", "to": "api" }, "text": "n" }],
+            "groups": [{ "kind": "loop", "label": "pages", "from": 0, "to": 1 }],
+            "omitted": 0
+        });
+        let debug_state = json!({
+            "session": 1, "status": "paused",
+            "pause": {
+                "line": 3, "reason": "breakpoint",
+                "frames": [{ "function": "main", "line": 3 }],
+                "scopes": [{ "name": "local", "values": [{ "name": "x", "kind": "number", "preview": "1" }] }],
+                "evaluated": { "name": "x", "kind": "number", "preview": "1", "children": 0 }
+            },
+            "output": ["hello"], "error": null
+        });
+        vec![
+            (
+                "egressRequest",
+                "EgressRequest",
+                via::<EgressRequest>(json!({
+                    "method": "POST", "url": "https://api.example.com/v1", "headers": [["accept", "application/json"]],
+                    "body": "{}", "extension": "acme", "purpose": "licence check", "collection": "shop"
+                })),
+            ),
+            (
+                "egressResponse",
+                "EgressResponse",
+                via::<EgressResponse>(json!({
+                    "status": 200, "headers": [["content-type", "text/plain"]], "body": "ok", "truncated": false, "took_ms": 12
+                })),
+            ),
+            (
+                "egressHosts",
+                "EgressHost[]",
+                via::<Vec<EgressHost>>(json!([
+                    { "host": "api.example.com", "port": 443, "extension": "acme", "purpose": "p", "allowed_at": 1_900_000_000 },
+                    { "host": "x.example.com", "extension": "acme", "purpose": "p", "allowed_at": 1 }
+                ])),
+            ),
+            (
+                "egressErrors",
+                "EgressError[]",
+                via::<Vec<EgressError>>(json!([
+                    { "kind": "not-allowed", "host": "a", "port": null },
+                    { "kind": "blocked", "rule": "air-gap", "reason": "r" },
+                    { "kind": "limit", "message": "m" },
+                    { "kind": "transport", "message": "m" }
+                ])),
+            ),
+            (
+                "journalSettings",
+                "JournalSettings",
+                via::<JournalSettings>(json!({ "enabled": true, "id_path": "$.id" })),
+            ),
+            (
+                "journalQuery",
+                "JournalQuery",
+                via::<JournalQuery>(
+                    json!({ "limit": 50, "before": 9, "session": "s", "only_open": true }),
+                ),
+            ),
+            (
+                "journalPage",
+                "JournalPage",
+                via::<JournalPage>(json!({
+                    "entries": [{
+                        "id": 1, "session": "s", "at": 1_900_000_000, "environment": "Test", "request_path": "a.yml",
+                        "method": "POST", "url": "https://x/orders", "status": 201, "location": "/orders/7",
+                        "etag": "\"1\"", "resource_id": "7", "reverted_at": 1_900_000_100
+                    }], "total": 1
+                })),
+            ),
+            (
+                "manualRevert",
+                "ManualRevert",
+                via::<ManualRevert>(json!({ "entry_id": 1, "request_path": "orders/delete.yml" })),
+            ),
+            (
+                "compensationItems",
+                "CompensationItem[]",
+                via::<Vec<CompensationItem>>(json!([
+                    { "entry_id": 1, "answer": { "kind": "compensation", "compensation": compensation.clone() } },
+                    { "entry_id": 2, "answer": { "kind": "not-reversible", "reason": "r" } }
+                ])),
+            ),
+            ("revertPlan", "RevertPlan", via::<RevertPlan>(plan.clone())),
+            (
+                "revertOptions",
+                "RevertOptions",
+                via::<RevertOptions>(json!({ "production_confirmed": true })),
+            ),
+            (
+                "revertOutcome",
+                "RevertOutcome",
+                via::<RevertOutcome>(json!({ "steps": [
+                { "entry_id": 1, "result": "reverted", "message": "ok" },
+                { "entry_id": 2, "result": "skipped-conflict", "message": "changed" },
+                { "entry_id": 3, "result": "skipped-not-reversible", "message": "n" },
+                { "entry_id": 4, "result": "failed", "message": "f" }
+            ] })),
+            ),
+            (
+                "pluginCompensationRules",
+                "PluginCompensationRule[]",
+                via::<Vec<PluginCompensationRule>>(json!([])),
+            ),
+            (
+                "entryStates",
+                "EntryStates[]",
+                via::<Vec<EntryStates>>(json!([
+                    { "entry_id": 1, "before": { "status": 200, "body": "{}", "etag": "\"1\"" }, "after": null }
+                ])),
+            ),
+            (
+                "accessProfile",
+                "AccessProfile",
+                via::<AccessProfile>(json!({ "a": "alice", "b": "bob" })),
+            ),
+            (
+                "accessOptions",
+                "AccessOptions",
+                via::<AccessOptions>(
+                    json!({ "allow_writes": false, "b_must_be_denied": true, "rate": 5 }),
+                ),
+            ),
+            ("accessCheck", "AccessCheck", via::<AccessCheck>(check)),
+            (
+                "shrinkRequest",
+                "ShrinkRequest",
+                via::<ShrinkRequest>(json!({
+                    "path": "a.yml", "environment": "Test", "predicate": { "kind": "status", "status": 500 },
+                    "keep": ["header:x-a"], "max_probes": 100, "max_seconds": 60, "simplify_values": true, "confirmed_writes": false
+                })),
+            ),
+            (
+                "shrinkPredicates",
+                "ShrinkPredicate[]",
+                json!([
+                    { "kind": "status", "status": 500 }, { "kind": "server-error" },
+                    { "kind": "assertion-fails", "assertion": "res.status eq 200" }, { "kind": "assertion-fails" },
+                    { "kind": "body-matches", "pattern": "boom" }, { "kind": "header-present", "name": "x" },
+                    { "kind": "header-missing", "name": "x" }, { "kind": "last-failure" }
+                ]),
+            ),
+            ("shrinkResult", "ShrinkResult", via::<ShrinkResult>(shrink)),
+            (
+                "consumerRefs",
+                "ConsumerRef[]",
+                via::<Vec<ConsumerRef>>(json!([
+                    { "name": "mobile", "source": "../mobile", "ref": "main", "path": "tests", "environment": "Test", "vars": [["k", "v"]] }
+                ])),
+            ),
+            (
+                "consumerVerify",
+                "ConsumerVerifyRequest",
+                via::<ConsumerVerifyRequest>(json!({
+                    "base_url": "http://localhost:3000", "only": ["mobile"], "fetch": true, "keep_going": true,
+                    "trust_scripts": false, "allow_writes": false
+                })),
+            ),
+            (
+                "consumerReport",
+                "ConsumerReport",
+                via::<ConsumerReport>(json!({ "consumers": [{
+                "name": "mobile", "commit": "abc", "requests": 3,
+                "failures": [{ "request_path": "a.yml", "request": "Get", "assertion": "res.status eq 200", "difference": "got 404" }],
+                "error": null
+            }] })),
+            ),
+            (
+                "sequenceSources",
+                "SequenceSource[]",
+                via::<Vec<SequenceSource>>(json!([
+                    { "kind": "run", "run_id": 1 }, { "kind": "session" }, { "kind": "pages", "request_path": "a.yml" },
+                    { "kind": "mcp", "since": null }, { "kind": "history", "ids": [1, 2] }
+                ])),
+            ),
+            (
+                "sequenceOptions",
+                "SequenceOptions",
+                via::<SequenceOptions>(json!({ "include_query": true, "include_values": false })),
+            ),
+            (
+                "sequenceModel",
+                "SequenceModel",
+                via::<SequenceModel>(model),
+            ),
+            (
+                "sequenceText",
+                "SequenceText",
+                via::<SequenceText>(
+                    json!({ "mermaid": "sequenceDiagram", "markdown": "```mermaid\n```" }),
+                ),
+            ),
+            (
+                "securityTarget",
+                "SecurityTarget",
+                via::<SecurityTarget>(json!({ "path": "a.yml", "response_id": 3 })),
+            ),
+            (
+                "securityFindings",
+                "SecurityFinding[]",
+                via::<Vec<SecurityFinding>>(json!([{
+                    "rule": "cors-wildcard-credentials", "category": "API8:2023", "severity": "high",
+                    "location": "header:access-control-allow-origin", "why": "w", "fix": "f"
+                }])),
+            ),
+            (
+                "securityRules",
+                "SecurityRule[]",
+                via::<Vec<SecurityRule>>(json!([
+                    { "id": "tls-expiry", "title": "t", "category": "API8:2023", "severity": "medium", "native_only": true },
+                    { "id": "x", "title": "t", "category": "API1:2023", "severity": "info" }
+                ])),
+            ),
+            (
+                "securitySettings",
+                "SecuritySettings",
+                via::<SecuritySettings>(json!({ "enabled": true, "disabled": ["x"] })),
+            ),
+            (
+                "tlsInfo",
+                "TlsInfo",
+                via::<TlsInfo>(json!({
+                    "protocol": "TLSv1.3", "cipher": "TLS_AES_128_GCM_SHA256", "not_before": 1, "not_after": 2,
+                    "key_algorithm": "rsa", "key_bits": 2048, "names": ["a.example.com"]
+                })),
+            ),
+            (
+                "traceRef",
+                "TraceRef",
+                via::<TraceRef>(json!({
+                    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736", "span_id": "00f067aa0ba902b7", "injected": true
+                })),
+            ),
+            (
+                "offsetSegment",
+                "TimingSegment",
+                via::<TimingSegment>(json!({
+                    "id": "db", "label": "Database", "ms": 5, "parent": "server", "offset_ms": 1.5
+                })),
+            ),
+            (
+                "notebookEntries",
+                "NotebookEntry[]",
+                via::<Vec<NotebookEntry>>(
+                    json!([{ "path": "a.notebook.md", "title": "Orders", "blocks": 3 }]),
+                ),
+            ),
+            (
+                "notebook",
+                "Notebook",
+                via::<Notebook>(json!({ "title": "Orders", "blocks": [
+                { "kind": "text", "markdown": "# Orders" },
+                { "kind": "request", "id": "list", "ref": "orders/list.yml", "set": [["n", "5"]],
+                  "show": [{ "kind": "response" }, { "kind": "table", "path": "$.items" }, { "kind": "chart", "path": "$.items[*].n" }] },
+                { "kind": "request", "id": "adhoc", "embedded": spec.clone() }
+            ] })),
+            ),
+            (
+                "notebookRun",
+                "NotebookRun",
+                via::<NotebookRun>(
+                    json!({ "path": "a.notebook.md", "block": "list", "environment": "Test", "allow_writes": false }),
+                ),
+            ),
+            (
+                "notebookOutcome",
+                "NotebookOutcome",
+                via::<NotebookOutcome>(json!({ "results": [
+                { "block": "list", "set": [["id", "7"]] }, { "block": "x", "skipped": "writes need confirmation" }
+            ] })),
+            ),
+            (
+                "debugTarget",
+                "DebugTarget",
+                via::<DebugTarget>(json!({
+                    "request_path": "a.yml", "phase": "tests", "folder": "orders", "environment": "Test",
+                    "breakpoints": [{ "line": 3, "condition": "x > 1" }], "stop_on_entry": true
+                })),
+            ),
+            (
+                "debugCommands",
+                "DebugCommand[]",
+                via::<Vec<DebugCommand>>(json!([
+                    { "kind": "continue" }, { "kind": "step-over" }, { "kind": "step-into" }, { "kind": "step-out" },
+                    { "kind": "evaluate", "expression": "x" },
+                    { "kind": "set-breakpoints", "breakpoints": [{ "line": 1 }] }, { "kind": "abort" }
+                ])),
+            ),
+            ("debugState", "DebugState", via::<DebugState>(debug_state)),
         ]
     }
 }

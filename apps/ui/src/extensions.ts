@@ -24,8 +24,13 @@ import type {
   Script,
   ScriptPhase,
   StoredResponse,
+  TimingSegment,
   VarUse,
+  JournalEntry,
+  Compensation,
+  PreRead,
 } from "./commands/types";
+import type { ExtensionEgress } from "./egress/extension-egress";
 import type { AppState } from "./state/app.svelte";
 
 /** What an extension sees: the backend the app was started with and the shared app state. */
@@ -42,6 +47,13 @@ export interface ExtensionContext {
    *  for an edit with a `dismissKey`; since wave 17). The core stores nothing about it: the
    *  caller keeps the key. */
   readonly suggestOutcome: (edit: SuggestedEdit) => Promise<SuggestOutcome>;
+  /** Guided network access (since wave 19): only hosts the user allowed once on this
+   *  device, through the app's transport and guard (`Backend.egress`). */
+  readonly egress: ExtensionEgress;
+  /** Adds time segments to a stored response after the send (since wave 19), replacing the
+   *  earlier ones of the same `source`; shown under the timing bar as "as reported by
+   *  <source>", never in its sum. */
+  readonly segments: (responseId: number, source: string, segments: TimingSegment[]) => void;
 }
 
 /** What became of a suggestion (`ExtensionContext.suggestOutcome`). */
@@ -548,6 +560,24 @@ export interface CommitFormTarget {
   staged: boolean;
 }
 
+/** An extension's way of undoing writing requests (since wave 19): the journal asks it, per
+ *  entry, what would put things back. It supplies **data** only; the core runs the steps
+ *  under its own rules (guard, production question, conflict check, audit). */
+export interface ExtensionCompensator {
+  /** Stable id within the extension, e.g. `inference`. */
+  readonly id: string;
+  /** Before a writing request is sent: may ask for a read of the resource first (its state
+   *  before). `entry` is a draft (id 0, status 0) built from the request about to go out. */
+  prepare(entry: JournalEntry): { preRead?: RequestSpec } | Promise<{ preRead?: RequestSpec }>;
+  /** After it succeeded: the request that undoes it, or why that is not possible. `before`
+   *  and `after` are the states the journal kept in memory (`null`: not read). */
+  compensate(
+    entry: JournalEntry,
+    before: PreRead | null,
+    after: PreRead | null,
+  ): Compensation | { notReversible: string } | Promise<Compensation | { notReversible: string }>;
+}
+
 export interface AppExtension {
   /** Stable id, e.g. `example`; also the prefix of its command ids (`example:…`). */
   readonly id: string;
@@ -616,6 +646,11 @@ export interface AppExtension {
   runActions?(ctx: ExtensionContext, target: RunActionTarget): readonly ExtensionAction[];
   /** A side panel, e.g. a chat about the current request (since wave 16). */
   assistant?: ExtensionAssistant;
+  /**
+   * Ways to put back what writing requests changed (since wave 19). Reactive like
+   * `commands`: cheap and synchronous; no `$state` writes.
+   */
+  compensators?(ctx: ExtensionContext): readonly ExtensionCompensator[];
   /**
    * Actions in the Git views (since wave 15): commits, selections of commits, refs, files,
    * the changes, parked changes, conflicts and the repository. Called inside a reactive scope:

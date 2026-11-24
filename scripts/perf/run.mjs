@@ -9,7 +9,8 @@
 //   --only <list>       comma-separated parts: desktop, frames, keystrokes, diff, graph, compare,
 //                       status, graph-large, snapshots, share, observe, watch,
 //                       envcompare, checks, paging, ratelimit, inbox, lint, views, schemas,
-//                       catalogue (default: all)
+//                       catalogue, trace, egress, journal, access, shrink, consumers, sequence,
+//                       security, notebook, debugger (default: all)
 //   --binary <path>     desktop release binary (default: <target dir>/release/rt-desktop)
 //   --collection <dir>  collection the desktop app reopens (default: testdata/conformance/collection)
 //   --collections <n>   copies of it in one folder that the app reopens (default 10, wave 14;
@@ -47,10 +48,20 @@ import { measureLint } from "./lint.mjs";
 import { measureViews } from "./views.mjs";
 import { measureSchemas } from "./schemas.mjs";
 import { measureCatalogue } from "./catalogue.mjs";
+import { measureTrace } from "./trace.mjs";
+import { measureEgress } from "./egress.mjs";
+import { measureJournal } from "./journal.mjs";
+import { measureAccess } from "./access.mjs";
+import { measureShrink } from "./shrink.mjs";
+import { measureConsumers } from "./consumers.mjs";
+import { measureSequence } from "./sequence.mjs";
+import { measureSecurity } from "./security.mjs";
+import { measureNotebook } from "./notebook.mjs";
+import { measureDebugger } from "./debugger.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WEB = join(ROOT, "apps", "web");
-const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare", "status", "graph-large", "snapshots", "share", "observe", "watch", "envcompare", "checks", "paging", "ratelimit", "inbox", "lint", "views", "schemas", "catalogue"];
+const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare", "status", "graph-large", "snapshots", "share", "observe", "watch", "envcompare", "checks", "paging", "ratelimit", "inbox", "lint", "views", "schemas", "catalogue", "trace", "egress", "journal", "access", "shrink", "consumers", "sequence", "security", "notebook", "debugger"];
 
 export function parseArgs(argv) {
   const opts = { only: PARTS, runs: 10, memoryRuns: 3, check: false, out: join(ROOT, "perf", "results.json") };
@@ -250,6 +261,47 @@ async function catalogue(opts) {
   return measureCatalogue({ root: ROOT, web: WEB, run, readJson, opts });
 }
 
+/** Wave 19: one part per strand, each in its own file; placeholders until the strand. */
+async function trace(opts) {
+  return measureTrace({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function egress(opts) {
+  return measureEgress({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function journal(opts) {
+  return measureJournal({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function access(opts) {
+  return measureAccess({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function shrink(opts) {
+  return measureShrink({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function consumers(opts) {
+  return measureConsumers({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function sequence(opts) {
+  return measureSequence({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function security(opts) {
+  return measureSecurity({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function notebook(opts) {
+  return measureNotebook({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function debuggerPart(opts) {
+  return measureDebugger({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
 const STEPS = {
   desktop,
   frames,
@@ -272,6 +324,16 @@ const STEPS = {
   views,
   schemas,
   catalogue,
+  trace,
+  egress,
+  journal,
+  access,
+  shrink,
+  consumers,
+  sequence,
+  security,
+  notebook,
+  debugger: debuggerPart,
 };
 
 async function main() {

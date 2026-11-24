@@ -493,6 +493,21 @@ impl<S: SecretStore> Core<S> {
         self.with_session(|s| rt_app::agents::check(s.workspace.collection(), path, environment))
     }
 
+    /// The agent rules for a request that is not saved in the collection (wave 19).
+    pub fn agent_check_spec(
+        &self,
+        spec: &rt_core::model::RequestSpec,
+        environment: Option<&str>,
+    ) -> Result<rt_app::agents::AgentCheck, AppError> {
+        self.with_session(|s| {
+            Ok(rt_app::agents::check_spec(
+                s.workspace.collection(),
+                spec,
+                environment,
+            ))
+        })
+    }
+
     /// Changes the agent policy in memory, like other edits (wave 8, strand C).
     pub fn set_agent_policy(&self, policy: &rt_core::model::AgentPolicy) -> Result<(), AppError> {
         self.with_session(|s| s.workspace.set_agent_policy(policy))

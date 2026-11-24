@@ -29,6 +29,16 @@ and how.
 | `view_apply` | ≤ 300 ms | a saved view (JSONPath) on a 10 MiB JSON response, native release, median of 9 (pending: wave 18, strand G) |
 | `schema_changes` | ≤ 300 ms | changes between two GraphQL schemas of 2000 types, 100 changed, release, median of 9 (pending: wave 18, strand H) |
 | `catalogue_index` | ≤ 100 ms | reading and checking a plugin index with 1000 entries, release, median of 9 (pending: wave 18, strand I) |
+| `trace_inject` | ≤ 0.02 ms | The trace context on a request, `trace::inject` with and without an existing header (100 000 calls, release): median per call; 0 when off (pending: wave 19, strand A) |
+| `egress_overhead` | ≤ 1 ms | Time one egress call adds over the transport (fake transport, 100 allowed hosts, 1000 calls), median (pending: wave 19, strand B) |
+| `journal_overhead` | ≤ 1 ms | Time the journal adds to one writing send (10 000 entries into the channel), median; reading 5000 entries under 50 ms (pending: wave 19, strand C) |
+| `access_check` | ≤ 10 ms | Own time of one two-user access check (fake transport, 200 checks, compare and evidence), median (pending: wave 19, strand D) |
+| `shrink_probes` | ≤ 60 probes | Probes to shrink a 200-part request with one cause (at most 60) and 160 for three scattered causes; own time under 100 ms (pending: wave 19, strand E) |
+| `consumers_verify` | ≤ 1000 ms | Own time of verifying 20 local consumers of 50 requests each against rt-testserver, report and JSON included (pending: wave 19, strand F) |
+| `sequence_render` | ≤ 100 ms | Mermaid text 20 ms and SVG layout 100 ms for 500 messages; scroll p95 frame gap at most 20 ms on 2000 messages (pending: wave 19, strand G) |
+| `security_passive` | ≤ 2 ms | All passive security rules on one response (headers, tokens, TLS info), native release, median (pending: wave 19, strand R) |
+| `notebook_open` | ≤ 300 ms | Opening a notebook with 50 blocks: parse, render model and first paint, median of 9 (pending: wave 19, strand W) |
+| `debug_step` | ≤ 20 ms | One step of the script debugger (pause to next pause, release), median of 100 (pending: wave 19, strand Y) |
 
 ```sh
 npm run build -w apps/desktop          # the release binary the desktop part starts
@@ -238,3 +248,7 @@ strand confirms after its first measurement; `observer_overhead` was measured by
 ## Checking and observing (wave 18)
 
 Nine budgets, all `pending` in `budgets.toml` until their strand measures them (`node scripts/perf/run.mjs --only envcompare|checks|paging|ratelimit|inbox|lint|views|schemas|catalogue`, one script each in `scripts/perf/`). The interface commit holds the scripts as stubs that report nothing; a strand removes `pending` in the same change that makes its script measure.
+
+## Evidence and cleaning up (wave 19)
+
+Ten budgets, all `pending` in `budgets.toml` until their strand measures them (`node scripts/perf/run.mjs --only trace|egress|journal|access|shrink|consumers|sequence|security|notebook|debugger`, one script each in `scripts/perf/`). The interface commit holds the scripts as stubs that report nothing; a strand removes `pending` in the same change that makes its script measure.
