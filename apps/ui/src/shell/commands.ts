@@ -41,6 +41,9 @@ export const LABELS: Record<CommandId, string> = {
   "go-to-tab": "Go to tab…",
   "next-tab": "Next tab",
   "previous-tab": "Previous tab",
+  "group-new": "Group tabs: new group from current tab",
+  "group-toggle": "Group tabs: collapse or expand group",
+  "group-close": "Group tabs: close group",
   "tab-1": "Go to tab 1–9 (9: last)",
   "tab-2": "Go to tab 2",
   "tab-3": "Go to tab 3",
@@ -53,7 +56,8 @@ export const LABELS: Record<CommandId, string> = {
 };
 
 /** Commands available in the current state. */
-export function buildCommands(app: AppState, actions: Actions, mac: boolean): Command[] {
+/** `inGroup`: the shown tab belongs to a tab group (offers collapse and close of the group). */
+export function buildCommands(app: AppState, actions: Actions, mac: boolean, inGroup = false): Command[] {
   const cmd = (id: CommandId): Command => {
     const s = shortcutFor(id);
     return { id, label: LABELS[id], shortcut: s && formatShortcut(s, mac), run: actions[id] };
@@ -82,6 +86,8 @@ export function buildCommands(app: AppState, actions: Actions, mac: boolean): Co
     ...(app.active ? [cmd("close-tab")] : []),
     ...(app.openTabs.length > 0 ? [cmd("go-to-tab")] : []),
     ...(app.openTabs.length > 1 ? [cmd("next-tab"), cmd("previous-tab")] : []),
+    ...(app.activeTabIndex >= 0 ? [cmd("group-new")] : []),
+    ...(inGroup ? [cmd("group-toggle"), cmd("group-close")] : []),
     ...(open ? [cmd("focus-sidebar")] : []),
   ];
 }

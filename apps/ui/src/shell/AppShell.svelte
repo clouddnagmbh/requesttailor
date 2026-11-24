@@ -94,14 +94,19 @@
   import Sidebar from "./Sidebar.svelte";
   import { isNumber, load, store } from "./storage";
   import TabBar from "./TabBar.svelte";
+  import { getTabGroups } from "./tab-groups.svelte";
   import { Theme } from "./theme.svelte";
   import { connectExchange } from "./extension-exchange";
   import { requestPaths, tabElementId } from "./tree";
+  import brandMark from "../brand/requesttailor-icon-klein.svg";
+  import brandLogo from "../brand/requesttailor-logo.svg";
 
   let { backend, extensions = [] }: { backend: Backend; extensions?: readonly AppExtension[] } = $props();
   // The backend is fixed for the lifetime of the shell.
   // svelte-ignore state_referenced_locally
   const app = provideApp(new AppState(backend));
+  const tabGroups = getTabGroups(app);
+  tabGroups.attach();
   // Wave 9: extensions of a distribution (none in the builds of this repository); fixed like the backend.
   // svelte-ignore state_referenced_locally
   const extensionContext: ExtensionContext = createExtensionContext(backend, app);
@@ -295,10 +300,20 @@
     "go-to-tab": () => {
       if (app.openTabs.length > 0) app.tabList = true;
     },
-    "next-tab": () => app.stepTab(1),
-    "previous-tab": () => app.stepTab(-1),
+    // Tab groups (tab-groups.svelte.ts): collapsed groups are skipped.
+    "next-tab": () => tabGroups.step(1),
+    "previous-tab": () => tabGroups.step(-1),
+    "group-new": () => tabGroups.newFromCurrent(),
+    "group-toggle": () => {
+      const g = tabGroups.current;
+      if (g) void tabGroups.toggle(g.id);
+    },
+    "group-close": () => {
+      const g = tabGroups.current;
+      if (g) void tabGroups.closeGroup(g.id);
+    },
     ...(Object.fromEntries(
-      TAB_NUMBERS.map((id, i) => [id, () => app.gotoTab(i + 1, id === "tab-9")]),
+      TAB_NUMBERS.map((id, i) => [id, () => tabGroups.goto(i + 1, id === "tab-9")]),
     ) as Record<TabNumber, () => unknown>),
   };
   // ---- collection tabs of plugins (wave 6) ----
@@ -471,7 +486,7 @@
   });
 
   const commands = $derived([
-    ...buildCommands(app, actions, mac),
+    ...buildCommands(app, actions, mac, tabGroups.current !== undefined),
     ...builtinCommands(app),
     ...collectionTabs.map((t) => ({
       id: `collection-tab:${t.key}`,
@@ -542,6 +557,7 @@
 <div class="shell">
   <ProductionFrame />
   <header>
+    <img class="brand-mark" data-testid="brand-mark" src={brandMark} alt="RequestTailor" width="20" height="20" />
     <button class="button" data-testid="open-collection" title="Open folder ({keys('open-folder')})" onclick={openFolder}>
       Open folder
     </button>
@@ -728,6 +744,7 @@
         </div>
       {:else}
         <div class="start" data-testid="start">
+          <img class="brand-logo" data-testid="brand-logo" src={brandLogo} alt="RequestTailor" width="88" height="88" />
           <p>{app.collection ? "Open a request from the sidebar." : "Open a folder with a collection to start."}</p>
           {#if !app.collection}
             <button class="button" data-testid="start-clone" onclick={() => (cloning = true)}>Clone a repository…</button>
@@ -792,6 +809,23 @@
     padding: 6px 10px;
     border-bottom: 1px solid var(--rt-border);
     background: var(--rt-bg-panel);
+  }
+  .brand-mark {
+    flex: none;
+    width: 20px;
+    height: 20px;
+  }
+  /* The header is full at this width; the mark gives way before anything overflows. */
+  @media (max-width: 520px) {
+    .brand-mark {
+      display: none;
+    }
+  }
+  .brand-logo {
+    display: block;
+    width: 88px;
+    height: 88px;
+    margin: 0 auto var(--rt-space-4);
   }
   .collection {
     font-weight: 600;
