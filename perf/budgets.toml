@@ -75,7 +75,6 @@ max = 300
 [metrics.snapshot_compare]
 description = "Comparing 1000 stored responses (2 KB JSON, 20 ignored paths each, 100 differing) with their snapshots, JSON diff included: release rt-app, median of 9"
 unit = "ms"
-pending = "wave 17, strand B"
 max = 150
 
 # Strand C (scripts/perf/share.mjs); confirm the threshold after the first measurement.

@@ -22,6 +22,7 @@
   import { extensionTabsFor, getExtensions } from "../shell/extension-tabs";
   import { getApp } from "../state/app.svelte";
   import SpecBadge from "../openapi/SpecBadge.svelte";
+  import SnapshotActions from "../snapshots/SnapshotActions.svelte";
   import HeadersTable from "./HeadersTable.svelte";
   import ConsolePanel from "./ConsolePanel.svelte";
   import JsonNode from "./JsonNode.svelte";
@@ -289,6 +290,7 @@
       </span>
     {/if}
     {#if path}<SpecBadge {backend} {path} {result} />{/if}
+    {#if path}<SnapshotActions {backend} {path} {result} />{/if}
     <ExplainButton {result} {backend} />
     <ExtensionActions actions={responseActions} label="Response actions" variant="ghost" />
   </div>

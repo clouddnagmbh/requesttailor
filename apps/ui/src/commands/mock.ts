@@ -54,7 +54,7 @@ import { mockCompanions } from "./mock-companions";
 import { DEMO_ID, MockCollections, mockTree } from "./mock-collections";
 import { mockFolderScripts } from "./mock-folder-scripts";
 import { mockShare } from "./mock-share";
-import { mockSnapshots } from "./mock-snapshots";
+import { evaluateSnapshots, mockSnapshots } from "./mock-snapshots";
 import { mockVariables } from "./mock-variables";
 import type { MockWave12Host } from "./mock-wave12";
 import { mockActions, mockEvaluate } from "./mock-assert";
@@ -241,6 +241,8 @@ export class MockBackend implements Backend {
     return this.collections.current_().secretValues;
   }
   private responses = new Map<number, Stored>();
+  /** Wave 17: what a snapshot needs of a kept response (status and allowlisted headers). */
+  private responseMeta = new Map<number, { status: number; headers: [string, string][] }>();
   private nextId = 1;
   private mode: TransportMode = "browser";
 
@@ -361,7 +363,17 @@ export class MockBackend implements Backend {
   /** Wave 16: scripts of the collection and its folders. */
   readonly folderScripts = mockFolderScripts(() => this.requests);
   /** Wave 17 (strands B and C replace the placeholders in their own files). */
-  readonly snapshots = mockSnapshots();
+  readonly snapshots = mockSnapshots({
+    companions: this.companions,
+    getRequest: (p) => this.getRequest(p),
+    updateRequest: (p, spec) => this.updateRequest(p, spec),
+    requestPaths: () => [...this.requests.keys()],
+    response: (id) => {
+      const s = this.responses.get(id);
+      const meta = this.responseMeta.get(id);
+      return s?.text != null && meta ? { ...meta, body: s.text } : undefined;
+    },
+  });
   readonly share = mockShare();
 
   async openCollection(): Promise<CollectionInfo | null> {
@@ -615,6 +627,7 @@ export class MockBackend implements Backend {
       size = stored.bytes!.length;
     }
     this.responses.set(id, stored);
+    this.responseMeta.set(id, { status: 200, headers: [["content-type", contentType]] });
     this.cookies.store(input.environment ?? "", url, setCookie);
     report.response = {
       status: 200,
@@ -634,7 +647,15 @@ export class MockBackend implements Backend {
         env?.variables.find((v) => v.name === name && v.enabled && !v.secret)?.value ??
         undefined;
       const response = { status: 200, body: stored.text };
-      const assertions = mockEvaluate(spec.assertions, response, lookup);
+      const assertions = [
+        ...mockEvaluate(spec.assertions.filter((a) => a.operator.trim() !== "matchesSnapshot"), response, lookup),
+        ...(await evaluateSnapshots(
+          spec.assertions,
+          path,
+          { status: 200, headers: [["content-type", contentType]], body: stored.text },
+          (file) => this.companions.read(file),
+        )),
+      ];
       if (assertions.length > 0) report.assertions = assertions;
       const changes = mockActions(spec.actions, response);
       if (changes.length > 0) report.var_changes = changes;

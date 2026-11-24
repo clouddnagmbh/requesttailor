@@ -74,6 +74,9 @@ pub trait SnapshotStore {
 pub struct SnapshotContext<'a> {
     pub store: &'a dyn SnapshotStore,
     pub request_path: &'a str,
+    /// Every secret value of the send; the fresh response is masked with them before it is
+    /// compared, as the snapshot was when it was frozen.
+    pub secrets: &'a [String],
 }
 
 /// [`evaluate`] with a snapshot store. Without one a `matchesSnapshot` assertion fails with a
@@ -90,7 +93,7 @@ pub fn evaluate_with(
         .filter(|a| a.enabled)
         .map(|a| {
             if a.operator.trim() == MATCHES_SNAPSHOT {
-                snapshot_result(a, snapshots)
+                snapshot_result(a, response, snapshots)
             } else {
                 evaluate_one(a, response, &body, scope)
             }
@@ -98,19 +101,69 @@ pub fn evaluate_with(
         .collect()
 }
 
-/// Wave 17 strand B replaces this body with the comparison; until then the assertion fails
-/// (never a silent pass).
+/// Compares the response with the companion file the assertion names. Never a silent pass: no
+/// store, no file or an unreadable file fail with a message.
 fn snapshot_result(
     assertion: &Assertion,
-    _snapshots: Option<SnapshotContext<'_>>,
+    response: &ScriptResponse,
+    snapshots: Option<SnapshotContext<'_>>,
 ) -> AssertionResult {
-    AssertionResult {
+    let fail = |actual: Option<String>, error: String| AssertionResult {
         expression: assertion.expression.clone(),
         operator: assertion.operator.clone(),
         expected: assertion.value.clone(),
-        actual: None,
+        actual,
         passed: false,
-        error: Some("snapshots arrive with wave 17".into()),
+        error: Some(error),
+    };
+    let Some(context) = snapshots else {
+        return fail(None, "no snapshot store is available here".into());
+    };
+    let file = match assertion.value.trim() {
+        "" => crate::snapshot::default_value(context.request_path),
+        value => value.to_owned(),
+    };
+    let Some(text) = context.store.read(context.request_path, &file) else {
+        return fail(
+            Some(format!("{file} is missing")),
+            "no snapshot yet; run `rt snapshot update`".into(),
+        );
+    };
+    let snapshot = match crate::snapshot::parse(&text) {
+        Ok(s) => s,
+        Err(e) => return fail(None, format!("the snapshot {file} cannot be read: {e}")),
+    };
+    let view = crate::snapshot::ResponseView {
+        status: response.status,
+        headers: &response.headers,
+        body: &response.body,
+    };
+    let differences = crate::snapshot::compare(&snapshot, &view, context.secrets);
+    if differences.is_empty() {
+        return AssertionResult {
+            expression: assertion.expression.clone(),
+            operator: assertion.operator.clone(),
+            expected: assertion.value.clone(),
+            actual: Some("matches".into()),
+            passed: true,
+            error: None,
+        };
+    }
+    fail(
+        Some(format!("{} difference(s)", differences.len())),
+        crate::snapshot::summary(&differences),
+    )
+}
+
+/// A [`SnapshotStore`] over the request's file source (the files a send already reads: bodies,
+/// certificates and, since wave 17, the snapshot files of the request).
+pub struct FileSnapshots<'a>(pub &'a dyn crate::prepare::FileSource);
+
+impl SnapshotStore for FileSnapshots<'_> {
+    fn read(&self, request_path: &str, snapshot: &str) -> Option<String> {
+        let path = crate::snapshot::companion_path(request_path, snapshot);
+        let bytes = self.0.read(&path).ok()?;
+        Some(String::from_utf8_lossy(&bytes).into_owned())
     }
 }
 

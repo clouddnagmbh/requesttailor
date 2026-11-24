@@ -81,6 +81,7 @@ fails the build.</p>
 <tr><td>Keystrokes from app start to a sent request</td><td>at most <span data-budget="send_keystrokes">2</span></td></tr>
 <tr><td>Comparing two versions of a collection with 1000 requests, 100 of them changed</td><td>at most <span data-budget="semantic_diff">200</span> ms</td></tr>
 <tr><td>Showing that comparison side by side, with the answers of both versions</td><td>at most <span data-budget="compare_view">1000</span> ms</td></tr>
+<tr><td>Checking 1000 responses against their snapshots, ignored paths included</td><td>at most <span data-budget="snapshot_compare">150</span> ms</td></tr>
 <tr><td>Opening the history of a repository with 10 000 commits, first rows visible</td><td>at most <span data-budget="git_graph">1500</span> ms</td></tr>
 <tr><td>Scrolling that history, 95th percentile frame time</td><td>at most <span data-budget="git_graph_frame">20</span> ms</td></tr>
 <tr><td>Opening the history of a repository with 100 000 commits, first rows visible</td><td>at most <span data-budget="git_graph_large">1500</span> ms</td></tr>

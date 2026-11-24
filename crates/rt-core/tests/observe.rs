@@ -115,6 +115,7 @@ fn a_snapshot_assertion_never_passes_silently_before_strand_b() {
             Some(rt_core::assert::SnapshotContext {
                 store: &Files,
                 request_path: "get.yml",
+                secrets: &[],
             }),
         ),
     ] {
