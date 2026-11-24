@@ -1,11 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright 2026 The RequestTailor Authors -->
-<!-- Wave 18 interface: shows the open tool (`tool-host.ts`) in the main area, with a header to
+<!-- Wave 18 interface: shows the open tool (`tool-host.svelte.ts`) in the main area, with a header to
      close it. Each tool is one strand's component. -->
 <script lang="ts">
   import type { AppState } from "../state/app.svelte";
   import { IconButton } from "../ui";
-  import type { Tools } from "./tool-host";
+  import type { Tools } from "./tool-host.svelte";
 
   let { tools, app }: { tools: Tools; app: AppState } = $props();
   const tool = $derived(tools.current);
