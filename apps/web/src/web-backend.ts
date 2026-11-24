@@ -349,7 +349,10 @@ export class WebBackend implements Backend {
     this.rescue = webRescue(wave12);
     this.companions = webCompanions(() => this.session());
     this.folderScripts = webFolderScripts(() => this.session());
-    this.snapshots = webSnapshots(() => this.session());
+    this.snapshots = webSnapshots(
+      () => this.session(),
+      async (s, environment) => (await this.secretValues(s, environment)).map(([, value]) => value),
+    );
     this.share = webShare(() => this.session());
     this.variables = webVariables(
       () => this.session(),

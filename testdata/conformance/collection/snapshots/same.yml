@@ -1,0 +1,15 @@
+info:
+  name: same
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/status/200"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res
+      operator: matchesSnapshot
+      value: same.snap.json

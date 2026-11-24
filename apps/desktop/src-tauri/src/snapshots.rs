@@ -1,64 +1,113 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! Snapshot tests for the desktop app (`Backend.snapshots`, `rt_app::snapshots`). Wave 17
-//! interface: registered, "not implemented yet"; strand B answers them from the active
-//! collection (companion files through `rt_app::companions`, the assertion through the
-//! request).
+//! Snapshot tests for the desktop app (`Backend.snapshots`, `rt_app::snapshots`), answered from
+//! the active collection: companion files and the assertion are staged in the workspace
+//! (unsaved), the kept responses are read from the response store. The stored body still has
+//! the secret values of its send, so the commands read the secrets of the response's
+//! environment from the keychain, only to mask them (the webview never sends secrets).
 
-use rt_app::AppError;
-use rt_app::snapshots::{FreezeOptions, Snapshot, SnapshotCheck, SnapshotEntry, SnapshotFreeze};
+use rt_app::snapshots::{
+    self, FreezeOptions, Snapshot, SnapshotCheck, SnapshotEntry, SnapshotFreeze,
+};
+use rt_app::{AppError, SecretStore, SendInput};
+use tauri::State;
 
-use crate::commands::CommandError;
+use crate::Core;
+use crate::commands::{AppCore, CommandError};
 
-fn not_yet<T>() -> Result<T, CommandError> {
-    Err(
-        AppError::Unsupported("Snapshots are not implemented yet (wave 17, strand B).".into())
-            .into(),
+/// The secret values of the environment the stored response was sent with, as plain strings.
+fn secrets_of<S: SecretStore>(core: &Core<S>, response_id: u64) -> Result<Vec<String>, AppError> {
+    let environment =
+        core.with_responses(|_, responses| snapshots::environment_of(responses, response_id))?;
+    core.with_ai_scope(
+        SendInput {
+            environment,
+            ..SendInput::default()
+        },
+        |_, _, input, _| input.secrets.iter().map(|(_, v)| v.clone()).collect(),
     )
+}
+
+/// The snapshot of the request at `path`; `None` if it has none.
+pub fn read<S: SecretStore>(core: &Core<S>, path: &str) -> Result<Option<Snapshot>, AppError> {
+    core.with_workspace(|ws, _| snapshots::read(ws, path))
+}
+
+/// Freezes the kept response as the request's snapshot (staged, unsaved).
+pub fn freeze<S: SecretStore>(
+    core: &Core<S>,
+    path: &str,
+    response_id: u64,
+    options: &FreezeOptions,
+) -> Result<SnapshotFreeze, AppError> {
+    let secrets = secrets_of(core, response_id)?;
+    let plan = core.with_responses(|ws, responses| {
+        snapshots::plan_freeze(ws, responses, path, response_id, options, &secrets)
+    })?;
+    core.with_workspace(|ws, _| snapshots::apply_freeze(ws, plan))
+}
+
+pub fn set_ignore<S: SecretStore>(
+    core: &Core<S>,
+    path: &str,
+    ignore: Vec<String>,
+) -> Result<Snapshot, AppError> {
+    core.with_workspace(|ws, _| snapshots::set_ignore(ws, path, ignore))
+}
+
+pub fn check<S: SecretStore>(
+    core: &Core<S>,
+    path: &str,
+    response_id: u64,
+) -> Result<SnapshotCheck, AppError> {
+    let secrets = secrets_of(core, response_id)?;
+    core.with_responses(|ws, responses| {
+        snapshots::check(ws, responses, path, response_id, &secrets)
+    })
+}
+
+pub fn list<S: SecretStore>(core: &Core<S>) -> Result<Vec<SnapshotEntry>, AppError> {
+    core.with_workspace(|ws, _| Ok(snapshots::list(ws)))
 }
 
 #[tauri::command]
 pub async fn snapshots_read(
-    _app: tauri::AppHandle,
+    core: State<'_, AppCore>,
     path: String,
 ) -> Result<Option<Snapshot>, CommandError> {
-    let _ = path;
-    not_yet()
+    Ok(read(&core, &path)?)
 }
 
 #[tauri::command]
 pub async fn snapshots_freeze(
-    _app: tauri::AppHandle,
+    core: State<'_, AppCore>,
     path: String,
     response_id: u64,
     options: FreezeOptions,
 ) -> Result<SnapshotFreeze, CommandError> {
-    let _ = (path, response_id, options);
-    not_yet()
+    Ok(freeze(&core, &path, response_id, &options)?)
 }
 
 #[tauri::command]
 pub async fn snapshots_set_ignore(
-    _app: tauri::AppHandle,
+    core: State<'_, AppCore>,
     path: String,
     ignore: Vec<String>,
 ) -> Result<Snapshot, CommandError> {
-    let _ = (path, ignore);
-    not_yet()
+    Ok(set_ignore(&core, &path, ignore)?)
 }
 
 #[tauri::command]
 pub async fn snapshots_check(
-    _app: tauri::AppHandle,
+    core: State<'_, AppCore>,
     path: String,
     response_id: u64,
 ) -> Result<SnapshotCheck, CommandError> {
-    let _ = (path, response_id);
-    not_yet()
+    Ok(check(&core, &path, response_id)?)
 }
 
 #[tauri::command]
-pub async fn snapshots_list(_app: tauri::AppHandle) -> Result<Vec<SnapshotEntry>, CommandError> {
-    not_yet()
+pub async fn snapshots_list(core: State<'_, AppCore>) -> Result<Vec<SnapshotEntry>, CommandError> {
+    Ok(list(&core)?)
 }

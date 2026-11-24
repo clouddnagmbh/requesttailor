@@ -151,19 +151,17 @@ pub fn read(workspace: &Workspace, path: &str) -> Result<Option<Snapshot>, AppEr
         .map_err(|e| AppError::Shell(format!("the snapshot {file} cannot be read: {e}")))
 }
 
+/// Status, headers and body of a stored response.
+type StoredParts = (u16, Vec<(String, String)>, Vec<u8>);
+
 /// The stored response as bytes for the engine.
-fn view_of(
-    responses: &ResponseStore,
-    id: u64,
-) -> Result<(u16, Vec<(String, String)>, Vec<u8>), AppError> {
+fn view_of(responses: &ResponseStore, id: u64) -> Result<StoredParts, AppError> {
     view_of_report(responses.report(id)?)
 }
 
 /// The status, headers and body of a report's response, for the engine (`rt snapshot
 /// update`, the app). Refuses a report without a response or with a cut body.
-pub fn view_of_report(
-    report: &rt_core::send::SendReport,
-) -> Result<(u16, Vec<(String, String)>, Vec<u8>), AppError> {
+pub fn view_of_report(report: &rt_core::send::SendReport) -> Result<StoredParts, AppError> {
     let response = report
         .response
         .as_ref()
@@ -201,6 +199,23 @@ fn stage(workspace: &mut Workspace, file: &str, snapshot: &Snapshot) -> Result<(
     workspace.stage_companion(file, text.into_bytes())
 }
 
+/// A freeze worked out but not applied: the shells compute it with the kept responses (shared
+/// borrow) and apply it to the workspace afterwards.
+#[derive(Debug, Clone)]
+pub struct FreezePlan {
+    freeze: SnapshotFreeze,
+    text: String,
+    /// The request with the new assertion; `None`: it has one.
+    spec: Option<RequestSpec>,
+}
+
+impl FreezePlan {
+    /// What applying the plan stages.
+    pub fn freeze(&self) -> &SnapshotFreeze {
+        &self.freeze
+    }
+}
+
 /// Freezes the stored response `response_id` as the snapshot of the request at `path`, staged
 /// and unsaved: the file, and the assertion if the request has none. An existing snapshot
 /// keeps its ignored paths (accepting a new response). `secrets` are the secret values of the
@@ -214,6 +229,19 @@ pub fn freeze(
     options: &FreezeOptions,
     secrets: &[String],
 ) -> Result<SnapshotFreeze, AppError> {
+    let plan = plan_freeze(workspace, responses, path, response_id, options, secrets)?;
+    apply_freeze(workspace, plan)
+}
+
+/// The first half of [`freeze`]: reads, writes nothing.
+pub fn plan_freeze(
+    workspace: &Workspace,
+    responses: &ResponseStore,
+    path: &str,
+    response_id: u64,
+    options: &FreezeOptions,
+    secrets: &[String],
+) -> Result<FreezePlan, AppError> {
     let mut spec = workspace.request(path)?;
     let existing = read(workspace, path)?;
     let (status, headers, body) = view_of(responses, response_id)?;
@@ -234,7 +262,7 @@ pub fn freeze(
             ignore: existing.map(|s| s.ignore).unwrap_or_default(),
         },
     );
-    let assertion_added = assertion_value(&spec).is_none();
+    let added = assertion_value(&spec).is_none();
     let file = match assertion_value(&spec) {
         Some(value) if !value.is_empty() => companion_path(path, &value),
         Some(_) => companion_path(path, &default_value(path)),
@@ -254,16 +282,29 @@ pub fn freeze(
             companion_path(path, &value)
         }
     };
-    stage(workspace, &file, &content)?;
-    if assertion_added {
-        workspace.update_request(path, spec)?;
-    }
-    Ok(SnapshotFreeze {
-        request_path: path.to_owned(),
-        snapshot: file,
-        assertion_added,
-        content,
+    let text = file_text(&file, &content)?;
+    Ok(FreezePlan {
+        freeze: SnapshotFreeze {
+            request_path: path.to_owned(),
+            snapshot: file,
+            assertion_added: added,
+            content,
+        },
+        text,
+        spec: added.then_some(spec),
     })
+}
+
+/// The second half of [`freeze`]: stages the file and the assertion.
+pub fn apply_freeze(
+    workspace: &mut Workspace,
+    plan: FreezePlan,
+) -> Result<SnapshotFreeze, AppError> {
+    workspace.stage_companion(&plan.freeze.snapshot, plan.text.into_bytes())?;
+    if let Some(spec) = plan.spec {
+        workspace.update_request(&plan.freeze.request_path, spec)?;
+    }
+    Ok(plan.freeze)
 }
 
 /// The assertion's file must stay beside the request: a name ending in `.snap.json`.
@@ -397,7 +438,10 @@ mod tests {
         let snap = Snapshot {
             version: SNAPSHOT_VERSION,
             status: 200,
-            headers: BTreeMap::from([("content-type".into(), "application/json".into())]),
+            headers: std::collections::BTreeMap::from([(
+                "content-type".into(),
+                "application/json".into(),
+            )]),
             body: SnapshotBody::Value(serde_json::json!({ "a": 1 })),
             ignore: vec!["$.a".into()],
         };
