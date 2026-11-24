@@ -40,6 +40,13 @@ import {
   type FolderScriptsApi,
   type ShareApi,
   type SnapshotApi,
+  type EnvCompareApi,
+  type InspectApi,
+  type PagingApi,
+  type InboxApi,
+  type LintApi,
+  type ViewsApi,
+  type CatalogueApi,
   type VariablesApi,
   type ReviewApi,
   type RunnerApi,
@@ -77,6 +84,13 @@ import { webCompanions } from "./companions";
 import { webFolderScripts } from "./folder-scripts";
 import { webShare, type CoreShare } from "./share";
 import { webSnapshots } from "./snapshots";
+import { webEnvCompare } from "./envcompare";
+import { webInspect } from "./inspect";
+import { webPaging } from "./paging";
+import { webInbox } from "./inbox";
+import { webLint } from "./lint";
+import { webViews } from "./views";
+import { webCatalogue } from "./catalogue";
 import { webVariables } from "./variables";
 import { webReview } from "./review";
 import { webTimeline } from "./timeline";
@@ -236,6 +250,14 @@ export class WebBackend implements Backend {
   readonly variables: VariablesApi;
   /** Wave 16: scripts of the collection and its folders (`folder-scripts.ts`). */
   readonly folderScripts: FolderScriptsApi;
+  /** Wave 18: placeholders until the strands (one file each, `<name>.ts`). */
+  readonly envCompare: EnvCompareApi;
+  readonly inspect: InspectApi;
+  readonly paging: PagingApi;
+  readonly inbox: InboxApi;
+  readonly lint: LintApi;
+  readonly views: ViewsApi;
+  readonly catalogue: CatalogueApi;
   /** Wave 17: snapshot tests (`snapshots.ts`) and sharing (`share.ts`). */
   readonly snapshots: SnapshotApi;
   readonly share: ShareApi;
@@ -349,6 +371,13 @@ export class WebBackend implements Backend {
     this.rescue = webRescue(wave12);
     this.companions = webCompanions(() => this.session());
     this.folderScripts = webFolderScripts(() => this.session());
+    this.envCompare = webEnvCompare();
+    this.inspect = webInspect();
+    this.paging = webPaging();
+    this.inbox = webInbox();
+    this.lint = webLint();
+    this.views = webViews();
+    this.catalogue = webCatalogue();
     this.snapshots = webSnapshots(
       () => this.session(),
       async (s, environment) => (await this.secretValues(s, environment)).map(([, value]) => value),

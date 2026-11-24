@@ -472,6 +472,7 @@ fn manifest() -> Manifest {
                 label: "OData metadata".into(),
                 extensions: vec!["edmx".into(), "xml".into()],
             }],
+            paging: Vec::new(),
         },
     }
 }
@@ -718,6 +719,9 @@ fn report_ok() -> SendReport {
             .collect(),
         unresolved: vec!["missing".into()],
         error: None,
+        checks: Vec::new(),
+        rate_limit: None,
+        segments: Vec::new(),
     }
 }
 
@@ -731,6 +735,7 @@ fn run_plan() -> RunPlan {
         iterations: 1,
         delay_ms: 10,
         bail: true,
+        throttle: Default::default(),
     }
 }
 
@@ -1321,6 +1326,7 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
     all.extend(wave16::fixtures());
     all.extend(wave15::fixtures());
     all.extend(wave17::fixtures());
+    all.extend(wave18::fixtures());
     all
 }
 
@@ -3301,6 +3307,7 @@ mod wave12 {
                 name: "status is 200".into(),
                 passed: true,
             }],
+            duration_ms: None,
         }
     }
 
@@ -4225,6 +4232,208 @@ mod openapi_wizard {
                     body_skipped: Some("the body is larger than 8 MB".into()),
                 }),
             ),
+        ]
+    }
+}
+
+/// Wave 18 (interface): checking and watching. The values are written as JSON and read back
+/// through the Rust types, so a field the types lack (or lack a default for) fails here.
+mod wave18 {
+    use serde::Serialize;
+    use serde::de::DeserializeOwned;
+    use serde_json::json;
+
+    fn via<T: Serialize + DeserializeOwned>(v: serde_json::Value) -> serde_json::Value {
+        let typed: T = serde_json::from_value(v).expect("the fixture reads as its Rust type");
+        serde_json::to_value(typed).unwrap()
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        use rt_app::catalogue::{CatalogueUpdate, InstallPlan, InstalledSource, SourceIndex};
+        use rt_app::envcompare::{EnvCompareRequest, EnvComparison};
+        use rt_app::inbox::{CapturedRequest, InboxPage, InboxSettings, InboxStatus};
+        use rt_app::inspect::{FoundToken, InspectTarget, JwtInfo, Observation};
+        use rt_app::lint::{LintReport, LintSettings};
+        use rt_app::paging::{EffectivePaging, PagingRun, PagingSpec, PagingStop};
+        use rt_app::views::{ResponseView, ViewResult};
+        use rt_core::TimingSegment;
+        use rt_core::ratelimit::{RateLimits, Throttle};
+        use rt_core::runner::{RunEvent, RunPlan};
+        use rt_core::send::SendReport;
+
+        let jwt = json!({
+            "header": { "alg": "RS256", "typ": "JWT" },
+            "algorithm": "RS256",
+            "claims": [
+                { "name": "sub", "value": "user-1", "kind": "text", "meaning": "subject" },
+                { "name": "exp", "value": 1_900_000_000, "kind": "time", "meaning": null },
+                { "name": "scope", "value": ["a", "b"], "kind": "list", "meaning": null },
+                { "name": "x", "value": { "k": 1 }, "kind": "other", "meaning": null }
+            ],
+            "warnings": [
+                { "kind": "expired", "text": "expired 2 days ago" },
+                { "kind": "not-yet-valid", "text": "valid in 1 hour" },
+                { "kind": "expires-soon", "text": "expires in 5 minutes" },
+                { "kind": "algorithm-none", "text": "unsigned token" }
+            ],
+            "expires_at": 1_900_000_000,
+            "signature_verified": false
+        });
+        let plan = json!({
+            "source": "https://example.com/plugins.json",
+            "entry": {
+                "id": "acme", "name": "Acme", "version": "1.2.0", "api": 1,
+                "description": "Acme helpers", "license": "Apache-2.0", "homepage": null,
+                "wasm": { "url": "https://example.com/acme.wasm", "sha256": "ab".repeat(32), "size": 2048 },
+                "permissions": { "network": ["api.example.com"], "storage": true, "variables": false }
+            },
+            "sha256": "ab".repeat(32),
+            "permissions": { "network": ["api.example.com"], "storage": true, "variables": false },
+            "permissions_differ": false,
+            "update": false,
+            "more_permissions": false,
+            "warnings": []
+        });
+        let view = json!({ "name": "ids", "language": "jsonpath", "expression": "$.items[*].id", "display": "table", "columns": ["id"] });
+        vec![
+            ("timingSegments", "TimingSegment[]", via::<Vec<TimingSegment>>(json!([
+                { "id": "db", "label": "Database", "ms": 41, "parent": "server" },
+                { "id": "queue", "label": "Queue", "ms": 3 }
+            ]))),
+            ("rateLimits", "RateLimits", via::<RateLimits>(json!({
+                "limit": 100, "remaining": 7, "reset_ms": 30000, "retry_after_ms": 1000,
+                "windows": [{ "limit": 100, "seconds": 60 }]
+            }))),
+            ("throttle", "Throttle", via::<Throttle>(json!({ "mode": "respect", "max_wait_ms": 60000, "retries": 2 }))),
+            ("runPlanThrottled", "RunPlan", via::<RunPlan>(json!({
+                "requests": ["a.yml"], "data": [], "iterations": 1, "delay_ms": 0, "bail": false,
+                "throttle": { "mode": "respect", "max_wait_ms": 1000, "retries": 1 }
+            }))),
+            ("runEventWaiting", "RunEvent", via::<RunEvent>(json!({
+                "kind": "waiting", "request_path": "a.yml", "until": 1_900_000_000_000_i64, "reason": "rate limit"
+            }))),
+            ("sendReportWatched", "SendReport", via::<SendReport>(json!({
+                "version": 1, "request_path": "a.yml", "environment": null, "request": null,
+                "response": null, "variables": [], "unresolved": [], "error": null,
+                "segments": [{ "id": "db", "label": "Database", "ms": 41, "parent": "server" }],
+                "rate_limit": { "limit": 100, "remaining": 7 },
+                "checks": [{ "id": "cookie/no-secure", "severity": "warn", "location": "set-cookie: sid", "why": "sent over HTTP", "fix": "add Secure" }]
+            }))),
+            ("testRecordTimed", "TestRecord", via::<rt_app::timeline::TestRecord>(json!({
+                "collection": "shop", "request": "orders/get.yml", "environment": null, "time": 1_900_000_000,
+                "source": "runner", "passed": true, "status": 200, "tests": [], "duration_ms": 87
+            }))),
+            ("pagingRules", "PagingSpec[]", via::<Vec<PagingSpec>>(json!([
+                { "rule": { "kind": "link-header" } },
+                { "rule": { "kind": "json-url", "next": "$.links.next" }, "merge": "$.items" },
+                { "rule": { "kind": "cursor", "next": "$.next", "param": { "place": "query", "name": "cursor" } }, "merge": "$.data" },
+                { "rule": { "kind": "cursor", "next": "$.next", "param": { "place": "body", "name": "after" } } },
+                { "rule": { "kind": "cursor", "next": "$.next", "param": { "place": "header", "name": "x-cursor" } } }
+            ]))),
+            ("effectivePagings", "EffectivePaging[]", via::<Vec<EffectivePaging>>(json!([
+                { "spec": { "rule": { "kind": "link-header" } }, "origin": { "kind": "request" } },
+                { "spec": { "rule": { "kind": "link-header" } }, "origin": { "kind": "collection" } },
+                { "spec": { "rule": { "kind": "link-header" } }, "origin": { "kind": "plugin", "plugin": "odata", "id": "odata-next" } }
+            ]))),
+            ("pagingRun", "PagingRun", via::<PagingRun>(json!({
+                "path": "a.yml", "input": { "environment": null, "vars": [] },
+                "mode": "all", "response_id": 1,
+                "limits": { "max_pages": 20, "max_bytes": 52_428_800, "max_seconds": 120 }
+            }))),
+            ("pagingStops", "PagingStop[]", via::<Vec<PagingStop>>(json!([
+                { "kind": "done" }, { "kind": "max-pages" }, { "kind": "max-bytes" },
+                { "kind": "max-seconds" }, { "kind": "loop" },
+                { "kind": "other-origin", "message": "https://other.example/next" },
+                { "kind": "error-status", "message": 500 },
+                { "kind": "refused", "message": "blocked by policy" },
+                { "kind": "not-read" }
+            ]))),
+            ("pagingContribution", "PagingContribution", via::<rt_plugin::api::PagingContribution>(json!({
+                "id": "odata-next",
+                "match": { "hosts": ["*.example.com"], "content_types": ["application/json"], "url_pattern": "/odata/" },
+                "rule": { "rule": { "kind": "json-url", "next": "$['@odata.nextLink']" }, "merge": "$.value" }
+            }))),
+            ("envCompareRequest", "EnvCompareRequest", via::<EnvCompareRequest>(json!({
+                "environments": ["Dev", "Test", "Prod"], "folder": "orders", "paths": null,
+                "ignore_env_values": true, "production_confirmed": false
+            }))),
+            ("envComparison", "EnvComparison", via::<EnvComparison>(json!({
+                "reference": "Dev", "pairs": [],
+                "skipped": [{ "path": "orders/create.yml", "name": "Create order", "reason": "writes (POST)" }]
+            }))),
+            ("jwtInfo", "JwtInfo", via::<JwtInfo>(jwt.clone())),
+            ("foundTokens", "FoundToken[]", via::<Vec<FoundToken>>(json!([
+                { "location": { "kind": "authorization" }, "token": jwt },
+                { "location": { "kind": "auth" }, "token": jwt },
+                { "location": { "kind": "query" }, "token": jwt },
+                { "location": { "kind": "body", "path": "$.access_token" }, "token": jwt },
+                { "location": { "kind": "cookie", "name": "sid" }, "token": jwt }
+            ]))),
+            ("observations", "Observation[]", via::<Vec<Observation>>(json!([
+                { "id": "cookie/no-secure", "severity": "warn", "location": "set-cookie: sid", "why": "w", "fix": "f" },
+                { "id": "header/server-version", "severity": "info", "location": "server", "why": "w", "fix": "f" }
+            ]))),
+            ("inspectTarget", "InspectTarget", via::<InspectTarget>(json!({ "path": "a.yml", "environment": "Dev", "response_id": 3 }))),
+            ("inboxSettings", "InboxSettings", via::<InboxSettings>(json!({
+                "port": 47855, "status": 202, "body": "{\"ok\":true}", "content_type": "application/json", "delay_ms": 250
+            }))),
+            ("inboxStatus", "InboxStatus", via::<InboxStatus>(json!({
+                "running": true, "port": 47855, "url": "http://127.0.0.1:47855/", "held": 3, "dropped": 0
+            }))),
+            ("capturedRequest", "CapturedRequest", via::<CapturedRequest>(json!({
+                "id": 1, "at": 1_900_000_000_000_i64, "method": "POST", "target": "/hook?x=1",
+                "headers": [["content-type", "application/json"]], "body": "{}", "size": 2
+            }))),
+            ("inboxPage", "InboxPage", via::<InboxPage>(json!({
+                "events": [
+                    { "kind": "started", "port": 47855 },
+                    { "kind": "request", "request": { "id": 1, "at": 1, "method": "GET", "target": "/", "headers": [], "body": null, "size": 0 } },
+                    { "kind": "dropped", "count": 5 },
+                    { "kind": "cleared" },
+                    { "kind": "stopped" }
+                ],
+                "next": 5
+            }))),
+            ("lintSettings", "LintSettings", via::<LintSettings>(json!({
+                "rules": { "lint/no-tests": "warn", "lint/duplicate-name": "error" },
+                "ignore": ["orders/legacy.yml"], "min_score": 80
+            }))),
+            ("lintReport", "LintReport", via::<LintReport>(json!({
+                "collection": "shop",
+                "score": { "score": 72, "rules": [{ "rule": "no-tests", "ok": 8, "total": 10 }] },
+                "folders": [{ "folder": "orders", "score": { "score": 60, "rules": [] } }],
+                "findings": [
+                    { "rule": "no-tests", "level": "warn", "path": "orders/get.yml", "message": "no tests", "location": null },
+                    { "rule": "hard-coded-host", "level": "error", "path": "a.yml", "message": "host", "location": "url" },
+                    { "rule": "orphan-variable", "level": "info", "path": "", "message": "unused", "location": null },
+                    { "rule": "duplicate-name", "level": "off", "path": "b.yml", "message": "dup", "location": null }
+                ],
+                "ignored": 1
+            }))),
+            ("responseViews", "ResponseView[]", via::<Vec<ResponseView>>(json!([
+                view.clone(),
+                { "name": "all", "language": "jq", "expression": ".", "display": "json" },
+                { "name": "text", "language": "jsonpath", "expression": "$.message", "display": "text" }
+            ]))),
+            ("viewResult", "ViewResult", via::<ViewResult>(json!({
+                "display": "table", "values": [1, 2], "columns": ["id"], "rows": [[1], [2]], "notice": "2 of 2 shown"
+            }))),
+            ("sourceIndex", "SourceIndex", via::<SourceIndex>(json!({
+                "source": { "url": "https://example.com/plugins.json", "commit": "abc123", "name": "Example" },
+                "index": { "version": 1, "name": "Example", "plugins": [plan["entry"].clone()] }
+            }))),
+            ("installPlan", "InstallPlan", via::<InstallPlan>(plan)),
+            ("installedSource", "InstalledSource", via::<InstalledSource>(json!({
+                "plugin": "acme", "source": "https://example.com/plugins.json", "version": "1.2.0", "sha256": "ab".repeat(32)
+            }))),
+            ("catalogueUpdate", "CatalogueUpdate", via::<CatalogueUpdate>(json!({
+                "plugin": "acme", "source": "https://example.com/plugins.json", "installed": "1.1.0", "available": "1.2.0"
+            }))),
+            ("specChangeKinds", "SpecChange[]", json!([
+                "type-removed", "enum-value-removed", "nullability-changed", "number-changed", "streaming-changed"
+            ].iter().map(|k| json!({
+                "kind": k, "breaking": true, "operation": null, "location": "Query.user", "message": "m", "requests": []
+            })).collect::<Vec<_>>())),
         ]
     }
 }

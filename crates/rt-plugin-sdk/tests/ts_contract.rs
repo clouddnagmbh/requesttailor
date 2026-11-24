@@ -127,6 +127,20 @@ fn manifest() -> Manifest {
                 label: "URL list".into(),
                 extensions: vec!["urls".into()],
             }],
+            paging: vec![rt_plugin::api::PagingContribution {
+                id: "next-link".into(),
+                matches: rt_plugin::api::PagingMatch {
+                    hosts: vec!["*.example.com".into()],
+                    content_types: vec!["application/json".into()],
+                    url_pattern: Some("/items*".into()),
+                },
+                rule: rt_core::paging::PagingSpec {
+                    rule: rt_core::paging::PagingRule::JsonUrl {
+                        next: "$.next".into(),
+                    },
+                    merge: Some("$.items".into()),
+                },
+            }],
         },
     }
 }
@@ -323,6 +337,12 @@ fn fixtures() -> Vec<(&'static str, &'static str, Value)> {
                 notes: vec![PluginNote {
                     level: NoteLevel::Error,
                     text: "bad".into(),
+                }],
+                segments: vec![rt_core::TimingSegment {
+                    id: "db".into(),
+                    label: "Database".into(),
+                    ms: 41,
+                    parent: Some("server".into()),
                 }],
             }),
         ),

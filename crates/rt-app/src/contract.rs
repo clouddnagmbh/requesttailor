@@ -137,6 +137,25 @@ pub fn changes(old: &Side<'_>, new: &Side<'_>) -> Result<SpecChanges> {
     )?)
 }
 
+pub use rt_format::contract::{SchemaKind, SchemaSources};
+
+/// Breaking changes of a GraphQL or Protobuf schema between two sides (wave 18, strand H): the
+/// schema files are found as `rt_format::contract::SchemaKind` describes (GraphQL: the
+/// configured file or `schema.graphql` / `schema.gql` / `*.graphqls` next to the collection,
+/// then the repository root; Protobuf: the `.proto` files of `config.protobuf`), read with
+/// `Side::read`, and compared as `rt_format::contract::schema_changes`. Interface: always
+/// `Unsupported` until the strand.
+pub fn schema_changes(kind: SchemaKind, old: &Side<'_>, new: &Side<'_>) -> Result<SpecChanges> {
+    let _ = (old, new);
+    let what = match kind {
+        SchemaKind::Graphql => "GraphQL",
+        SchemaKind::Protobuf => "Protobuf",
+    };
+    Err(AppError::Unsupported(format!(
+        "{what} schema changes are not implemented yet (wave 18, strand H)."
+    )))
+}
+
 /// The heading of a changelog: `Orders API 1.1.0 → 2.0.0` when the spec's version is known,
 /// else `Changes <from> → <to>`. `name`: the spec's title, if known.
 pub fn changelog_title(name: Option<&str>, spec: &SpecChanges, from: &str, to: &str) -> String {

@@ -268,6 +268,8 @@ export interface RunPlan {
   iterations: number;
   delay_ms: number;
   bail: boolean;
+  /** Wave 18: waiting for rate limits; omitted when off. */
+  throttle?: Throttle;
 }
 
 export interface RunStep {
@@ -296,6 +298,8 @@ export type RunEvent =
   | { kind: "started"; total: number }
   | { kind: "request"; iteration: number; request_path: string }
   | { kind: "step"; step: RunStep }
+  /** Wave 18: waiting for a rate limit until `until` (unix ms). */
+  | { kind: "waiting"; request_path: string; until: number; reason: string }
   | { kind: "finished"; summary: RunSummary };
 
 /** Whether the open collection has scripts and whether the user trusts it to run them. */
@@ -455,6 +459,10 @@ export interface SendReport {
   logs?: ScriptLog[];
   var_changes?: VarChange[];
   flow?: Flow;
+  /** Wave 18, each omitted when empty. */
+  segments?: TimingSegment[];
+  rate_limit?: RateLimits;
+  checks?: Observation[];
 }
 
 // ---- app (rt_app) ----
@@ -745,6 +753,8 @@ export interface Contributions {
   importers: ImporterContribution[];
   /** First-start choice of a bundled plugin (wave 6). */
   welcome: WelcomeChoice | null;
+  /** Wave 18: paging rules for responses of other services; omitted when empty. */
+  paging?: PagingContribution[];
 }
 
 export interface WelcomeChoice {
@@ -1579,6 +1589,8 @@ export interface TestRecord {
   passed: boolean;
   status: number | null;
   tests: RecordedTest[];
+  /** Wave 18: the send's duration; omitted when not recorded. */
+  duration_ms?: number;
 }
 
 export interface TimelineEntry {
@@ -1712,6 +1724,11 @@ export type SpecChangeKind =
   | "field-added"
   | "type-changed"
   | "response-changed"
+  | "type-removed"
+  | "enum-value-removed"
+  | "nullability-changed"
+  | "number-changed"
+  | "streaming-changed"
   | "other";
 
 export interface SpecChange {
@@ -2605,4 +2622,360 @@ export interface CopiedAs {
   text: string;
   /** What the snippet leaves out. */
   notes: string[];
+}
+
+// ---- wave 18: checking and watching ----
+
+/** A named part of the time (`rt_core::segments`), e.g. a plugin's database time inside the
+ *  server's wait. */
+export interface TimingSegment {
+  id: string;
+  label: string;
+  ms: number;
+  /** `"server"` puts it inside the server wait. */
+  parent?: string;
+}
+
+export interface RateWindow {
+  limit: number;
+  seconds: number;
+}
+
+/** Rate limits a response announced (`rt_core::ratelimit`). */
+export interface RateLimits {
+  limit?: number;
+  remaining?: number;
+  reset_ms?: number;
+  retry_after_ms?: number;
+  windows?: RateWindow[];
+}
+
+export type ThrottleMode = "off" | "respect";
+
+export interface Throttle {
+  mode?: ThrottleMode;
+  max_wait_ms?: number;
+  retries?: number;
+}
+
+export type Severity = "info" | "warn";
+
+/** One passive observation about a request or response (`rt_core::inspect`). */
+export interface Observation {
+  id: string;
+  severity: Severity;
+  location: string;
+  why: string;
+  fix: string;
+}
+
+export type CursorPlace = "query" | "body" | "header";
+
+export interface CursorParam {
+  place: CursorPlace;
+  name: string;
+}
+
+export type PagingRule =
+  | { kind: "link-header" }
+  | { kind: "json-url"; next: string }
+  | { kind: "cursor"; next: string; param: CursorParam };
+
+export interface PagingSpec {
+  rule: PagingRule;
+  merge?: string;
+}
+
+export interface PagingMatch {
+  hosts?: string[];
+  content_types?: string[];
+  url_pattern?: string;
+}
+
+export interface PagingContribution {
+  id: string;
+  match: PagingMatch;
+  rule: PagingSpec;
+}
+
+export interface PagingLimits {
+  max_pages: number;
+  max_bytes: number;
+  max_seconds: number;
+}
+
+export type PagingOrigin = { kind: "request" } | { kind: "collection" } | { kind: "plugin"; plugin: string; id: string };
+
+export interface EffectivePaging {
+  spec: PagingSpec;
+  origin: PagingOrigin;
+}
+
+export type PagingMode = "next" | "all";
+export type PagingRuleScope = "request" | "collection";
+
+export interface PagingRun {
+  path: string;
+  /** As `send` takes it; the shell adds the secret values (never the webview). */
+  input: { environment: string | null; vars: [string, string][]; secrets?: [string, string][] };
+  mode: PagingMode;
+  response_id?: number | null;
+  limits?: PagingLimits | null;
+}
+
+export type PagingStop =
+  | { kind: "done" }
+  | { kind: "max-pages" }
+  | { kind: "max-bytes" }
+  | { kind: "max-seconds" }
+  | { kind: "loop" }
+  | { kind: "other-origin"; message: string }
+  | { kind: "error-status"; message: number }
+  | { kind: "refused"; message: string }
+  | { kind: "not-read" };
+
+export interface PagedResult {
+  response: StoredResponse;
+  pages: number;
+  stopped: PagingStop;
+  more: boolean;
+}
+
+export interface EnvCompareRequest {
+  environments: string[];
+  folder?: string | null;
+  paths?: string[] | null;
+  ignore_env_values?: boolean;
+  production_confirmed?: boolean;
+}
+
+export interface SkippedRequest {
+  path: string;
+  name: string;
+  reason: string;
+}
+
+export interface EnvPair {
+  environment: string;
+  requests: RequestComparison[];
+  reference_summary: RunSummary;
+  summary: RunSummary;
+}
+
+export interface EnvComparison {
+  reference: string;
+  pairs: EnvPair[];
+  skipped: SkippedRequest[];
+}
+
+export type ClaimKind = "text" | "time" | "list" | "other";
+
+export interface JwtClaim {
+  name: string;
+  value: unknown;
+  kind: ClaimKind;
+  meaning: string | null;
+}
+
+export type JwtWarningKind = "expired" | "not-yet-valid" | "expires-soon" | "algorithm-none";
+
+export interface JwtWarning {
+  kind: JwtWarningKind;
+  text: string;
+}
+
+export interface JwtInfo {
+  header: unknown;
+  algorithm: string | null;
+  claims: JwtClaim[];
+  warnings: JwtWarning[];
+  expires_at: number | null;
+  signature_verified: boolean;
+}
+
+export type TokenLocation =
+  | { kind: "authorization" }
+  | { kind: "auth" }
+  | { kind: "query" }
+  | { kind: "body"; path: string }
+  | { kind: "cookie"; name: string };
+
+export interface FoundToken {
+  location: TokenLocation;
+  token: JwtInfo;
+}
+
+export type CheckScope = "device" | "collection";
+
+export interface InspectTarget {
+  path: string;
+  environment?: string | null;
+  response_id?: number | null;
+}
+
+export interface InboxSettings {
+  port: number;
+  status: number;
+  body: string;
+  content_type?: string;
+  delay_ms: number;
+}
+
+export interface CapturedRequest {
+  id: number;
+  at: number;
+  method: string;
+  target: string;
+  headers: [string, string][];
+  body: string | null;
+  size: number;
+}
+
+export type InboxEvent =
+  | { kind: "started"; port: number }
+  | { kind: "stopped" }
+  | { kind: "request"; request: CapturedRequest }
+  | { kind: "dropped"; count: number }
+  | { kind: "cleared" };
+
+export interface InboxStatus {
+  running: boolean;
+  port?: number;
+  url?: string;
+  held: number;
+  dropped: number;
+}
+
+export interface InboxPage {
+  events: InboxEvent[];
+  next: number;
+}
+
+/** A captured request as a request of the collection, unsaved (`InboxApi.makeRequest`). */
+export interface InboxDraft {
+  name: string;
+  spec: RequestSpec;
+  secrets: string[];
+}
+
+export type LintRule = "no-tests" | "hard-coded-host" | "orphan-variable" | "duplicate-name";
+export type LintLevel = "off" | "info" | "warn" | "error";
+
+export interface LintSettings {
+  rules: Record<string, LintLevel>;
+  ignore: string[];
+  min_score?: number | null;
+}
+
+export interface LintFinding {
+  rule: LintRule;
+  level: LintLevel;
+  path: string;
+  message: string;
+  location?: string | null;
+}
+
+export interface RuleScore {
+  rule: LintRule;
+  ok: number;
+  total: number;
+}
+
+export interface HealthScore {
+  score: number;
+  rules: RuleScore[];
+}
+
+export interface FolderScore {
+  folder: string;
+  score: HealthScore;
+}
+
+export interface LintReport {
+  collection: string;
+  score: HealthScore;
+  folders: FolderScore[];
+  findings: LintFinding[];
+  ignored: number;
+}
+
+export type ViewLanguage = "jsonpath" | "jq";
+export type ViewDisplay = "json" | "table" | "text";
+
+export interface ResponseView {
+  name: string;
+  language: ViewLanguage;
+  expression: string;
+  display: ViewDisplay;
+  columns?: string[];
+}
+
+export interface ViewResult {
+  display: ViewDisplay;
+  values: unknown[];
+  columns?: string[];
+  rows?: unknown[][];
+  notice?: string | null;
+}
+
+export type SchemaKind = "graphql" | "protobuf";
+
+export interface CatalogueWasm {
+  url: string;
+  sha256: string;
+  size: number;
+}
+
+export interface CatalogueEntry {
+  id: string;
+  name: string;
+  version: string;
+  api: number;
+  description?: string;
+  license?: string | null;
+  homepage?: string | null;
+  wasm: CatalogueWasm;
+  permissions?: Permissions;
+}
+
+export interface CatalogueIndex {
+  version: number;
+  name: string;
+  plugins: CatalogueEntry[];
+}
+
+export interface CatalogueSource {
+  url: string;
+  commit?: string | null;
+  name?: string | null;
+}
+
+export interface SourceIndex {
+  source: CatalogueSource;
+  index: CatalogueIndex;
+}
+
+export interface InstallPlan {
+  source: string;
+  entry: CatalogueEntry;
+  sha256: string;
+  permissions: Permissions;
+  permissions_differ: boolean;
+  update: boolean;
+  more_permissions: boolean;
+  warnings: string[];
+}
+
+export interface InstalledSource {
+  plugin: string;
+  source: string;
+  version: string;
+  sha256: string;
+}
+
+export interface CatalogueUpdate {
+  plugin: string;
+  source: string;
+  installed: string;
+  available: string;
 }

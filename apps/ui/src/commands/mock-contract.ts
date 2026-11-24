@@ -10,7 +10,7 @@
 
 import { BackendError, type ContractApi } from "./backend";
 import type { MockWave12Host } from "./mock-wave12";
-import type { ChangelogFacts, ContractReport, ContractSpec, SpecChange, SpecChanges } from "./types";
+import type { ChangelogFacts, ContractReport, ContractSpec, SchemaKind, SpecChange, SpecChanges } from "./types";
 
 const SPEC: ContractSpec = { path: "openapi.yaml", title: "Orders API", version: "2.0.0", configured: false };
 
@@ -150,6 +150,12 @@ export class MockContract implements ContractApi {
   /** Wave 17, strand A: writes the spec, unsaved (as a companion file, so `dirty` and `save`
    *  see it). Like the core it refuses a text that is no spec; the mock's check is a plain
    *  look for the `openapi` and `info` keys. */
+  /** Wave 18, strand H: placeholder. */
+  async schemaChanges(_kind: SchemaKind, _from: string, _to: string): Promise<SpecChanges> {
+    this.calls.push("schemaChanges");
+    throw new BackendError("unsupported", "GraphQL and Protobuf contracts are not implemented yet (wave 18, strand H).");
+  }
+
   async stageSpec(text: string): Promise<string> {
     this.calls.push("stageSpec");
     this.need();

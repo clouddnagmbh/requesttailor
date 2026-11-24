@@ -133,6 +133,18 @@ pub struct SendReport {
     /// Runner control requested by a script (wave 7); `None`: continue.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flow: Option<Flow>,
+    /// Parts of the server's time as a plugin reported them (wave 18, [`crate::segments`]);
+    /// never part of the client's phase sum. Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub segments: Vec<crate::segments::TimingSegment>,
+    /// What the response said about rate limits (wave 18, [`crate::ratelimit`]). Omitted
+    /// when it said nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rate_limit: Option<crate::ratelimit::RateLimits>,
+    /// Passive response checks (wave 18, [`crate::inspect`]), only when asked for
+    /// (`rt send --checks`). Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub checks: Vec<crate::inspect::Observation>,
 }
 
 /// What `rt send` prints in place of a secret value.
@@ -200,6 +212,9 @@ pub async fn send_with<T: Transport>(
         logs: Vec::new(),
         var_changes: Vec::new(),
         flow: None,
+        segments: Vec::new(),
+        rate_limit: None,
+        checks: Vec::new(),
     };
     let Some(context) = collection.request(request_path) else {
         return SendReport {
@@ -628,6 +643,10 @@ async fn finish<T: Transport>(
     };
 
     report.request = Some(sent_request(&request, &secrets));
+    // Wave 18: notes about the resolved request (e.g. an expired token); none until strand B.
+    report
+        .notes
+        .extend(crate::inspect::pre_send_notes(&request));
     // Wave 10: the distribution's guard sees the final request before the wire.
     if let Err(error) = ask_guard(services, context, input, &request, &secrets) {
         report.error = Some(error);
@@ -657,10 +676,11 @@ async fn finish<T: Transport>(
                 }
             }
             if let Some(hooks) = services.hooks {
-                let notes = hooks
-                    .after_response(&completed.head, &completed.body, &hook_context)
+                let reply = hooks
+                    .after_response_full(&completed.head, &completed.body, &hook_context)
                     .await;
-                report.notes.extend(notes);
+                report.notes.extend(reply.notes);
+                report.segments.extend(reply.segments);
             }
             // Wave 7: after-response and tests scripts, assertions, actions.
             let response = script_response(&completed);
@@ -678,7 +698,10 @@ async fn finish<T: Transport>(
                 files,
             )
             .await;
-            report.response = Some(received(completed));
+            let received = received(completed);
+            // Wave 18: what the response says about rate limits.
+            report.rate_limit = crate::ratelimit::observe(&received);
+            report.response = Some(received);
         }
         // Transports quote the URL and header values in their messages; secrets must not
         // reach the report (CLI JSON, UI, agents) through an error either.
@@ -1341,6 +1364,9 @@ mod tests {
             logs: Vec::new(),
             var_changes: Vec::new(),
             flow: None,
+            segments: Vec::new(),
+            rate_limit: None,
+            checks: Vec::new(),
             notes: Vec::new(),
             version: REPORT_VERSION,
             request_path: "api/get.yml".into(),

@@ -20,13 +20,21 @@
 //! - [`abap`] (wave 17, E): "Copy as ABAP" (request tab `abap`), a snippet for ABAP Platform or
 //!   ABAP Cloud from the request as edited, with placeholders instead of logon data.
 //!
+//! - [`gateway`] (wave 18, J): Gateway errors and `sap-statistics` segments; [`paging`] (J):
+//!   `@odata.nextLink` and `d.__next` as paging rules; [`destinations`] (K): importing an
+//!   exported BTP destination. [`manifest`] gathers what they add to `plugin.json`.
+//!
 //! Shared: [`edm`] (the service model) and [`service`] (service root of a URL, storage keys).
 //! Hooks that several modules contribute to are combined here, in a fixed order.
 
 pub mod abap;
+pub mod destinations;
 pub mod edm;
+pub mod gateway;
 pub mod landscape;
+pub mod manifest;
 pub mod metadata;
+pub mod paging;
 pub mod query;
 pub mod service;
 pub mod write;
@@ -68,7 +76,10 @@ impl Plugin for OData {
         // `metadata` caches `$metadata` responses; `write` remembers ETags and CSRF tokens.
         let mut notes = metadata::response(&request, &response, &context)?.notes;
         notes.extend(write::response(&request, &response, &context)?.notes);
-        Ok(NotesReply { notes })
+        Ok(NotesReply {
+            notes,
+            segments: Vec::new(),
+        })
     }
 
     fn render_tab(&self, tab: Tab) -> Result<ViewReply> {

@@ -50,6 +50,9 @@ fn report(body: ReportBody) -> SendReport {
         variables: vec![],
         unresolved: vec![],
         error: None,
+        checks: Vec::new(),
+        rate_limit: None,
+        segments: Vec::new(),
     }
 }
 

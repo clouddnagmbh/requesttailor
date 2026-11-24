@@ -65,6 +65,13 @@ import { tauriCollections } from "./collections";
 import { tauriRepositories } from "./repositories";
 import { tauriShare } from "./share";
 import { tauriSnapshots } from "./snapshots";
+import { tauriEnvCompare } from "./envcompare";
+import { tauriInspect } from "./inspect";
+import { tauriPaging } from "./paging";
+import { tauriInbox } from "./inbox";
+import { tauriLint } from "./lint";
+import { tauriViews } from "./views";
+import { tauriCatalogue } from "./catalogue";
 import { tauriHistory } from "./history";
 import { tauriImports } from "./import";
 import { tauriPlugins } from "./plugins";
@@ -320,6 +327,42 @@ export const COMMANDS = [
   "share_copy_as",
   "share_qr",
   "contract_stage_spec",
+  // Wave 18.
+  "envcompare_run",
+  "inspect_jwt",
+  "inspect_tokens",
+  "inspect_checks",
+  "inspect_ignore_check",
+  "paging_rule",
+  "paging_set_rule",
+  "paging_run",
+  "inbox_settings",
+  "inbox_set_settings",
+  "inbox_start",
+  "inbox_stop",
+  "inbox_status",
+  "inbox_events",
+  "inbox_get",
+  "inbox_clear",
+  "inbox_make_request",
+  "lint_run",
+  "lint_settings",
+  "lint_set_settings",
+  "lint_ignore",
+  "views_list",
+  "views_save",
+  "views_remove",
+  "views_apply",
+  "views_languages",
+  "catalogue_sources",
+  "catalogue_add_source",
+  "catalogue_remove_source",
+  "catalogue_refresh",
+  "catalogue_plan",
+  "catalogue_install",
+  "catalogue_installed",
+  "catalogue_check_updates",
+  "contract_schema_changes",
 ] as const;
 
 export type Command = (typeof COMMANDS)[number];
@@ -354,6 +397,14 @@ export class TauriBackend implements Backend {
   readonly collections = tauriCollections((cmd, args) => this.call(cmd, args));
   /** Wave 15: repositories in the set (`repositories.ts`). */
   readonly repositories = tauriRepositories((cmd, args) => this.call(cmd, args));
+  /** Wave 18 (one file per group, `<name>.ts`). */
+  readonly envCompare = tauriEnvCompare((cmd, args) => this.call(cmd, args));
+  readonly inspect = tauriInspect((cmd, args) => this.call(cmd, args));
+  readonly paging = tauriPaging((cmd, args) => this.call(cmd, args));
+  readonly inbox = tauriInbox((cmd, args) => this.call(cmd, args));
+  readonly lint = tauriLint((cmd, args) => this.call(cmd, args));
+  readonly views = tauriViews((cmd, args) => this.call(cmd, args));
+  readonly catalogue = tauriCatalogue((cmd, args) => this.call(cmd, args));
   /** Wave 17: snapshot tests (`snapshots.ts`) and sharing (`share.ts`). */
   readonly snapshots = tauriSnapshots((cmd, args) => this.call(cmd, args));
   readonly share = tauriShare((cmd, args) => this.call(cmd, args));

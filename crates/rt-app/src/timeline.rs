@@ -70,6 +70,11 @@ pub struct TestRecord {
     /// HTTP status, if a response came.
     pub status: Option<u16>,
     pub tests: Vec<RecordedTest>,
+    /// Total time of the request in milliseconds (wave 18), the raw data of latency over
+    /// commits. Absent in records written before wave 18 and when no response came; such
+    /// records stay readable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
 }
 
 /// One version of a request in its history.
@@ -289,6 +294,10 @@ pub fn record_of_step(
         passed: step.passed,
         status: report.response.as_ref().map(|r| r.status),
         tests,
+        duration_ms: report
+            .response
+            .as_ref()
+            .map(|r| u64::try_from(r.total.as_millis()).unwrap_or(u64::MAX)),
     }
 }
 

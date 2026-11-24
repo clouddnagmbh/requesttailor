@@ -5,7 +5,7 @@
 // Real serde JSON from the Rust types, annotated with the TypeScript types in ./types.ts:
 // `npm run check` fails if they drift apart.
 
-import type { AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, CopiedAs, CopyKind, CopyOptions, DiffScope, Effect, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, Frame, FreezeOptions, GitAction, GitActionResult, GitBlame, GitBlob, GitBlockReason, GitBranch, GitChangedFile, GitCloneRequest, GitCommit, GitCommitDetails, GitCommitWrite, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitHistoryPage, GitHistoryQuery, GitIdentity, GitIndexDiff, GitOperation, GitPatchRequest, GitPickRequest, GitPickResult, GitPlan, GitPullResult, GitReflogEntry, GitRemote, GitRepoSummary, GitResolution, GitSignatureCheck, GitSignatureKind, GitSignatureState, GitStagedCommit, GitStash, GitStatus, GitTree, GitTreeEntry, GitTreeWrite, GitWorkingCopy, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, LineSlice, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewPullRequest, NewReviewComment, OpenApiOptions, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, ReportBody, RepositoryEntry, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, ShareLink, ShareOptions, SharePayload, Snapshot, SnapshotCheck, SnapshotEntry, SnapshotFreeze, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, WelcomeState } from "./types";
+import type { AgentCheck, AgentPolicy, AiAnswer, AiCapabilities, AiCollectionPolicy, AiConfig, AiError, AiEvent, AiPreview, AiProviderKind, AiRequest, AiSettings, AiTask, AppError, ApprovalDecision, AuditEntry, AuditOutcome, Auth, AuthPrompt, BisectOutcome, BisectRequest, Body, Caller, CapturedRequest, CatalogueUpdate, ChangelogFacts, CiStatus, CollectionChanges, CollectionDiff, CollectionSearchHit, CollectionSet, CompareRequest, ConflictChoice, ContractReport, ContractSpec, CookieInfo, CopiedAs, CopyKind, CopyOptions, DiffScope, Effect, EffectivePaging, EnvCompareRequest, EnvComparison, Environment, ExternalImport, FetchedSpec, FieldBlame, FileChange, Flow, FolderImport, FoundToken, Frame, FreezeOptions, GitAction, GitActionResult, GitBlame, GitBlob, GitBlockReason, GitBranch, GitChangedFile, GitCloneRequest, GitCommit, GitCommitDetails, GitCommitWrite, GitConflict, GitDiff, GitFileCommit, GitGraphPage, GitGraphQuery, GitHistoryPage, GitHistoryQuery, GitIdentity, GitIndexDiff, GitOperation, GitPatchRequest, GitPickRequest, GitPickResult, GitPlan, GitPullResult, GitReflogEntry, GitRemote, GitRepoSummary, GitResolution, GitSignatureCheck, GitSignatureKind, GitSignatureState, GitStagedCommit, GitStash, GitStatus, GitTree, GitTreeEntry, GitTreeWrite, GitWorkingCopy, GrpcError, GrpcService, GuardVerdict, HistoryEntry, HistoryScan, ImportFormat, ImportPlan, InboxPage, InboxSettings, InboxStatus, InspectTarget, InstallPlan, InstalledSource, JwtInfo, LineSlice, LintReport, LintSettings, LossEffect, LossKind, McpCallResult, McpPrompt, McpPromptResult, McpResource, McpResourceContents, McpSelfServer, McpServerConfig, McpServerInfo, McpTest, McpTestResult, McpTool, MergeState, NewCollection, NewPullRequest, NewReviewComment, Observation, OpenApiOptions, PagingContribution, PagingRun, PagingSpec, PagingStop, PendingApproval, PluginInfo, Preview, Protocol, PullRequest, RateLimits, ReportBody, RepositoryEntry, RequestRef, RequestSpec, RequestTimeline, RescuePlan, RescueResult, ResponseCheck, ResponseSides, ResponseView, ReviewComment, ReviewError, ReviewHost, ReviewRepo, ReviewSession, ReviewSubmission, RevisionRun, RevisionRunRequest, RunComparison, RunEvent, RunPlan, ScanProgress, ScriptTrust, SearchHit, SecretFinding, SecretKey, SecretProvider, SendCheck, SendError, SendPurpose, SendReport, SendRequirements, ShareLink, ShareOptions, SharePayload, Snapshot, SnapshotCheck, SnapshotEntry, SnapshotFreeze, SourceIndex, SpecChange, SpecChanges, SpecOverview, StoredResponse, StreamEvent, StreamLog, TabTarget, TestRecord, Throttle, TimingSegment, TokenInfo, TransportError, TreeNode, VarSource, VariableScope, Verdict, ViewReply, ViewResult, WelcomeState } from "./types";
 
 export const requestSpec: RequestSpec = {
   "actions": [
@@ -6160,3 +6160,979 @@ export const copiedAs: CopiedAs = {
   ],
   "text": "curl -H \"Authorization: Bearer $TOKEN\" \"$BASE_URL/orders/1\""
 };
+
+export const timingSegments: TimingSegment[] = [
+  {
+    "id": "db",
+    "label": "Database",
+    "ms": 41,
+    "parent": "server"
+  },
+  {
+    "id": "queue",
+    "label": "Queue",
+    "ms": 3
+  }
+];
+
+export const rateLimits: RateLimits = {
+  "limit": 100,
+  "remaining": 7,
+  "reset_ms": 30000,
+  "retry_after_ms": 1000,
+  "windows": [
+    {
+      "limit": 100,
+      "seconds": 60
+    }
+  ]
+};
+
+export const throttle: Throttle = {
+  "max_wait_ms": 60000,
+  "mode": "respect",
+  "retries": 2
+};
+
+export const runPlanThrottled: RunPlan = {
+  "bail": false,
+  "data": [],
+  "delay_ms": 0,
+  "iterations": 1,
+  "requests": [
+    "a.yml"
+  ],
+  "throttle": {
+    "max_wait_ms": 1000,
+    "mode": "respect",
+    "retries": 1
+  }
+};
+
+export const runEventWaiting: RunEvent = {
+  "kind": "waiting",
+  "reason": "rate limit",
+  "request_path": "a.yml",
+  "until": 1900000000000
+};
+
+export const sendReportWatched: SendReport = {
+  "checks": [
+    {
+      "fix": "add Secure",
+      "id": "cookie/no-secure",
+      "location": "set-cookie: sid",
+      "severity": "warn",
+      "why": "sent over HTTP"
+    }
+  ],
+  "environment": null,
+  "error": null,
+  "rate_limit": {
+    "limit": 100,
+    "remaining": 7
+  },
+  "request": null,
+  "request_path": "a.yml",
+  "response": null,
+  "segments": [
+    {
+      "id": "db",
+      "label": "Database",
+      "ms": 41,
+      "parent": "server"
+    }
+  ],
+  "unresolved": [],
+  "variables": [],
+  "version": 1
+};
+
+export const testRecordTimed: TestRecord = {
+  "collection": "shop",
+  "duration_ms": 87,
+  "environment": null,
+  "passed": true,
+  "request": "orders/get.yml",
+  "source": "runner",
+  "status": 200,
+  "tests": [],
+  "time": 1900000000
+};
+
+export const pagingRules: PagingSpec[] = [
+  {
+    "rule": {
+      "kind": "link-header"
+    }
+  },
+  {
+    "merge": "$.items",
+    "rule": {
+      "kind": "json-url",
+      "next": "$.links.next"
+    }
+  },
+  {
+    "merge": "$.data",
+    "rule": {
+      "kind": "cursor",
+      "next": "$.next",
+      "param": {
+        "name": "cursor",
+        "place": "query"
+      }
+    }
+  },
+  {
+    "rule": {
+      "kind": "cursor",
+      "next": "$.next",
+      "param": {
+        "name": "after",
+        "place": "body"
+      }
+    }
+  },
+  {
+    "rule": {
+      "kind": "cursor",
+      "next": "$.next",
+      "param": {
+        "name": "x-cursor",
+        "place": "header"
+      }
+    }
+  }
+];
+
+export const effectivePagings: EffectivePaging[] = [
+  {
+    "origin": {
+      "kind": "request"
+    },
+    "spec": {
+      "rule": {
+        "kind": "link-header"
+      }
+    }
+  },
+  {
+    "origin": {
+      "kind": "collection"
+    },
+    "spec": {
+      "rule": {
+        "kind": "link-header"
+      }
+    }
+  },
+  {
+    "origin": {
+      "id": "odata-next",
+      "kind": "plugin",
+      "plugin": "odata"
+    },
+    "spec": {
+      "rule": {
+        "kind": "link-header"
+      }
+    }
+  }
+];
+
+export const pagingRun: PagingRun = {
+  "input": {
+    "environment": null,
+    "secrets": [],
+    "vars": []
+  },
+  "limits": {
+    "max_bytes": 52428800,
+    "max_pages": 20,
+    "max_seconds": 120
+  },
+  "mode": "all",
+  "path": "a.yml",
+  "response_id": 1
+};
+
+export const pagingStops: PagingStop[] = [
+  {
+    "kind": "done"
+  },
+  {
+    "kind": "max-pages"
+  },
+  {
+    "kind": "max-bytes"
+  },
+  {
+    "kind": "max-seconds"
+  },
+  {
+    "kind": "loop"
+  },
+  {
+    "kind": "other-origin",
+    "message": "https://other.example/next"
+  },
+  {
+    "kind": "error-status",
+    "message": 500
+  },
+  {
+    "kind": "refused",
+    "message": "blocked by policy"
+  },
+  {
+    "kind": "not-read"
+  }
+];
+
+export const pagingContribution: PagingContribution = {
+  "id": "odata-next",
+  "match": {
+    "content_types": [
+      "application/json"
+    ],
+    "hosts": [
+      "*.example.com"
+    ],
+    "url_pattern": "/odata/"
+  },
+  "rule": {
+    "merge": "$.value",
+    "rule": {
+      "kind": "json-url",
+      "next": "$['@odata.nextLink']"
+    }
+  }
+};
+
+export const envCompareRequest: EnvCompareRequest = {
+  "environments": [
+    "Dev",
+    "Test",
+    "Prod"
+  ],
+  "folder": "orders",
+  "ignore_env_values": true,
+  "paths": null,
+  "production_confirmed": false
+};
+
+export const envComparison: EnvComparison = {
+  "pairs": [],
+  "reference": "Dev",
+  "skipped": [
+    {
+      "name": "Create order",
+      "path": "orders/create.yml",
+      "reason": "writes (POST)"
+    }
+  ]
+};
+
+export const jwtInfo: JwtInfo = {
+  "algorithm": "RS256",
+  "claims": [
+    {
+      "kind": "text",
+      "meaning": "subject",
+      "name": "sub",
+      "value": "user-1"
+    },
+    {
+      "kind": "time",
+      "meaning": null,
+      "name": "exp",
+      "value": 1900000000
+    },
+    {
+      "kind": "list",
+      "meaning": null,
+      "name": "scope",
+      "value": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "kind": "other",
+      "meaning": null,
+      "name": "x",
+      "value": {
+        "k": 1
+      }
+    }
+  ],
+  "expires_at": 1900000000,
+  "header": {
+    "alg": "RS256",
+    "typ": "JWT"
+  },
+  "signature_verified": false,
+  "warnings": [
+    {
+      "kind": "expired",
+      "text": "expired 2 days ago"
+    },
+    {
+      "kind": "not-yet-valid",
+      "text": "valid in 1 hour"
+    },
+    {
+      "kind": "expires-soon",
+      "text": "expires in 5 minutes"
+    },
+    {
+      "kind": "algorithm-none",
+      "text": "unsigned token"
+    }
+  ]
+};
+
+export const foundTokens: FoundToken[] = [
+  {
+    "location": {
+      "kind": "authorization"
+    },
+    "token": {
+      "algorithm": "RS256",
+      "claims": [
+        {
+          "kind": "text",
+          "meaning": "subject",
+          "name": "sub",
+          "value": "user-1"
+        },
+        {
+          "kind": "time",
+          "meaning": null,
+          "name": "exp",
+          "value": 1900000000
+        },
+        {
+          "kind": "list",
+          "meaning": null,
+          "name": "scope",
+          "value": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "kind": "other",
+          "meaning": null,
+          "name": "x",
+          "value": {
+            "k": 1
+          }
+        }
+      ],
+      "expires_at": 1900000000,
+      "header": {
+        "alg": "RS256",
+        "typ": "JWT"
+      },
+      "signature_verified": false,
+      "warnings": [
+        {
+          "kind": "expired",
+          "text": "expired 2 days ago"
+        },
+        {
+          "kind": "not-yet-valid",
+          "text": "valid in 1 hour"
+        },
+        {
+          "kind": "expires-soon",
+          "text": "expires in 5 minutes"
+        },
+        {
+          "kind": "algorithm-none",
+          "text": "unsigned token"
+        }
+      ]
+    }
+  },
+  {
+    "location": {
+      "kind": "auth"
+    },
+    "token": {
+      "algorithm": "RS256",
+      "claims": [
+        {
+          "kind": "text",
+          "meaning": "subject",
+          "name": "sub",
+          "value": "user-1"
+        },
+        {
+          "kind": "time",
+          "meaning": null,
+          "name": "exp",
+          "value": 1900000000
+        },
+        {
+          "kind": "list",
+          "meaning": null,
+          "name": "scope",
+          "value": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "kind": "other",
+          "meaning": null,
+          "name": "x",
+          "value": {
+            "k": 1
+          }
+        }
+      ],
+      "expires_at": 1900000000,
+      "header": {
+        "alg": "RS256",
+        "typ": "JWT"
+      },
+      "signature_verified": false,
+      "warnings": [
+        {
+          "kind": "expired",
+          "text": "expired 2 days ago"
+        },
+        {
+          "kind": "not-yet-valid",
+          "text": "valid in 1 hour"
+        },
+        {
+          "kind": "expires-soon",
+          "text": "expires in 5 minutes"
+        },
+        {
+          "kind": "algorithm-none",
+          "text": "unsigned token"
+        }
+      ]
+    }
+  },
+  {
+    "location": {
+      "kind": "query"
+    },
+    "token": {
+      "algorithm": "RS256",
+      "claims": [
+        {
+          "kind": "text",
+          "meaning": "subject",
+          "name": "sub",
+          "value": "user-1"
+        },
+        {
+          "kind": "time",
+          "meaning": null,
+          "name": "exp",
+          "value": 1900000000
+        },
+        {
+          "kind": "list",
+          "meaning": null,
+          "name": "scope",
+          "value": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "kind": "other",
+          "meaning": null,
+          "name": "x",
+          "value": {
+            "k": 1
+          }
+        }
+      ],
+      "expires_at": 1900000000,
+      "header": {
+        "alg": "RS256",
+        "typ": "JWT"
+      },
+      "signature_verified": false,
+      "warnings": [
+        {
+          "kind": "expired",
+          "text": "expired 2 days ago"
+        },
+        {
+          "kind": "not-yet-valid",
+          "text": "valid in 1 hour"
+        },
+        {
+          "kind": "expires-soon",
+          "text": "expires in 5 minutes"
+        },
+        {
+          "kind": "algorithm-none",
+          "text": "unsigned token"
+        }
+      ]
+    }
+  },
+  {
+    "location": {
+      "kind": "body",
+      "path": "$.access_token"
+    },
+    "token": {
+      "algorithm": "RS256",
+      "claims": [
+        {
+          "kind": "text",
+          "meaning": "subject",
+          "name": "sub",
+          "value": "user-1"
+        },
+        {
+          "kind": "time",
+          "meaning": null,
+          "name": "exp",
+          "value": 1900000000
+        },
+        {
+          "kind": "list",
+          "meaning": null,
+          "name": "scope",
+          "value": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "kind": "other",
+          "meaning": null,
+          "name": "x",
+          "value": {
+            "k": 1
+          }
+        }
+      ],
+      "expires_at": 1900000000,
+      "header": {
+        "alg": "RS256",
+        "typ": "JWT"
+      },
+      "signature_verified": false,
+      "warnings": [
+        {
+          "kind": "expired",
+          "text": "expired 2 days ago"
+        },
+        {
+          "kind": "not-yet-valid",
+          "text": "valid in 1 hour"
+        },
+        {
+          "kind": "expires-soon",
+          "text": "expires in 5 minutes"
+        },
+        {
+          "kind": "algorithm-none",
+          "text": "unsigned token"
+        }
+      ]
+    }
+  },
+  {
+    "location": {
+      "kind": "cookie",
+      "name": "sid"
+    },
+    "token": {
+      "algorithm": "RS256",
+      "claims": [
+        {
+          "kind": "text",
+          "meaning": "subject",
+          "name": "sub",
+          "value": "user-1"
+        },
+        {
+          "kind": "time",
+          "meaning": null,
+          "name": "exp",
+          "value": 1900000000
+        },
+        {
+          "kind": "list",
+          "meaning": null,
+          "name": "scope",
+          "value": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "kind": "other",
+          "meaning": null,
+          "name": "x",
+          "value": {
+            "k": 1
+          }
+        }
+      ],
+      "expires_at": 1900000000,
+      "header": {
+        "alg": "RS256",
+        "typ": "JWT"
+      },
+      "signature_verified": false,
+      "warnings": [
+        {
+          "kind": "expired",
+          "text": "expired 2 days ago"
+        },
+        {
+          "kind": "not-yet-valid",
+          "text": "valid in 1 hour"
+        },
+        {
+          "kind": "expires-soon",
+          "text": "expires in 5 minutes"
+        },
+        {
+          "kind": "algorithm-none",
+          "text": "unsigned token"
+        }
+      ]
+    }
+  }
+];
+
+export const observations: Observation[] = [
+  {
+    "fix": "f",
+    "id": "cookie/no-secure",
+    "location": "set-cookie: sid",
+    "severity": "warn",
+    "why": "w"
+  },
+  {
+    "fix": "f",
+    "id": "header/server-version",
+    "location": "server",
+    "severity": "info",
+    "why": "w"
+  }
+];
+
+export const inspectTarget: InspectTarget = {
+  "environment": "Dev",
+  "path": "a.yml",
+  "response_id": 3
+};
+
+export const inboxSettings: InboxSettings = {
+  "body": "{\"ok\":true}",
+  "content_type": "application/json",
+  "delay_ms": 250,
+  "port": 47855,
+  "status": 202
+};
+
+export const inboxStatus: InboxStatus = {
+  "dropped": 0,
+  "held": 3,
+  "port": 47855,
+  "running": true,
+  "url": "http://127.0.0.1:47855/"
+};
+
+export const capturedRequest: CapturedRequest = {
+  "at": 1900000000000,
+  "body": "{}",
+  "headers": [
+    [
+      "content-type",
+      "application/json"
+    ]
+  ],
+  "id": 1,
+  "method": "POST",
+  "size": 2,
+  "target": "/hook?x=1"
+};
+
+export const inboxPage: InboxPage = {
+  "events": [
+    {
+      "kind": "started",
+      "port": 47855
+    },
+    {
+      "kind": "request",
+      "request": {
+        "at": 1,
+        "body": null,
+        "headers": [],
+        "id": 1,
+        "method": "GET",
+        "size": 0,
+        "target": "/"
+      }
+    },
+    {
+      "count": 5,
+      "kind": "dropped"
+    },
+    {
+      "kind": "cleared"
+    },
+    {
+      "kind": "stopped"
+    }
+  ],
+  "next": 5
+};
+
+export const lintSettings: LintSettings = {
+  "ignore": [
+    "orders/legacy.yml"
+  ],
+  "min_score": 80,
+  "rules": {
+    "lint/duplicate-name": "error",
+    "lint/no-tests": "warn"
+  }
+};
+
+export const lintReport: LintReport = {
+  "collection": "shop",
+  "findings": [
+    {
+      "level": "warn",
+      "location": null,
+      "message": "no tests",
+      "path": "orders/get.yml",
+      "rule": "no-tests"
+    },
+    {
+      "level": "error",
+      "location": "url",
+      "message": "host",
+      "path": "a.yml",
+      "rule": "hard-coded-host"
+    },
+    {
+      "level": "info",
+      "location": null,
+      "message": "unused",
+      "path": "",
+      "rule": "orphan-variable"
+    },
+    {
+      "level": "off",
+      "location": null,
+      "message": "dup",
+      "path": "b.yml",
+      "rule": "duplicate-name"
+    }
+  ],
+  "folders": [
+    {
+      "folder": "orders",
+      "score": {
+        "rules": [],
+        "score": 60
+      }
+    }
+  ],
+  "ignored": 1,
+  "score": {
+    "rules": [
+      {
+        "ok": 8,
+        "rule": "no-tests",
+        "total": 10
+      }
+    ],
+    "score": 72
+  }
+};
+
+export const responseViews: ResponseView[] = [
+  {
+    "columns": [
+      "id"
+    ],
+    "display": "table",
+    "expression": "$.items[*].id",
+    "language": "jsonpath",
+    "name": "ids"
+  },
+  {
+    "display": "json",
+    "expression": ".",
+    "language": "jq",
+    "name": "all"
+  },
+  {
+    "display": "text",
+    "expression": "$.message",
+    "language": "jsonpath",
+    "name": "text"
+  }
+];
+
+export const viewResult: ViewResult = {
+  "columns": [
+    "id"
+  ],
+  "display": "table",
+  "notice": "2 of 2 shown",
+  "rows": [
+    [
+      1
+    ],
+    [
+      2
+    ]
+  ],
+  "values": [
+    1,
+    2
+  ]
+};
+
+export const sourceIndex: SourceIndex = {
+  "index": {
+    "name": "Example",
+    "plugins": [
+      {
+        "api": 1,
+        "description": "Acme helpers",
+        "homepage": null,
+        "id": "acme",
+        "license": "Apache-2.0",
+        "name": "Acme",
+        "permissions": {
+          "network": [
+            "api.example.com"
+          ],
+          "storage": true,
+          "variables": false
+        },
+        "version": "1.2.0",
+        "wasm": {
+          "sha256": "abababababababababababababababababababababababababababababababab",
+          "size": 2048,
+          "url": "https://example.com/acme.wasm"
+        }
+      }
+    ],
+    "version": 1
+  },
+  "source": {
+    "commit": "abc123",
+    "name": "Example",
+    "url": "https://example.com/plugins.json"
+  }
+};
+
+export const installPlan: InstallPlan = {
+  "entry": {
+    "api": 1,
+    "description": "Acme helpers",
+    "homepage": null,
+    "id": "acme",
+    "license": "Apache-2.0",
+    "name": "Acme",
+    "permissions": {
+      "network": [
+        "api.example.com"
+      ],
+      "storage": true,
+      "variables": false
+    },
+    "version": "1.2.0",
+    "wasm": {
+      "sha256": "abababababababababababababababababababababababababababababababab",
+      "size": 2048,
+      "url": "https://example.com/acme.wasm"
+    }
+  },
+  "more_permissions": false,
+  "permissions": {
+    "network": [
+      "api.example.com"
+    ],
+    "storage": true,
+    "variables": false
+  },
+  "permissions_differ": false,
+  "sha256": "abababababababababababababababababababababababababababababababab",
+  "source": "https://example.com/plugins.json",
+  "update": false,
+  "warnings": []
+};
+
+export const installedSource: InstalledSource = {
+  "plugin": "acme",
+  "sha256": "abababababababababababababababababababababababababababababababab",
+  "source": "https://example.com/plugins.json",
+  "version": "1.2.0"
+};
+
+export const catalogueUpdate: CatalogueUpdate = {
+  "available": "1.2.0",
+  "installed": "1.1.0",
+  "plugin": "acme",
+  "source": "https://example.com/plugins.json"
+};
+
+export const specChangeKinds: SpecChange[] = [
+  {
+    "breaking": true,
+    "kind": "type-removed",
+    "location": "Query.user",
+    "message": "m",
+    "operation": null,
+    "requests": []
+  },
+  {
+    "breaking": true,
+    "kind": "enum-value-removed",
+    "location": "Query.user",
+    "message": "m",
+    "operation": null,
+    "requests": []
+  },
+  {
+    "breaking": true,
+    "kind": "nullability-changed",
+    "location": "Query.user",
+    "message": "m",
+    "operation": null,
+    "requests": []
+  },
+  {
+    "breaking": true,
+    "kind": "number-changed",
+    "location": "Query.user",
+    "message": "m",
+    "operation": null,
+    "requests": []
+  },
+  {
+    "breaking": true,
+    "kind": "streaming-changed",
+    "location": "Query.user",
+    "message": "m",
+    "operation": null,
+    "requests": []
+  }
+];

@@ -31,7 +31,9 @@ use rt_app::plugins::{
 };
 use rt_app::{AppError, import::SourceFile};
 use rt_core::model::RequestSpec;
-use rt_core::services::{CookieJar, HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
+use rt_core::services::{
+    AfterResponse, CookieJar, HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks,
+};
 use rt_core::transport::companion::CompanionTransport;
 use rt_core::transport::fetch::FetchTransport;
 use rt_core::transport::{HttpRequest, Response, ResponseHead, Transport, TransportError};
@@ -412,6 +414,21 @@ impl RequestHooks for PluginSend {
             let hooks = session.as_ref().map(|s| s as &dyn RequestHooks);
             self.recording(hooks)
                 .after_response(head, body, context)
+                .await
+        })
+    }
+
+    fn after_response_full<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, AfterResponse> {
+        Box::pin(async move {
+            let session = self.session();
+            let hooks = session.as_ref().map(|s| s as &dyn RequestHooks);
+            self.recording(hooks)
+                .after_response_full(head, body, context)
                 .await
         })
     }

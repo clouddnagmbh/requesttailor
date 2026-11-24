@@ -35,6 +35,11 @@ mod openapi;
 /// Wave 14: variable completion.
 mod variables;
 // Wave 4, one module per strand: git (A1), import (B), recent (C), history and search (E).
+/// Wave 17, strand B: snapshot tests.
+/// Wave 18 (interface): catalogue.
+pub mod catalogue;
+/// Wave 18 (interface): envcompare.
+pub mod envcompare;
 pub mod git;
 /// Wave 8, strand B.
 mod git_actions;
@@ -46,10 +51,18 @@ mod git_plumbing;
 mod grpc;
 pub mod history;
 mod import;
+/// Wave 18 (interface): inbox.
+pub mod inbox;
+/// Wave 18 (interface): inspect.
+pub mod inspect;
+/// Wave 18 (interface): lint.
+pub mod lint;
 /// Wave 8, strand D.
 mod mcp_client;
 /// Wave 12, strand B: semantic merge.
 mod merges;
+/// Wave 18 (interface): paging.
+pub mod paging;
 mod plugins;
 pub mod recent;
 /// Wave 15, strand A: repositories without a collection in the set.
@@ -60,8 +73,9 @@ pub mod rescue;
 mod review;
 /// Wave 17, strand C: sharing without a server and copying as code.
 pub mod share;
-/// Wave 17, strand B: snapshot tests.
 pub mod snapshots;
+/// Wave 18 (interface): views.
+pub mod views;
 // Wave 7: scripts (strand A), session variables (C), runner (D).
 mod runner;
 mod scripts;
@@ -385,6 +399,42 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             snapshots::snapshots_set_ignore,
             snapshots::snapshots_check,
             snapshots::snapshots_list,
+            // Wave 18 (interface).
+            envcompare::envcompare_run,
+            inspect::inspect_jwt,
+            inspect::inspect_tokens,
+            inspect::inspect_checks,
+            inspect::inspect_ignore_check,
+            paging::paging_rule,
+            paging::paging_set_rule,
+            paging::paging_run,
+            inbox::inbox_settings,
+            inbox::inbox_set_settings,
+            inbox::inbox_start,
+            inbox::inbox_stop,
+            inbox::inbox_status,
+            inbox::inbox_events,
+            inbox::inbox_get,
+            inbox::inbox_clear,
+            inbox::inbox_make_request,
+            lint::lint_run,
+            lint::lint_settings,
+            lint::lint_set_settings,
+            lint::lint_ignore,
+            views::views_list,
+            views::views_save,
+            views::views_remove,
+            views::views_apply,
+            views::views_languages,
+            catalogue::catalogue_sources,
+            catalogue::catalogue_add_source,
+            catalogue::catalogue_remove_source,
+            catalogue::catalogue_refresh,
+            catalogue::catalogue_plan,
+            catalogue::catalogue_install,
+            catalogue::catalogue_installed,
+            catalogue::catalogue_check_updates,
+            contract::contract_schema_changes,
             share::share_link,
             share::share_open,
             share::share_copy_as,

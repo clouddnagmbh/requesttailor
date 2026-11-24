@@ -40,3 +40,31 @@ fn manifest_is_valid() {
     assert_eq!(importers, vec!["edmx", "sap-hub"]);
     assert!(m.contributes.welcome.is_some());
 }
+
+/// Wave 18: everything the modules of the wave contribute is in `plugin.json`.
+#[test]
+fn plugin_json_lists_what_the_wave_18_modules_contribute() {
+    let m = rt_plugin_sdk::parse_manifest(MANIFEST).unwrap();
+    let extra = rt_plugin_odata::manifest::wave18();
+    for tab in &extra.tabs {
+        assert!(
+            m.contributes.tabs.iter().any(|t| t.id == tab.id),
+            "tab {}",
+            tab.id
+        );
+    }
+    for importer in &extra.importers {
+        assert!(
+            m.contributes.importers.iter().any(|i| i.id == importer.id),
+            "importer {}",
+            importer.id
+        );
+    }
+    for rule in &extra.paging {
+        assert!(
+            m.contributes.paging.iter().any(|p| p == rule),
+            "paging rule {}",
+            rule.id
+        );
+    }
+}

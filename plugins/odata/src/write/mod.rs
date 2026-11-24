@@ -110,7 +110,10 @@ pub fn response(
         )),
         _ => {}
     }
-    Ok(NotesReply { notes })
+    Ok(NotesReply {
+        notes,
+        segments: Vec::new(),
+    })
 }
 
 /// The error message of an OData error body (V2 `error.message.value`, V4 `error.message`).

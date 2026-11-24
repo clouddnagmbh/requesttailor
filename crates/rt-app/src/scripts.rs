@@ -135,6 +135,9 @@ mod tests {
             logs: Vec::new(),
             var_changes: Vec::new(),
             flow: None,
+            checks: Vec::new(),
+            rate_limit: None,
+            segments: Vec::new(),
         }
     }
 

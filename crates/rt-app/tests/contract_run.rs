@@ -292,6 +292,9 @@ fn stored(store: &mut ResponseStore, status: u16, body: &str) -> u64 {
         variables: vec![],
         unresolved: vec![],
         error: None,
+        checks: Vec::new(),
+        rate_limit: None,
+        segments: Vec::new(),
     };
     store.insert(report).response_id.unwrap()
 }

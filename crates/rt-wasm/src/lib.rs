@@ -655,9 +655,13 @@ mod auth_js;
 mod companions_js;
 // Wave 14, strand A: several collections in the sidebar.
 #[cfg(target_arch = "wasm32")]
+mod catalogue_js;
+#[cfg(target_arch = "wasm32")]
 mod collections_js;
 #[cfg(target_arch = "wasm32")]
 mod cookies_js;
+#[cfg(target_arch = "wasm32")]
+mod envcompare_js;
 #[cfg(target_arch = "wasm32")]
 mod folder_scripts_js;
 #[cfg(target_arch = "wasm32")]
@@ -671,7 +675,15 @@ mod history_js;
 #[cfg(target_arch = "wasm32")]
 mod import_js;
 #[cfg(target_arch = "wasm32")]
+mod inbox_js;
+#[cfg(target_arch = "wasm32")]
+mod inspect_js;
+#[cfg(target_arch = "wasm32")]
+mod lint_js;
+#[cfg(target_arch = "wasm32")]
 mod mcp_js;
+#[cfg(target_arch = "wasm32")]
+mod paging_js;
 #[cfg(target_arch = "wasm32")]
 mod plugins_js;
 #[cfg(target_arch = "wasm32")]
@@ -689,6 +701,8 @@ mod streams_js;
 /// Wave 14: variable completion.
 #[cfg(target_arch = "wasm32")]
 mod variables_js;
+#[cfg(target_arch = "wasm32")]
+mod views_js;
 // Wave 12 (Git for APIs): one module per strand.
 #[cfg(target_arch = "wasm32")]
 mod compare_js;

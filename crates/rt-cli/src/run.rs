@@ -95,6 +95,8 @@ pub struct RunArgs {
     pub guard: rt_core::guard::GuardHandle,
     /// Wave 17: the distribution's exchange observers (never from the command line).
     pub observers: rt_core::observe::ObserverSet,
+    /// Wave 18: `--respect-limits`, `--max-wait` (`rt_core::ratelimit::Throttle`).
+    pub throttle: rt_core::ratelimit::Throttle,
 }
 
 impl Default for RunArgs {
@@ -116,6 +118,7 @@ impl Default for RunArgs {
             no_scripts: false,
             guard: Default::default(),
             observers: Default::default(),
+            throttle: Default::default(),
         }
     }
 }
@@ -139,6 +142,10 @@ impl RunArgs {
             observers: self.observers.clone(),
             caller: rt_core::guard::Caller::Cli,
             watch: Default::default(),
+            paging: Default::default(),
+            checks: false,
+            view: Default::default(),
+            throttle: self.throttle.clone(),
         }
     }
 }
@@ -173,6 +180,13 @@ pub(crate) fn parse(parser: &mut lexopt::Parser) -> Result<Option<RunArgs>, Stri
             }
             Long("delay") => args.delay_ms = parser.value().map_err(err)?.parse().map_err(err)?,
             Long("bail") => args.bail = true,
+            Long("respect-limits") => {
+                args.throttle.mode = rt_core::ratelimit::ThrottleMode::Respect
+            }
+            Long("max-wait") => {
+                args.throttle.max_wait_ms =
+                    crate::duration_ms(&parser.value().map_err(err)?.string().map_err(err)?)?;
+            }
             Long("reporter") => {
                 let spec = parser.value().map_err(err)?.string().map_err(err)?;
                 let (name, out) = match spec.split_once('=') {
@@ -334,6 +348,14 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
         let _ = writeln!(stderr, "rt: {msg}");
         code
     };
+    if args.throttle.mode == rt_core::ratelimit::ThrottleMode::Respect {
+        // Wave 18, strand D replaces this with the runner's waiting.
+        return fail(
+            stderr,
+            EXIT_USAGE,
+            "--respect-limits is not implemented yet (wave 18, strand D).",
+        );
+    }
     let (root, folder) = match locate(args.path.as_deref().unwrap_or(Path::new("."))) {
         Ok(r) => r,
         Err(e) => return fail(stderr, EXIT_USAGE, &e),
@@ -390,6 +412,7 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
         data,
         delay_ms: args.delay_ms,
         bail: args.bail,
+        throttle: args.throttle.clone(),
     };
     let info = RunInfo {
         collection: if model.name.is_empty() {

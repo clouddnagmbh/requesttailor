@@ -44,6 +44,7 @@ impl Plugin for Everything {
         host::storage_set("count", json!(count))?;
         Ok(NotesReply {
             notes: vec![info(format!("status {} (#{count})", response.status))],
+            segments: Vec::new(),
         })
     }
 

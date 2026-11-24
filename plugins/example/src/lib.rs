@@ -71,6 +71,7 @@ impl Plugin for Example {
                 response.status,
                 content_type(&response).unwrap_or("no content type")
             ))],
+            segments: Vec::new(),
         })
     }
 

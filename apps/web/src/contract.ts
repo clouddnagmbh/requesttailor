@@ -15,6 +15,7 @@ import {
   type ContractReport,
   type ContractSpec,
   type SpecChanges,
+  stubSchemaChanges,
 } from "@requesttailor/ui";
 
 import { readDirectory } from "./fs/directory";
@@ -194,6 +195,8 @@ export function webContract(w: Wave12Host): ContractApi {
     // Wave 17, strand A: the spec the contract names (found as `spec()` does), staged in the
     // core workspace like a request edit; `save` writes it. The core refuses any other file
     // and a text that is no spec. In the browser a leading `/` is the collection folder.
+    // Wave 18, strand H: the placeholder until the strand answers it over rt-wasm.
+    schemaChanges: stubSchemaChanges(),
     stageSpec: (text) =>
       guard(async () => {
         const c = await core();

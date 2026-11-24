@@ -19,7 +19,9 @@
 use std::path::Path;
 use std::rc::Rc;
 
-use rt_core::services::{HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks};
+use rt_core::services::{
+    AfterResponse, HookContext, LocalBoxFuture, Note, NoteLevel, RequestHooks,
+};
 use rt_core::transport::native::NativeTransport;
 use rt_core::transport::{HttpRequest, ResponseHead};
 use rt_plugin::host::dir::{FileStorage, PluginDir};
@@ -147,5 +149,18 @@ impl RequestHooks for CliPlugins {
         context: &'a HookContext,
     ) -> LocalBoxFuture<'a, Vec<Note>> {
         Box::pin(async move { self.session().after_response(head, body, context).await })
+    }
+
+    fn after_response_full<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, AfterResponse> {
+        Box::pin(async move {
+            self.session()
+                .after_response_full(head, body, context)
+                .await
+        })
     }
 }

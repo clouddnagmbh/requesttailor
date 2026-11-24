@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use base64::Engine as _;
-use rt_core::services::{HookContext, LocalBoxFuture, Note, RequestHooks};
+use rt_core::services::{AfterResponse, HookContext, LocalBoxFuture, Note, RequestHooks};
 use rt_core::transport::{HttpRequest, HttpVersion, ResponseHead, Timing};
 use rt_format::FileSet;
 use rt_format::import::{Import, ImportFormat, SourceFile};
@@ -353,6 +353,20 @@ impl RequestHooks for Recording<'_> {
         match self.hooks {
             Some(h) => h.after_response(head, body, context),
             None => Box::pin(async { Vec::new() }),
+        }
+    }
+
+    fn after_response_full<'a>(
+        &'a self,
+        head: &'a ResponseHead,
+        body: &'a [u8],
+        context: &'a HookContext,
+    ) -> LocalBoxFuture<'a, AfterResponse> {
+        self.heads
+            .record(self.collection, &context.request_path, head);
+        match self.hooks {
+            Some(h) => h.after_response_full(head, body, context),
+            None => Box::pin(async { AfterResponse::default() }),
         }
     }
 }

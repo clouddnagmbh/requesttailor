@@ -19,6 +19,27 @@ export const manifest: Manifest = {
         "label": "URL list"
       }
     ],
+    "paging": [
+      {
+        "id": "next-link",
+        "match": {
+          "content_types": [
+            "application/json"
+          ],
+          "hosts": [
+            "*.example.com"
+          ],
+          "url_pattern": "/items*"
+        },
+        "rule": {
+          "merge": "$.items",
+          "rule": {
+            "kind": "json-url",
+            "next": "$.next"
+          }
+        }
+      }
+    ],
     "prepare": true,
     "response": true,
     "tabs": [
@@ -325,6 +346,14 @@ export const notesReply: NotesReply = {
     {
       "level": "error",
       "text": "bad"
+    }
+  ],
+  "segments": [
+    {
+      "id": "db",
+      "label": "Database",
+      "ms": 41,
+      "parent": "server"
     }
   ]
 };
