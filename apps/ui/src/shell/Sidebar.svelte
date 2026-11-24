@@ -31,8 +31,11 @@
     panelTabs = [],
     onpanel,
     onenvironments,
+    onclone,
   }: {
     newIn?: string | null;
+    /** Opens the clone flow (the same one as the start screen's button). */
+    onclone?: () => void;
     hint: string;
     /** Opens the runner for `folder` (`null`: the whole collection) of `collection`. */
     onrun?: (collection: string, folder: string | null, name: string) => void;
@@ -493,6 +496,7 @@
         {#snippet actions()}
           <Button size="sm" variant="primary" icon="add" onclick={() => app.openNew({ collection: null })}>New…</Button>
           <Button size="sm" icon="folder-open" onclick={() => app.addCollection()}>Open folder…</Button>
+          {#if onclone}<Button size="sm" icon="pull" data-testid="sidebar-clone" onclick={onclone}>Clone a repository…</Button>{/if}
         {/snippet}
       </EmptyState>
     </div>

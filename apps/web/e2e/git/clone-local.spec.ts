@@ -90,3 +90,22 @@ test("clone dialog fits at 900 px and in both themes", async ({ page }) => {
     await page.screenshot({ path: process.env.RT_SHOT_DIR ? `${process.env.RT_SHOT_DIR}/clone-${scheme}.png` : undefined });
   }
 });
+
+test("the header and the empty sidebar open the same clone dialog as the start screen", async ({ page }) => {
+  await page.goto("/?backend=mock");
+  for (const id of ["header-clone", "sidebar-clone", "start-clone"]) {
+    await page.getByTestId(id).click();
+    await expect(page.getByTestId("git-clone-url")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("git-clone-url")).toHaveCount(0);
+  }
+});
+
+test("the header with the clone button does not overflow at narrow widths", async ({ page }) => {
+  await page.goto("/?backend=mock");
+  for (const width of [320, 480, 720]) {
+    await page.setViewportSize({ width, height: 800 });
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(over, `width ${width}`).toBeLessThanOrEqual(0);
+  }
+});

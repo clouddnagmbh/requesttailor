@@ -521,6 +521,9 @@
       Open folder
     </button>
     <button class="button" data-testid="import" onclick={() => (importing = true)}>Import</button>
+    {#if !app.collection}
+      <button class="button" data-testid="header-clone" title="Clone a repository…" onclick={() => (cloning = true)}>Clone</button>
+    {/if}
     <span class="collection" title={app.collection?.location ?? ""}>
       <span data-testid="collection-name">{app.collection?.name ?? ""}</span>
     </span>
@@ -615,6 +618,7 @@
             onrun={(collection, folder, name) => openRunner(folder, name, collection)}
             panelTabs={collectionTabs}
             onpanel={openCollectionTabOf}
+            onclone={() => (cloning = true)}
             onenvironments={manageEnvironmentsOf}
           />
         {:else if shownView === "search"}
