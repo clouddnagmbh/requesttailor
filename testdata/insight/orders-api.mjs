@@ -2,7 +2,7 @@
 // Copyright 2026 The RequestTailor Authors
 
 // Wave 19 fixture (strands C, D, E, F): a small synthetic orders API on loopback.
-//   node testdata/insight/orders-api.mjs [port]      default 48700
+//   node testdata/insight/orders-api.mjs [port]      default 48780
 // - POST /orders -> 201 + Location + ETag; GET/PUT/DELETE /orders/:id (If-Match -> 412);
 // - users alice and bob (header `x-user`): bob reading alice's order is allowed on purpose
 //   (broken object-level authorisation), DELETE /admin/orders needs `x-user: admin` but is
@@ -12,7 +12,7 @@
 
 import { createServer } from "node:http";
 
-const port = Number(process.argv[2] ?? 48700);
+const port = Number(process.argv[2] ?? 48780);
 const orders = new Map();
 let next = 1;
 

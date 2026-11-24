@@ -2,13 +2,13 @@
 // Copyright 2026 The RequestTailor Authors
 
 // Wave 19 fixture (strand A): a fake tracing backend (Jaeger-style JSON) on loopback.
-//   node testdata/insight/fake-trace-host.mjs [port]      default 48701
+//   node testdata/insight/fake-trace-host.mjs [port]      default 48782
 // GET /api/traces/:traceId answers one trace with three spans (gateway, orders, db) whose
 // start times and durations the strand's tests check; unknown ids answer 404.
 
 import { createServer } from "node:http";
 
-const port = Number(process.argv[2] ?? 48701);
+const port = Number(process.argv[2] ?? 48782);
 const KNOWN = "4bf92f3577b34da6a3ce929d0e0e4736";
 
 createServer((req, res) => {

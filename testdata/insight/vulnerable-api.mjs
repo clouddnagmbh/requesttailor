@@ -3,7 +3,7 @@
 
 // Wave 19 fixture (strands R, S): a deliberately vulnerable synthetic API on loopback, for the
 // passive and active security checks. Never expose it; it listens on 127.0.0.1 only.
-//   node testdata/insight/vulnerable-api.mjs [port]      default 48800
+//   node testdata/insight/vulnerable-api.mjs [port]      default 48806
 // Each path shows one problem the audit must find, and /good shows none:
 //   /cors      Access-Control-Allow-Origin: * with Allow-Credentials: true
 //   /headers   no security headers, `Server: Apache/2.4.1`, `X-Powered-By: PHP/5.2`
@@ -15,7 +15,7 @@
 
 import { createServer } from "node:http";
 
-const port = Number(process.argv[2] ?? 48800);
+const port = Number(process.argv[2] ?? 48806);
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const jwtNone = `${b64({ alg: "none", typ: "JWT" })}.${b64({ sub: "user-1" })}.`;
 
