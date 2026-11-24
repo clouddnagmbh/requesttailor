@@ -2487,3 +2487,119 @@ export interface NewPullRequest {
   base: string;
   draft: boolean;
 }
+
+// ---- Wave 17: snapshot tests (rt_app::snapshots) ----
+
+/** A JSON body as is, any other text body as a JSON string, or hash and length when it is
+ *  too large. */
+export type SnapshotBody =
+  | { $digest: string; $length: number }
+  | string
+  | number
+  | boolean
+  | null
+  | unknown[]
+  | { [key: string]: unknown };
+
+/** A frozen response, the content of a `<request>.snap.json` file. */
+export interface Snapshot {
+  version: number;
+  status: number;
+  /** Allowlisted headers, lowercase names. */
+  headers: Record<string, string>;
+  body: SnapshotBody;
+  /** Paths the comparison skips. */
+  ignore: string[];
+}
+
+export type SnapshotDiffKind = "changed" | "added" | "removed" | "type";
+
+export interface SnapshotDiff {
+  /** Where, as a path of the expression language (`status`, `body.items[0].id`). */
+  path: string;
+  kind: SnapshotDiffKind;
+  expected: unknown | null;
+  actual: unknown | null;
+}
+
+export type SnapshotState = "matches" | "differs" | "missing" | "none";
+
+export interface SnapshotCheck {
+  request_path: string;
+  /** The companion file, relative to the collection; empty for `none`. */
+  snapshot: string;
+  state: SnapshotState;
+  differences: SnapshotDiff[];
+}
+
+export interface SnapshotFreeze {
+  request_path: string;
+  snapshot: string;
+  /** The request got its assertion with this freeze. */
+  assertion_added: boolean;
+  content: Snapshot;
+}
+
+export interface FreezeOptions {
+  /** Keep the `etag` header (off by default). */
+  keep_etag?: boolean;
+  /** The assertion's `value` for a new snapshot; absent: `<request name>.snap.json`. */
+  file?: string | null;
+}
+
+export interface SnapshotEntry {
+  request_path: string;
+  snapshot: string;
+  /** The file exists (staged or saved). */
+  exists: boolean;
+}
+
+// ---- Wave 17: sharing and copying (rt_app::share) ----
+
+export interface ShareVariable {
+  name: string;
+  /** Only for non-secret variables and only with `include_values`. */
+  value: string | null;
+  secret: boolean;
+}
+
+/** What a link carries: the definition with `{{variables}}` unresolved and no secret value. */
+export interface SharePayload {
+  version: number;
+  name: string;
+  request: RequestSpec;
+  variables: ShareVariable[];
+}
+
+export interface ShareOptions {
+  /** "Include variable values": non-secret values of `environment` (default off). */
+  include_values?: boolean;
+  environment?: string | null;
+  /** The link's base; absent or empty: only the payload as `rt:<payload>`. */
+  base?: string | null;
+}
+
+export interface ShareLink {
+  /** `<base>#rt=<payload>`, or `rt:<payload>` without a base. */
+  text: string;
+  /** Exactly what the link carries, as text ("What is in this link"). */
+  preview: string;
+  payload: SharePayload;
+  length: number;
+  fits_qr: boolean;
+}
+
+export type CopyKind = "curl" | "fetch" | "python";
+
+export interface CopyOptions {
+  /** Put the values of non-secret variables into the snippet (default off). */
+  resolve_variables?: boolean;
+  environment?: string | null;
+}
+
+export interface CopiedAs {
+  kind: CopyKind;
+  text: string;
+  /** What the snippet leaves out. */
+  notes: string[];
+}

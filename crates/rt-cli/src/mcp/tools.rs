@@ -433,6 +433,7 @@ async fn prepare(
         // Sessions (WebSocket, SSE, gRPC) are not offered to agents yet.
         session: Default::default(),
         guard: server.opts.guard.clone(),
+        observers: server.opts.observers.clone(),
         caller: rt_core::guard::Caller::Agent,
     };
     Ok(Prepared {

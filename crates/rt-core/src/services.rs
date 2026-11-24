@@ -40,6 +40,12 @@ pub struct Services<'a> {
     pub guard: Option<&'a dyn crate::guard::SendGuard>,
     /// Wave 10: who sends, for the guard. Shells set it; the default is the app.
     pub caller: crate::guard::Caller,
+    /// Wave 17: observers of every finished send ([`crate::observe`]); `None` in the builds
+    /// of this repository.
+    pub observers: Option<&'a crate::observe::ObserverSet>,
+    /// Wave 17: where `matchesSnapshot` assertions read their companion files
+    /// ([`crate::assert::SnapshotStore`]); `None`: such an assertion fails with a hint.
+    pub snapshots: Option<&'a dyn crate::assert::SnapshotStore>,
 }
 
 impl Services<'_> {

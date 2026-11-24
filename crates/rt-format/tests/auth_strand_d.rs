@@ -307,6 +307,7 @@ fn collection_config_is_added_and_removed() {
     let mut doc = read_collection(&input).unwrap();
     let config = CollectionConfig {
         ai: Default::default(),
+        observe: Default::default(),
         agents: Default::default(),
         http3: false,
         protobuf: Default::default(),

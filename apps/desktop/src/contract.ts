@@ -16,5 +16,7 @@ export function tauriContract(call: Call): ContractApi {
     changelog: (from, to) => call("contract_changelog", { from, to }),
     // Wave 16, strand D.
     changelogFacts: (from, to) => call("contract_changelog_facts", { from, to }),
+    // Wave 17, strand A.
+    stageSpec: (text) => call("contract_stage_spec", { text }),
   };
 }

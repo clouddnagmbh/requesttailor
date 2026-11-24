@@ -15,6 +15,17 @@
 // long-running calls (runner, streams, compare, bisect, MCP tests) keep it until they end.
 
 import type {
+  CopiedAs,
+  CopyKind,
+  CopyOptions,
+  FreezeOptions,
+  ShareLink,
+  SharePayload,
+  ShareOptions,
+  Snapshot,
+  SnapshotCheck,
+  SnapshotEntry,
+  SnapshotFreeze,
   Environment,
   Script,
   FileChange,
@@ -455,6 +466,10 @@ export interface ContractApi {
   /** Wave 16: the range's changelog and its parts as data, with the commits (first-parent
    *  chain), for writers of release notes. */
   changelogFacts(from: string, to: string): Promise<ChangelogFacts>;
+  /** Wave 17: writes the spec the collection is checked against (`spec()`, also one at the
+   *  repository root) with `text`, unsaved (`save` writes it, a commit scans it). Refuses any
+   *  other file and a text that is no valid spec; returns the spec's path. */
+  stageSpec(text: string): Promise<string>;
 }
 
 /** Credentials anywhere in the history, and rewriting it so they become variables. The
@@ -888,6 +903,49 @@ export interface Backend {
   readonly variables: VariablesApi;
   /** Wave 16: the scripts of the collection and its folders (suggested edits). */
   readonly folderScripts: FolderScriptsApi;
+  /** Wave 17: snapshot tests (`rt_app::snapshots`) and sharing (`rt_app::share`). */
+  readonly snapshots: SnapshotApi;
+  readonly share: ShareApi;
+}
+
+/**
+ * Snapshot tests (wave 17, strand B). A snapshot is a companion file next to the request
+ * (`<request name>.snap.json`) plus one `matchesSnapshot` assertion in the request; both are
+ * staged unsaved like any edit (`Backend.companions`, `updateRequest`). `responseId` is a
+ * stored response of the request (`StoredResponse.response_id`). Secret values never reach a
+ * snapshot.
+ */
+export interface SnapshotApi {
+  /** The snapshot of the request at `path`; `null` if it has none. */
+  read(path: string): Promise<Snapshot | null>;
+  /** Freezes the stored response as the request's snapshot (and adds the assertion if it has
+   *  none). Freezing again accepts a new response. Rejects with kind `secrets-found` when the
+   *  scanner flags the body. */
+  freeze(path: string, responseId: number, options?: FreezeOptions): Promise<SnapshotFreeze>;
+  /** Replaces the snapshot's ignored paths. */
+  setIgnore(path: string, ignore: string[]): Promise<Snapshot>;
+  /** Compares the stored response with the snapshot. */
+  check(path: string, responseId: number): Promise<SnapshotCheck>;
+  /** Every request of the active collection that has a snapshot assertion. */
+  list(): Promise<SnapshotEntry[]>;
+}
+
+/**
+ * Sharing without a server and copying as code (wave 17, strand C). Nothing is uploaded and
+ * no request is made; secret values are never in a link or a snippet.
+ */
+export interface ShareApi {
+  /** A link (or payload text) for the request at `path`. Rejects with kind `secrets-found`
+   *  when the scanner finds credentials that cannot be replaced, and with kind `format`
+   *  when the request is too large for a link. */
+  link(path: string, options?: ShareOptions): Promise<ShareLink>;
+  /** Reads a link, a fragment (`#rt=…`) or an `rt:` payload. Nothing runs and nothing is
+   *  created: the app opens the result as an unsaved draft (`AppState.openShared`). */
+  open(input: string): Promise<SharePayload>;
+  /** The request as curl, `fetch` or Python; variables stay variables of the target tool. */
+  copyAs(path: string, kind: CopyKind, options?: CopyOptions): Promise<CopiedAs>;
+  /** The link as an SVG QR code. Rejects when it is too long for one. */
+  qr(link: string): Promise<string>;
 }
 
 /**

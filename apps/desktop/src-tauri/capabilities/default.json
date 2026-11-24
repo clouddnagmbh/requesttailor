@@ -228,6 +228,16 @@
     "allow-git-verify",
     "allow-git-config",
     "allow-review-create",
+    "allow-snapshots-read",
+    "allow-snapshots-freeze",
+    "allow-snapshots-set-ignore",
+    "allow-snapshots-check",
+    "allow-snapshots-list",
+    "allow-share-link",
+    "allow-share-open",
+    "allow-share-copy-as",
+    "allow-share-qr",
+    "allow-contract-stage-spec",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

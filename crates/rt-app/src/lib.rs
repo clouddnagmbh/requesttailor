@@ -59,6 +59,8 @@ pub mod search;
 pub mod secret_scan;
 pub mod secret_sources;
 pub mod secrets;
+pub mod share;
+pub mod snapshots;
 pub mod timeline;
 /// Variable completion (wave 14): the variables a request sees, new collection and folder
 /// variables.

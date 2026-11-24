@@ -93,6 +93,8 @@ pub struct RunArgs {
     pub no_scripts: bool,
     /// Wave 10: the distribution's send guard (never from the command line).
     pub guard: rt_core::guard::GuardHandle,
+    /// Wave 17: the distribution's exchange observers (never from the command line).
+    pub observers: rt_core::observe::ObserverSet,
 }
 
 impl Default for RunArgs {
@@ -113,6 +115,7 @@ impl Default for RunArgs {
             prompt: true,
             no_scripts: false,
             guard: Default::default(),
+            observers: Default::default(),
         }
     }
 }
@@ -133,6 +136,7 @@ impl RunArgs {
             no_scripts: self.no_scripts,
             session: Default::default(),
             guard: self.guard.clone(),
+            observers: self.observers.clone(),
             caller: rt_core::guard::Caller::Cli,
         }
     }

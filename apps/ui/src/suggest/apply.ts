@@ -151,5 +151,9 @@ export async function prepare(backend: Backend, app: AppState, edit: SuggestedEd
         },
       };
     }
+    case "batch":
+      // Wave 17, strand A: prepares every part against the current state, shows one dialog
+      // and applies all or none, with one undo.
+      throw new BackendError("unsupported", "Batch suggestions are not implemented yet (wave 17, strand A).");
   }
 }

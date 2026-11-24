@@ -38,6 +38,8 @@ import {
   type RescueApi,
   type CompanionApi,
   type FolderScriptsApi,
+  type ShareApi,
+  type SnapshotApi,
   type VariablesApi,
   type ReviewApi,
   type RunnerApi,
@@ -73,6 +75,8 @@ import { webMerges } from "./merges";
 import { webRescue } from "./rescue";
 import { webCompanions } from "./companions";
 import { webFolderScripts } from "./folder-scripts";
+import { webShare } from "./share";
+import { webSnapshots } from "./snapshots";
 import { webVariables } from "./variables";
 import { webReview } from "./review";
 import { webTimeline } from "./timeline";
@@ -232,6 +236,9 @@ export class WebBackend implements Backend {
   readonly variables: VariablesApi;
   /** Wave 16: scripts of the collection and its folders (`folder-scripts.ts`). */
   readonly folderScripts: FolderScriptsApi;
+  /** Wave 17: snapshot tests (`snapshots.ts`) and sharing (`share.ts`). */
+  readonly snapshots: SnapshotApi;
+  readonly share: ShareApi;
   /** Wave 7: session variables per collection and environment (`session-vars.ts`). */
   private readonly sessionVars = new SessionStore();
   private readonly recent: WebRecent;
@@ -342,6 +349,8 @@ export class WebBackend implements Backend {
     this.rescue = webRescue(wave12);
     this.companions = webCompanions(() => this.session());
     this.folderScripts = webFolderScripts(() => this.session());
+    this.snapshots = webSnapshots(() => this.session());
+    this.share = webShare(() => this.session());
     this.variables = webVariables(
       () => this.session(),
       (s, input) => this.coreInput(s, input),

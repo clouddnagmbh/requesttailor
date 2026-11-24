@@ -23,6 +23,9 @@ pub struct ServiceParts {
     /// Wave 10: the distribution's send guard, from the builder's managed
     /// `rt_core::guard::GuardHandle` (none in the builds of this repository).
     pub guard: rt_core::guard::GuardHandle,
+    /// Wave 17: a distribution's exchange observers, from the builder's managed
+    /// `rt_core::observe::ObserverHandle` (none in the builds of this repository).
+    pub observers: rt_core::observe::ObserverHandle,
 }
 
 impl ServiceParts {
@@ -35,6 +38,7 @@ impl ServiceParts {
             scripts: scripts::ScriptParts::new(data_dir),
             session: session_vars::SessionParts::default(),
             guard: rt_core::guard::GuardHandle::none(),
+            observers: rt_core::observe::ObserverHandle::new(),
         }
     }
 
@@ -49,6 +53,7 @@ impl ServiceParts {
             cookies: self.cookies.for_send(collection),
             scripts: self.scripts.for_send(collection),
             guard: &self.guard,
+            observers: &self.observers,
         }
     }
 }
@@ -59,6 +64,7 @@ pub struct SendServices<'a> {
     cookies: cookies::CookieSend<'a>,
     scripts: scripts::ScriptSend<'a>,
     guard: &'a rt_core::guard::GuardHandle,
+    observers: &'a rt_core::observe::ObserverHandle,
 }
 
 impl SendServices<'_> {
@@ -71,6 +77,8 @@ impl SendServices<'_> {
             scripts: self.scripts.runner(),
             guard: self.guard.get(),
             caller: rt_core::guard::Caller::App,
+            observers: Some(self.observers),
+            snapshots: None,
         }
     }
 }

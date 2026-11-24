@@ -1320,6 +1320,7 @@ fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
     all.extend(openapi_wizard::fixtures());
     all.extend(wave16::fixtures());
     all.extend(wave15::fixtures());
+    all.extend(wave17::fixtures());
     all
 }
 
@@ -3742,6 +3743,219 @@ mod wave12 {
                 }),
             ),
             ("wave12RequestSpec", "RequestSpec", j(request_spec())),
+        ]
+    }
+}
+
+/// Wave 17 interface: snapshot tests and sharing without a server.
+mod wave17 {
+    use std::collections::BTreeMap;
+
+    use rt_app::share::{
+        CopiedAs, CopyKind, CopyOptions, SHARE_VERSION, ShareLink, ShareOptions, SharePayload,
+        ShareVariable,
+    };
+    use rt_app::snapshots::{
+        FreezeOptions, SNAPSHOT_VERSION, Snapshot, SnapshotBody, SnapshotCheck, SnapshotDiff,
+        SnapshotDiffKind, SnapshotEntry, SnapshotFreeze, SnapshotState,
+    };
+    use serde::Serialize;
+    use serde_json::json;
+
+    fn j<T: Serialize>(v: T) -> serde_json::Value {
+        serde_json::to_value(v).unwrap()
+    }
+
+    fn snapshot(body: SnapshotBody) -> Snapshot {
+        Snapshot {
+            version: SNAPSHOT_VERSION,
+            status: 200,
+            headers: BTreeMap::from([("content-type".into(), "application/json".into())]),
+            body,
+            ignore: vec!["$.items[*].createdAt".into()],
+        }
+    }
+
+    fn check(state: SnapshotState, differences: Vec<SnapshotDiff>) -> SnapshotCheck {
+        SnapshotCheck {
+            request_path: "orders/get.yml".into(),
+            snapshot: "orders/get.snap.json".into(),
+            state,
+            differences,
+        }
+    }
+
+    pub fn fixtures() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+        let diff = |path: &str, kind, expected, actual| SnapshotDiff {
+            path: path.into(),
+            kind,
+            expected,
+            actual,
+        };
+        vec![
+            (
+                "snapshot",
+                "Snapshot",
+                j(snapshot(SnapshotBody::Value(
+                    json!({ "items": [{ "id": 1 }] }),
+                ))),
+            ),
+            (
+                "snapshotBodies",
+                "Snapshot[]",
+                j(vec![
+                    snapshot(SnapshotBody::Value(json!("plain text"))),
+                    snapshot(SnapshotBody::Value(json!(null))),
+                    snapshot(SnapshotBody::Digest {
+                        digest: "9f86d081884c7d659a2feaa0c55ad015".into(),
+                        length: 4_194_304,
+                    }),
+                ]),
+            ),
+            (
+                "snapshotChecks",
+                "SnapshotCheck[]",
+                j(vec![
+                    check(SnapshotState::Matches, Vec::new()),
+                    check(
+                        SnapshotState::Differs,
+                        vec![
+                            diff(
+                                "status",
+                                SnapshotDiffKind::Changed,
+                                Some(json!(200)),
+                                Some(json!(201)),
+                            ),
+                            diff(
+                                "body.name",
+                                SnapshotDiffKind::Added,
+                                None,
+                                Some(json!("Ada")),
+                            ),
+                            diff("body.age", SnapshotDiffKind::Removed, Some(json!(36)), None),
+                            diff(
+                                "body.id",
+                                SnapshotDiffKind::Type,
+                                Some(json!(1)),
+                                Some(json!("1")),
+                            ),
+                        ],
+                    ),
+                    check(SnapshotState::Missing, Vec::new()),
+                    check(SnapshotState::None, Vec::new()),
+                ]),
+            ),
+            (
+                "snapshotFreeze",
+                "SnapshotFreeze",
+                j(SnapshotFreeze {
+                    request_path: "orders/get.yml".into(),
+                    snapshot: "orders/get.snap.json".into(),
+                    assertion_added: true,
+                    content: snapshot(SnapshotBody::Value(json!({ "ok": true }))),
+                }),
+            ),
+            (
+                "freezeOptions",
+                "FreezeOptions[]",
+                j(vec![
+                    FreezeOptions::default(),
+                    FreezeOptions {
+                        keep_etag: true,
+                        file: Some("orders.snap.json".into()),
+                    },
+                ]),
+            ),
+            (
+                "snapshotEntries",
+                "SnapshotEntry[]",
+                j(vec![
+                    SnapshotEntry {
+                        request_path: "orders/get.yml".into(),
+                        snapshot: "orders/get.snap.json".into(),
+                        exists: true,
+                    },
+                    SnapshotEntry {
+                        request_path: "orders/list.yml".into(),
+                        snapshot: "orders/list.snap.json".into(),
+                        exists: false,
+                    },
+                ]),
+            ),
+            (
+                "sharePayload",
+                "SharePayload",
+                j(SharePayload {
+                    version: SHARE_VERSION,
+                    name: "Get order".into(),
+                    request: super::request_spec(),
+                    variables: vec![
+                        ShareVariable {
+                            name: "baseUrl".into(),
+                            value: Some("https://api.example.com".into()),
+                            secret: false,
+                        },
+                        ShareVariable {
+                            name: "token".into(),
+                            value: None,
+                            secret: true,
+                        },
+                    ],
+                }),
+            ),
+            (
+                "shareOptions",
+                "ShareOptions[]",
+                j(vec![
+                    ShareOptions::default(),
+                    ShareOptions {
+                        include_values: true,
+                        environment: Some("Local".into()),
+                        base: Some("https://app.example.com/".into()),
+                    },
+                ]),
+            ),
+            (
+                "shareLink",
+                "ShareLink",
+                j(ShareLink {
+                    text: "rt:1.eJxLzs8tSM0rSS0q".into(),
+                    preview: "{\n  \"version\": 1\n}".into(),
+                    payload: SharePayload {
+                        version: SHARE_VERSION,
+                        name: "Get order".into(),
+                        request: super::request_spec(),
+                        variables: Vec::new(),
+                    },
+                    length: 21,
+                    fits_qr: true,
+                }),
+            ),
+            (
+                "copyKinds",
+                "CopyKind[]",
+                j([CopyKind::Curl, CopyKind::Fetch, CopyKind::Python]),
+            ),
+            (
+                "copyOptions",
+                "CopyOptions[]",
+                j(vec![
+                    CopyOptions::default(),
+                    CopyOptions {
+                        resolve_variables: true,
+                        environment: Some("Local".into()),
+                    },
+                ]),
+            ),
+            (
+                "copiedAs",
+                "CopiedAs",
+                j(CopiedAs {
+                    kind: CopyKind::Curl,
+                    text: "curl -H \"Authorization: Bearer $TOKEN\" \"$BASE_URL/orders/1\"".into(),
+                    notes: vec!["GraphQL variables are left out".into()],
+                }),
+            ),
         ]
     }
 }

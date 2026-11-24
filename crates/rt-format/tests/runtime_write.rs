@@ -677,3 +677,31 @@ fn a_folder_without_folder_file_gets_one() {
         "info:\n  name: plain\n  type: folder\n\nrequest:\n  scripts:\n    - type: tests\n      code: test('t', () => {});\n"
     );
 }
+
+/// Wave 17: the operator is free text in the reader and the writer, so a snapshot assertion
+/// (`operator: matchesSnapshot`, `value`: the companion file) is an ordinary assertion entry:
+/// it reads back, and adding or removing it changes only the request file. The OpenCollection
+/// schema is not part of this repository; nothing in the model or the reader restricts the
+/// operator to a list.
+#[test]
+fn a_snapshot_assertion_is_an_ordinary_assertion_entry() {
+    let root = all_roots().into_iter().next().unwrap();
+    let input = FileSet::from_dir(&root).unwrap();
+    let base = read_collection(&input).unwrap();
+    let original = base.write();
+    let path = requests(&base).into_iter().next().unwrap();
+    let before = spec(&base, &path);
+    let mut after = before.clone();
+    after.assertions.push(assertion(
+        "res",
+        rt_core::assert::MATCHES_SNAPSHOT,
+        "get.snap.json",
+    ));
+    let mut doc = base.clone();
+    doc.set_request(&path, &after).unwrap();
+    let written = doc.write();
+    assert_eq!(changed(&original, &written), vec![path.clone()]);
+    assert_eq!(spec(&read_collection(&written).unwrap(), &path), after);
+    doc.set_request(&path, &before).unwrap();
+    assert_eq!(changed(&original, &doc.write()), Vec::<String>::new());
+}

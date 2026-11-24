@@ -185,5 +185,9 @@ export function webContract(w: Wave12Host): ContractApi {
           commits,
         );
       }),
+
+    // Wave 17, strand A: writes the spec through the web Git scope, unsaved.
+    stageSpec: () =>
+      Promise.reject(new BackendError("unsupported", "Staging the spec is not implemented yet (wave 17, strand A).")),
   };
 }

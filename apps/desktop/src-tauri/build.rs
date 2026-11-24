@@ -251,6 +251,17 @@ const COMMANDS: &[&str] = &[
     "git_verify",
     "git_config",
     "review_create",
+    // Wave 17 (interface): snapshots (strand B), sharing (C), staging the spec (A).
+    "snapshots_read",
+    "snapshots_freeze",
+    "snapshots_set_ignore",
+    "snapshots_check",
+    "snapshots_list",
+    "share_link",
+    "share_open",
+    "share_copy_as",
+    "share_qr",
+    "contract_stage_spec",
 ];
 
 fn main() {

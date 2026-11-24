@@ -52,6 +52,8 @@ pub struct Args {
     pub body_limit: usize,
     /// Wave 10: the distribution's send guard (never from the command line).
     pub guard: rt_core::guard::GuardHandle,
+    /// Wave 17: the distribution's exchange observers (never from the command line).
+    pub observers: rt_core::observe::ObserverSet,
 }
 
 impl Default for Args {
@@ -66,6 +68,7 @@ impl Default for Args {
             agent_name: None,
             body_limit: DEFAULT_BODY_LIMIT,
             guard: Default::default(),
+            observers: Default::default(),
         }
     }
 }

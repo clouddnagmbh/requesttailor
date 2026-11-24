@@ -7,7 +7,7 @@
 //
 // Usage: node scripts/perf/run.mjs [options]
 //   --only <list>       comma-separated parts: desktop, frames, keystrokes, diff, graph, compare,
-//                       status, graph-large (default: all)
+//                       status, graph-large, snapshots, share, observe, watch (default: all)
 //   --binary <path>     desktop release binary (default: <target dir>/release/rt-desktop)
 //   --collection <dir>  collection the desktop app reopens (default: testdata/conformance/collection)
 //   --collections <n>   copies of it in one folder that the app reopens (default 10, wave 14;
@@ -31,11 +31,15 @@ import { measureCompare } from "./compare.mjs";
 import { measureDesktop } from "./desktop.mjs";
 import { measureGraph } from "./graph.mjs";
 import { measureGraphLarge } from "./graph-large.mjs";
+import { measureObserve } from "./observe.mjs";
+import { measureShare } from "./share.mjs";
+import { measureSnapshots } from "./snapshots.mjs";
 import { measureStatus } from "./status.mjs";
+import { measureWatch } from "./watch.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WEB = join(ROOT, "apps", "web");
-const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare", "status", "graph-large"];
+const PARTS = ["desktop", "frames", "keystrokes", "diff", "graph", "compare", "status", "graph-large", "snapshots", "share", "observe", "watch"];
 
 export function parseArgs(argv) {
   const opts = { only: PARTS, runs: 10, memoryRuns: 3, check: false, out: join(ROOT, "perf", "results.json") };
@@ -180,7 +184,38 @@ async function graphLarge(opts) {
   return measureGraphLarge({ root: ROOT, web: WEB, run, readJson, opts });
 }
 
-const STEPS = { desktop, frames, keystrokes, diff, graph, compare, status, "graph-large": graphLarge };
+/** Wave 17: snapshot comparison (strand B, ./snapshots.mjs), share links (C, ./share.mjs),
+ *  observer overhead (A, ./observe.mjs), `rt send --watch` (D, ./watch.mjs). */
+async function snapshots(opts) {
+  return measureSnapshots({ root: ROOT, run, readJson, opts });
+}
+
+async function share(opts) {
+  return measureShare({ root: ROOT, web: WEB, run, readJson, opts });
+}
+
+async function observe(opts) {
+  return measureObserve({ root: ROOT, run, readJson, opts });
+}
+
+async function watch(opts) {
+  return measureWatch({ root: ROOT, run, readJson, opts });
+}
+
+const STEPS = {
+  desktop,
+  frames,
+  keystrokes,
+  diff,
+  graph,
+  compare,
+  status,
+  "graph-large": graphLarge,
+  snapshots,
+  share,
+  observe,
+  watch,
+};
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));

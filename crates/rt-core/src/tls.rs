@@ -261,6 +261,7 @@ mod tests {
             }],
             config: CollectionConfig {
                 ai: Default::default(),
+                observe: Default::default(),
                 agents: Default::default(),
                 http3: false,
                 protobuf: Default::default(),

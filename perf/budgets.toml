@@ -66,3 +66,35 @@ max = 1500
 description = "Working copy of a repository with 50 000 tracked files, 100 changed: GitApi.workingCopy natively (release, warm, median of 9)"
 unit = "ms"
 max = 300
+
+# Wave 17: Developer Delight. `pending` names the strand that builds the measurement; the
+# strand removes it in the commit that adds the measurement (same rule as wave 15). The two
+# thresholds marked "confirm" are estimates: the strand reports whether they hold after the
+# first measurement.
+# Strand B (scripts/perf/snapshots.mjs).
+[metrics.snapshot_compare]
+description = "Comparing 1000 stored responses (2 KB JSON, 20 ignored paths each, 100 differing) with their snapshots, JSON diff included: release rt-app, median of 9"
+unit = "ms"
+pending = "wave 17, strand B"
+max = 150
+
+# Strand C (scripts/perf/share.mjs); confirm the threshold after the first measurement.
+[metrics.share_url_size]
+description = "Length of the share link of every request of the Bruno corpus, 95th percentile"
+unit = "chars"
+pending = "wave 17, strand C"
+max = 2000
+
+# Strand A (scripts/perf/observe.mjs); confirm the threshold after the first measurement.
+[metrics.observer_overhead]
+description = "Time three do-nothing observers add to a send against rt-testserver: median difference to no observers over 500 sends"
+unit = "ms"
+pending = "wave 17, strand A"
+max = 1
+
+# Strand D (scripts/perf/watch.mjs, crates/rt-cli/tests/watch.rs).
+[metrics.watch_resend]
+description = "`rt send --watch`: from the file change to the request on the wire (rt-testserver, median of 9)"
+unit = "ms"
+pending = "wave 17, strand D"
+max = 500

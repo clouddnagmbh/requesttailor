@@ -58,6 +58,10 @@ pub mod repositories;
 pub mod rescue;
 /// Wave 12, strand E: pull-request review.
 mod review;
+/// Wave 17, strand C: sharing without a server and copying as code.
+pub mod share;
+/// Wave 17, strand B: snapshot tests.
+pub mod snapshots;
 // Wave 7: scripts (strand A), session variables (C), runner (D).
 mod runner;
 mod scripts;
@@ -85,6 +89,10 @@ pub use crate::core::{CollectionInfo, Core};
 /// `builder().manage(rt_core::guard::GuardHandle::new(guard))`; the app's sends (Send, runner,
 /// streams, gRPC) then ask it (`rt_core::guard`).
 ///
+/// Wave 17: a distribution that watches exchanges manages `rt_core::observe::ObserverHandle`
+/// (`ObserverSet`) the same way: every send of the app (Send, runner) hands its masked
+/// exchange to the observers, which must be quick.
+///
 /// Wave 15: a distribution that signs commits manages `rt_git::sign::Signing` the same way:
 /// `builder().manage(Signing { signer, verifier })`. Every commit the app writes (commit,
 /// commit-staged, merge, cherry-pick, revert, amend, `writeCommit`) goes through the signer;
@@ -105,6 +113,11 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
                 .try_state::<rt_core::guard::GuardHandle>()
                 .map(|g| g.inner().clone())
                 .unwrap_or_default();
+            // Wave 17: a distribution's exchange observers, managed the same way.
+            let observers = app
+                .try_state::<rt_core::observe::ObserverHandle>()
+                .map(|o| o.inner().clone())
+                .unwrap_or_default();
             // Wave 15: a distribution's commit signing, managed the same way.
             let signing = app
                 .try_state::<rt_git::sign::Signing>()
@@ -115,6 +128,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
                 data_dir,
             )?
             .with_guard(guard)
+            .with_observers(observers)
             .with_signing(signing);
             // OAuth 2.0 prompts reach the UI as the `auth-prompt` event (wave 5, strand C).
             core.services.auth.attach(app.handle().clone());
@@ -365,5 +379,16 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             git_index::git_verify,
             git_index::git_config,
             review::review_create,
+            // Wave 17 (interface): snapshots, sharing, staging the spec.
+            snapshots::snapshots_read,
+            snapshots::snapshots_freeze,
+            snapshots::snapshots_set_ignore,
+            snapshots::snapshots_check,
+            snapshots::snapshots_list,
+            share::share_link,
+            share::share_open,
+            share::share_copy_as,
+            share::share_qr,
+            contract::contract_stage_spec,
         ])
 }
