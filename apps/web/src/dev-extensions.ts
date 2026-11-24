@@ -8,6 +8,11 @@
 
 import type { AppExtension, ExtensionContext } from "@requesttailor/ui";
 
+import Demo15Boom from "./dev-extensions/Demo15Boom.svelte";
+import Demo15DiffEditor from "./dev-extensions/Demo15DiffEditor.svelte";
+import Demo15MergeEditor from "./dev-extensions/Demo15MergeEditor.svelte";
+import Demo15Staging from "./dev-extensions/Demo15Staging.svelte";
+import Demo15View from "./dev-extensions/Demo15View.svelte";
 import DemoDialog from "./dev-extensions/DemoDialog.svelte";
 import Demo16Panel from "./dev-extensions/Demo16Panel.svelte";
 import DemoTab from "./dev-extensions/DemoTab.svelte";
@@ -144,4 +149,50 @@ export const demo16Extension: AppExtension = {
     { id: "notes", label: "Release notes", icon: "tag", inline: true, run: () => void log(`range:${target.source}:${target.from}..${target.to}`) },
   ],
   assistant: { title: "Assistant", icon: "spark", component: Demo16Panel },
+};
+
+// ---- Wave 15: the Git extension points (`?backend=mock&extensions=demo15`) ----
+// An action for every kind of target, a Git view (and one that breaks), a staging view (only with
+// `&staging=1`), a diff and a merge editor, a commit form action and a hint per Git view. Every
+// action leaves a line in `window.__demo15` (for the tests); nothing talks to a model or a host.
+
+type Demo15Window = { __demo15?: string[] };
+const log15 = (line: string) => ((window as unknown as Demo15Window).__demo15 ??= []).push(line);
+
+export const demo15Extension: AppExtension = {
+  id: "demo15",
+  gitActions: (_ctx, t) => [
+    {
+      id: `act-${t.kind}`,
+      label: `Demo ${t.kind}`,
+      icon: "spark",
+      inline: t.kind !== "ref",
+      run: () => {
+        const what = "commit" in t ? t.commit : "commits" in t ? t.commits.join("+") : "ref" in t ? t.ref : "path" in t ? t.path : "paths" in t ? t.paths.join("+") : "index" in t ? String(t.index) : "";
+        log15(`action:${t.kind}:${what}`);
+      },
+    },
+  ],
+  gitViews: () => [
+    { id: "overview", title: "Demo Git view", icon: "graph", component: Demo15View },
+    { id: "boom", title: "Demo broken view", component: Demo15Boom },
+  ],
+  staging: {
+    title: "Demo staging",
+    component: Demo15Staging,
+    active: () => new URLSearchParams(location.search).get("staging") === "1",
+  },
+  fileEditors: () => [
+    { id: "merge", title: "Demo merge", kind: "merge", component: Demo15MergeEditor },
+    { id: "diff", title: "Demo diff", kind: "diff", accepts: (p) => !p.endsWith(".png"), component: Demo15DiffEditor },
+  ],
+  commitFormActions: (_ctx, target) => [
+    { id: "template", label: "Use template", inline: true, run: () => target.message.set(`feat: ${target.paths.length} files`) },
+  ],
+  gitHints: (_ctx, t) => [
+    {
+      id: `hint-${t.view}`,
+      text: `Demo ${t.view} hint${t.selected === 2 ? " (a range)" : ""}${t.dragging ? " (dragging)" : ""}${t.hunks ? ` (${t.hunks} hunks)` : ""}`,
+    },
+  ],
 };

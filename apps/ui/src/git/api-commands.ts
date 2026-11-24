@@ -19,7 +19,11 @@ import type { GitViews } from "./views.svelte";
 import { gitWizardCommands } from "./wizards/commands";
 
 export function gitApiCommands(app: AppState, views: GitViews): Command[] {
-  if (!app.collection) return [];
+  // A set with only repository roots has no collection: the generic Git commands still work on
+  // the active repository (history, wizards, pull requests); the API-specific ones need a collection.
+  if (!app.collection) {
+    return app.activeRepository ? [...reviewCommands(app, views), ...historyCommands(app, views), ...gitWizardCommands(app, views)] : [];
+  }
   return [
     ...diffCommands(app, views),
     ...mergeCommands(app, views),

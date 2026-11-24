@@ -152,6 +152,9 @@ export interface WebHost {
   /** Wave 15: whether a collection of the active repository has unsaved changes (the active
    *  repository may be a repository root without any collection). */
   repositoryDirty?(): boolean;
+  /** Wave 15: the id of the active repository (`CollectionSet.active_repository`), the one
+   *  extensions' Git actions name; `null` when there is none. */
+  activeRepository?(): string | null;
   /** Wave 15: reads the collections of the active repository again after Git changed files
    *  (there may be none). Without it, the active collection's folder is opened again. */
   reloadSet?(): Promise<void>;
@@ -253,6 +256,7 @@ export class WebBackend implements Backend {
       openRecentRoot: (id, handle, interactive) => this.openRecentRoot(id, handle, interactive),
       repository: () => this.collections.repository(),
       repositoryDirty: () => this.collections.repositoryDirty(),
+      activeRepository: () => this.collections.activeRepositoryId(),
       reloadSet: async () => {
         await this.collections.reloadSet();
       },

@@ -26,7 +26,6 @@ import {
   type ReviewSession,
   type ReviewSubmission,
   type SecretsApi,
-  stubCreatePull,
 } from "@requesttailor/ui";
 
 import { directoryFs } from "./git/fs";
@@ -56,7 +55,7 @@ export interface CoreReviewWorkspace extends CoreWorkspace {
   reviewCall(
     repo: ReviewRepo,
     token: string,
-    op: "list" | "get" | "comments" | "comment" | "submit" | "ci",
+    op: "list" | "get" | "comments" | "comment" | "submit" | "ci" | "create",
     number: number,
     payload: unknown,
     companion: CompanionCredentials | null,
@@ -242,7 +241,6 @@ export function webReview(w: Wave12Host, storage: () => Storage | null = browser
     comment: (number, comment: NewReviewComment) => guard(() => call<ReviewComment>("comment", number, comment)),
     submit: (number, review: ReviewSubmission) => guard(async () => void (await call<null>("submit", number, review))),
     ci: (number) => guard(() => call<CiStatus>("ci", number)),
-    // Wave 15 (interface): strand E.
-    create: stubCreatePull,
+    create: (pull) => guard(() => call<PullRequest>("create", 0, pull)),
   };
 }

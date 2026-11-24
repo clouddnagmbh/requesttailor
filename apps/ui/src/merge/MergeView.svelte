@@ -6,6 +6,7 @@
      made in the Git panel. -->
 <script lang="ts">
   import type { MergeState } from "../commands/types";
+  import ExtensionGitHint from "../shell/ExtensionGitHint.svelte";
   import { getApp } from "../state/app.svelte";
   import MergeFields from "./MergeFields.svelte";
 
@@ -37,6 +38,7 @@
 </script>
 
 <div class="merge" data-testid="merge-view">
+  <ExtensionGitHint target={{ place: "git", repository: app.activeRepository ?? "", view: "conflict" }} />
   {#if error}
     <p class="error" role="alert">{error}</p>
   {:else if !merge}
