@@ -24,6 +24,13 @@ that it grants no trademark rights; this page explains what is fine and what is 
   Community Edition" for a fork).
 - Suggesting endorsement, partnership or official status that does not exist.
 
+## Where the marks are in this repository
+
+The logo files live in `brand/` (see `brand/README.md`) and are copied into the app
+(`apps/ui/src/brand/`, `apps/web/public/`), the desktop icons
+(`apps/desktop/src-tauri/icons/`) and the website (`website/assets/`). They are not
+Apache-2.0. A fork replaces all of them.
+
 ## Questions
 
 Open an issue if you are unsure; when in doubt, choose your own name.
