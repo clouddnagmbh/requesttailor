@@ -343,6 +343,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             repositories::repositories_summary,
             repositories::repositories_clone,
             repositories::repositories_init,
+            repositories::repositories_open_path,
             git_files::git_working_copy,
             git_files::git_file_tree,
             git_files::git_blob,

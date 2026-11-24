@@ -285,6 +285,7 @@ export const COMMANDS = [
   "repositories_summary",
   "repositories_clone",
   "repositories_init",
+  "repositories_open_path",
   "git_working_copy",
   "git_file_tree",
   "git_blob",

@@ -15,5 +15,6 @@ export function tauriRepositories(call: Call): RepositoryApi {
     summary: (id) => call("repositories_summary", { id }),
     clone: (request) => call("repositories_clone", { request }),
     init: () => call("repositories_init"),
+    openPath: (path) => call("repositories_open_path", { path }),
   };
 }
