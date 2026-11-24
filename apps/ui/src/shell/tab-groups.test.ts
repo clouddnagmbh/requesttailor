@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addAllUngrouped,
   addToGroup,
   chipWidth,
   contiguous,
@@ -21,6 +22,7 @@ import {
   membersOf,
   moveGroup,
   nextColor,
+  outsideGroup,
   numberTarget,
   recolorGroup,
   removeFromGroup,
@@ -253,5 +255,28 @@ describe("storage", () => {
     expect(isGroupState({ groups: [], members: { a: 1 } })).toBe(false);
     expect(isGroupState(null)).toBe(false);
     expect(isGroupState("x")).toBe(false);
+  });
+});
+
+describe("chip menu: add tabs", () => {
+  it("lists the tabs outside the group, grouped ones included", () => {
+    const s = grouped({ b: "g", c: "h" });
+    expect(outsideGroup(order, s, "g")).toEqual(["a", "c", "d", "e", "f"]);
+  });
+  it("adds one tab next to the group's tabs", () => {
+    const s = grouped({ b: "g" });
+    const r = addToGroup(order, s, "e", "g");
+    expect(r.order).toEqual(["a", "b", "e", "c", "d", "f"]);
+    expect(groupOf(r.state, "e")?.id).toBe("g");
+  });
+  it("adds all ungrouped tabs and leaves other groups alone", () => {
+    const s = grouped({ b: "g", d: "h" });
+    const r = addAllUngrouped(order, s, "g");
+    expect(membersOf(r.order, r.state, "g")).toEqual(["b", "a", "c", "e", "f"].sort((x, y) => r.order.indexOf(x) - r.order.indexOf(y)));
+    expect(groupOf(r.state, "d")?.id).toBe("h");
+    expect(outsideGroup(r.order, r.state, "g")).toEqual(["d"]);
+  });
+  it("ignores an unknown group", () => {
+    expect(addAllUngrouped(order, emptyState(), "x").order).toEqual(order);
   });
 });

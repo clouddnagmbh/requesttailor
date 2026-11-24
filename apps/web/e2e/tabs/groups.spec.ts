@@ -12,7 +12,7 @@ const tab = (page: Page, text: string) => tabs(page).filter({ hasText: text });
 const chips = (page: Page) => page.getByTestId("group-chip");
 const strip = (page: Page) => page.getByRole("tablist", { name: "Open requests" });
 const shown = (page: Page) => page.locator('[data-testid="tab"][aria-selected="true"]');
-const menuItem = (page: Page, name: string | RegExp) => page.getByRole("menuitem", { name });
+const menuItem = (page: Page, name: string | RegExp, exact = false) => page.getByRole("menuitem", { name, exact });
 
 /** Opens the demo collection with `count` tabs: Health, then "Request number 2" … */
 async function open(page: Page, count = 5, width = 1200) {
@@ -74,6 +74,8 @@ test("rename and colour from the chip menu", async ({ page }) => {
     "Rename…",
     "Colour",
     "New tab in group",
+    "Add tab",
+    "Add all ungrouped tabs",
     "Collapse group",
     "Ungroup",
     "Close group",
@@ -139,7 +141,7 @@ test("remove from group, ungroup, and closing the last tab removes the group", a
   await expect(chips(page)).toHaveCount(0);
   await group(page, "Request number 3", "B");
   await chips(page).click({ button: "right" });
-  await menuItem(page, "Ungroup").click();
+  await menuItem(page, "Ungroup", true).click();
   await expect(chips(page)).toHaveCount(0);
   await expect(tabs(page)).toHaveCount(5);
   await group(page, "Request number 4", "C");
@@ -298,3 +300,26 @@ for (const scheme of ["light", "dark"] as const) {
     await page.screenshot({ path: info.outputPath(`tab-groups-${scheme}-menu.png`), clip: { x: 0, y: 0, width: 1300, height: 330 } });
   });
 }
+
+test("chip menu: Add tab moves a chosen tab into the group, Add all moves the rest", async ({ page }) => {
+  await open(page);
+  await group(page, "Request number 2", "Orders");
+  await chips(page).click({ button: "right" });
+  await menuItem(page, "Add tab").click();
+  await menuItem(page, /Request number 4/).click();
+  await expect(tab(page, "Request number 4")).toHaveAttribute("data-group", /.+/);
+  await expect(tab(page, "Request number 5")).not.toHaveAttribute("data-group", /.+/);
+  await chips(page).click({ button: "right" });
+  await menuItem(page, "Add all ungrouped tabs").click();
+  for (const t of ["Health", "Request number 3", "Request number 5"]) await expect(tab(page, t)).toHaveAttribute("data-group", /.+/);
+  await chips(page).click({ button: "right" });
+  await expect(menuItem(page, "Add tab")).toBeDisabled();
+});
+
+test("drag a tab onto a grouped tab: it joins that group", async ({ page }) => {
+  await open(page);
+  await group(page, "Request number 2", "Drag");
+  await tab(page, "Request number 4").dragTo(tab(page, "Request number 2"));
+  await expect(tab(page, "Request number 4")).toHaveAttribute("data-group", /.+/);
+  await expect(chips(page)).toHaveCount(1);
+});

@@ -104,6 +104,18 @@ export function addToGroup(order: readonly string[], state: GroupState, key: str
   return { order: contiguous(rest, next), state: next };
 }
 
+/** Keys of the tabs outside group `id` (ungrouped or in another group), in tab order. */
+export const outsideGroup = (order: readonly string[], state: GroupState, id: string): string[] =>
+  order.filter((k) => state.members[k] !== id);
+
+/** Moves every ungrouped tab into group `id`. */
+export function addAllUngrouped(order: readonly string[], state: GroupState, id: string): { order: string[]; state: GroupState } {
+  let r = { order: [...order], state };
+  if (!state.groups.some((g) => g.id === id)) return r;
+  for (const k of order) if (!state.members[k]) r = addToGroup(r.order, r.state, k, id);
+  return r;
+}
+
 /** Takes a tab out of its group; it stays right after the group's remaining tabs. */
 export function removeFromGroup(order: readonly string[], state: GroupState, key: string): { order: string[]; state: GroupState } {
   const g = groupOf(state, key);

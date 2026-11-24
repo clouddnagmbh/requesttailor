@@ -147,9 +147,27 @@
     chipOpen = true;
   }
 
+  /** The tabs outside a group as menu entries: method and title, headed by collection if several. */
+  function addTabEntries(id: string, refs: RequestRef[]): MenuEntry[] {
+    const several = new Set(refs.map((r) => r.collection)).size > 1;
+    const out: MenuEntry[] = [];
+    let last: string | null = null;
+    for (const ref of refs) {
+      if (several && ref.collection !== last) {
+        last = ref.collection;
+        out.push({ heading: collectionName(ref.collection) || ref.collection });
+      }
+      const method = app.draftOf(ref)?.method;
+      out.push({ id: `add-tab:${keyOf(ref)}`, label: `${method ? `${method} ` : ""}${label(ref)}`, run: () => groups.add(ref, id) });
+    }
+    return out;
+  }
+
   const chipItems = $derived.by((): MenuEntry[] => {
     const g = chipFor && groups.group(chipFor.id);
     if (!g) return [];
+    const outside = groups.outside(g.id);
+    const ungrouped = outside.some((t) => !groups.groupOfRef(t));
     return [
       { id: "rename", label: "Rename…", icon: "edit", run: () => (groups.editing = g.id) },
       {
@@ -158,6 +176,8 @@
         items: COLOR_NAMES.map((name, i): MenuEntry => ({ id: `color:${i}`, label: name, checked: g.color === i, run: () => groups.recolor(g.id, i) })),
       },
       { id: "new-in", label: "New tab in group", icon: "plus", run: () => groups.openIn(g.id) },
+      { id: "add-tab", label: "Add tab", disabled: outside.length === 0, items: addTabEntries(g.id, outside) },
+      { id: "add-all", label: "Add all ungrouped tabs", disabled: !ungrouped, run: () => groups.addAllUngrouped(g.id) },
       { id: "toggle", label: g.collapsed ? "Expand group" : "Collapse group", run: () => groups.toggle(g.id) },
       { separator: true },
       { id: "ungroup", label: "Ungroup", run: () => groups.ungroup(g.id) },
