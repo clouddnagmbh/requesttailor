@@ -1,0 +1,11 @@
+{
+  "Name": "RT_S4_DEV",
+  "Type": "HTTP",
+  "URL": "https://s4-dev.example.invalid/sap/opu/odata/sap/ZRT_SALES_SRV",
+  "Authentication": "BasicAuthentication",
+  "ProxyType": "Internet",
+  "User": "RT_USER",
+  "Password": "RT-CANARY-destination-password-91c2",
+  "sap-client": "100",
+  "HTML5.DynamicDestination": "true"
+}

@@ -110,6 +110,7 @@ impl Plugin for OData {
         match importer {
             "edmx" => metadata::detect(&files),
             "sap-hub" => landscape::detect_hub(&files),
+            destinations::IMPORTER => destinations::detect(&files),
             other => Err(Error::new(format!("unknown importer {other}"))),
         }
     }
@@ -118,6 +119,7 @@ impl Plugin for OData {
         match importer {
             "edmx" => metadata::import(&files),
             "sap-hub" => landscape::import_hub(&files),
+            destinations::IMPORTER => destinations::import(&files),
             other => Err(Error::new(format!("unknown importer {other}"))),
         }
     }
