@@ -13,7 +13,10 @@ const DIRS: &[&str] = &["conformance", "collections/bruno"];
 
 fn main() {
     let out = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("testdata_files.rs");
-    let testdata = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+    // Read at run time, not with `env!`: a build-script binary reused from another checkout
+    // (shared target dir) would otherwise point at that checkout.
+    let testdata = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("set by cargo"))
+        .join("../../testdata");
     let mut entries = Vec::new();
     if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("wasm32") {
         for dir in DIRS {

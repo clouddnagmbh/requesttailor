@@ -273,6 +273,10 @@ fn main() {
     // For a distribution that builds its own binary from this crate: its build script gets
     // the command list and the capabilities folder as `DEP_RT_DESKTOP_*` (see `links`).
     println!("cargo::metadata=commands={}", COMMANDS.join(","));
-    let capabilities = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("capabilities");
+    // Read at run time, not with `env!`: a build-script binary reused from another checkout
+    // (shared target dir) would otherwise hand out that checkout's path.
+    let capabilities =
+        std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("set by cargo"))
+            .join("capabilities");
     println!("cargo::metadata=capabilities={}", capabilities.display());
 }

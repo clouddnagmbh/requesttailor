@@ -14,7 +14,10 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 fn main() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    // Read at run time, not with `env!`: a build-script binary reused from another checkout
+    // (shared target dir) would otherwise point at that checkout.
+    let root = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("set by cargo"));
+    let root = root.as_path();
     let out = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=engine/rt-script-engine.wasm");
