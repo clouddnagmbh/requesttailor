@@ -10,6 +10,45 @@ import type { Call, DetectReply, HostCall, ImportReply, Manifest, NotesReply, Pl
 export const manifest: Manifest = {
   "api": 1,
   "contributes": {
+    "compensations": [
+      {
+        "id": "created-resources",
+        "match": {
+          "content_types": [
+            "application/json"
+          ],
+          "hosts": [
+            "*.example.com"
+          ],
+          "methods": [
+            "POST"
+          ],
+          "url_pattern": "/items*"
+        },
+        "rule": {
+          "etag_from": [
+            "header:ETag"
+          ],
+          "id_from": [
+            "header:Location",
+            "$.id"
+          ],
+          "not_reversible": [
+            {
+              "reason": "drafts are not reverted",
+              "url_pattern": "/items/draft*"
+            }
+          ],
+          "resource_url": "{collection}/{id}",
+          "token": {
+            "fetch_header": "x-token",
+            "fetch_value": "fetch",
+            "read_header": "x-token",
+            "send_header": "x-token"
+          }
+        }
+      }
+    ],
     "importers": [
       {
         "extensions": [
@@ -353,6 +392,7 @@ export const notesReply: NotesReply = {
       "id": "db",
       "label": "Database",
       "ms": 41,
+      "offset_ms": 1.5,
       "parent": "server"
     }
   ]

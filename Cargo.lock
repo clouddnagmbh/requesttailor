@@ -5278,7 +5278,7 @@ dependencies = [
 
 [[package]]
 name = "rt-plugin-sap-integration"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "rt-plugin-sdk",
  "serde",
@@ -5299,7 +5299,7 @@ dependencies = [
 
 [[package]]
 name = "rt-plugin-soap"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "rt-plugin-sdk",
  "serde",
