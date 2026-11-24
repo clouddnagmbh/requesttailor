@@ -8,8 +8,8 @@ import { createExtensionAi } from "../ai/extension-ai";
 import type { Backend } from "../commands/backend";
 import type { ExtensionContext } from "../extensions";
 import type { AppState } from "../state/app.svelte";
-import { createSuggest } from "../suggest/suggest";
+import { createSuggest, createSuggestOutcome } from "../suggest/suggest";
 
 export function createExtensionContext(backend: Backend, app: AppState): ExtensionContext {
-  return { backend, app, ai: createExtensionAi(backend, app), suggest: createSuggest(backend, app) };
+  return { backend, app, ai: createExtensionAi(backend, app), suggest: createSuggest(backend, app), suggestOutcome: createSuggestOutcome(backend, app) };
 }

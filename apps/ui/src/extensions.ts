@@ -38,6 +38,17 @@ export interface ExtensionContext {
   /** Shows a suggested change for the user to apply or discard (since wave 16); resolves
    *  `true` once applied. Applied changes are unsaved, like any edit, and can be undone. */
   readonly suggest: (edit: SuggestedEdit) => Promise<boolean>;
+  /** Like `suggest`, and tells whether the user chose "Don't suggest this again" (only offered
+   *  for an edit with a `dismissKey`; since wave 17). The core stores nothing about it: the
+   *  caller keeps the key. */
+  readonly suggestOutcome: (edit: SuggestedEdit) => Promise<SuggestOutcome>;
+}
+
+/** What became of a suggestion (`ExtensionContext.suggestOutcome`). */
+export interface SuggestOutcome {
+  applied: boolean;
+  /** The user asked not to be shown this suggestion again. Never with `applied`. */
+  dismissed?: boolean;
 }
 
 // ---- Wave 16: AI for extensions, suggested edits, more places for actions ----
@@ -91,7 +102,22 @@ export interface SuggestionNote {
 }
 
 /** A change shown as a diff or preview before it is applied (`ExtensionContext.suggest`). */
-export type SuggestedEdit =
+export type SuggestedEdit = SuggestedEditKind & {
+  /** Offers "Don't suggest this again" in the dialog (since wave 17); choosing it reports
+   *  `{ applied: false, dismissed: true }` from `suggestOutcome`. The caller remembers the key;
+   *  the core stores nothing. */
+  dismissKey?: string;
+};
+
+/** A variable an `environment` suggestion adds. A secret is declared without a value (the user
+ *  enters it in the environment manager); `value` is ignored for it. */
+export interface SuggestedVariable {
+  name: string;
+  value?: string;
+  secret?: boolean;
+}
+
+export type SuggestedEditKind =
   /** The request at `path` replaced by `spec` (a field diff of the two). */
   | { kind: "request"; collection?: string; path: string; spec: RequestSpec; note?: SuggestionNote }
   /** A new request in `folder` (`""`: the root). */
@@ -101,13 +127,18 @@ export type SuggestedEdit =
   /** A text file of the collection that is not a request (e.g. `CHANGELOG.md`), staged like a
    *  companion file (`Backend.companions.stage`); `*.yml` is refused. */
   | { kind: "file"; collection?: string; path: string; text: string; note?: SuggestionNote }
+  /** Variables added to the environment `environment` of the collection (since wave 17):
+   *  unsaved, one undo step, usable as part of a `batch`. Variables the environment already has
+   *  are left as they are, never overwritten; secrets get no value; an environment that does
+   *  not exist is refused. */
+  | { kind: "environment"; collection?: string; environment: string; variables: SuggestedVariable[]; note?: SuggestionNote }
   /** Several edits as one (since wave 17): one diff dialog, one undo step, applied entirely or
    *  not at all (e.g. a producer request and a consumer request). The edits are not batches
    *  themselves and all belong to `collection`; their own `collection` is ignored. */
   | { kind: "batch"; collection?: string; edits: SuggestedEditPart[]; note?: SuggestionNote };
 
 /** An edit that can be part of a `batch`. */
-export type SuggestedEditPart = Exclude<SuggestedEdit, { kind: "batch" }>;
+export type SuggestedEditPart = Exclude<SuggestedEditKind, { kind: "batch" }>;
 
 /** What `AppExtension.onExchange` gets (since wave 17). */
 export interface ExchangeEvent {

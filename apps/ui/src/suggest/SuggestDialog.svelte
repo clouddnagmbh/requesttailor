@@ -39,6 +39,7 @@
   {busy}
   {error}
   undoable={prepared.undoable}
+  ondismiss={prepared.dismissKey ? () => close("dismissed") : undefined}
   onapply={apply}
   ondiscard={() => close(false)}
 />
