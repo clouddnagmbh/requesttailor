@@ -20,7 +20,7 @@ and how.
 | `observer_overhead` | ≤ 1 ms | time three do-nothing observers add to one send, median over 500 sends |
 | `watch_resend` | ≤ 500 ms | `rt send --watch`: file change to request on the wire, median of 9 |
 | `git_status_large` | ≤ 300 ms | working copy of 50 000 tracked files, 100 changed, natively, release, median of 9 (pending: wave 15, strand B) |
-| `env_compare` | ≤ 4000 ms | 200 reading requests compared in 3 environments, 8 in parallel against 20 ms answers, median of 9 (pending: wave 18, strand A) |
+| `env_compare` | ≤ 500 ms | 100 reading requests compared in 2 environments (fake transport), run plus comparison, median of 9 |
 | `response_checks` | ≤ 20 ms | passive response checks on a 1 MiB response, native release, median of 9 (pending: wave 18, strand B) |
 | `paging_merge` | ≤ 2500 ms | following and merging 100 pages of 100 items into one stored response, median of 9 (pending: wave 18, strand C) |
 | `ratelimit_wait` | ≤ 50 ms | error of the wait after `Retry-After: 1`, `rt run --respect-limits`, median of 9 (pending: wave 18, strand D) |

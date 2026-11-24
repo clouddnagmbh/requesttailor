@@ -254,8 +254,26 @@ fn differences_in_headers_and_json_are_found_and_same_is_same() {
     assert_eq!(pointers, ["/count", "/extra"]);
     // The answers of both environments are on the sides, the reference on the old side.
     let sides = items.sides.as_ref().unwrap();
-    assert!(sides.old.as_ref().unwrap().body.as_ref().unwrap().contains("\"count\":2"));
-    assert!(sides.new.as_ref().unwrap().body.as_ref().unwrap().contains("\"count\":3"));
+    assert!(
+        sides
+            .old
+            .as_ref()
+            .unwrap()
+            .body
+            .as_ref()
+            .unwrap()
+            .contains("\"count\":2")
+    );
+    assert!(
+        sides
+            .new
+            .as_ref()
+            .unwrap()
+            .body
+            .as_ref()
+            .unwrap()
+            .contains("\"count\":3")
+    );
     assert!(pair.requests[1].same);
     assert_eq!(pair.reference_summary.requests, 2);
     assert_eq!(pair.summary.requests, 2);
@@ -283,7 +301,13 @@ fn requests_alternate_between_the_environments() {
 fn with_three_environments_the_first_is_the_reference() {
     let files = collection("", &[("items", "GET", "/items")]);
     let wire = Wire::default();
-    let cmp = run(&files, &wire, None, &ask(&["dev", "qa", "prod"]).confirmed()).unwrap();
+    let cmp = run(
+        &files,
+        &wire,
+        None,
+        &ask(&["dev", "qa", "prod"]).confirmed(),
+    )
+    .unwrap();
     let names: Vec<_> = cmp.pairs.iter().map(|p| p.environment.as_str()).collect();
     assert_eq!(names, ["qa", "prod"]);
     assert_eq!(cmp.reference, "dev");
@@ -319,7 +343,10 @@ fn writing_requests_are_skipped_and_named() {
         .collect();
     assert_eq!(
         skipped,
-        [("create", "skipped (writes)"), ("remove", "skipped (writes)")]
+        [
+            ("create", "skipped (writes)"),
+            ("remove", "skipped (writes)")
+        ]
     );
     // Only the reading request went out, to both.
     assert_eq!(wire.urls.lock().unwrap().len(), 2);
@@ -344,7 +371,10 @@ fn bad_environments_are_refused() {
     let wire = Wire::default();
     assert!(run(&files, &wire, None, &ask(&["dev", "dev"])).is_err());
     let missing = run(&files, &wire, None, &ask(&["dev", "nowhere"]));
-    assert!(matches!(missing, Err(rt_app::AppError::EnvironmentNotFound(_))));
+    assert!(matches!(
+        missing,
+        Err(rt_app::AppError::EnvironmentNotFound(_))
+    ));
 }
 
 #[test]
@@ -357,8 +387,17 @@ fn each_environment_sends_its_own_secret_and_none_is_shown() {
     assert_eq!(urls[1], format!("http://qa.test/echo?t={CANARY_TEST}"));
     // The answers echoed the secrets back; nothing of the result carries either value.
     let json = serde_json::to_string(&cmp).unwrap();
-    assert!(!json.contains(CANARY_DEV) && !json.contains(CANARY_TEST), "{json}");
+    assert!(
+        !json.contains(CANARY_DEV) && !json.contains(CANARY_TEST),
+        "{json}"
+    );
     assert!(!json.contains("RT-CANARY"), "{json}");
+    // Two different secrets echoed back are masked before comparing: not a difference.
+    assert!(
+        cmp.pairs[0].requests[0].same,
+        "{:?}",
+        cmp.pairs[0].requests[0]
+    );
 }
 
 #[test]
@@ -369,9 +408,18 @@ fn cookies_stay_with_their_environment() {
     let cmp = run(&files, &wire, Some(&jar), &ask(&["dev", "qa"])).unwrap();
     let me = &cmp.pairs[0].requests[1];
     let sides = me.sides.as_ref().unwrap();
-    let body = |s: &Option<rt_app::compare::ResponseSnapshot>| s.as_ref().unwrap().body.clone().unwrap();
-    assert!(body(&sides.old).contains("sid=from-dev.test"), "{}", body(&sides.old));
-    assert!(body(&sides.new).contains("sid=from-qa.test"), "{}", body(&sides.new));
+    let body =
+        |s: &Option<rt_app::compare::ResponseSnapshot>| s.as_ref().unwrap().body.clone().unwrap();
+    assert!(
+        body(&sides.old).contains("sid=from-dev.test"),
+        "{}",
+        body(&sides.old)
+    );
+    assert!(
+        body(&sides.new).contains("sid=from-qa.test"),
+        "{}",
+        body(&sides.new)
+    );
     assert!(!body(&sides.old).contains("qa.test") && !body(&sides.new).contains("dev.test"));
 }
 
@@ -386,7 +434,11 @@ fn ignoring_environment_values_hides_the_hosts() {
     let mut quiet = ask(&["dev", "qa"]);
     quiet.ignore_env_values = true;
     let cmp = run(&files, &wire, None, &quiet).unwrap();
-    assert!(cmp.pairs[0].requests[0].same, "{:?}", cmp.pairs[0].requests[0]);
+    assert!(
+        cmp.pairs[0].requests[0].same,
+        "{:?}",
+        cmp.pairs[0].requests[0]
+    );
 }
 
 #[test]
@@ -415,7 +467,11 @@ struct Fat;
 
 impl Transport for Fat {
     async fn send(&self, request: HttpRequest) -> Result<Response, TransportError> {
-        let stage = if request.url.contains("dev.test") { "dev" } else { "qa" };
+        let stage = if request.url.contains("dev.test") {
+            "dev"
+        } else {
+            "qa"
+        };
         let items: Vec<String> = (0..24)
             .map(|n| format!("{{\"id\":{n},\"name\":\"item number {n}\",\"tags\":[\"a\",\"b\"]}}"))
             .collect();
@@ -467,7 +523,10 @@ fn env_compare_of_100_requests_is_measured() {
         .unwrap();
         times.push(started.elapsed().as_secs_f64() * 1000.0);
         assert_eq!(cmp.pairs[0].requests.len(), PERF_REQUESTS);
-        assert!(cmp.pairs[0].requests.iter().all(|r| !r.same), "100 differences");
+        assert!(
+            cmp.pairs[0].requests.iter().all(|r| !r.same),
+            "100 differences"
+        );
     }
     times.sort_by(f64::total_cmp);
     let median = times[PERF_RUNS / 2];
@@ -490,7 +549,19 @@ fn a_bare_host_in_the_body_is_an_environment_value_too() {
     let mut quiet = ask(&["dev", "qa"]);
     quiet.ignore_env_values = true;
     let cmp = run(&files, &wire, None, &quiet).unwrap();
-    assert!(cmp.pairs[0].requests[0].same, "{:?}", cmp.pairs[0].requests[0]);
+    assert!(
+        cmp.pairs[0].requests[0].same,
+        "{:?}",
+        cmp.pairs[0].requests[0]
+    );
     let side = cmp.pairs[0].requests[0].sides.as_ref().unwrap();
-    assert!(side.old.as_ref().unwrap().body.as_ref().unwrap().contains("{{base.host}}"));
+    assert!(
+        side.old
+            .as_ref()
+            .unwrap()
+            .body
+            .as_ref()
+            .unwrap()
+            .contains("{{base.host}}")
+    );
 }

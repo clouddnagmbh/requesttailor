@@ -52,7 +52,12 @@ fn own_values(snapshot: &RunSnapshot) -> Vec<(String, String)> {
     let Some(name) = snapshot.environment.as_deref() else {
         return Vec::new();
     };
-    let Some(env) = snapshot.collection.environments.iter().find(|e| e.name == name) else {
+    let Some(env) = snapshot
+        .collection
+        .environments
+        .iter()
+        .find(|e| e.name == name)
+    else {
         return Vec::new();
     };
     let mut seen = BTreeSet::new();
@@ -81,12 +86,17 @@ fn own_values(snapshot: &RunSnapshot) -> Vec<(String, String)> {
 
 /// Replaces the environment's own values in the response with `{{name}}`, so what only
 /// differs because the environments differ does not show.
-fn normalize(step: &mut RunStep, values: &[(String, String)]) {
+fn normalize(step: &mut RunStep, values: &[(String, String)], secrets: &[String]) {
     let Some(response) = &mut step.report.response else {
         return;
     };
     let swap = |text: &str| {
+        // A response can echo a secret back; two environments echo two different ones, which
+        // must not count as a difference, so they are masked before the comparison.
         let mut text = text.to_owned();
+        for secret in secrets {
+            text = text.replace(secret.as_str(), "***");
+        }
         for (name, value) in values {
             text = text.replace(value.as_str(), &format!("{{{{{name}}}}}"));
         }
@@ -172,6 +182,32 @@ pub async fn compare_environments<T: Transport>(
         request.paths.as_deref(),
     );
 
+    let secrets: Vec<String> = {
+        let mut all: Vec<String> = snapshots.iter().flat_map(secret_values).collect();
+        // Values given for a secret variable at run time (`--var token=…`) are secrets too.
+        for snapshot in &snapshots {
+            let c = &snapshot.collection;
+            let declared: BTreeSet<&str> = c
+                .defaults
+                .vars
+                .iter()
+                .chain(c.environments.iter().flat_map(|e| e.variables.iter()))
+                .filter(|v| v.secret)
+                .map(|v| v.name.as_str())
+                .collect();
+            all.extend(
+                snapshot
+                    .vars
+                    .iter()
+                    .filter(|(name, value)| declared.contains(name.as_str()) && !value.is_empty())
+                    .map(|(_, value)| value.clone()),
+            );
+        }
+        all.sort_by_key(|s| std::cmp::Reverse(s.len()));
+        all.dedup();
+        all
+    };
+
     let mut steps: Vec<Vec<RunStep>> = vec![Vec::new(); runs.len()];
     let mut summaries = vec![RunSummary::default(); runs.len()];
     let mut sent = Vec::new();
@@ -209,7 +245,7 @@ pub async fn compare_environments<T: Transport>(
             add(&mut summaries[i], &outcome.summary);
             for mut step in outcome.steps {
                 carry(&mut snapshots[i], &step.report.var_changes);
-                normalize(&mut step, &ignored[i]);
+                normalize(&mut step, &ignored[i], &secrets);
                 steps[i].push(step);
             }
         }
@@ -220,31 +256,6 @@ pub async fn compare_environments<T: Transport>(
             .collection
             .request(path)
             .map(|c| c.request.spec.name.clone())
-    };
-    let secrets: Vec<String> = {
-        let mut all: Vec<String> = snapshots.iter().flat_map(secret_values).collect();
-        // Values given for a secret variable at run time (`--var token=…`) are secrets too.
-        for snapshot in &snapshots {
-            let c = &snapshot.collection;
-            let declared: BTreeSet<&str> = c
-                .defaults
-                .vars
-                .iter()
-                .chain(c.environments.iter().flat_map(|e| e.variables.iter()))
-                .filter(|v| v.secret)
-                .map(|v| v.name.as_str())
-                .collect();
-            all.extend(
-                snapshot
-                    .vars
-                    .iter()
-                    .filter(|(name, value)| declared.contains(name.as_str()) && !value.is_empty())
-                    .map(|(_, value)| value.clone()),
-            );
-        }
-        all.sort_by_key(|s| std::cmp::Reverse(s.len()));
-        all.dedup();
-        all
     };
     let mut pairs = Vec::new();
     for i in 1..runs.len() {

@@ -16,7 +16,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use rt_app::compare::RequestComparison;
-use rt_app::envcompare::{EnvComparison, EnvCompareRequest, EnvRun, compare_environments};
+use rt_app::envcompare::{EnvCompareRequest, EnvComparison, EnvRun, compare_environments};
 use rt_app::runner::RunSnapshot;
 use rt_core::send::SendOptions;
 use rt_format::FileSet;
@@ -209,15 +209,11 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
     let id = crate::oauth::collection_id(&root);
     let mut snapshots = Vec::new();
     for env in &args.environments {
-        let collection = match runtime.block_on(secrets::resolve_all(
-            model,
-            Some(env),
-            &args.vars,
-            &id,
-        )) {
-            Ok(c) => c,
-            Err(e) => return fail(stderr, EXIT_PREPARE, &e),
-        };
+        let collection =
+            match runtime.block_on(secrets::resolve_all(model, Some(env), &args.vars, &id)) {
+                Ok(c) => c,
+                Err(e) => return fail(stderr, EXIT_PREPARE, &e),
+            };
         snapshots.push(RunSnapshot {
             collection,
             environment: Some(env.clone()),
@@ -248,7 +244,11 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
         iteration: None,
     };
     let cmp = match runtime.block_on(compare_environments(
-        &runs, &request, &transport, &options, &|| false,
+        &runs,
+        &request,
+        &transport,
+        &options,
+        &|| false,
     )) {
         Ok(c) => c,
         Err(e) => return fail(stderr, EXIT_USAGE, &e.to_string()),
@@ -272,4 +272,3 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
         EXIT_OK
     }
 }
-

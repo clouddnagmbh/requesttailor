@@ -84,12 +84,24 @@ fn lists_differences_skips_writes_and_exits_zero() {
     let out = rt(&dir, &root, &["--env", "dev", "--env", "qa"]);
     assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
     let text = stdout(&out);
-    assert!(text.contains("dev (reference) vs qa: 2 of 2 requests differ"), "{text}");
-    assert!(text.contains("differs  items/get.yml: body /name"), "{text}");
+    assert!(
+        text.contains("dev (reference) vs qa: 2 of 2 requests differ"),
+        "{text}"
+    );
+    assert!(
+        text.contains("differs  items/get.yml: body /name"),
+        "{text}"
+    );
     assert!(text.contains("skipped (writes)  items/post.yml"), "{text}");
     // Reads went to both servers, the write to neither.
     for server in [&dev, &qa] {
-        let seen: Vec<String> = server.seen.lock().unwrap().iter().map(|(_, l)| l.clone()).collect();
+        let seen: Vec<String> = server
+            .seen
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, l)| l.clone())
+            .collect();
         assert_eq!(seen.len(), 2, "{seen:?}");
         assert!(seen.iter().all(|l| l.starts_with("GET ")), "{seen:?}");
     }
@@ -103,11 +115,19 @@ fn same_environments_are_same_and_fail_on_diff_decides_the_exit_code() {
     let dir = tmp("same");
     let root = dir.join("c");
     collection(&root, dev.port, qa.port);
-    let out = rt(&dir, &root, &["--env", "dev", "--env", "qa", "--fail-on-diff"]);
+    let out = rt(
+        &dir,
+        &root,
+        &["--env", "dev", "--env", "qa", "--fail-on-diff"],
+    );
     assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
     assert!(stdout(&out).contains("0 of 2 requests differ"));
     *qa.name.lock().unwrap() = "coffee".into();
-    let out = rt(&dir, &root, &["--env", "dev", "--env", "qa", "--fail-on-diff"]);
+    let out = rt(
+        &dir,
+        &root,
+        &["--env", "dev", "--env", "qa", "--fail-on-diff"],
+    );
     assert_eq!(out.status.code(), Some(1));
     let out = rt(&dir, &root, &["--env", "dev", "--env", "qa"]);
     assert_eq!(out.status.code(), Some(0));
@@ -121,12 +141,19 @@ fn json_output_carries_the_comparison_without_secrets() {
     let dir = tmp("json");
     let root = dir.join("c");
     collection(&root, dev.port, qa.port);
-    let out = rt(&dir, &root.join("items"), &["--env", "dev", "--env", "qa", "--json"]);
+    let out = rt(
+        &dir,
+        &root.join("items"),
+        &["--env", "dev", "--env", "qa", "--json"],
+    );
     assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["reference"], "dev");
     assert_eq!(json["pairs"][0]["environment"], "qa");
-    assert_eq!(json["pairs"][0]["requests"][0]["body"][0]["pointer"], "/name");
+    assert_eq!(
+        json["pairs"][0]["requests"][0]["body"][0]["pointer"],
+        "/name"
+    );
     assert_eq!(json["skipped"][0]["path"], "items/post.yml");
     // The folder `items` limits the run to the folder: `other.yml` was not sent.
     assert_eq!(json["pairs"][0]["requests"].as_array().unwrap().len(), 1);
