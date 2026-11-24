@@ -39,6 +39,9 @@
   import DialogHost from "./DialogHost.svelte";
   import EnvironmentManager from "../environments/EnvironmentManager.svelte";
   import EnvironmentSwitcher from "../environments/EnvironmentSwitcher.svelte";
+  import ProductionFrame from "../environments/ProductionFrame.svelte";
+  import { sendLabel } from "../environments/production";
+  import { getProduction } from "../environments/production.svelte";
   import SessionVarsButton from "../scripts/SessionVarsButton.svelte";
   import { gitApiCommands } from "../git/api-commands";
   import GitPanel from "../git/GitPanel.svelte";
@@ -357,6 +360,8 @@
 
   // ---- collection runner (wave 7) ----
   const runner = new RunnerState(app);
+  const production = getProduction(app);
+  runner.beforeStart = (target) => production.gateRun(target.name);
   /** Opens the runner for `folder` (`null`: the collection) of `collection` (default: the
    *  active one), which becomes active (wave 14). */
   async function openRunner(folder: string | null, name?: string, collection?: string) {
@@ -507,6 +512,7 @@
 </script>
 
 <div class="shell">
+  <ProductionFrame />
   <header>
     <button class="button" data-testid="open-collection" title="Open folder ({keys('open-folder')})" onclick={openFolder}>
       Open folder
@@ -658,10 +664,11 @@
                 <button
                   class="button primary send"
                   data-testid="send"
+                  data-production={production.active ? "true" : "false"}
                   title="Send ({keys('send')})"
                   disabled={sending}
                   onclick={() => app.send()}
-                  >{sending ? "Sending…" : "Send"}<kbd>{keys("send")}</kbd></button
+                  >{sendLabel(production.active, sending)}<kbd>{keys("send")}</kbd></button
                 >
                 {/if}
               {/snippet}
@@ -863,6 +870,11 @@
     align-items: center;
     gap: 8px;
     padding-inline: 16px;
+  }
+  .button.send[data-production="true"]:not(:disabled) {
+    background: var(--rt-danger-solid);
+    border-color: var(--rt-danger-solid);
+    color: #fff;
   }
   .send kbd {
     font-size: var(--rt-size-small);

@@ -18,7 +18,7 @@ and how.
 | `snapshot_compare` | ≤ 150 ms | 1000 stored responses compared with their snapshots, 100 differing, JSON diff included, native, release, median of 9 (pending: wave 17, strand B) |
 | `share_url_size` | ≤ 2000 chars | length of the share link of every request of the Bruno corpus, 95th percentile (pending: wave 17, strand C) |
 | `observer_overhead` | ≤ 1 ms | time three do-nothing observers add to one send, median over 500 sends |
-| `watch_resend` | ≤ 500 ms | `rt send --watch`: file change to request on the wire, median of 9 (pending: wave 17, strand D) |
+| `watch_resend` | ≤ 500 ms | `rt send --watch`: file change to request on the wire, median of 9 |
 | `git_status_large` | ≤ 300 ms | working copy of 50 000 tracked files, 100 changed, natively, release, median of 9 (pending: wave 15, strand B) |
 
 ```sh
@@ -224,4 +224,4 @@ strand confirms after its first measurement; `observer_overhead` was measured by
   sends (pairs of the same request, alternating; `crates/rt-core/tests/observer_perf.rs`, release
   build).
 - `watch_resend` (strand D, `--only watch`, `./watch.mjs`, `crates/rt-cli/tests/watch.rs`): from
-  the change of a request file to the request on the wire, `rt-testserver`, median of nine.
+  the change of a request file to the request on the wire (a local server in the test, the release `rt`, polling every 250 ms), median of nine; measured by strand D, `pending` removed.

@@ -42,6 +42,9 @@ export class RunnerState {
   error = $state<string | null>(null);
   results = new RunResults();
 
+  /** Asked once before a run starts (wave 17: the production question); `false` cancels. */
+  beforeStart: ((target: RunTarget) => Promise<boolean>) | null = null;
+
   private scheduled = false;
 
   constructor(private readonly app: AppState) {}
@@ -79,6 +82,8 @@ export class RunnerState {
   async start(): Promise<void> {
     const target = this.target;
     if (!target || this.running) return;
+    if (this.beforeStart && !(await this.beforeStart(target).catch(() => true))) return;
+    if (this.running) return;
     this.running = true;
     this.error = null;
     this.ran = target;

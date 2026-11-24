@@ -138,6 +138,7 @@ impl RunArgs {
             guard: self.guard.clone(),
             observers: self.observers.clone(),
             caller: rt_core::guard::Caller::Cli,
+            watch: Default::default(),
         }
     }
 }
@@ -371,6 +372,13 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
             |f| format!("{f} ({})", root.display()),
         );
         return fail(stderr, EXIT_USAGE, &format!("no requests in {place}"));
+    }
+    if let Some(text) = crate::send_banner::run_banner(
+        &model.config.agents,
+        args.environment.as_deref(),
+        requests.len(),
+    ) {
+        let _ = writeln!(stderr, "rt: {text}");
     }
     let plan = RunPlan {
         requests,

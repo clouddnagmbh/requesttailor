@@ -13,6 +13,8 @@
   import { bodyLanguage, prettyBody, type BodyLanguage } from "../pretty/language";
   import CodeView from "./CodeView.svelte";
   import { formatDuration, formatSize, header, PRETTY_LIMIT, reasonPhrase, statusClass, waterfall } from "./format";
+  import TimingBar from "./TimingBar.svelte";
+  import { timingBar } from "./timing-bar";
   import { contentTypeOf, tabsFor } from "../plugins/permissions";
   import PluginTab from "../plugins/PluginTab.svelte";
   import SendNotes from "../plugins/SendNotes.svelte";
@@ -258,6 +260,7 @@
 
   const cls = $derived(statusClass(response.status));
   const timing = $derived(waterfall(response.timing, response.total, backend.transport.mode(), response.url));
+  const bar = $derived(timingBar(response.timing, response.total, backend.transport.mode(), response.url));
 
   const MODES: { mode: Mode; label: string }[] = [
     { mode: "pretty", label: "Pretty" },
@@ -279,6 +282,7 @@
     <span class="status {cls}" data-testid="response-status" data-class={cls}>{response.status}</span>
     {#if reasonPhrase(response.status)}<span class="reason {cls}">{reasonPhrase(response.status)}</span>{/if}
     <span class="metric" title="Total time"><span class="label">Time</span><span data-testid="response-time">{formatDuration(response.total)}</span></span>
+    <TimingBar data={bar} />
     <span class="metric" title="Body size"><span class="label">Size</span><span data-testid="response-size">{formatSize(result.size)}</span></span>
     {#if response.truncated}
       <span class="warn" title="The body was cut at the send limit">cut at the limit, {formatSize(response.size)} received</span>

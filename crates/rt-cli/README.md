@@ -42,6 +42,15 @@ that contains `opencollection.yml`.
 | `--message TITLE` | Sessions: send this message variant instead of the selected one |
 | `--duration SECONDS` | Sessions: keep the session open this long |
 | `--until-close` | Sessions: keep the session open until the server ends it |
+| `--timing` | Also print one timing bar and the share of server wait on stderr: `[ddcttwwwwwwwwxxxx] Server wait is 82 % of 410 ms` (d DNS, c connect, t TLS, w wait, x transfer) |
+| `--watch` | Send again whenever the request, its body file, the folder files, `opencollection.yml`, the chosen environment or a companion file (`<name>.*`) changes; one line per send: `200 12 ms  34 B  same` or `changed: $.items[1].price`. `--json` prints one report per line. Ctrl-C exits with the code of the last send |
+| `--allow-writes` | With `--watch`: also send writing requests. Never against a production environment |
+
+**Production.** When the environment is a production system (the collection's agent policy
+marks it with `production: true`, or, for an environment the policy does not list, its name
+contains `prod`, `prd` or the word `live`), `rt send` and `rt run` print `PRODUCTION: ...` on
+stderr and add the same text to the report's `notes`. They never refuse because of it and the
+exit codes do not change, so existing pipelines keep working.
 
 ### Sessions: WebSocket, gRPC and SSE
 
