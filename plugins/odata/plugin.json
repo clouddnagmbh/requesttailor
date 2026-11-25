@@ -46,6 +46,300 @@
         "rule": { "rule": { "kind": "json-url", "next": "$.d.__next" }, "merge": "$.d.results" }
       }
     ],
+    "compensations": [
+      {
+        "id": "odata-v4-sap",
+        "match": {
+          "url_pattern": "*/odata4/*"
+        },
+        "rule": {
+          "etag_from": [
+            "header:ETag",
+            "$['@odata.etag']"
+          ],
+          "id_from": [
+            "header:Location",
+            "header:OData-EntityId",
+            "$['@odata.id']"
+          ],
+          "not_reversible": [
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftEdit*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftPrepare*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftActivate*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Edit"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Edit?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Prepare"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Prepare?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Activate"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Activate?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Edit"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Edit?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Prepare"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Prepare?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Activate"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Activate?*"
+            },
+            {
+              "reason": "A draft instance lives by the draft life cycle: discard or activate it in the app, a later write cannot put it back.",
+              "url_pattern": "*IsActiveEntity=false*"
+            }
+          ],
+          "token": {
+            "fetch_header": "x-csrf-token",
+            "fetch_value": "fetch",
+            "read_header": "x-csrf-token",
+            "send_header": "x-csrf-token"
+          }
+        }
+      },
+      {
+        "id": "odata-v4-cap",
+        "match": {
+          "url_pattern": "*/odata/v4/*"
+        },
+        "rule": {
+          "etag_from": [
+            "header:ETag",
+            "$['@odata.etag']"
+          ],
+          "id_from": [
+            "header:Location",
+            "header:OData-EntityId",
+            "$['@odata.id']"
+          ],
+          "not_reversible": [
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftEdit*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftPrepare*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftActivate*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Edit"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Edit?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Prepare"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Prepare?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Activate"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*.Activate?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Edit"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Edit?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Prepare"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Prepare?*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Activate"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*/Activate?*"
+            },
+            {
+              "reason": "A draft instance lives by the draft life cycle: discard or activate it in the app, a later write cannot put it back.",
+              "url_pattern": "*IsActiveEntity=false*"
+            }
+          ],
+          "token": {
+            "fetch_header": "x-csrf-token",
+            "fetch_value": "fetch",
+            "read_header": "x-csrf-token",
+            "send_header": "x-csrf-token"
+          }
+        }
+      },
+      {
+        "id": "odata-v2-sap",
+        "match": {
+          "url_pattern": "*/sap/opu/odata/*"
+        },
+        "rule": {
+          "etag_from": [
+            "header:ETag",
+            "$.d.__metadata.etag"
+          ],
+          "id_from": [
+            "header:Location",
+            "$.d.__metadata.uri",
+            "$.d.__metadata.id"
+          ],
+          "not_reversible": [
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*EditAction*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*PreparationAction*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*ActivationAction*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*ValidationAction*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftEdit*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftPrepare*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftActivate*"
+            },
+            {
+              "reason": "A draft instance lives by the draft life cycle: discard or activate it in the app, a later write cannot put it back.",
+              "url_pattern": "*IsActiveEntity=false*"
+            }
+          ],
+          "token": {
+            "fetch_header": "x-csrf-token",
+            "fetch_value": "fetch",
+            "read_header": "x-csrf-token",
+            "send_header": "x-csrf-token"
+          }
+        }
+      },
+      {
+        "id": "odata-v2-cap",
+        "match": {
+          "url_pattern": "*/odata/v2/*"
+        },
+        "rule": {
+          "etag_from": [
+            "header:ETag",
+            "$.d.__metadata.etag"
+          ],
+          "id_from": [
+            "header:Location",
+            "$.d.__metadata.uri",
+            "$.d.__metadata.id"
+          ],
+          "not_reversible": [
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*EditAction*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*PreparationAction*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*ActivationAction*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*ValidationAction*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftEdit*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftPrepare*"
+            },
+            {
+              "reason": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it.",
+              "url_pattern": "*draftActivate*"
+            },
+            {
+              "reason": "A draft instance lives by the draft life cycle: discard or activate it in the app, a later write cannot put it back.",
+              "url_pattern": "*IsActiveEntity=false*"
+            }
+          ],
+          "token": {
+            "fetch_header": "x-csrf-token",
+            "fetch_value": "fetch",
+            "read_header": "x-csrf-token",
+            "send_header": "x-csrf-token"
+          }
+        }
+      }
+    ],
     "welcome": {
       "label": "SAP and OData",
       "description": "OData V2 and V4 services, S/4HANA, CAP and RAP: metadata browser, query builder, CSRF, ETag, $batch, drafts, DEV/QAS/PRD landscapes."

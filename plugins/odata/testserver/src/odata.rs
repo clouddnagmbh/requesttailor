@@ -953,6 +953,13 @@ fn create(
         ctx.base,
         entity_path(def, set, &state.rows(set)[index])
     );
+    if def.version == Version::V4 {
+        // OData 4.0 part 1, 8.2.8: the entity's id also comes as `OData-EntityId` (a client
+        // that asked for `return=minimal` gets only this one).
+        reply
+            .headers
+            .push(("OData-EntityId".into(), location.clone()));
+    }
     reply.headers.push(("Location".into(), location));
     reply
 }

@@ -67,3 +67,9 @@ The test server adds both to its S/4-style services (`testserver/src/gateway.rs`
 `sap-statistics: true` (or the query parameter), and, on every S/4 error, the full body with
 transaction ID `0000000000000000000000000000RT01`, details and resolution (V2 as XML when only
 `application/xml` is accepted).
+
+`compensations/golden.json` (wave 19, strand H): synthetic responses of create, update and draft
+requests in the shapes the OData V2 and V4 specifications describe (`Location`, `OData-EntityId`,
+`d.__metadata`, `@odata.id`, `@odata.etag`, `ETag`); host names and ids are invented. The test
+`tests/compensations.rs` derives the resource URL and the `If-Match` value from them with the
+plugin's rules.

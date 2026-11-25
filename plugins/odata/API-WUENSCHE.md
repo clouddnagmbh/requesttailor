@@ -214,3 +214,19 @@ These were known before the strands started and are part of the wave 6 interface
 - **What:** `__count` / `@odata.count` cannot be named in a paging rule, so the UI cannot show
   "n of N loaded".
 - **Proposal:** `PagingSpec.total` (a JSONPath to the total count).
+
+### Key literals and relative ids in compensation rules (wave 19)
+
+- **What:** `CompensationRule.id_from` yields one string and `resource_url` is one template for
+  all sources. `Location`, `OData-EntityId` and `d.__metadata.uri` are absolute URLs with the key
+  in them, so the rules leave `resource_url` empty. `@odata.id` is usually relative to the
+  service root (`Books(ID=301,IsActiveEntity=true)`), and a bare key property (`d.ID`) needs a
+  typed literal (`'0500000001'`, guid, number), which the data cannot build. Both are therefore
+  either last in the list (`@odata.id`) or left out (`d.<Key>`).
+- **Workaround:** the first sources are full URLs; a service that answers neither `Location` nor
+  `__metadata` has its entry reported as not reversible by the app (the user reverts by hand).
+- **Proposal:** `id_from` entries with their own template (`{ "from": "$.ID", "url": "{collection}({id})" }`)
+  or "a relative id is resolved against the request URL's service root"; a `quote` hint
+  (`string`, `guid`, `number`) for key literals.
+- **Also:** `NotReversibleRule` has a URL glob only; "the answer says `IsActiveEntity` is false"
+  would need a body condition. A draft instance is recognised by its key in the URL.
