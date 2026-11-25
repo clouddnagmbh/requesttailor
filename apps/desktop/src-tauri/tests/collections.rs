@@ -42,7 +42,7 @@ impl TempDir {
         ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        Self(std::fs::canonicalize(&dir).unwrap())
+        Self(rt_git::canonical(&dir).unwrap())
     }
 }
 
@@ -98,7 +98,7 @@ fn sample_root(tag: &str, base_url: &str) -> TempDir {
 }
 
 fn id(path: &Path) -> String {
-    std::fs::canonicalize(path)
+    rt_git::canonical(path)
         .unwrap()
         .to_string_lossy()
         .into_owned()

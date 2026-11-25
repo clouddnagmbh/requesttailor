@@ -688,10 +688,11 @@ fn scripts_run_only_in_trusted_collections() {
     assert!(r["notes"].to_string().contains("not trusted"), "{r}");
     drop(mcp);
 
-    let id = std::fs::canonicalize(&root).unwrap();
+    // The id `rt` trusts by (no `\\?\` prefix on Windows).
+    let id = rt_cli::oauth::collection_id(&root);
     write(
         &data.join("trusted-scripts.json"),
-        &json!({"version": 1, "trusted": [id.to_string_lossy()]}).to_string(),
+        &json!({"version": 1, "trusted": [id]}).to_string(),
     );
     let mut mcp = Mcp::start(&root, &data, json!({}), &[]);
     let r = json_text(&mcp.call(
