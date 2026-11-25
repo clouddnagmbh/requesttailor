@@ -35,6 +35,7 @@
   import { testSummary, testsLabel } from "./tests";
   import TimingWaterfall from "./TimingWaterfall.svelte";
   import TraceSegments from "../trace/TraceSegments.svelte";
+  import { saveAsView } from "../views/save";
   import VirtualLines from "./VirtualLines.svelte";
 
   let {
@@ -249,6 +250,14 @@
 
   $effect(() => () => clearTimeout(filterTimer));
 
+  // ---- saved views (wave 18, strand G): the filter's JSONPath as a view of the request ----
+
+  async function saveView() {
+    if (!filtered) return;
+    const saved = await saveAsView(app, result.report.request_path, filtered.expression);
+    if (saved !== null && slotTabs.some((t) => t.id === "views")) tab = "slot:views";
+  }
+
   // ---- copy ----
 
   let copied = $state(false);
@@ -383,6 +392,9 @@
           {oninput}
           onkeydown={onfilterkey}
         />
+        {#if filtered && filterError === null}
+          <button type="button" class="copy" data-testid="save-as-view" onclick={saveView}>Save as view</button>
+        {/if}
       {/if}
       {#if copyable}
         <button type="button" class="copy" onclick={copy}>{copied ? "Copied" : "Copy"}</button>

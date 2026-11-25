@@ -458,7 +458,11 @@ export class MockBackend implements Backend {
     variables: this.variables,
     name: () => this.collections.current_().info.name,
   });
-  readonly views = mockViews();
+  readonly views = mockViews({
+    companions: this.companions,
+    getRequest: (path) => this.getRequest(path),
+    responseText: (id) => this.responses.get(id)?.text ?? null,
+  });
   readonly catalogue = mockCatalogue();
   /** Wave 17 (strands B and C replace the placeholders in their own files). */
   readonly snapshots = mockSnapshots({

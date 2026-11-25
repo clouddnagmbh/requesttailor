@@ -159,6 +159,11 @@ impl ResponseStore {
         Ok(LineSlice { start, lines, cut })
     }
 
+    /// The whole body, borrowed (wave 18: saved views evaluate on it without a copy).
+    pub fn body(&self, id: u64) -> Result<&[u8], AppError> {
+        Ok(&self.entry(id)?.body)
+    }
+
     /// Raw bytes for "save response to file" and hex views.
     pub fn bytes(&self, id: u64, offset: u64, len: u32) -> Result<Vec<u8>, AppError> {
         let body = &self.entry(id)?.body;

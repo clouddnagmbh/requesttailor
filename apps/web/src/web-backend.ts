@@ -452,7 +452,7 @@ export class WebBackend implements Backend {
     this.paging = webPaging({ session: host.session, sendContext, plugins: () => this.plugins.list() });
     this.inbox = webInbox();
     this.lint = webLint(() => this.session());
-    this.views = webViews();
+    this.views = webViews(() => this.session());
     this.catalogue = webCatalogue();
     this.snapshots = webSnapshots(
       () => this.session(),
