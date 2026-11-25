@@ -73,6 +73,9 @@
   let scriptPromises = [];
   const modules = new Map();
   let moduleCache = new Map();
+  // The script debugger (js/runtime/50-debug.js): a factory registered at init, used only by a
+  // run message with `debug`.
+  let debugFactory = null;
 
   // ---------------------------------------------------------------------------------------
   // Formatting (console, errors)
@@ -584,6 +587,10 @@
       modules.set(name, factory);
     },
 
+    debugHook(factory) {
+      debugFactory = factory;
+    },
+
     begin(input) {
       phase = input.phase;
       origin = input.scripts.length ? input.scripts[0].origin : "request";
@@ -657,6 +664,7 @@
       define("test", test);
       define("console", console);
       define("require", require);
+      if (input.debug && debugFactory) debugFactory(input.debug, { call, define, logs: () => logs });
     },
 
     enter(name) {

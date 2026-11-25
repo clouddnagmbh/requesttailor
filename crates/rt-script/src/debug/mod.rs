@@ -15,10 +15,33 @@
 //! run contains no debug code at all**: no instrumentation, no host function, the same cost
 //! as before (the script-execution budget does not change).
 //!
-//! Secret values in the variable inspector are masked like everywhere. Interface: types
-//! only; the sandbox does not debug until strand Y.
+//! Secret values in the variable inspector are masked like everywhere: every text that
+//! leaves a pause (values, frames, output, the answer to an expression, errors) is masked
+//! with the secret values of the run.
+//!
+//! - [`instrument`]: the source for a debug run.
+//! - [`DebugSession`]: one run, paused and resumed with [`DebugCommand`]s (`async`, not
+//!   `Send`; it works the same natively and in the browser).
+//! - [`prepare`]: a [`DebugInput`] for a request of a collection (what a shell does for
+//!   `DebuggerApi.start`).
+//! - [`DebugHandle`] (native): a session on its own thread, `Send`, for the desktop app.
+//! - [`DebugRunner`]: a [`rt_core::services::ScriptRunner`] that debugs a request's scripts
+//!   in the terminal (`rt send --debug`).
 
 use serde::{Deserialize, Serialize};
+
+pub mod instrument;
+mod prepare;
+mod runner;
+mod session;
+#[cfg(not(target_arch = "wasm32"))]
+mod worker;
+
+pub use prepare::{PrepareArgs, prepare};
+pub use runner::{DebugRunner, DebugTerminal};
+pub use session::{DebugInput, DebugSession};
+#[cfg(not(target_arch = "wasm32"))]
+pub use worker::DebugHandle;
 
 /// A line the script stops at.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,6 +70,10 @@ pub struct DebugTarget {
     /// Stop at the first statement.
     #[serde(default)]
     pub stop_on_entry: bool,
+    /// `after-response` and `tests`: the kept response the script reads as `rt.response`
+    /// (the one the response panel shows). Not needed for `before-request`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<u64>,
 }
 
 /// What the user asks the paused script to do.
