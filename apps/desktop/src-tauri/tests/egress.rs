@@ -116,12 +116,13 @@ async fn a_call_needs_an_allowed_host_resolves_secrets_and_leaves_no_trace() {
     let url = format!("http://{addr}/echo/trace");
     let with_secret = || vec![("X-Api-Key".to_owned(), "{{secret:trace_token}}".to_owned())];
 
-    // Not allowed yet: refused, and the guard was not asked (nothing would have gone out).
+    // Not allowed yet: refused. The guard is asked first (a refusing guard means the user is
+    // never asked about the host); this one allows, so the host list answers.
     let err = egress::request(&core, request(&url, with_secret()))
         .await
         .unwrap_err();
     assert!(matches!(err, EgressError::NotAllowed { .. }), "{err:?}");
-    assert!(guard.0.lock().unwrap().is_empty());
+    assert_eq!(guard.0.lock().unwrap().len(), 1);
 
     // Allowed once (plain http on its port): through, the secret masked in the answer.
     egress::allow(
@@ -140,9 +141,9 @@ async fn a_call_needs_an_allowed_host_resolves_secrets_and_leaves_no_trace() {
     assert!(!serde_json::to_string(&answer).unwrap().contains(CANARY));
     {
         let checks = guard.0.lock().unwrap();
-        assert_eq!(checks.len(), 1);
-        assert_eq!(checks[0].purpose, Purpose::Egress);
-        assert_eq!(checks[0].collection, "Egress");
+        assert_eq!(checks.len(), 2);
+        assert_eq!(checks[1].purpose, Purpose::Egress);
+        assert_eq!(checks[1].collection, "Egress");
     }
 
     // The guard wins: a host it refuses is never reached.
