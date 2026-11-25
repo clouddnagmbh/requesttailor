@@ -1147,6 +1147,19 @@ impl<S: SecretStore> Core<S> {
         Ok(stored)
     }
 
+    /// Keeps the merged report of a paging run (wave 18, strand C, `paging.rs`): one history
+    /// entry for the run, never one per page, and the body in the response store.
+    pub fn keep_paged(
+        &self,
+        collection: &str,
+        name: &str,
+        method: &str,
+        run: rt_app::paging::PagedRun,
+    ) -> rt_app::paging::PagedResult {
+        self.history.record(collection, name, method, &run.report);
+        run.into_result(&mut lock(&self.responses))
+    }
+
     /// The request at `path` ready to open as a session (wave 8, strand A, `streams.rs`), and
     /// the collection id: like [`Core::send`] up to the wire (session variables, keychain and
     /// external secrets).

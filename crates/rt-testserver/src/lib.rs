@@ -24,6 +24,7 @@
 //! | `GET /sse/count/{n}` | `text/event-stream` (wave 8): `n` events (`id: i`, `data: i`, i = 1..n), then the stream ends; `?interval=<ms>` between events (default 10) |
 //! | `GET /sse/named` | `text/event-stream` (wave 8): a comment, then named events with ids (`greeting`, `update` with multi-line data) and one of the default type, then the end |
 //! | `POST/DELETE /mcp` | an MCP server over Streamable HTTP (wave 8, module [`mcp`]) |
+//! | `ANY /pages/{link,url,cursor}/{n}` | `n` pages of a list, the next one named by a `Link` header, a URL in the body or a cursor (wave 18, module [`pages`](self)) |
 //! | `OPTIONS *` | CORS preflight, 204 |
 //!
 //! [`spawn_mtls`] serves the same routes over HTTPS and requires a client certificate signed
@@ -54,6 +55,7 @@ use tokio::net::TcpListener;
 /// Wave 8, strand D: an MCP server (Streamable HTTP and stdio) for the MCP client's tests.
 pub mod mcp;
 /// WebSocket and SSE routes (wave 8, strand A).
+mod pages;
 mod sse;
 mod ws;
 pub use mcp::spawn_mcp;
@@ -327,6 +329,8 @@ async fn route(req: Request<Incoming>) -> Response<Body> {
         ["sse", "count", n] => sse::count(n, &query),
         ["sse", "named"] => sse::named(&query),
         ["mcp"] => mcp::route(req).await,
+        // Wave 18, strand C: paged lists.
+        ["pages", kind, n] => pages::route(req, kind, n, &query).await,
         ["status", code] => match code
             .parse::<u16>()
             .ok()

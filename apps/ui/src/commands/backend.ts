@@ -1119,7 +1119,9 @@ export interface InspectApi {
 
 /** Paging (wave 18, strand C; `rt_app::paging`). */
 export interface PagingApi {
-  rule(path: string): Promise<EffectivePaging | null>;
+  /** The rule in force; with the kept response `responseId`, a plugin's rule is matched on its
+   *  URL and content type (without it on the request as written). */
+  rule(path: string, responseId?: number | null): Promise<EffectivePaging | null>;
   setRule(path: string, spec: PagingSpec | null, scope: PagingRuleScope): Promise<void>;
   run(run: PagingRun): Promise<PagedResult>;
 }

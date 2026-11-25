@@ -117,7 +117,6 @@ max = 20
 [metrics.paging_merge]
 description = "Following and merging 100 pages of 100 items (rt-testserver) into one stored response, median of 9"
 unit = "ms"
-pending = "wave 18, strand C"
 max = 2500
 
 # Strand D (scripts/perf/ratelimit.mjs).
