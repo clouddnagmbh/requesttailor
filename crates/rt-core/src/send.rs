@@ -713,7 +713,7 @@ async fn finish<T: Transport>(
                 files,
             )
             .await;
-            let received = received(completed);
+            let received = received(completed, &secrets);
             // Wave 18: what the response says about rate limits.
             report.rate_limit = crate::ratelimit::observe(&received);
             report.response = Some(received);
@@ -904,7 +904,7 @@ fn sent_request(request: &HttpRequest, secrets: &[String]) -> SentRequest {
     }
 }
 
-fn received(c: CompletedResponse) -> ReceivedResponse {
+fn received(c: CompletedResponse, secrets: &[String]) -> ReceivedResponse {
     ReceivedResponse {
         tls: None,
         status: c.head.status,
@@ -923,8 +923,17 @@ fn received(c: CompletedResponse) -> ReceivedResponse {
                 (name, value)
             })
             .collect(),
-        url: c.head.url,
-        redirects: c.head.redirects,
+        // The final URL and redirect targets repeat the query of the request, secrets included.
+        url: mask(&c.head.url, secrets),
+        redirects: c
+            .head
+            .redirects
+            .into_iter()
+            .map(|r| Redirect {
+                location: mask(&r.location, secrets),
+                ..r
+            })
+            .collect(),
         body: report_body(&c.body, c.truncated),
         size: c.size,
         truncated: c.truncated,
@@ -1619,7 +1628,7 @@ mod tests {
             size: 10,
             total: Duration::from_millis(7),
         };
-        let r = received(c);
+        let r = received(c, &[]);
         assert_eq!(r.status, 404);
         assert_eq!(r.version, HttpVersion::Http2);
         assert_eq!(r.url, "http://x/final");
@@ -1628,6 +1637,31 @@ mod tests {
         assert_eq!((r.size, r.truncated), (10, true));
         assert_eq!(r.timing.ttfb, Duration::from_millis(3));
         assert_eq!(r.total, Duration::from_millis(7));
+    }
+
+    #[test]
+    fn received_masks_secrets_in_the_final_url_and_redirects() {
+        let c = CompletedResponse {
+            head: ResponseHead {
+                status: 200,
+                version: HttpVersion::Http11,
+                headers: vec![],
+                url: "http://x/final?token=RT-CANARY-77".into(),
+                redirects: vec![Redirect {
+                    status: 302,
+                    location: "/final?token=RT-CANARY-77".into(),
+                }],
+                timing: Timing::default(),
+            },
+            body: Bytes::new(),
+            truncated: false,
+            size: 0,
+            total: Duration::ZERO,
+        };
+        let r = received(c, &["RT-CANARY-77".to_owned()]);
+        assert!(!r.url.contains("RT-CANARY-77"), "{}", r.url);
+        assert!(!r.redirects[0].location.contains("RT-CANARY-77"));
+        assert_eq!(r.redirects[0].status, 302);
     }
 
     #[test]
