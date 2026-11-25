@@ -41,15 +41,16 @@ test("the environment manager has a Compare button", async ({ page }) => {
 test("a failed response offers Shrink", async ({ page }) => {
   await openDemo(page);
   await page.getByTestId("env-switcher").selectOption("Local");
-  await page.getByTestId("tree-request").filter({ hasText: "List users" }).click();
   await page.evaluate(async () => {
     const b = (window as unknown as { __rt: { backend: any } }).__rt.backend;
     const spec = await b.getRequest("users/list-users.yml");
-    spec.url = "{{baseUrl}}/users?boom=1";
+    spec.assertions = [{ expression: "res.status", operator: "eq", value: "500", description: null, enabled: true }];
     await b.updateRequest("users/list-users.yml", spec);
   });
+  await page.getByTestId("tree-request").filter({ hasText: "List users" }).click();
   await page.keyboard.press(`${MOD}+Enter`);
-  await expect(page.getByTestId("response-status")).toHaveText("500");
+  await expect(page.getByTestId("response-status")).toHaveText("200");
+  await expect(page.getByTestId("response-status")).toBeVisible();
   await page.getByTestId("shrink-action").click();
   await expect(page.getByTestId("shrink-panel")).toBeVisible();
 });
