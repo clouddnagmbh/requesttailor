@@ -18,7 +18,8 @@ fn workspace(files: &[(&str, &str)]) -> Workspace {
         b"opencollection: \"1.0.0\"\ninfo:\n  name: shop\n".to_vec(),
     );
     for (path, text) in files {
-        set.files.insert((*path).to_owned(), text.as_bytes().to_vec());
+        set.files
+            .insert((*path).to_owned(), text.as_bytes().to_vec());
     }
     Workspace::open(set).expect("fixture collection")
 }
@@ -50,7 +51,10 @@ fn paths(report: &LintReport, rule: LintRule) -> Vec<&str> {
 fn no_tests_finds_requests_without_test_assertion_or_snapshot() {
     let ws = workspace(&[
         ("bare.yml", &request("Bare", "{{baseUrl}}/a", "")),
-        ("asserted.yml", &request("Asserted", "{{baseUrl}}/b", WITH_ASSERTION)),
+        (
+            "asserted.yml",
+            &request("Asserted", "{{baseUrl}}/b", WITH_ASSERTION),
+        ),
         (
             "tested.yml",
             &request(
@@ -103,12 +107,39 @@ fn a_tests_script_of_a_folder_covers_the_requests_below() {
 #[test]
 fn hard_coded_hosts_in_urls_are_found_and_variables_are_not() {
     let ws = workspace(&[
-        ("fixed.yml", &request("Fixed", "https://api.example.com/x?key=public", WITH_ASSERTION)),
+        (
+            "fixed.yml",
+            &request(
+                "Fixed",
+                "https://api.example.com/x?key=public",
+                WITH_ASSERTION,
+            ),
+        ),
         ("var.yml", &request("Var", "{{baseUrl}}/x", WITH_ASSERTION)),
-        ("host-var.yml", &request("HostVar", "https://{{host}}/x", WITH_ASSERTION)),
-        ("scheme-var.yml", &request("SchemeVar", "{{scheme}}://api.example.com/x", WITH_ASSERTION)),
-        ("part.yml", &request("Part", "https://api.{{stage}}.example.com/x", WITH_ASSERTION)),
-        ("bare-host.yml", &request("BareHost", "example.com/x", WITH_ASSERTION)),
+        (
+            "host-var.yml",
+            &request("HostVar", "https://{{host}}/x", WITH_ASSERTION),
+        ),
+        (
+            "scheme-var.yml",
+            &request(
+                "SchemeVar",
+                "{{scheme}}://api.example.com/x",
+                WITH_ASSERTION,
+            ),
+        ),
+        (
+            "part.yml",
+            &request(
+                "Part",
+                "https://api.{{stage}}.example.com/x",
+                WITH_ASSERTION,
+            ),
+        ),
+        (
+            "bare-host.yml",
+            &request("BareHost", "example.com/x", WITH_ASSERTION),
+        ),
     ]);
     let report = run(&ws);
     let found = of(&report, LintRule::HardCodedHost);
@@ -122,15 +153,28 @@ fn hard_coded_hosts_in_urls_are_found_and_variables_are_not() {
 #[test]
 fn loopback_hosts_are_info_whatever_the_level() {
     let ws = workspace(&[
-        ("a.yml", &request("A", "http://localhost:3000/x", WITH_ASSERTION)),
-        ("b.yml", &request("B", "http://127.0.0.1:8080/x", WITH_ASSERTION)),
-        ("c.yml", &request("C", "http://[::1]:8080/x", WITH_ASSERTION)),
-        ("d.yml", &request("D", "http://api.localhost/x", WITH_ASSERTION)),
+        (
+            "a.yml",
+            &request("A", "http://localhost:3000/x", WITH_ASSERTION),
+        ),
+        (
+            "b.yml",
+            &request("B", "http://127.0.0.1:8080/x", WITH_ASSERTION),
+        ),
+        (
+            "c.yml",
+            &request("C", "http://[::1]:8080/x", WITH_ASSERTION),
+        ),
+        (
+            "d.yml",
+            &request("D", "http://api.localhost/x", WITH_ASSERTION),
+        ),
         ("e.yml", &request("E", "http://10.0.0.5/x", WITH_ASSERTION)),
     ]);
     let report = run(&ws);
     let found = of(&report, LintRule::HardCodedHost);
-    let mut by_path: Vec<(&str, LintLevel)> = found.iter().map(|f| (f.path.as_str(), f.level)).collect();
+    let mut by_path: Vec<(&str, LintLevel)> =
+        found.iter().map(|f| (f.path.as_str(), f.level)).collect();
     by_path.sort();
     assert_eq!(
         by_path,
@@ -144,9 +188,17 @@ fn loopback_hosts_are_info_whatever_the_level() {
     );
     // Even at `error`, loopback stays info.
     let mut settings = lint::settings(&ws);
-    settings.rules.insert("lint/hard-coded-host".into(), LintLevel::Error);
+    settings
+        .rules
+        .insert("lint/hard-coded-host".into(), LintLevel::Error);
     let strict = lint::lint_with(&ws, &settings);
-    let level = |p: &str| of(&strict, LintRule::HardCodedHost).iter().find(|f| f.path == p).unwrap().level;
+    let level = |p: &str| {
+        of(&strict, LintRule::HardCodedHost)
+            .iter()
+            .find(|f| f.path == p)
+            .unwrap()
+            .level
+    };
     assert_eq!(level("a.yml"), LintLevel::Info);
     assert_eq!(level("e.yml"), LintLevel::Error);
 }
@@ -170,7 +222,13 @@ fn token_urls_of_oauth_are_checked_on_requests_folders_and_the_collection() {
     assert_eq!(found[0].location.as_deref(), Some("auth.access_token_url"));
     // The same with a variable gives nothing.
     let ok = request_with_oauth.replace("https://login.example.com/token", "{{tokenUrl}}");
-    assert!(of(&run(&workspace(&[("tok.yml", &ok)])), LintRule::HardCodedHost).is_empty());
+    assert!(
+        of(
+            &run(&workspace(&[("tok.yml", &ok)])),
+            LintRule::HardCodedHost
+        )
+        .is_empty()
+    );
 }
 
 #[test]
@@ -189,9 +247,11 @@ const COLLECTION_VARS: &str = "opencollection: \"1.0.0\"\ninfo:\n  name: shop\nr
 
 fn with_collection_file(text: &str, files: &[(&str, &str)]) -> Workspace {
     let mut set = FileSet::default();
-    set.files.insert(COLLECTION_FILE.to_owned(), text.as_bytes().to_vec());
+    set.files
+        .insert(COLLECTION_FILE.to_owned(), text.as_bytes().to_vec());
     for (path, body) in files {
-        set.files.insert((*path).to_owned(), body.as_bytes().to_vec());
+        set.files
+            .insert((*path).to_owned(), body.as_bytes().to_vec());
     }
     Workspace::open(set).expect("fixture collection")
 }
@@ -215,7 +275,10 @@ fn unused_variables_of_collection_folder_and_environment_are_found() {
                 "users/folder.yml",
                 "info:\n  name: users\n  type: folder\nrequest:\n  variables:\n    - name: unusedFolder\n      value: 1\n",
             ),
-            ("users/list.yml", &request("List", "{{baseUrl}}/u", WITH_ASSERTION)),
+            (
+                "users/list.yml",
+                &request("List", "{{baseUrl}}/u", WITH_ASSERTION),
+            ),
             (
                 "environments/Dev.yml",
                 "name: Dev\nvariables:\n  - name: unusedEnv\n    value: 1\n  - name: baseUrl\n    value: https://dev.test\n  - secret: true\n    name: unusedSecret\n",
@@ -229,7 +292,10 @@ fn unused_variables_of_collection_folder_and_environment_are_found() {
     assert!(by_name("unusedFolder").is_some());
     assert!(by_name("unusedEnv").is_some());
     assert!(by_name("unusedSecret").is_some());
-    assert!(by_name("`off`").is_none(), "disabled variables are not defined");
+    assert!(
+        by_name("`off`").is_none(),
+        "disabled variables are not defined"
+    );
     assert!(by_name("baseUrl").is_none());
     assert_eq!(found.len(), 4, "{found:?}");
     assert_eq!(by_name("unusedFolder").unwrap().path, "users/");
@@ -301,14 +367,28 @@ fn placeholders_in_any_field_assertions_actions_and_body_files_count() {
                 "info:\n  name: R\n  type: http\n  seq: 1\n\nhttp:\n  method: POST\n  url: \"http://localhost/r\"\n  headers:\n    - name: X\n      value: \"{{inHeader}}\"\n  body:\n    type: json\n    data: |-\n      {\"a\": \"{{inBody}}\"}\n  auth:\n    type: bearer\n    token: \"{{inAuth}}\"\n\nruntime:\n  assertions:\n    - expression: inAssertion\n      operator: eq\n      value: \"1\"\n  actions:\n    - type: set-variable\n      phase: post-response\n      selector:\n        expression: res.body.id\n        method: jsonq\n      variable:\n        name: setByAction\n        scope: runtime\n",
             ),
             ("payload.json", "{\"x\": \"{{inFile}}\"}"),
-            ("environments/E.yml", "name: E\nvariables:\n  - name: other\n    value: \"{{inEnv}}\"\n"),
+            (
+                "environments/E.yml",
+                "name: E\nvariables:\n  - name: other\n    value: \"{{inEnv}}\"\n",
+            ),
         ],
     );
     let report = run(&ws);
     let orphans = names(&report);
     assert!(orphans.iter().any(|m| m.contains("lonely")), "{orphans:?}");
-    for used in ["inHeader", "inBody", "inFile", "inAssertion", "setByAction", "inEnv", "inAuth"] {
-        assert!(!orphans.iter().any(|m| m.contains(&format!("`{used}`"))), "{used}: {orphans:?}");
+    for used in [
+        "inHeader",
+        "inBody",
+        "inFile",
+        "inAssertion",
+        "setByAction",
+        "inEnv",
+        "inAuth",
+    ] {
+        assert!(
+            !orphans.iter().any(|m| m.contains(&format!("`{used}`"))),
+            "{used}: {orphans:?}"
+        );
     }
 }
 
@@ -319,7 +399,10 @@ fn duplicate_names_in_one_folder_are_errors_and_other_folders_are_fine() {
     let ws = workspace(&[
         ("a/one.yml", &request("Same", "{{b}}/1", WITH_ASSERTION)),
         ("a/two.yml", &request("Same", "{{b}}/2", WITH_ASSERTION)),
-        ("a/three.yml", &request("Different", "{{b}}/3", WITH_ASSERTION)),
+        (
+            "a/three.yml",
+            &request("Different", "{{b}}/3", WITH_ASSERTION),
+        ),
         ("b/one.yml", &request("Same", "{{b}}/4", WITH_ASSERTION)),
         ("x/folder.yml", "info:\n  name: Dup\n  type: folder\n"),
         ("x/r.yml", &request("R", "{{b}}/5", WITH_ASSERTION)),
@@ -330,7 +413,11 @@ fn duplicate_names_in_one_folder_are_errors_and_other_folders_are_fine() {
     let mut found = paths(&report, LintRule::DuplicateName);
     found.sort();
     assert_eq!(found, vec!["a/one.yml", "a/two.yml", "x/", "y/"]);
-    assert!(of(&report, LintRule::DuplicateName).iter().all(|f| f.level == LintLevel::Error));
+    assert!(
+        of(&report, LintRule::DuplicateName)
+            .iter()
+            .all(|f| f.level == LintLevel::Error)
+    );
 }
 
 #[test]
@@ -344,7 +431,10 @@ fn file_names_that_differ_only_in_case_collide() {
     let mut found = paths(&report, LintRule::DuplicateName);
     found.sort();
     assert_eq!(found, vec!["List.yml", "list.yml"]);
-    assert_eq!(of(&report, LintRule::DuplicateName)[0].location.as_deref(), Some("file name"));
+    assert_eq!(
+        of(&report, LintRule::DuplicateName)[0].location.as_deref(),
+        Some("file name")
+    );
 }
 
 // ---- the score ----
@@ -379,12 +469,23 @@ fn the_score_is_the_weighted_mean_of_the_satisfaction_per_rule() {
         &[
             ("a.yml", &request("A", "{{baseUrl}}/a", WITH_ASSERTION)),
             ("b.yml", &request("B", "{{baseUrl}}/b", WITH_ASSERTION)),
-            ("c.yml", &request("C", "https://fixed.example.com/c", WITH_ASSERTION)),
+            (
+                "c.yml",
+                &request("C", "https://fixed.example.com/c", WITH_ASSERTION),
+            ),
             ("d.yml", &request("D", "{{baseUrl}}/d", "")),
         ],
     );
     let report = run(&ws);
-    let score = |r: LintRule| report.score.rules.iter().find(|s| s.rule == r).map(|s| (s.ok, s.total)).unwrap();
+    let score = |r: LintRule| {
+        report
+            .score
+            .rules
+            .iter()
+            .find(|s| s.rule == r)
+            .map(|s| (s.ok, s.total))
+            .unwrap()
+    };
     assert_eq!(score(LintRule::NoTests), (3, 4));
     assert_eq!(score(LintRule::HardCodedHost), (3, 4));
     assert_eq!(score(LintRule::OrphanVariable), (1, 2));
@@ -402,7 +503,14 @@ fn folders_get_their_own_score() {
         ("bad/b.yml", &request("B", "{{b}}/b", "")),
     ]);
     let report = run(&ws);
-    let folder = |f: &str| report.folders.iter().find(|x| x.folder == f).map(|x| x.score.score).unwrap();
+    let folder = |f: &str| {
+        report
+            .folders
+            .iter()
+            .find(|x| x.folder == f)
+            .map(|x| x.score.score)
+            .unwrap()
+    };
     assert_eq!(folder("good"), 100);
     assert!(folder("bad") < 100);
     assert!(folder("") < 100 && folder("") > folder("bad"));
@@ -413,7 +521,12 @@ fn a_rule_without_anything_to_check_does_not_count() {
     // No variables at all: orphan-variable has total 0 and no weight in the mean.
     let ws = workspace(&[("a.yml", &request("A", "{{b}}/a", WITH_ASSERTION))]);
     let report = run(&ws);
-    let orphan = report.score.rules.iter().find(|s| s.rule == LintRule::OrphanVariable).unwrap();
+    let orphan = report
+        .score
+        .rules
+        .iter()
+        .find(|s| s.rule == LintRule::OrphanVariable)
+        .unwrap();
     assert_eq!(orphan.total, 0);
     assert_eq!(report.score.score, 100);
     assert_eq!(run(&workspace(&[])).score.score, 100);
@@ -427,21 +540,37 @@ fn settings_change_levels_switch_rules_off_and_survive_a_save() {
     assert_eq!(of(&run(&ws), LintRule::NoTests)[0].level, LintLevel::Warn);
     let mut settings = lint::settings(&ws);
     assert_eq!(settings, LintSettings::default());
-    settings.rules.insert("lint/no-tests".into(), LintLevel::Error);
-    settings.rules.insert("lint/hard-coded-host".into(), LintLevel::Off);
+    settings
+        .rules
+        .insert("lint/no-tests".into(), LintLevel::Error);
+    settings
+        .rules
+        .insert("lint/hard-coded-host".into(), LintLevel::Off);
     settings.min_score = Some(90);
     lint::set_settings(&mut ws, &settings).unwrap();
-    assert!(ws.dirty().iter().any(|p| p == COLLECTION_FILE), "{:?}", ws.dirty());
+    assert!(
+        ws.dirty().iter().any(|p| p == COLLECTION_FILE),
+        "{:?}",
+        ws.dirty()
+    );
     assert_eq!(lint::settings(&ws), settings);
     let report = run(&ws);
     assert_eq!(of(&report, LintRule::NoTests)[0].level, LintLevel::Error);
     assert!(of(&report, LintRule::HardCodedHost).is_empty());
     // Off rules have nothing to check and no weight.
-    let hosts = report.score.rules.iter().find(|s| s.rule == LintRule::HardCodedHost).unwrap();
+    let hosts = report
+        .score
+        .rules
+        .iter()
+        .find(|s| s.rule == LintRule::HardCodedHost)
+        .unwrap();
     assert_eq!(hosts.total, 0);
     // Saved and reopened.
     let saved = ws.save().unwrap();
-    let file = saved.iter().find(|c| c.path == COLLECTION_FILE).expect("collection file");
+    let file = saved
+        .iter()
+        .find(|c| c.path == COLLECTION_FILE)
+        .expect("collection file");
     assert!(file.text.contains("lint/no-tests: error"), "{}", file.text);
     let mut files = FileSet::default();
     for change in saved {
@@ -504,8 +633,85 @@ fn findings_come_in_a_fixed_order() {
         ("a.yml", &request("A", "https://a.example.com", "")),
     ]);
     let report = run(&ws);
-    let order: Vec<(&str, LintRule)> = report.findings.iter().map(|f| (f.path.as_str(), f.rule)).collect();
+    let order: Vec<(&str, LintRule)> = report
+        .findings
+        .iter()
+        .map(|f| (f.path.as_str(), f.rule))
+        .collect();
     let mut sorted = order.clone();
     sorted.sort();
     assert_eq!(order, sorted);
+}
+
+// ---- the budget `lint_1000` ----
+
+/// 1000 requests in 20 folders, each with variables, 30 % with scripts, 50 variables in the
+/// collection, folders and an environment; all four rules and the score. Reading the files is
+/// not part of the time. `scripts/perf/lint.mjs` runs this in a release build with
+/// `RT_PERF_OUT=<dir>` and reads `<dir>/lint.json`.
+#[test]
+fn lint_of_1000_requests_is_measured() {
+    const RUNS: usize = 9;
+    let mut vars = String::new();
+    for n in 0..30 {
+        vars.push_str(&format!("    - name: shared{n}\n      value: v{n}\n"));
+    }
+    let mut set = FileSet::default();
+    set.files.insert(
+        COLLECTION_FILE.to_owned(),
+        format!("opencollection: \"1.0.0\"\ninfo:\n  name: big\nrequest:\n  variables:\n{vars}")
+            .into_bytes(),
+    );
+    let mut env = String::from("name: Prod\nvariables:\n");
+    for n in 0..20 {
+        env.push_str(&format!("  - name: env{n}\n    value: e{n}\n"));
+    }
+    set.files
+        .insert("environments/Prod.yml".into(), env.into_bytes());
+    for i in 0..1000 {
+        let folder = i % 20;
+        let scripts = if i % 10 < 3 {
+            format!(
+                "\nruntime:\n  scripts:\n    - type: after-response\n      code: |-\n        const v = rt.vars.get(\"shared{}\");\n        test(\"ok\", () => {{ expect(res.status).to.equal(200); }});\n",
+                i % 30
+            )
+        } else {
+            String::new()
+        };
+        let url = if i % 17 == 0 {
+            format!(
+                "https://fixed{i}.example.com/items/{{{{shared{}}}}}",
+                i % 30
+            )
+        } else {
+            format!("{{{{shared{}}}}}/items/{{{{env{}}}}}?n={i}", i % 30, i % 20)
+        };
+        set.files.insert(
+            format!("f{folder}/r{i}.yml"),
+            request(&format!("Request {i}"), &url, &scripts).into_bytes(),
+        );
+    }
+    let ws = Workspace::open(set).unwrap();
+    let mut runs = Vec::with_capacity(RUNS);
+    let mut report = None;
+    for _ in 0..RUNS {
+        let start = web_time::Instant::now();
+        let r = lint::run(&ws);
+        runs.push(start.elapsed().as_secs_f64() * 1000.0);
+        report = Some(r);
+    }
+    let report = report.unwrap();
+    assert!(!report.findings.is_empty());
+    assert_eq!(report.folders.len(), 21);
+    runs.sort_by(f64::total_cmp);
+    let median = runs[RUNS / 2];
+    println!("lint_1000: median {median:.1} ms over {RUNS} runs");
+    if let Some(dir) = std::env::var_os("RT_PERF_OUT") {
+        let json = serde_json::json!({ "lint_1000": median, "runs": runs });
+        std::fs::write(
+            std::path::Path::new(&dir).join("lint.json"),
+            serde_json::to_string_pretty(&json).unwrap(),
+        )
+        .unwrap();
+    }
 }

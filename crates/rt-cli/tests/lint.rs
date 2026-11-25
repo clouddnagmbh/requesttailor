@@ -68,9 +68,16 @@ fn temp_copy(name: &str, tag: &str) -> Dir {
 
 #[test]
 fn a_clean_collection_exits_0_and_says_100() {
-    let out = rt_lint(&fixture("clean"), &["--fail-on", "warn", "--min-score", "100"]);
+    let out = rt_lint(
+        &fixture("clean"),
+        &["--fail-on", "warn", "--min-score", "100"],
+    );
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
-    assert!(out.stdout.contains("health score 100/100"), "{}", out.stdout);
+    assert!(
+        out.stdout.contains("health score 100/100"),
+        "{}",
+        out.stdout
+    );
     assert!(out.stdout.contains("0 findings"), "{}", out.stdout);
 }
 
@@ -122,7 +129,11 @@ fn min_score_gives_exit_7_below_and_0_at_the_score() {
     assert_eq!(at.code, 0, "{}{}", at.stdout, at.stderr);
     let above = rt_lint(&fixture("shop"), &["--min-score", &(score + 1).to_string()]);
     assert_eq!(above.code, 7, "{}{}", above.stdout, above.stderr);
-    assert!(above.stderr.contains("below the minimum"), "{}", above.stderr);
+    assert!(
+        above.stderr.contains("below the minimum"),
+        "{}",
+        above.stderr
+    );
 }
 
 #[test]
@@ -134,10 +145,21 @@ fn json_output_is_the_report() {
     assert_eq!(json["score"]["rules"].as_array().unwrap().len(), 4);
     assert_eq!(json["folders"][0]["folder"], "");
     let findings = json["findings"].as_array().unwrap();
-    assert!(findings.iter().any(|f| f["rule"] == "no-tests" && f["path"] == "users/create.yml"));
-    assert!(findings.iter().all(|f| f["message"].is_string() && f["level"].is_string()));
+    assert!(
+        findings
+            .iter()
+            .any(|f| f["rule"] == "no-tests" && f["path"] == "users/create.yml")
+    );
+    assert!(
+        findings
+            .iter()
+            .all(|f| f["message"].is_string() && f["level"].is_string())
+    );
     // Run twice, same bytes.
-    assert_eq!(rt_lint(&fixture("shop"), &["--format", "json"]).stdout, out.stdout);
+    assert_eq!(
+        rt_lint(&fixture("shop"), &["--format", "json"]).stdout,
+        out.stdout
+    );
 }
 
 #[test]
@@ -146,16 +168,30 @@ fn github_output_is_workflow_commands_with_files_below_the_folder() {
     assert_eq!(out.code, 0);
     let lines: Vec<&str> = out.stdout.lines().collect();
     assert!(
-        lines.iter().any(|l| l.starts_with("::warning file=users/create.yml,title=lint/no-tests::")),
+        lines
+            .iter()
+            .any(|l| l.starts_with("::warning file=users/create.yml,title=lint/no-tests::")),
         "{}",
         out.stdout
     );
-    assert!(lines.iter().any(|l| l.starts_with("::error file=users/")), "{}", out.stdout);
-    assert!(lines.iter().any(|l| l.starts_with("::notice ")), "{}", out.stdout);
+    assert!(
+        lines.iter().any(|l| l.starts_with("::error file=users/")),
+        "{}",
+        out.stdout
+    );
+    assert!(
+        lines.iter().any(|l| l.starts_with("::notice ")),
+        "{}",
+        out.stdout
+    );
     // From the parent folder the files are named below the folder as given.
     let parent = fixture("");
     let out = rt_lint(&parent, &["shop", "--format", "github"]);
-    assert!(out.stdout.contains("file=shop/users/create.yml"), "{}", out.stdout);
+    assert!(
+        out.stdout.contains("file=shop/users/create.yml"),
+        "{}",
+        out.stdout
+    );
 }
 
 #[test]
@@ -167,11 +203,21 @@ fn the_collections_own_settings_apply_and_flags_override_them() {
     std::fs::write(&file, text).unwrap();
     let out = rt_lint(&dir.0, &["--format", "json"]);
     let json: serde_json::Value = serde_json::from_str(out.stdout.trim()).unwrap();
-    let rules: Vec<&str> = json["findings"].as_array().unwrap().iter().map(|f| f["rule"].as_str().unwrap()).collect();
+    let rules: Vec<&str> = json["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["rule"].as_str().unwrap())
+        .collect();
     assert!(!rules.contains(&"duplicate-name"), "{rules:?}");
     assert!(!rules.contains(&"orphan-variable"), "{rules:?}");
     assert!(json["ignored"].as_u64().unwrap() >= 2);
-    let no_tests = json["findings"].as_array().unwrap().iter().find(|f| f["rule"] == "no-tests").unwrap();
+    let no_tests = json["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["rule"] == "no-tests")
+        .unwrap();
     assert_eq!(no_tests["level"], "error");
     // `min_score: 100` from the file fails the run.
     assert_eq!(out.code, 7, "{}", out.stderr);
@@ -179,11 +225,31 @@ fn the_collections_own_settings_apply_and_flags_override_them() {
     let out = rt_lint(&dir.0, &["--min-score", "0"]);
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
     // `--rule` wins over the file's levels.
-    let out = rt_lint(&dir.0, &["--min-score", "0", "--rule", "no-tests=off", "--format", "json"]);
+    let out = rt_lint(
+        &dir.0,
+        &[
+            "--min-score",
+            "0",
+            "--rule",
+            "no-tests=off",
+            "--format",
+            "json",
+        ],
+    );
     let json: serde_json::Value = serde_json::from_str(out.stdout.trim()).unwrap();
-    assert!(json["findings"].as_array().unwrap().iter().all(|f| f["rule"] != "no-tests"));
+    assert!(
+        json["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|f| f["rule"] != "no-tests")
+    );
     // The files were not touched.
-    assert!(std::fs::read_to_string(&file).unwrap().contains("min_score: 100"));
+    assert!(
+        std::fs::read_to_string(&file)
+            .unwrap()
+            .contains("min_score: 100")
+    );
 }
 
 #[test]
@@ -194,10 +260,20 @@ fn a_folder_inside_a_collection_reports_that_folder() {
     let json: serde_json::Value = serde_json::from_str(out.stdout.trim()).unwrap();
     let findings = json["findings"].as_array().unwrap();
     assert!(!findings.is_empty());
-    assert!(findings.iter().all(|f| f["path"].as_str().unwrap().starts_with("users/")), "{findings:?}");
+    assert!(
+        findings
+            .iter()
+            .all(|f| f["path"].as_str().unwrap().starts_with("users/")),
+        "{findings:?}"
+    );
     let whole = rt_lint(&fixture("shop"), &["--format", "json"]);
     let whole: serde_json::Value = serde_json::from_str(whole.stdout.trim()).unwrap();
-    let users_score = whole["folders"].as_array().unwrap().iter().find(|f| f["folder"] == "users").unwrap();
+    let users_score = whole["folders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["folder"] == "users")
+        .unwrap();
     assert_eq!(json["score"], users_score["score"]);
 }
 
@@ -211,7 +287,10 @@ fn usage_errors_exit_2() {
     assert!(out.stderr.contains("opencollection.yml"), "{}", out.stderr);
     assert_eq!(rt_lint(&fixture("shop"), &["--format", "xml"]).code, 2);
     assert_eq!(rt_lint(&fixture("shop"), &["--rule", "nope=warn"]).code, 2);
-    assert_eq!(rt_lint(&fixture("shop"), &["--rule", "no-tests=loud"]).code, 2);
+    assert_eq!(
+        rt_lint(&fixture("shop"), &["--rule", "no-tests=loud"]).code,
+        2
+    );
     assert_eq!(rt_lint(&fixture("shop"), &["--fail-on", "info"]).code, 2);
     assert_eq!(rt_lint(&fixture("shop"), &["--min-score", "high"]).code, 2);
     assert_eq!(rt_lint(&nothing, &["missing"]).code, 2);
@@ -241,7 +320,10 @@ fn no_secret_value_reaches_any_output() {
 
 #[test]
 fn help_names_the_command_and_exit_code() {
-    let out = Command::new(env!("CARGO_BIN_EXE_rt")).args(["lint", "--help"]).output().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_rt"))
+        .args(["lint", "--help"])
+        .output()
+        .unwrap();
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(text.contains("rt lint"), "{text}");
     assert!(text.contains("7"), "{text}");

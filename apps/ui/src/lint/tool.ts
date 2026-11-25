@@ -2,9 +2,8 @@
 // Copyright 2026 The RequestTailor Authors
 
 // Wave 18, strand F: the main-area view of the lint (`ToolId` `lint`).
-// Interface placeholder: no view yet, so the app looks as before. The strand exports its
-// definition here (`{ id: "lint", title, component }`).
 
 import type { ToolDefinition } from "../shell/tool-host.svelte";
+import LintView from "./LintView.svelte";
 
-export const lintTool: ToolDefinition | null = null;
+export const lintTool: ToolDefinition | null = { id: "lint", title: "Lint", component: LintView };

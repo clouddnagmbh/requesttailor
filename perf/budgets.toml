@@ -139,7 +139,6 @@ max = 50
 [metrics.lint_1000]
 description = "rt lint on a collection with 1000 requests (native release, median of 9)"
 unit = "ms"
-pending = "wave 18, strand F"
 max = 500
 
 # Strand G (scripts/perf/views.mjs).

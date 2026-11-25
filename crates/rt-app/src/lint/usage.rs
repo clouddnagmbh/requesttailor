@@ -240,7 +240,10 @@ fn access(chars: &[char], chain: &Chain, out: &mut Access) {
         } else {
             // A prefix of a scope such as `pm.environment` followed by something else, or
             // an unrelated member (`rt.request`, `pm.response`).
-            if SCOPES.iter().any(|s| s.starts_with(&chain.text) || chain.text.starts_with(s)) {
+            if SCOPES
+                .iter()
+                .any(|s| s.starts_with(&chain.text) || chain.text.starts_with(s))
+            {
                 out.dynamic = true;
             }
             return;
@@ -315,7 +318,8 @@ mod tests {
 
     #[test]
     fn literal_names_are_read() {
-        let a = scan("const t = rt.vars.get(\"token\"); bru.setVar('x', 1); pm.environment.get( `y` )");
+        let a =
+            scan("const t = rt.vars.get(\"token\"); bru.setVar('x', 1); pm.environment.get( `y` )");
         assert!(!a.dynamic);
         assert_eq!(a.names, vec!["token", "x", "y"]);
     }
@@ -337,7 +341,9 @@ mod tests {
 
     #[test]
     fn unrelated_calls_are_not_variable_access() {
-        let a = scan("rt.request.setHeader('A', 'b'); expect(res.status).to.equal(200); test('x', () => {});");
+        let a = scan(
+            "rt.request.setHeader('A', 'b'); expect(res.status).to.equal(200); test('x', () => {});",
+        );
         assert!(!a.dynamic, "{:?}", a.names);
         assert!(a.names.is_empty());
     }

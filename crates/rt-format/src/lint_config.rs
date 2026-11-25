@@ -226,10 +226,7 @@ impl CollectionDoc {
                 match root.get_mut("extensions") {
                     None => root.put(
                         "extensions",
-                        &Val::Map(vec![(
-                            "requesttailor",
-                            Val::Map(vec![("lint", value)]),
-                        )]),
+                        &Val::Map(vec![("requesttailor", Val::Map(vec![("lint", value)]))]),
                         ROOT_ORDER,
                         true,
                         nl,

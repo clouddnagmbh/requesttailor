@@ -374,7 +374,12 @@ export class MockBackend implements Backend {
   readonly inspect = mockInspect();
   readonly paging = mockPaging();
   readonly inbox = mockInbox();
-  readonly lint = mockLint();
+  readonly lint = mockLint({
+    requests: () => this.requests,
+    environments: () => this.envs,
+    variables: this.variables,
+    name: () => this.collections.current_().info.name,
+  });
   readonly views = mockViews();
   readonly catalogue = mockCatalogue();
   /** Wave 17 (strands B and C replace the placeholders in their own files). */

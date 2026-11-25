@@ -147,7 +147,9 @@ fn narrow(mut report: LintReport, folder: &str) -> LintReport {
         report.score = f.score.clone();
     }
     report.folders.retain(|f| within(&f.folder, folder));
-    report.findings.retain(|f| within(f.path.trim_end_matches('/'), folder));
+    report
+        .findings
+        .retain(|f| within(f.path.trim_end_matches('/'), folder));
     report
 }
 
@@ -156,7 +158,11 @@ fn word(level: LintLevel) -> &'static str {
 }
 
 fn shown(path: &str) -> &str {
-    if path.is_empty() { "(collection)" } else { path }
+    if path.is_empty() {
+        "(collection)"
+    } else {
+        path
+    }
 }
 
 fn text(report: &LintReport, out: &mut dyn Write) {
@@ -166,13 +172,7 @@ fn text(report: &LintReport, out: &mut dyn Write) {
         report.collection, report.score.score
     );
     for r in &report.score.rules {
-        let _ = writeln!(
-            out,
-            "  {:<24}{}/{}",
-            r.rule.id(),
-            r.ok,
-            r.total
-        );
+        let _ = writeln!(out, "  {:<24}{}/{}", r.rule.id(), r.ok, r.total);
     }
     for f in &report.findings {
         let _ = writeln!(
@@ -286,7 +286,11 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
                 .nth(depth)
                 .map(Path::to_path_buf)
                 .unwrap_or_default();
-            let prefix = if prefix == Path::new(".") { PathBuf::new() } else { prefix };
+            let prefix = if prefix == Path::new(".") {
+                PathBuf::new()
+            } else {
+                prefix
+            };
             github(&report, &prefix, stdout);
         }
     }

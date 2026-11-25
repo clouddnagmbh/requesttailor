@@ -59,10 +59,11 @@ fn odd_values_are_left_out_not_guessed() {
     let config = read_collection(&set(&odd)).unwrap().lint_config();
     assert!(config.rules.is_empty());
     assert_eq!(config.min_score, None);
-    let odd = format!(
-        "{HEAD}extensions:\n  requesttailor:\n    lint:\n      min_score: high\n"
+    let odd = format!("{HEAD}extensions:\n  requesttailor:\n    lint:\n      min_score: high\n");
+    assert_eq!(
+        read_collection(&set(&odd)).unwrap().lint_config().min_score,
+        None
     );
-    assert_eq!(read_collection(&set(&odd)).unwrap().lint_config().min_score, None);
 }
 
 #[test]

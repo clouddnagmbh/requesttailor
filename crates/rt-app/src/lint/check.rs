@@ -10,8 +10,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use rt_core::model::{
-    Auth, Collection, Folder, Item, OAuth2Flow, Protocol, RequestDefaults, RequestEntry,
-    Script, ScriptPhase,
+    Auth, Collection, Folder, Item, OAuth2Flow, Protocol, RequestDefaults, RequestEntry, Script,
+    ScriptPhase,
 };
 
 use super::score::{self, Counts};
@@ -211,7 +211,8 @@ fn has_test_call(code: &str) -> bool {
     let needle: Vec<char> = "test(".chars().collect();
     (0..chars.len().saturating_sub(needle.len() - 1)).any(|i| {
         chars[i..i + needle.len()] == needle[..]
-            && (i == 0 || !(chars[i - 1].is_alphanumeric() || matches!(chars[i - 1], '_' | '$' | '.')))
+            && (i == 0
+                || !(chars[i - 1].is_alphanumeric() || matches!(chars[i - 1], '_' | '$' | '.')))
     })
 }
 
@@ -271,7 +272,11 @@ enum Host {
 fn literal_host(url: &str) -> Option<Host> {
     let url = url.trim();
     let (scheme, rest) = url.split_once("://")?;
-    if scheme.is_empty() || !scheme.chars().all(|c| c.is_ascii_alphanumeric() || "+-.".contains(c)) {
+    if scheme.is_empty()
+        || !scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "+-.".contains(c))
+    {
         return None;
     }
     let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
@@ -381,12 +386,7 @@ fn auth_urls(auth: &Auth) -> Vec<(&'static str, &str)> {
     urls
 }
 
-fn defaults_hosts(
-    defaults: &RequestDefaults,
-    folder: &str,
-    path: &str,
-    out: &mut Vec<Check>,
-) {
+fn defaults_hosts(defaults: &RequestDefaults, folder: &str, path: &str, out: &mut Vec<Check>) {
     for (location, url) in auth_urls(&defaults.auth) {
         out.extend(url_check(folder, path, location, url));
     }
@@ -496,10 +496,7 @@ fn orphan_variables(collection: &Collection, extra: &[&str], out: &mut Vec<Check
             findings: if unused {
                 vec![Found {
                     cap: None,
-                    message: format!(
-                        "{kind} `{}` of {} is never used.",
-                        d.name, d.place
-                    ),
+                    message: format!("{kind} `{}` of {} is never used.", d.name, d.place),
                     location: Some(format!("variable {}", d.name)),
                 }]
             } else {
@@ -524,14 +521,20 @@ fn duplicate_names(items: &[Item], folder: &str, out: &mut Vec<Check>) {
     for (i, item) in items.iter().enumerate() {
         match item {
             Item::Request(r) => {
-                request_names.entry(r.spec.name.trim().to_owned()).or_default().push(i);
+                request_names
+                    .entry(r.spec.name.trim().to_owned())
+                    .or_default()
+                    .push(i);
                 request_files
                     .entry(last_segment(&r.path).to_lowercase())
                     .or_default()
                     .push(i);
             }
             Item::Folder(f) => {
-                folder_names.entry(f.name.trim().to_owned()).or_default().push(i);
+                folder_names
+                    .entry(f.name.trim().to_owned())
+                    .or_default()
+                    .push(i);
                 folder_dirs
                     .entry(last_segment(&f.path).to_lowercase())
                     .or_default()
@@ -551,7 +554,11 @@ fn duplicate_names(items: &[Item], folder: &str, out: &mut Vec<Check>) {
                     message: format!(
                         "{} others in this {} have the same {what} “{key}”.",
                         members.len() - 1,
-                        if folder.is_empty() { "collection" } else { "folder" }
+                        if folder.is_empty() {
+                            "collection"
+                        } else {
+                            "folder"
+                        }
                     ),
                     location: Some(location.to_owned()),
                 });
