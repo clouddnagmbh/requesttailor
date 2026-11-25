@@ -266,7 +266,8 @@ fn scrub_json_keys(text: &str, secrets: &mut Secrets) -> String {
             break;
         };
         let value = &text[j + 1..vend];
-        if !value.is_empty() && !(value.starts_with("{{") && value.ends_with("}}")) {
+        let template = value.starts_with("{{") && value.ends_with("}}");
+        if !value.is_empty() && !template {
             out.push_str(&text[copied..j + 1]);
             out.push_str(&secrets.variable(key));
             copied = vend;
