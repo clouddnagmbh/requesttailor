@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic test data written for RequestTailor (Apache-2.0). Not taken from any vendor. -->
+<wsdl:description xmlns:wsdl="http://www.w3.org/ns/wsdl"
+    xmlns:wsoap="http://www.w3.org/ns/wsdl/soap"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="urn:requesttailor:test:weather"
+    targetNamespace="urn:requesttailor:test:weather">
+  <wsdl:types>
+    <xs:schema targetNamespace="urn:requesttailor:test:weather" elementFormDefault="qualified">
+      <xs:element name="Forecast">
+        <xs:complexType><xs:sequence>
+          <xs:element name="city" type="xs:string"/>
+          <xs:element name="days" type="xs:int"/>
+          <xs:element name="unit"><xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="celsius"/><xs:enumeration value="fahrenheit"/></xs:restriction></xs:simpleType></xs:element>
+        </xs:sequence></xs:complexType>
+      </xs:element>
+      <xs:element name="ForecastResponse"><xs:complexType><xs:sequence><xs:element name="summary" type="xs:string"/></xs:sequence></xs:complexType></xs:element>
+    </xs:schema>
+  </wsdl:types>
+  <wsdl:interface name="WeatherInterface">
+    <wsdl:operation name="Forecast" pattern="http://www.w3.org/ns/wsdl/in-out">
+      <wsdl:input element="tns:Forecast"/>
+      <wsdl:output element="tns:ForecastResponse"/>
+    </wsdl:operation>
+  </wsdl:interface>
+  <wsdl:binding name="WeatherSoap12" interface="tns:WeatherInterface" type="http://www.w3.org/ns/wsdl/soap" wsoap:version="1.2" wsoap:protocol="http://www.w3.org/2003/05/soap/bindings/HTTP/">
+    <wsdl:operation ref="tns:Forecast" wsoap:action="urn:requesttailor:test:weather/Forecast"/>
+  </wsdl:binding>
+  <wsdl:binding name="WeatherSoap11" interface="tns:WeatherInterface" type="http://www.w3.org/ns/wsdl/soap" wsoap:version="1.1" wsoap:protocol="http://www.w3.org/2003/05/soap/bindings/HTTP/">
+    <wsdl:operation ref="tns:Forecast" wsoap:action="urn:requesttailor:test:weather/Forecast"/>
+  </wsdl:binding>
+  <wsdl:service name="WeatherService" interface="tns:WeatherInterface">
+    <wsdl:endpoint name="soap12" binding="tns:WeatherSoap12" address="http://127.0.0.1:48812/soap12"/>
+  </wsdl:service>
+</wsdl:description>

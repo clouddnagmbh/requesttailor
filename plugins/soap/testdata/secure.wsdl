@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic test data written for RequestTailor (Apache-2.0). Not taken from any vendor. -->
+<wsdl:definitions name="Vault"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy"
+    xmlns:sp="http://docs.oasis-open.org/ws-sx/ws-securitypolicy/200702"
+    xmlns:tns="urn:requesttailor:test:vault"
+    targetNamespace="urn:requesttailor:test:vault">
+  <wsp:Policy wsu:Id="UsernameTokenPolicy" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+    <wsp:ExactlyOne><wsp:All>
+      <sp:SupportingTokens><wsp:Policy><sp:UsernameToken sp:IncludeToken="http://docs.oasis-open.org/ws-sx/ws-securitypolicy/200702/IncludeToken/AlwaysToRecipient"/></wsp:Policy></sp:SupportingTokens>
+      <sp:IncludeTimestamp/>
+    </wsp:All></wsp:ExactlyOne>
+  </wsp:Policy>
+  <wsdl:types>
+    <xs:schema targetNamespace="urn:requesttailor:test:vault" elementFormDefault="qualified">
+      <xs:element name="GetSecret"><xs:complexType><xs:sequence><xs:element name="name" type="xs:string"/></xs:sequence></xs:complexType></xs:element>
+      <xs:element name="GetSecretResponse"><xs:complexType><xs:sequence><xs:element name="value" type="xs:string"/></xs:sequence></xs:complexType></xs:element>
+    </xs:schema>
+  </wsdl:types>
+  <wsdl:message name="GetSecretIn"><wsdl:part name="parameters" element="tns:GetSecret"/></wsdl:message>
+  <wsdl:message name="GetSecretOut"><wsdl:part name="parameters" element="tns:GetSecretResponse"/></wsdl:message>
+  <wsdl:portType name="VaultPort">
+    <wsdl:operation name="GetSecret"><wsdl:input message="tns:GetSecretIn"/><wsdl:output message="tns:GetSecretOut"/></wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="VaultSoap" type="tns:VaultPort">
+    <wsp:PolicyReference URI="#UsernameTokenPolicy"/>
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="GetSecret">
+      <soap:operation soapAction="urn:requesttailor:test:vault/GetSecret"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input><wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="VaultService">
+    <wsdl:port name="VaultSoap" binding="tns:VaultSoap"><soap:address location="http://127.0.0.1:48813/secure"/></wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
