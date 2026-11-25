@@ -1,0 +1,66 @@
+# RequestTailor: condensed facts
+
+Source: https://requesttailor.com/ (all pages, as of 2026-11-25). SAP, S/4HANA, SAP Gateway, ABAP and other SAP products named here are trademarks or registered trademarks of SAP SE. RequestTailor is not affiliated with SAP SE. The name RequestTailor and its logos are not covered by the Apache License.
+
+## What it is
+
+RequestTailor is an open-source (Apache 2.0) API client with a Rust core. It runs natively on macOS, in the browser as WebAssembly, as the command line `rt` and as an MCP server for AI agents. A request is a readable YAML file in the OpenCollection format, kept in a Git repository, one file per request. There is no account, no telemetry and no update check; it works offline; the app never connects to RequestTailor servers. What is free stays free.
+
+Principles: files are the truth; no account, ever; secrets stay local; performance has a budget; same core everywhere (desktop, web, CLI, MCP); the core stays lean (niche protocols and domain knowledge such as SAP/OData are plugins); fairness guarantee.
+
+## Platforms
+
+- Desktop app: macOS (Apple silicon and Intel), signed and notarized. No desktop installers for Windows and Linux.
+- Web app: the same interface in the browser with the core compiled to WebAssembly; runs from the repository (no hosted version in this release). Requests the browser blocks (CORS, client certificates) can go through `rt agent`, a companion on your own machine (127.0.0.1 only).
+- `rt` command line: macOS, Linux (x86_64 and aarch64, static binary), Docker image (ghcr.io/clouddnagmbh/rt), GitHub Action.
+- MCP server: `rt mcp`.
+
+## Performance budgets (release gates, measured on every build)
+
+Cold start under 500 ms; idle memory under 150 MB; 100 MB response scrolls with p95 frame time at most 20 ms; at most 2 keystrokes from app start to a sent request; semantic diff of 1000 requests (100 changed) under 200 ms; side-by-side compare view under 1000 ms; 1000 snapshot checks under 150 ms; share link at most 2000 characters (p95); history of 10 000 commits first rows under 1500 ms, of 100 000 commits under 1500 ms; status of 50 000 files under 300 ms; `rt send --watch` re-sends within 500 ms of a save; environment compare of 100 requests under 500 ms; lint of 1000 requests under 500 ms; saved JSONPath view over 10 MiB under 300 ms; GraphQL/Protobuf breaking changes under 300 ms; trace header at most 0.02 ms; webhook inbox median at most 5 ms; passive security rules at most 2 ms per response. Exact values: https://requesttailor.com/ (performance section).
+
+## Collections and import
+
+OpenCollection YAML: `opencollection.yml` at the collection root, a file per request, environments as files. Reading and writing leaves unchanged files byte-identical. Bruno collections in OpenCollection YAML open unchanged. Import: Postman (v2.0, v2.1, with environment and globals), Insomnia (v4, v5), OpenAPI 3.x and Swagger 2.0 (also multi-file and zip, with a wizard), cURL, HAR, `.http`. Every import produces a loss report. Several collections can be open at once; the New... dialog creates HTTP, GraphQL, gRPC, WebSocket and SSE requests, collections, folders, environments and MCP server tests. Typing `{{` completes variables with their origin. Variable layers: global, collection, environment, folder, request, runtime.
+
+Protocols: HTTP, GraphQL, gRPC (server reflection, Protobuf files), WebSocket, Server-Sent Events, MCP (client). Auth: Basic, Bearer, API key, OAuth 2.0 (client credentials, password, authorization code with PKCE, device code, SAML 2.0 bearer), AWS Signature Version 4, client certificates (native only). Scripts and tests run in a sandbox (QuickJS in WebAssembly); `bru.*` and `pm.*` are compatibility layers on the `rt.*` API.
+
+## Secrets
+
+Secret values live in the OS keychain (desktop) or encrypted in the browser (web). Collections hold only variable names. External secret managers (1Password, Vault, AWS, Azure, Google Cloud) are read through their CLIs. A scanner refuses commits that contain credentials (`rt scan` for pipelines and Git hooks). Reports, history and logs mask secret values.
+
+## Git client
+
+For any repository, not only collections. Graph, changes and commit without a staging area (commit selected files), wizards for branch, merge, pull, push, stash, cherry-pick, revert, reset, amend, tags and remotes that explain first; a backup ref `refs/requesttailor/backup/<time>/<name>` before every change and Undo; no force-push and no rewriting of published history. Field-by-field diff and merge of requests (`rt diff`, `rt merge-driver`), blame, file history with renames, history search, reflog "Lost work", compare two revisions by running requests against both, `rt bisect`, pull request review and creation for GitHub and GitLab (also self-hosted), secret rescue in history, `rt changelog` from the OpenAPI spec (and GraphQL and Protobuf schemas). Native Git uses gitoxide; the web app uses isomorphic-git.
+
+## Check and inspect
+
+`rt send --checks`: nine passive response checks (HSTS, nosniff, CSP, frame protection, cookie flags, CORS with credentials, JWT alg none, stack traces, version disclosure). Further passive security hints tagged by OWASP API Security Top 10 (2023): reflected CORS origin, weak HMAC JWT (hint), JWT without exp or expired in use, cacheable tokens, no sign of rate limiting, revealing error pages, TLS issues (native only). They run on responses already sent; no extra request. JWT reader (signature not verified). Rate limits (`--respect-limits`, `--max-wait`, default 60 s, max 600 s). Pagination (`--all-pages`, `--max-pages`, default 20, max 1000). Trace: W3C `traceparent`, opt-in per collection. Saved JSONPath views (`--view`, `--view-expr`). Webhook inbox `rt inbox` (127.0.0.1:47855, memory only, no tunnel). Timing bar and waterfall.
+
+## Safety and quality
+
+Production guard (red frame, confirmation for writing requests; production = agent policy flag or name `prod`, `prd`, `live`). `rt send --watch`. Snapshots (`<request>.snap.json`, assertion `matchesSnapshot`, `rt snapshot update`). `rt lint` (health score 0-100, exit code 7). `rt compare-env`. Test-data journal and `rt journal`. `rt access check` (two-user access check, exit code 4 when broken). `rt shrink` (smallest failing request). `rt mock` (serve saved examples), `rt docs` (static HTML docs).
+
+## Share and copy
+
+Share link `https://app.requesttailor.com/#rt=<data>` keeps the request in the URL fragment: not sent to any server, no upload, creating it makes no network request. Secret values are never included. Copy as cURL, fetch or Python with variables kept as variables of the target. Paste a cURL command to create a request without any model.
+
+## AI assistants
+
+Off by default; your own key; no RequestTailor AI service. Providers: Anthropic, OpenAI, Azure OpenAI, Google Gemini, Mistral, OpenAI-compatible (Ollama, LM Studio, vLLM, company gateways). A preview shows what will be sent; secret values and typed credentials are masked; a collection or device can switch AI off. Tasks: request from a description or snippet, explain a response or error, suggest assertions and names, draft documentation. Answers are unsaved proposals.
+
+## MCP and agents
+
+`rt mcp [collection]` offers a collection as tools (`list_requests`, `get_request`, `list_environments`, `send_request`, `run_folder`) over stdio. Access per environment (none, read, write), read-only by default; writes to production wait for approval (`rt approvals`, `rt approve`, `rt deny` or the app banner); agents never see secret values; local audit log. The app is also an MCP client (tools, resources, prompts, saved tests `*.mcp.yaml`, `rt mcp-test`) with a built-in offline demo server (`rt mcp-demo`).
+
+## CLI
+
+`rt send`, `rt run` (JUnit, JSON and text reporters; exit code 4 when a test fails), `rt import`, `rt import openapi`, `rt scan`, `rt snapshot update`, `rt mock`, `rt docs`, `rt lint`, `rt compare-env`, `rt access check`, `rt shrink`, `rt journal`, `rt inbox`, `rt diff`, `rt merge-driver`, `rt bisect`, `rt changelog`, `rt mcp`, `rt mcp-test`, `rt mcp-demo`, `rt approvals|approve|deny`, `rt agent`. Exit codes: 0 response received, 1 no response, 2 usage error, 3 request could not be prepared, 4 test or assertion failed, 5 refused by a policy, 7 lint failed.
+
+## Plugins and SAP
+
+Plugins are single WebAssembly files with a manifest, a sandbox (no native code, no file access, network only to hosts you grant, never secret values) and a public versioned API. The OData plugin (optional, chosen at first start) supports OData V2 and V4 for SAP S/4HANA, CAP and RAP: entity browser from `$metadata`, query builder, CSRF tokens, ETag and If-Match, `$batch` (multipart and JSON), draft actions, DEV/QAS/PRD landscapes with `sap-client` and `sap-language`, Gateway error tab, `sap-statistics` server time (format not yet verified against a real system), paging rules for `@odata.nextLink` and `d.__next`, clean-up rules for the test-data journal, Copy as ABAP, importer for exported BTP destinations and SAP Business Accelerator Hub specs. It speaks OData over HTTP; RFC, BAPI, SOAP and SAP GUI are not covered. The core contains no SAP-specific code.
+
+## Not included
+
+No Windows or Linux desktop installer; no hosted cloud workspace or sync service (sync through Git); no active security scanner or fuzzing; no hosted web app in this release.

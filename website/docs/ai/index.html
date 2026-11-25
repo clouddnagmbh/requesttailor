@@ -1,0 +1,156 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>AI assistants with your own key: cloud or local models</title>
+<meta name="description" content="AI helpers with your own key: Anthropic, OpenAI, Azure OpenAI, Gemini, Mistral or a local model. Off by default, secrets masked, nothing goes via us.">
+<link rel="canonical" href="https://requesttailor.com/docs/ai/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AI assistants with your own key: cloud or local models">
+<meta property="og:description" content="AI helpers with your own key: Anthropic, OpenAI, Azure OpenAI, Gemini, Mistral or a local model. Off by default, secrets masked, nothing goes via us.">
+<meta property="og:url" content="https://requesttailor.com/docs/ai/">
+<meta property="og:image" content="https://requesttailor.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AI assistants with your own key: cloud or local models">
+<meta name="twitter:description" content="AI helpers with your own key: Anthropic, OpenAI, Azure OpenAI, Gemini, Mistral or a local model. Off by default, secrets masked, nothing goes via us.">
+<meta name="twitter:image" content="https://requesttailor.com/assets/og-image.png">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
+<link rel="stylesheet" href="../../assets/site.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://requesttailor.com/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://requesttailor.com/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "AI assistants",
+   "item": "https://requesttailor.com/docs/ai/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../"><img src="../../assets/logo-mark.svg" alt="" width="24" height="24">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="page">Docs</a></li>
+<li><a href="../../compare/">Compare</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/git/">Git client</a></li>
+<li><a href="../../docs/inspect/">Check and inspect responses</a></li>
+<li><a href="../../docs/quality/">Safety and quality tools</a></li>
+<li><a href="../../docs/share/">Share and copy requests</a></li>
+<li><a href="../../docs/ai/" aria-current="page">AI assistants</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Home</a> / <a href="../../docs/">Docs</a> / <span aria-current="page">AI assistants</span></nav>
+<h1>AI assistants</h1>
+<p class="lead">Optional helpers that use your own key or a model on your computer.
+RequestTailor has no AI service of its own, and nothing goes through our servers.</p>
+
+<h2 id="providers">Providers</h2>
+<table>
+<thead><tr><th scope="col">Provider</th><th scope="col">Notes</th></tr></thead>
+<tbody>
+<tr><td>Anthropic</td><td>Your API key; direct from the browser too.</td></tr>
+<tr><td>OpenAI</td><td>Your API key.</td></tr>
+<tr><td>Azure OpenAI</td><td>The v1 API of your resource; the model is your deployment name.</td></tr>
+<tr><td>Google Gemini</td><td>Your API key; direct from the browser too.</td></tr>
+<tr><td>Mistral</td><td>Your API key.</td></tr>
+<tr><td>OpenAI-compatible</td><td>Ollama, LM Studio, vLLM or a company gateway, by base URL (for example <code>http://localhost:11434/v1</code>, no key needed).</td></tr>
+</tbody>
+</table>
+<p>You can set up several profiles and pick one for quick tasks and one for harder ones. The
+key is kept in the OS keychain (desktop) or encrypted in the browser (web app). In the web
+app, providers other than Anthropic and Gemini are called through the companion
+<code>rt agent</code>, because their servers do not allow calls from a browser.</p>
+
+<h2 id="tasks">What it does</h2>
+<ul>
+<li><strong>Create a request</strong> from a description or a snippet. A cURL command is
+converted locally, without a model.</li>
+<li><strong>Explain</strong> a response or an error.</li>
+<li><strong>Suggest</strong> assertions or tests from a response, and names for requests.</li>
+<li><strong>Draft documentation</strong> as <code>&lt;request&gt;.md</code> next to the request.</li>
+</ul>
+<p>Answers are proposals. They show as a diff or preview first and are applied as an unsaved
+change you can undo; the assistant never saves or sends anything itself.</p>
+
+<h2 id="privacy">What leaves your computer</h2>
+<ul>
+<li>Nothing, until you turn it on and ask. It is off by default.</li>
+<li>Before the first call per profile and device, <em>What will be sent</em> shows the exact
+content. You can keep it on for every call.</li>
+<li>Secret values are replaced by <code>***</code> before anything leaves the app, and so are
+credentials typed into headers, URLs or bodies, also in tool inputs and outputs.</li>
+<li>A collection can switch AI off with <code>extensions.requesttailor.ai.enabled: false</code> in
+<code>opencollection.yml</code>, and each device can opt out. The interface then says
+<em>AI is off for this collection</em>.</li>
+<li>No telemetry. Calls go from your device to the provider you chose.</li>
+</ul>
+
+<h2 id="more">See also</h2>
+<p><a href="../mcp/">MCP server</a> for AI agents that use your collections as tools, and
+<a href="../../docs/privacy/">Privacy</a>.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

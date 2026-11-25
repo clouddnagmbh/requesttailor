@@ -5,7 +5,15 @@
 // - nothing is loaded from other servers and nothing runs: no scripts, frames, forms or
 //   embeds; stylesheets, images and CSS url()/@import are relative files that exist; every
 //   page carries a Content-Security-Policy meta tag starting with default-src 'none'
-//   (product principle 2: no trackers, no external fonts or scripts);
+//   (product principle 2: no trackers, no external fonts or scripts). The one kind of
+//   <script> allowed is a JSON-LD data block (type="application/ld+json", no src, content
+//   that parses as JSON): data for search and answer engines, never executed, and still
+//   blocked from doing anything by the CSP;
+// - search and sharing basics on every page except 404.html: a title of at most 60 and a
+//   description of at most 155 characters (both unique), a canonical link and Open Graph and
+//   Twitter tags with absolute URLs on the two origins of the project, an og:image that is a
+//   local file, alt, width and height on every image, no duplicate ids; sitemap.xml lists
+//   exactly the pages and robots.txt names it, llms.txt exists;
 // - every page has the basics for accessibility: lang, viewport, title, one h1, a main
 //   landmark and a skip link to it;
 // - internal links point to files that exist, and their #fragments to ids that exist;
@@ -19,7 +27,14 @@ import { fileURLToPath } from "node:url";
 import { parseBudgets } from "./check-perf-budgets.mjs";
 
 const HEADER = "SPDX-License-Identifier: Apache-2.0";
-const FORBIDDEN_TAGS = ["script", "iframe", "frame", "object", "embed", "form", "base"];
+const FORBIDDEN_TAGS = ["iframe", "frame", "object", "embed", "form", "base"];
+// The only absolute URLs besides https links: canonical and Open Graph/Twitter metadata.
+export const SITE_ORIGIN = "https://requesttailor.com/";
+export const APP_ORIGIN = "https://app.requesttailor.com/";
+const META_ORIGINS = [SITE_ORIGIN, APP_ORIGIN];
+export const MAX_TITLE = 60;
+export const MAX_DESCRIPTION = 155;
+const NOT_INDEXED = new Set(["404.html"]);
 // A URL with a scheme (https:, data:, ...) or protocol-relative (//host).
 const ABSOLUTE = /^([a-z][a-z0-9+.-]*:|\/\/)/i;
 
@@ -48,8 +63,22 @@ function attr(tag, name) {
   return m ? (m[2] ?? m[3]) : null;
 }
 
+function idList(html) {
+  return [...html.matchAll(/\sid\s*=\s*"([^"]+)"/g)].map((m) => m[1]);
+}
+
 function ids(html) {
-  return new Set([...html.matchAll(/\sid\s*=\s*"([^"]+)"/g)].map((m) => m[1]));
+  return new Set(idList(html));
+}
+
+function decode(text) {
+  return text.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+}
+
+/** The canonical URL of a page file ("sap/index.html" -> ".../sap/"). */
+export function canonicalOf(pageName) {
+  const dir = pageName.replace(/index\.html$/, "");
+  return SITE_ORIGIN + dir;
 }
 
 /** The file a relative URL from `page` points to (a directory means its index.html). */
@@ -75,6 +104,8 @@ export function checkWebsite(root, budgets) {
   const name = (f) => relative(root, f).split(sep).join("/");
   const inside = (f) => resolve(f).startsWith(resolve(root) + sep);
   if (pages.length === 0) errors.push("no pages found");
+  const titles = new Map();
+  const descriptions = new Map();
   const idCache = new Map();
   const idsOf = (file) => {
     if (!idCache.has(file)) idCache.set(file, ids(readFileSync(file, "utf8")));
@@ -104,6 +135,24 @@ export function checkWebsite(root, budgets) {
     for (const tag of FORBIDDEN_TAGS) {
       if (new RegExp(`<${tag}[\\s>]`, "i").test(html)) errors.push(`${p}: <${tag}> is not allowed`);
     }
+    // Scripts: only JSON-LD data blocks, which are not executed.
+    for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>|<script\b[^>]*>/gi)) {
+      const attrs = m[1] ?? "";
+      const type = attr(`<script ${attrs}>`, "type");
+      if (m[2] === undefined || type !== "application/ld+json" || /\ssrc\s*=/i.test(` ${attrs}`)) {
+        errors.push(`${p}: <script> is not allowed (only <script type="application/ld+json"> data without src)`);
+        continue;
+      }
+      try {
+        JSON.parse(m[2]);
+      } catch (e) {
+        errors.push(`${p}: JSON-LD does not parse: ${e.message}`);
+      }
+    }
+    const idsHere = idList(html);
+    for (const id of new Set(idsHere.filter((id, i) => idsHere.indexOf(id) !== i))) {
+      errors.push(`${p}: duplicate id "${id}"`);
+    }
     if (/\son[a-z]+\s*=/i.test(html)) errors.push(`${p}: inline event handlers are not allowed`);
     if (/\sstyle\s*=/i.test(html) || /<style[\s>]/i.test(html)) {
       errors.push(`${p}: inline styles are not allowed (the CSP blocks them); use assets/site.css`);
@@ -112,6 +161,7 @@ export function checkWebsite(root, budgets) {
     // Resources: must be local files.
     for (const m of html.matchAll(/<(link|img|source|video|audio|track|input)\b[^>]*>/gi)) {
       const tag = m[0];
+      if (m[1].toLowerCase() === "link" && attr(tag, "rel") === "canonical") continue; // checked below
       for (const key of ["href", "src", "srcset", "poster"]) {
         const value = attr(tag, key);
         if (value === null) continue;
@@ -152,6 +202,62 @@ export function checkWebsite(root, budgets) {
       }
     }
 
+    // Search and sharing metadata (not for pages that are not indexed).
+    for (const m of html.matchAll(/<img\b[^>]*>/gi)) {
+      for (const key of ["alt", "width", "height"]) {
+        if (attr(m[0], key) === null) errors.push(`${p}: <img> without ${key}: ${m[0].slice(0, 60)}`);
+      }
+    }
+    if (!NOT_INDEXED.has(p)) {
+      const metas = [...html.matchAll(/<meta\b[^>]*>/gi)].map((x) => x[0]);
+      const meta = (key) => {
+        const tag = metas.find((t) => attr(t, "name") === key || attr(t, "property") === key);
+        return tag ? decode(attr(tag, "content") ?? "") : null;
+      };
+      const title = decode((html.match(/<title>([^<]*)<\/title>/i) ?? [])[1] ?? "");
+      if (title.length > MAX_TITLE) errors.push(`${p}: title is ${title.length} characters, at most ${MAX_TITLE}`);
+      const description = meta("description");
+      if (!description) errors.push(`${p}: no meta description`);
+      else if (description.length > MAX_DESCRIPTION) {
+        errors.push(`${p}: description is ${description.length} characters, at most ${MAX_DESCRIPTION}`);
+      }
+      if (titles.has(title)) errors.push(`${p}: title "${title}" is also used by ${titles.get(title)}`);
+      else titles.set(title, p);
+      if (description) {
+        if (descriptions.has(description)) errors.push(`${p}: description is also used by ${descriptions.get(description)}`);
+        else descriptions.set(description, p);
+      }
+      const canonicalTag = (html.match(/<link\b[^>]*>/gi) ?? []).find((t) => attr(t, "rel") === "canonical");
+      const canonical = canonicalTag ? attr(canonicalTag, "href") : null;
+      if (canonical !== canonicalOf(p)) {
+        errors.push(`${p}: canonical link is ${canonical}, expected ${canonicalOf(p)}`);
+      }
+      for (const key of ["og:title", "og:description", "og:type", "og:url", "og:image", "og:image:alt", "twitter:card"]) {
+        if (!meta(key)) errors.push(`${p}: no ${key} meta tag`);
+      }
+      if (meta("og:url") !== null && meta("og:url") !== canonicalOf(p)) {
+        errors.push(`${p}: og:url is ${meta("og:url")}, expected ${canonicalOf(p)}`);
+      }
+      const image = meta("og:image");
+      if (image !== null) {
+        if (!image.startsWith(SITE_ORIGIN)) errors.push(`${p}: og:image ${image} is not on ${SITE_ORIGIN}`);
+        else if (!existsSync(join(root, image.slice(SITE_ORIGIN.length)))) errors.push(`${p}: og:image ${image} is not a file of the site`);
+      }
+    }
+    // Absolute URLs in metadata may only name the two origins of the project.
+    for (const tag of [...html.matchAll(/<meta\b[^>]*>/gi)].map((x) => x[0])) {
+      const key = attr(tag, "property") ?? attr(tag, "name") ?? "";
+      const content = attr(tag, "content") ?? "";
+      if (/^(og|twitter):/i.test(key) && /^(https?:|\/\/)/i.test(content) && !META_ORIGINS.some((o) => content.startsWith(o))) {
+        errors.push(`${p}: ${key} ${content} is not on ${META_ORIGINS.join(" or ")}`);
+      }
+    }
+    for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+      if (attr(tag, "rel") === "canonical" && !META_ORIGINS.some((o) => (attr(tag, "href") ?? "").startsWith(o))) {
+        errors.push(`${p}: canonical ${attr(tag, "href")} is not on ${META_ORIGINS.join(" or ")}`);
+      }
+    }
+
     // Budgets.
     for (const m of html.matchAll(/data-budget="([a-z0-9_]+)"[^>]*>([^<]*)</g)) {
       const [, metric, shown] = m;
@@ -172,6 +278,28 @@ export function checkWebsite(root, budgets) {
     }
   } else {
     errors.push("no index.html");
+  }
+
+  // Files for crawlers and answer engines.
+  const indexed = pages.map(name).filter((n) => !NOT_INDEXED.has(n));
+  const sitemap = join(root, "sitemap.xml");
+  if (!existsSync(sitemap)) errors.push("no sitemap.xml");
+  else {
+    const urls = [...readFileSync(sitemap, "utf8").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).sort();
+    const want = indexed.map(canonicalOf).sort();
+    if (JSON.stringify(urls) !== JSON.stringify(want)) {
+      errors.push(`sitemap.xml: lists ${urls.length} URLs, the pages are ${want.length}; ` +
+        `missing ${want.filter((u) => !urls.includes(u)).join(", ") || "none"}, ` +
+        `extra ${urls.filter((u) => !want.includes(u)).join(", ") || "none"}`);
+    }
+  }
+  const robots = join(root, "robots.txt");
+  if (!existsSync(robots)) errors.push("no robots.txt");
+  else if (!readFileSync(robots, "utf8").includes(`Sitemap: ${SITE_ORIGIN}sitemap.xml`)) {
+    errors.push("robots.txt: no Sitemap line");
+  }
+  for (const f of ["llms.txt", "llms-full.txt"]) {
+    if (!existsSync(join(root, f))) errors.push(`no ${f}`);
   }
 
   for (const style of styles) {

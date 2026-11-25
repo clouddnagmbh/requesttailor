@@ -7,12 +7,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="How RequestTailor stores collections: OpenCollection YAML, one file per request, environments as files, byte-identical round trips and importers with a loss report.">
-<title>Collections as files · RequestTailor</title>
+<title>Collections as files: the OpenCollection format</title>
+<meta name="description" content="How RequestTailor stores collections as OpenCollection YAML: one file per request, environments as files, byte-identical round trips, import reports.">
+<link rel="canonical" href="https://requesttailor.com/docs/collections/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Collections as files: the OpenCollection format">
+<meta property="og:description" content="How RequestTailor stores collections as OpenCollection YAML: one file per request, environments as files, byte-identical round trips, import reports.">
+<meta property="og:url" content="https://requesttailor.com/docs/collections/">
+<meta property="og:image" content="https://requesttailor.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Collections as files: the OpenCollection format">
+<meta name="twitter:description" content="How RequestTailor stores collections as OpenCollection YAML: one file per request, environments as files, byte-identical round trips, import reports.">
+<meta name="twitter:image" content="https://requesttailor.com/assets/og-image.png">
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
 <link rel="stylesheet" href="../../assets/site.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://requesttailor.com/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://requesttailor.com/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Collections as files",
+   "item": "https://requesttailor.com/docs/collections/"
+  }
+ ]
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -23,7 +64,8 @@
 <ul>
 <li><a href="../../">Home</a></li>
 <li><a href="../../sap/">SAP and OData</a></li>
-<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../docs/" aria-current="page">Docs</a></li>
+<li><a href="../../compare/">Compare</a></li>
 <li><a href="../../download/">Download</a></li>
 <li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
 </ul>
@@ -38,6 +80,11 @@
 <li><a href="../../docs/">Getting started</a></li>
 <li><a href="../../docs/collections/" aria-current="page">Collections as files</a></li>
 <li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/git/">Git client</a></li>
+<li><a href="../../docs/inspect/">Check and inspect responses</a></li>
+<li><a href="../../docs/quality/">Safety and quality tools</a></li>
+<li><a href="../../docs/share/">Share and copy requests</a></li>
+<li><a href="../../docs/ai/">AI assistants</a></li>
 <li><a href="../../docs/cli/">Command line: rt</a></li>
 <li><a href="../../docs/mcp/">MCP server</a></li>
 <li><a href="../../docs/plugins/">Plugins</a></li>
@@ -46,6 +93,7 @@
 </ul>
 </nav>
 <article>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Home</a> / <a href="../../docs/">Docs</a> / <span aria-current="page">Collections as files</span></nav>
 <h1>Collections as files</h1>
 <p class="lead">The folder is the collection. The app reads it and writes changes back; it
 keeps no copy of its own.</p>
@@ -62,6 +110,11 @@ keeps no copy of its own.</p>
     Staging.yml</code></pre>
 <p>A folder inside the collection that has its own <code>opencollection.yml</code> is a
 separate collection.</p>
+<p>The app opens several collections at once. Open a folder that is a collection, or one that
+contains collections (up to four levels deep; hidden folders, <code>node_modules</code> and
+<code>target</code> are skipped), and each collection becomes a node in the sidebar. No file lists
+the collections; the app remembers the folders on your device. Tabs can be grouped like in a
+browser, which is also device state and never written to the collection.</p>
 
 <h2 id="request">A request</h2>
 <pre><code>info:

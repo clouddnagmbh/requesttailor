@@ -1,0 +1,116 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>RequestTailor capabilities: a checklist for API clients</title>
+<meta name="description" content="What RequestTailor does and does not do, as a yes/no list: files in Git, no account, Git client, security hints, MCP, AI, plugins, platforms and limits.">
+<link rel="canonical" href="https://requesttailor.com/compare/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="RequestTailor capabilities: a checklist for API clients">
+<meta property="og:description" content="What RequestTailor does and does not do, as a yes/no list: files in Git, no account, Git client, security hints, MCP, AI, plugins, platforms and limits.">
+<meta property="og:url" content="https://requesttailor.com/compare/">
+<meta property="og:image" content="https://requesttailor.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RequestTailor capabilities: a checklist for API clients">
+<meta name="twitter:description" content="What RequestTailor does and does not do, as a yes/no list: files in Git, no account, Git client, security hints, MCP, AI, plugins, platforms and limits.">
+<meta name="twitter:image" content="https://requesttailor.com/assets/og-image.png">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+<link rel="stylesheet" href="../assets/site.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../"><img src="../assets/logo-mark.svg" alt="" width="24" height="24">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../">Home</a></li>
+<li><a href="../sap/">SAP and OData</a></li>
+<li><a href="../docs/">Docs</a></li>
+<li><a href="../compare/" aria-current="page">Compare</a></li>
+<li><a href="../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<h1>RequestTailor capabilities at a glance</h1>
+<p class="lead">A plain list of what RequestTailor does and does not do, so you can check it
+against the API client you use today. It says nothing about other tools, because their
+features change; look each row up in yours.</p>
+
+<h2 id="table">Capabilities</h2>
+<table>
+<thead><tr><th scope="col">Capability</th><th scope="col">RequestTailor</th><th scope="col">How</th><th scope="col">More</th></tr></thead>
+<tbody>
+<tr><th scope="row">Requests are plain text files that diff in any Git tool</th><td>Yes</td><td>OpenCollection YAML, one file per request, byte-identical round trip</td><td><a href="../docs/collections/">Details</a></td></tr>
+<tr><th scope="row">Account needed</th><td>No</td><td>No sign-in, no license key, no registration</td><td><a href="../docs/privacy/">Details</a></td></tr>
+<tr><th scope="row">Works fully offline</th><td>Yes</td><td>Only the requests you send and your Git remotes use the network</td><td><a href="../docs/privacy/">Details</a></td></tr>
+<tr><th scope="row">Telemetry, update check, connection to our servers</th><td>None</td><td>Nothing is sent without your action</td><td><a href="../docs/privacy/">Details</a></td></tr>
+<tr><th scope="row">Source code</th><td>Apache 2.0</td><td>Open source; name and logo are not under the license</td><td><a href="../download/">Details</a></td></tr>
+<tr><th scope="row">Secrets in the OS keychain or a secret manager</th><td>Yes</td><td>Collections hold only variable names; a scanner blocks credentials in commits</td><td><a href="../docs/environments/">Details</a></td></tr>
+<tr><th scope="row">Same core in app, web, CLI and MCP</th><td>Yes</td><td>Rust core; a conformance suite runs against native and WebAssembly</td><td>-</td></tr>
+<tr><th scope="row">Import Postman, Insomnia, OpenAPI, cURL, HAR, .http</th><td>Yes</td><td>With a loss report; Bruno OpenCollection YAML opens directly</td><td><a href="../docs/collections/">Details</a></td></tr>
+<tr><th scope="row">HTTP, GraphQL, gRPC, WebSocket, SSE</th><td>Yes</td><td>gRPC with server reflection and Protobuf files</td><td><a href="../docs/">Details</a></td></tr>
+<tr><th scope="row">MCP client (test servers) and MCP server (offer collections)</th><td>Yes</td><td>Read-only by default, approvals for production writes, audit log</td><td><a href="../docs/mcp/">Details</a></td></tr>
+<tr><th scope="row">Built-in Git client for any repository</th><td>Yes</td><td>Graph, wizards with undo, blame, reflog, bisect, pull requests</td><td><a href="../docs/git/">Details</a></td></tr>
+<tr><th scope="row">Field-by-field diff and merge of requests</th><td>Yes</td><td>In the app, rt diff and a Git merge driver</td><td><a href="../docs/git/">Details</a></td></tr>
+<tr><th scope="row">Scripts and tests</th><td>Yes</td><td>JavaScript in a sandbox (QuickJS in WebAssembly); bru.* and pm.* shims</td><td><a href="../docs/cli/">Details</a></td></tr>
+<tr><th scope="row">Runner for CI with JUnit and JSON reports</th><td>Yes</td><td>rt run, a Docker image and a GitHub Action</td><td><a href="../docs/cli/">Details</a></td></tr>
+<tr><th scope="row">Mock server from saved examples, generated HTML docs</th><td>Yes</td><td>rt mock, rt docs</td><td><a href="../docs/">Details</a></td></tr>
+<tr><th scope="row">Passive security hints tagged by OWASP API Top 10 (2023)</th><td>Yes</td><td>On responses you sent anyway; no extra request</td><td><a href="../docs/inspect/">Details</a></td></tr>
+<tr><th scope="row">Active security scan or fuzzing</th><td>No</td><td>The checks are passive; the access check sends two requests with accounts you own</td><td><a href="../docs/quality/">Details</a></td></tr>
+<tr><th scope="row">AI assistants</th><td>Yes, with your own key</td><td>Anthropic, OpenAI, Azure OpenAI, Gemini, Mistral or local models; off by default</td><td><a href="../docs/ai/">Details</a></td></tr>
+<tr><th scope="row">Share a request as a link without uploading it</th><td>Yes</td><td>Data stays in the URL fragment</td><td><a href="../docs/share/">Details</a></td></tr>
+<tr><th scope="row">Plugins</th><td>Yes</td><td>Sandboxed WebAssembly, permissions you grant, public versioned API</td><td><a href="../docs/plugins/">Details</a></td></tr>
+<tr><th scope="row">SAP OData V2 and V4 support</th><td>Optional plugin</td><td>CSRF, ETags, $batch, drafts, Gateway errors, landscapes</td><td><a href="../sap/">Details</a></td></tr>
+<tr><th scope="row">Cold start under 500 ms, idle memory under 150 MB</th><td>Release gate</td><td>Measured on macOS, Linux and Windows on every build</td><td><a href="../benchmark/">Details</a></td></tr>
+<tr><th scope="row">Desktop app for Windows and Linux</th><td>No</td><td>Use the web app or the rt command line there</td><td><a href="../download/">Details</a></td></tr>
+<tr><th scope="row">Hosted cloud workspace or sync service</th><td>No</td><td>Collections sync through Git</td><td>-</td></tr>
+</tbody>
+</table>
+
+<h2 id="approach">How the approach differs</h2>
+<p>Many API clients keep requests in an account or workspace and sync them through a vendor
+service. RequestTailor keeps them as files in a folder and leaves sharing to Git, so a request
+has a history, a diff and a code review like any other file. The app is a view on that folder;
+the command line and the MCP server read the same files with the same core.</p>
+
+<h2 id="moving">Moving from Postman, Bruno or Insomnia</h2>
+<ul>
+<li><strong>Postman:</strong> import a collection (v2.0 or v2.1) with its environment and
+globals files. Scripts carry over with a <code>pm.*</code> compatibility layer; the report names
+every API it does not cover.</li>
+<li><strong>Bruno:</strong> a collection in OpenCollection YAML opens as it is and is written back
+byte for byte.</li>
+<li><strong>Insomnia:</strong> import an export (v4 JSON or YAML, v5 YAML).</li>
+<li><strong>OpenAPI or Swagger:</strong> the wizard builds a collection from a spec and keeps the
+spec for checks before and after sending.</li>
+</ul>
+<p>Start at <a href="../docs/">getting started</a> or the <a href="../docs/cli/#import">import
+reference</a>. Secret values are never imported into files; you enter them once.</p>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

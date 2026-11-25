@@ -7,12 +7,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="What RequestTailor stores and sends: no account, no telemetry, no update checks; secrets in the OS keychain; this website sets no cookies.">
-<title>Privacy · RequestTailor</title>
+<title>Privacy: no account, no telemetry in RequestTailor</title>
+<meta name="description" content="What RequestTailor stores and sends: no account, no telemetry, no update check, secrets in the OS keychain. This website sets no cookies.">
+<link rel="canonical" href="https://requesttailor.com/docs/privacy/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Privacy: no account, no telemetry in RequestTailor">
+<meta property="og:description" content="What RequestTailor stores and sends: no account, no telemetry, no update check, secrets in the OS keychain. This website sets no cookies.">
+<meta property="og:url" content="https://requesttailor.com/docs/privacy/">
+<meta property="og:image" content="https://requesttailor.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Privacy: no account, no telemetry in RequestTailor">
+<meta name="twitter:description" content="What RequestTailor stores and sends: no account, no telemetry, no update check, secrets in the OS keychain. This website sets no cookies.">
+<meta name="twitter:image" content="https://requesttailor.com/assets/og-image.png">
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
 <link rel="stylesheet" href="../../assets/site.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://requesttailor.com/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://requesttailor.com/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Privacy",
+   "item": "https://requesttailor.com/docs/privacy/"
+  }
+ ]
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -23,7 +64,8 @@
 <ul>
 <li><a href="../../">Home</a></li>
 <li><a href="../../sap/">SAP and OData</a></li>
-<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../docs/" aria-current="page">Docs</a></li>
+<li><a href="../../compare/">Compare</a></li>
 <li><a href="../../download/">Download</a></li>
 <li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
 </ul>
@@ -38,6 +80,11 @@
 <li><a href="../../docs/">Getting started</a></li>
 <li><a href="../../docs/collections/">Collections as files</a></li>
 <li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/git/">Git client</a></li>
+<li><a href="../../docs/inspect/">Check and inspect responses</a></li>
+<li><a href="../../docs/quality/">Safety and quality tools</a></li>
+<li><a href="../../docs/share/">Share and copy requests</a></li>
+<li><a href="../../docs/ai/">AI assistants</a></li>
 <li><a href="../../docs/cli/">Command line: rt</a></li>
 <li><a href="../../docs/mcp/">MCP server</a></li>
 <li><a href="../../docs/plugins/">Plugins</a></li>
@@ -46,6 +93,7 @@
 </ul>
 </nav>
 <article>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Home</a> / <a href="../../docs/">Docs</a> / <span aria-current="page">Privacy</span></nav>
 <h1>Privacy</h1>
 <p class="lead">RequestTailor sends what you send, to where you send it. Nothing else.</p>
 
@@ -59,7 +107,7 @@ does not load content from the internet.</li>
 <li><strong>Connections you cause.</strong> The requests you send; Git remotes you pull from or
 push to; the OAuth 2.0 provider and browser sign-in of an auth configuration; the command lines
 of secret managers you configure; the AI provider you set up, only when you ask the
-assistant (secret values masked, see <a href="../../docs/#ai">AI assistant</a>); and hosts a
+assistant (secret values masked, see <a href="../../docs/ai/">AI assistants</a>); and hosts a
 plugin is permitted to reach, which you see before installing it.</li>
 </ul>
 
@@ -73,8 +121,13 @@ plugin is permitted to reach, which you see before installing it.</li>
 <tr><td>Cookies set by responses, per collection and environment</td><td>Data folder</td><td>Browser storage</td></tr>
 <tr><td>Installed plugins and their storage</td><td>Data folder</td><td>Browser storage</td></tr>
 <tr><td>AI assistant settings (provider, model, address); its API key</td><td>Data folder; key in the keychain</td><td>Browser storage; key encrypted</td></tr>
+<tr><td>Git action journal and backup refs of the Git client</td><td>In the repository's <code>.git</code> folder</td><td>In the repository</td></tr>
+<tr><td>Test results per commit, test-data journal, tool settings</td><td>Data folder</td><td>Browser storage</td></tr>
 </tbody>
 </table>
+<p>Shared links keep the request in the part after <code>#</code>, which a browser never sends to a
+server; creating one makes no network request (<a href="../../docs/share/">share and copy</a>).
+The webhook inbox of <code>rt inbox</code> keeps requests in memory only and listens on 127.0.0.1.</p>
 <p><code>rt</code> keeps no history. It shares the keychain entries and the plugin folder with
 the desktop app, and keeps cookies only in a file you name with <code>--cookie-jar</code>.</p>
 <p>The companion <code>rt agent</code> listens on your own machine only (127.0.0.1), logs the
@@ -82,7 +135,8 @@ method and host of each request it sends, never paths, headers or bodies, and ke
 pairing tokens in memory.</p>
 
 <h2 id="website">This website</h2>
-<p>This website is a set of static pages. It sets no cookies, runs no scripts, uses no
+<p>This website is a set of static pages. It sets no cookies, runs no scripts (the
+only <code>script</code> elements are JSON-LD data blocks for search engines, which are not executed), uses no
 analytics and loads no fonts, images or scripts from other servers. The hosting provider
 (GitHub Pages) keeps its own technical server logs; see GitHub's privacy statement for what
 those contain.</p>

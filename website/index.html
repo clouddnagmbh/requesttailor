@@ -7,12 +7,172 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="RequestTailor is an open-source API client: collections are plain files in your Git repository, there is no account, and the same Rust core runs on the desktop, in the browser and in your pipeline.">
-<title>RequestTailor</title>
+<title>RequestTailor: open-source API client, requests as files</title>
+<meta name="description" content="RequestTailor is an open-source (Apache 2.0) API client with a Rust core: requests are YAML files in Git, no account, for macOS, browser, CLI and MCP.">
+<link rel="canonical" href="https://requesttailor.com/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="RequestTailor: open-source API client, requests as files">
+<meta property="og:description" content="RequestTailor is an open-source (Apache 2.0) API client with a Rust core: requests are YAML files in Git, no account, for macOS, browser, CLI and MCP.">
+<meta property="og:url" content="https://requesttailor.com/">
+<meta property="og:image" content="https://requesttailor.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RequestTailor: open-source API client, requests as files">
+<meta name="twitter:description" content="RequestTailor is an open-source (Apache 2.0) API client with a Rust core: requests are YAML files in Git, no account, for macOS, browser, CLI and MCP.">
+<meta name="twitter:image" content="https://requesttailor.com/assets/og-image.png">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
 <link rel="stylesheet" href="assets/site.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "RequestTailor",
+ "url": "https://requesttailor.com/",
+ "description": "RequestTailor is an open-source (Apache 2.0) API client with a Rust core. It runs natively on macOS, in the browser as WebAssembly, as the command line rt and as an MCP server. Requests are plain YAML files in Git, with no account.",
+ "applicationCategory": "DeveloperApplication",
+ "operatingSystem": "macOS, Linux (command line), Web browser",
+ "softwareVersion": "1.0.0",
+ "license": "https://www.apache.org/licenses/LICENSE-2.0",
+ "isAccessibleForFree": true,
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "downloadUrl": "https://github.com/clouddnagmbh/requesttailor/releases/latest",
+ "codeRepository": "https://github.com/clouddnagmbh/requesttailor",
+ "screenshot": "https://requesttailor.com/assets/og-image.png",
+ "featureList": [
+  "Requests as plain YAML files (OpenCollection) in Git",
+  "No account, offline, no telemetry",
+  "Secrets in the OS keychain or a secret manager",
+  "Built-in Git client with semantic diff and merge",
+  "HTTP, GraphQL, gRPC, WebSocket, SSE and MCP",
+  "rt command line for CI with JUnit reports",
+  "MCP server with approvals and audit log",
+  "AI assistants with your own key",
+  "WebAssembly plugins, including OData for SAP"
+ ],
+ "author": {
+  "@type": "Organization",
+  "name": "The RequestTailor Authors"
+ }
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "Organization",
+ "name": "The RequestTailor Authors",
+ "url": "https://requesttailor.com/",
+ "logo": "https://requesttailor.com/assets/logo-mark.svg",
+ "sameAs": [
+  "https://github.com/clouddnagmbh/requesttailor"
+ ]
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Is RequestTailor free?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. The source code is under the Apache License 2.0 and the app, the rt command line and the web app are free to use. What is free stays free. The name and logo are not under the Apache license."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does RequestTailor need an account?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. There is no sign-in, license key or registration. Download, open a folder, send a request. The app makes no connection to RequestTailor servers: no telemetry and no update check."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it work offline?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. Everything works offline except the requests you send and the Git remotes you pull from or push to. Mock servers, collections, history, diff and the response checks run on your machine."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Where are my secrets stored?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Secret values live in the operating system keychain on the desktop, or encrypted in the browser storage in the web app. Collections hold only the variable name. Values can also come from 1Password, Vault, AWS, Azure or Google Cloud through their command-line tools. A scanner refuses commits that contain credentials, and AI calls mask secret values."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can I import from Postman, Bruno, Insomnia or OpenAPI?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. rt import and the app read Postman collections (v2.0 and v2.1) with environments, Insomnia exports (v4 and v5), OpenAPI 3.x and Swagger 2.0 (also multi-file and zip), cURL, HAR and .http files, and report everything that could not be carried over exactly. Bruno collections in OpenCollection YAML open directly, unchanged."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "How does it work with Git?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "A request is a YAML file, so Git works as it does for code. The app has a built-in Git client with a history graph, plain-language wizards with undo, field-by-field diff and merge, blame, bisect and pull requests for GitHub and GitLab. rt merge-driver lets plain git merge collection files field by field."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can I use it in CI?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. rt run sends a collection or a folder with the same core as the app, reports tests and assertions as text, JSON or JUnit, and exits with code 4 when a test fails. There is a Docker image and a GitHub Action."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it support OData and SAP?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes, as an optional plugin on the public plugin API: OData V2 and V4 for SAP S/4HANA, CAP and RAP, with CSRF tokens, ETags, $batch, drafts, Gateway errors and DEV/QAS/PRD landscapes. The core contains no SAP-specific code, and you see nothing of SAP unless you choose it at first start."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can AI agents use my collections through MCP?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. rt mcp offers a collection to agents as tools over the Model Context Protocol. Access is read-only by default, per environment; writes to production wait for your approval, agents never see secret values, and every call goes into a local audit log. The app also tests MCP servers as a client."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can I use AI without sending my data to you?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. RequestTailor has no AI service. The assistants are off by default and use your own key for Anthropic, OpenAI, Azure OpenAI, Gemini or Mistral, or a model on your computer through an OpenAI-compatible address such as Ollama. Calls go from your device to that provider, with a preview of what is sent and secret values masked."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Which platforms does it run on?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "The desktop app runs on macOS. The web app runs in the browser with the core compiled to WebAssembly. The rt command line runs on macOS and Linux and comes as a Docker image. There are no desktop installers for Windows and Linux."
+   }
+  }
+ ]
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -21,9 +181,10 @@
 <a class="brand" href="./"><img src="assets/logo-mark.svg" alt="" width="24" height="24">RequestTailor</a>
 <nav class="site-nav" aria-label="Main">
 <ul>
-<li><a href="./" aria-current="page">Home</a></li>
+<li><a href="./" aria-current="page" aria-current="page">Home</a></li>
 <li><a href="sap/">SAP and OData</a></li>
 <li><a href="docs/">Docs</a></li>
+<li><a href="compare/">Compare</a></li>
 <li><a href="download/">Download</a></li>
 <li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
 </ul>
@@ -42,6 +203,15 @@ in your pipeline, so a request that works in the app works in CI.</p>
 <a class="button" href="docs/">Get started</a>
 <a class="button" href="sap/">SAP and OData</a>
 </div>
+</section>
+
+<section id="what-is" aria-labelledby="what-is-title">
+<h2 id="what-is-title">What RequestTailor is</h2>
+<p><strong>RequestTailor is an open-source (Apache 2.0) API client with a Rust core.</strong> It
+runs natively on macOS, in the browser as WebAssembly, as the command line <code>rt</code> and
+as an MCP server for AI agents. A request is a readable YAML file in the OpenCollection
+format, kept in your Git repository. There is no account, it works offline, secrets stay on
+your machine, and it never connects to RequestTailor servers.</p>
 </section>
 
 <h2 id="principles">What it stands for</h2>
@@ -122,22 +292,90 @@ fails the build.</p>
 </table>
 
 <h2 id="features">What is in it</h2>
-<ul>
-<li>Opens OpenCollection YAML collections, the format Bruno writes, without changing them.</li>
-<li>Imports Postman, Insomnia, OpenAPI, cURL, HAR and <code>.http</code> files, with a report of everything that could not be carried over exactly.</li>
-<li>Variables in layers with a visible origin: global, collection, environment, folder, request, runtime.</li>
-<li>Authentication: Basic, Bearer, API key, OAuth 2.0 (client credentials, password, authorization code with PKCE, device code, SAML 2.0 bearer), AWS Signature Version 4, client certificates.</li>
-<li>Git without a staging area: commit, branches, pull, push and conflict resolution in the app.</li>
-<li>Large responses stay in the core; the interface fetches only the lines on screen.</li>
-<li>History without bodies or header values, and search across the collection.</li>
-<li>Plugins as sandboxed WebAssembly modules, on every surface.</li>
-</ul>
+<div class="grid">
+<div class="card">
+<h3>Requests and protocols</h3>
+<p>HTTP, GraphQL, gRPC (with server reflection), WebSocket and Server-Sent Events. Auth: Basic,
+Bearer, API key, OAuth 2.0 (client credentials, password, authorization code with PKCE, device
+code, SAML 2.0 bearer), AWS Signature Version 4 and client certificates. Scripts and tests
+run in a sandbox. <a href="docs/">Getting started</a></p>
+</div>
+<div class="card">
+<h3>Collections as files</h3>
+<p>Opens OpenCollection YAML, the format Bruno writes, without changing a byte. Imports Postman,
+Insomnia, OpenAPI, Swagger, cURL, HAR and <code>.http</code> files, with a report of every
+loss. Several collections at once, a New… dialog, variable completion with origins.
+<a href="docs/collections/">Collections as files</a></p>
+</div>
+<div class="card">
+<h3>Git client</h3>
+<p>History graph, wizards that explain before they act and can undo, field-by-field diff and
+merge, blame, lost-work recovery, bisect, compare by running two versions, pull requests for
+GitHub and GitLab, and a merge driver for plain <code>git</code>.
+<a href="docs/git/">Git client</a></p>
+</div>
+<div class="card">
+<h3>Check and inspect</h3>
+<p>Passive response checks and security hints tagged by OWASP API Security Top 10 (2023), a JWT
+reader, rate limits, pagination, trace ids, saved JSONPath views, a local webhook inbox.
+<a href="docs/inspect/">Check responses</a></p>
+</div>
+<div class="card">
+<h3>Safety and quality</h3>
+<p>A production guard, <code>rt send --watch</code>, snapshots, <code>rt lint</code>,
+<code>rt compare-env</code>, a test-data journal, a two-user access check and
+<code>rt shrink</code>. <a href="docs/quality/">Safety and quality tools</a></p>
+</div>
+<div class="card">
+<h3>Share and copy</h3>
+<p>Share links that keep the request in the URL fragment: no upload, no secrets. Copy as
+cURL, fetch or Python. <a href="docs/share/">Share and copy</a></p>
+</div>
+<div class="card">
+<h3>AI with your own key</h3>
+<p>Anthropic, OpenAI, Azure OpenAI, Gemini, Mistral or a local model. Off by default, with a
+preview of what is sent and secrets masked. Nothing goes through our servers.
+<a href="docs/ai/">AI assistants</a></p>
+</div>
+<div class="card">
+<h3>Agents and plugins</h3>
+<p><code>rt mcp</code> offers collections to AI agents with approvals and an audit log; the app
+tests MCP servers. Plugins are sandboxed WebAssembly modules.
+<a href="docs/mcp/">MCP server</a> and <a href="docs/plugins/">plugins</a></p>
+</div>
+</div>
+<p>See the <a href="compare/">capability list</a> to check RequestTailor against the tool you
+use now.</p>
 
 <h2 id="plugins">Plugins instead of a heavy core</h2>
 <p>Protocols and domain knowledge come as plugins on a public, versioned plugin API. A plugin
 is a single WebAssembly file: no native code, no file system, and network access only to the
 hosts you grant. The first one is the <a href="sap/">OData plugin for SAP S/4HANA, CAP and
 RAP</a>. <a href="docs/plugins/">Write your own</a>.</p>
+
+<h2 id="faq">Questions people ask</h2>
+<h3>Is RequestTailor free?</h3>
+<p>Yes. The source code is under the Apache License 2.0 and the app, the rt command line and the web app are free to use. What is free stays free. The name and logo are not under the Apache license.</p>
+<h3>Does RequestTailor need an account?</h3>
+<p>No. There is no sign-in, license key or registration. Download, open a folder, send a request. The app makes no connection to RequestTailor servers: no telemetry and no update check.</p>
+<h3>Does it work offline?</h3>
+<p>Yes. Everything works offline except the requests you send and the Git remotes you pull from or push to. Mock servers, collections, history, diff and the response checks run on your machine.</p>
+<h3>Where are my secrets stored?</h3>
+<p>Secret values live in the operating system keychain on the desktop, or encrypted in the browser storage in the web app. Collections hold only the variable name. Values can also come from 1Password, Vault, AWS, Azure or Google Cloud through their command-line tools. A scanner refuses commits that contain credentials, and AI calls mask secret values.</p>
+<h3>Can I import from Postman, Bruno, Insomnia or OpenAPI?</h3>
+<p>Yes. rt import and the app read Postman collections (v2.0 and v2.1) with environments, Insomnia exports (v4 and v5), OpenAPI 3.x and Swagger 2.0 (also multi-file and zip), cURL, HAR and .http files, and report everything that could not be carried over exactly. Bruno collections in OpenCollection YAML open directly, unchanged.</p>
+<h3>How does it work with Git?</h3>
+<p>A request is a YAML file, so Git works as it does for code. The app has a built-in Git client with a history graph, plain-language wizards with undo, field-by-field diff and merge, blame, bisect and pull requests for GitHub and GitLab. rt merge-driver lets plain git merge collection files field by field.</p>
+<h3>Can I use it in CI?</h3>
+<p>Yes. rt run sends a collection or a folder with the same core as the app, reports tests and assertions as text, JSON or JUnit, and exits with code 4 when a test fails. There is a Docker image and a GitHub Action.</p>
+<h3>Does it support OData and SAP?</h3>
+<p>Yes, as an optional plugin on the public plugin API: OData V2 and V4 for SAP S/4HANA, CAP and RAP, with CSRF tokens, ETags, $batch, drafts, Gateway errors and DEV/QAS/PRD landscapes. The core contains no SAP-specific code, and you see nothing of SAP unless you choose it at first start.</p>
+<h3>Can AI agents use my collections through MCP?</h3>
+<p>Yes. rt mcp offers a collection to agents as tools over the Model Context Protocol. Access is read-only by default, per environment; writes to production wait for your approval, agents never see secret values, and every call goes into a local audit log. The app also tests MCP servers as a client.</p>
+<h3>Can I use AI without sending my data to you?</h3>
+<p>Yes. RequestTailor has no AI service. The assistants are off by default and use your own key for Anthropic, OpenAI, Azure OpenAI, Gemini or Mistral, or a model on your computer through an OpenAI-compatible address such as Ollama. Calls go from your device to that provider, with a preview of what is sent and secret values masked.</p>
+<h3>Which platforms does it run on?</h3>
+<p>The desktop app runs on macOS. The web app runs in the browser with the core compiled to WebAssembly. The rt command line runs on macOS and Linux and comes as a Docker image. There are no desktop installers for Windows and Linux.</p>
 
 <h2 id="open-source">Open source, and it stays that way</h2>
 <p>The code is under the Apache License 2.0. What is free once does not move behind a

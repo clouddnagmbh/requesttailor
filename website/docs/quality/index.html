@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Production guard, snapshots, lint and shrink for APIs</title>
+<meta name="description" content="Production guard, rt send --watch, snapshots, rt lint, rt compare-env, a test-data journal, a two-user access check and rt shrink.">
+<link rel="canonical" href="https://requesttailor.com/docs/quality/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Production guard, snapshots, lint and shrink for APIs">
+<meta property="og:description" content="Production guard, rt send --watch, snapshots, rt lint, rt compare-env, a test-data journal, a two-user access check and rt shrink.">
+<meta property="og:url" content="https://requesttailor.com/docs/quality/">
+<meta property="og:image" content="https://requesttailor.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Production guard, snapshots, lint and shrink for APIs">
+<meta name="twitter:description" content="Production guard, rt send --watch, snapshots, rt lint, rt compare-env, a test-data journal, a two-user access check and rt shrink.">
+<meta name="twitter:image" content="https://requesttailor.com/assets/og-image.png">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
+<link rel="stylesheet" href="../../assets/site.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://requesttailor.com/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://requesttailor.com/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Safety and quality tools",
+   "item": "https://requesttailor.com/docs/quality/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../"><img src="../../assets/logo-mark.svg" alt="" width="24" height="24">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="page">Docs</a></li>
+<li><a href="../../compare/">Compare</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/git/">Git client</a></li>
+<li><a href="../../docs/inspect/">Check and inspect responses</a></li>
+<li><a href="../../docs/quality/" aria-current="page">Safety and quality tools</a></li>
+<li><a href="../../docs/share/">Share and copy requests</a></li>
+<li><a href="../../docs/ai/">AI assistants</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Home</a> / <a href="../../docs/">Docs</a> / <span aria-current="page">Safety and quality tools</span></nav>
+<h1>Safety and quality tools</h1>
+<p class="lead">Guards against sending the wrong thing to the wrong system, and checks that
+keep a collection correct over time. Everything runs locally and in your pipeline.</p>
+
+<h2 id="production">Production guard</h2>
+<p>An environment counts as production when its agent policy says so, or, without a policy,
+when its name is <code>prod</code>, <code>prd</code> or contains the word <code>live</code>.
+The app then draws a red frame, labels the send button <em>Send to PRODUCTION</em> and marks the
+environment switch. A <strong>writing</strong> request (anything but GET, HEAD, OPTIONS and
+TRACE, a GraphQL mutation, gRPC) asks first; <kbd>Enter</kbd> confirms, <kbd>Esc</kbd>
+cancels, and <em>Don't ask again</em> is remembered per device. The core, not the interface,
+decides what writes. <code>rt send</code> and <code>rt run</code> print a
+<code>PRODUCTION:</code> line on stderr and add it to the report; they never refuse because of it.</p>
+
+<h2 id="watch">Send again on every save</h2>
+<pre><code>rt send users/get-user.yml --env Local --watch</code></pre>
+<p>Watches the request, its body file, <code>opencollection.yml</code>, the folder files above
+it, the environment and its companion files, and sends again after each change within 500 ms.
+It prints one line per send:
+<code>200 12 ms  34 B  same</code> or <code>changed: $.name</code>. Only reading requests are sent;
+<code>--allow-writes</code> adds writing ones, never against production. <code>--json</code> prints one report per
+line.</p>
+
+<h2 id="snapshots">Snapshots</h2>
+<p>Freeze a response as a snapshot: the status, a safe list of headers and the body, with
+paths you choose to ignore (timestamps, ids). It is saved as <code>&lt;request&gt;.snap.json</code> next to
+the request, and the request gets one assertion, <code>res matchesSnapshot</code>. <code>rt send</code> and
+<code>rt run</code> compare and never write; <code>rt snapshot update [path…] [--all]</code> or the app
+refreeze. Checking 1000 snapshots takes at most 150 ms. Older builds that do not know the
+operator report the assertion as failed, never as passed.</p>
+
+<h2 id="lint">Lint</h2>
+<pre><code>rt lint . --format github --min-score 80 --fail-on error</code></pre>
+<p>Checks a collection for requests without tests, hard-coded hosts, unused variables and
+duplicate names, and prints a health score from 0 to 100. It reads files and sends nothing.
+Exit code 7 when a finding reaches <code>--fail-on</code> or the score is below
+<code>--min-score</code>; output as <code>text</code>, <code>json</code> or <code>github</code> annotations.
+Rules and levels live in <code>extensions.requesttailor.lint</code>; <code>--rule id=level</code> overrides
+them. 1000 requests take at most 500 ms.</p>
+
+<h2 id="compare-env">Compare environments</h2>
+<pre><code>rt compare-env . --env Staging --env Production --fail-on-diff</code></pre>
+<p>Sends the reading requests of a folder in two or more environments (the first is the
+reference) and lists what differs in status, headers and JSON body. Writing requests are
+skipped and named, secret values never appear. 100 requests take at most 500 ms. The app has
+the same view.</p>
+
+<h2 id="journal">Test-data journal</h2>
+<p>With <em>Track test data</em> on for a collection, the app and <code>rt</code> keep a list of the
+successful writing requests of a session: method, URL, status and what the response says
+about the created or changed thing. <code>rt journal revert &lt;id&gt; --with &lt;request-file&gt;</code>
+puts one back with a request you choose, filling <code>{{journal.id}}</code>,
+<code>{{journal.location}}</code> and <code>{{journal.etag}}</code> from the entry. That request is
+sent like any writing request: guard, audit log, and for production only with
+<code>--yes-production</code>. The journal keeps no bodies and no header values, and it cannot undo what has no
+undo request, such as OData draft actions. Plugins can supply clean-up rules as data; the
+<a href="../../sap/">OData plugin</a> has them.</p>
+
+<h2 id="access">Two-user access check</h2>
+<pre><code>rt access check orders/get-order.yml --as UserA --as UserB --json</code></pre>
+<p>Sends one request as user A (an environment). If the answer holds an object, it asks for the
+same object as user B and reports broken object or function access with masked evidence. It
+uses only ids user A saw, sends two requests, at most <code>--rate</code> per second
+(default 5), and a writing request only with <code>--allow-writes</code>, never against production.
+Exit code 4 when access is broken, 5 when the send guard refused, 2 when the check did not
+run. Use it only with accounts you own.</p>
+
+<h2 id="shrink">Smallest failing request</h2>
+<pre><code>rt shrink orders/create.yml -e Staging --predicate status=500</code></pre>
+<p>Sends variations of a failing request, with fewer headers, query parameters, cookies and
+body fields, and prints the smallest one that still fails. A predicate is <code>status=500</code>,
+<code>5xx</code>, <code>assertion[=NAME]</code>, <code>body~PATTERN</code>, <code>header=NAME</code>,
+<code>no-header=NAME</code> or <code>last</code>. At most 100 probes and 120 seconds by default;
+<code>--keep header:Authorization</code> keeps a part. A request with 200 parts and one cause needs at
+most 60 sends. Writing requests only with <code>--allow-writes</code>, never against production.
+Exit code 0 found, 1 not reproducible, 5 blocked by the guard.</p>
+
+<h2 id="more">See also</h2>
+<p><a href="../inspect/">Check and inspect responses</a>, <a href="../mcp/">MCP server</a>
+(agent rules and approvals), <a href="../cli/">Command line: rt</a>.</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>
