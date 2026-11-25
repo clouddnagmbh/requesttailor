@@ -1161,7 +1161,8 @@ export interface CatalogueApi {
   sources(): Promise<CatalogueSource[]>;
   addSource(url: string): Promise<CatalogueSource>;
   removeSource(url: string): Promise<void>;
-  refresh(): Promise<SourceIndex[]>;
+  /** Reads the index of one source, or of every source (nothing is read before this call). */
+  refresh(source?: string): Promise<SourceIndex[]>;
   plan(source: string, id: string): Promise<InstallPlan>;
   install(plan: InstallPlan): Promise<InstalledSource>;
   installed(): Promise<InstalledSource[]>;

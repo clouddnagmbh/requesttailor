@@ -22,6 +22,7 @@ function fake(answer: (cmd: Command, args?: Record<string, unknown>) => unknown)
 const PLAN = {
   source: "https://example.com/plugins.json",
   entry: { id: "acme", name: "Acme", version: "1.0.0", api: 1, wasm: { url: "https://example.com/a.wasm", sha256: "ab", size: 1 } },
+  wasm_url: "https://example.com/a.wasm",
   sha256: "ab",
   permissions: { network: [], storage: false, variables: false },
   permissions_differ: false,
@@ -682,7 +683,7 @@ describe("TauriBackend", () => {
       ["catalogue_sources", undefined],
       ["catalogue_add_source", { url: "https://example.com/plugins.json" }],
       ["catalogue_remove_source", { url: "https://example.com/plugins.json" }],
-      ["catalogue_refresh", undefined],
+      ["catalogue_refresh", { source: null }],
       ["catalogue_plan", { source: "https://example.com/plugins.json", id: "acme" }],
       ["catalogue_install", { plan: PLAN }],
       ["catalogue_installed", undefined],

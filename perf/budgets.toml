@@ -151,10 +151,9 @@ max = 300
 
 # Strand I (scripts/perf/catalogue.mjs).
 [metrics.catalogue_index]
-description = "Reading and checking a plugin index with 1000 entries (rt-app release, median of 9)"
+description = "Reading and searching a plugin index with 1000 entries (rt-app release, median of 9)"
 unit = "ms"
-pending = "wave 18, strand I"
-max = 100
+max = 20
 
 # Wave 19: Evidence and cleaning up. `pending` names the strand that builds the measurement; the
 # strand removes it in the commit that adds the measurement. The thresholds are estimates: the

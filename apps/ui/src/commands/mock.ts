@@ -463,7 +463,7 @@ export class MockBackend implements Backend {
     getRequest: (path) => this.getRequest(path),
     responseText: (id) => this.responses.get(id)?.text ?? null,
   });
-  readonly catalogue = mockCatalogue();
+  readonly catalogue = mockCatalogue(() => this.plugins);
   /** Wave 17 (strands B and C replace the placeholders in their own files). */
   readonly snapshots = mockSnapshots({
     companions: this.companions,

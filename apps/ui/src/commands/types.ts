@@ -2975,6 +2975,8 @@ export interface SourceIndex {
 export interface InstallPlan {
   source: string;
   entry: CatalogueEntry;
+  /** Where the module was downloaded from. */
+  wasm_url: string;
   sha256: string;
   permissions: Permissions;
   permissions_differ: boolean;

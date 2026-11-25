@@ -39,7 +39,7 @@ pub mod cookies;
 pub mod diffs;
 pub mod git;
 // Wave 18 (interface): checking, observing and automating; the strands fill the modules in.
-/// Plugin catalogue without a server (strand I).
+/// Plugin catalogue without a server (wave 18, strand I).
 pub mod catalogue;
 /// Comparing responses across environments (strand A).
 pub mod envcompare;

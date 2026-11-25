@@ -8,9 +8,34 @@
 //! permissions shown come from the manifest inside the `.wasm`, not from the index (a
 //! difference warns); an update with the same version but another checksum is refused; more
 //! permissions ask again. Only WebAssembly modules are installed
-//! (`rt_plugin::host::dir::PluginDir::install`). Interface: types only.
+//! (`rt_plugin::host::dir::PluginDir::install_from`).
+//!
+//! The parts:
+//! - [`index`]: reading an index (limits, validation), where a source lives ([`locate`]),
+//!   search;
+//! - [`plan`]: what installing an entry would do, with every check (SHA-256, the manifest in the
+//!   module, a changed release, more rights);
+//! - [`net`]: the downloads over the app's `Transport` (native and browser, only on a user
+//!   action);
+//! - `disk` (not on wasm32): the sources and the origin of installed plugins in the plugin folder
+//!   (desktop and CLI; the web shell keeps the same data in browser storage).
+//!
+//! Index format (`plugins.json`, version 1): `{ version, name, plugins: [{ id, name, version,
+//! api, description, license, homepage, wasm: { url, sha256, size }, permissions }] }`. A source
+//! is an `https` link to such a file, or a Git repository (`https://host/org/repo[#ref]`) that
+//! has one in its root; `http` is accepted for loopback addresses only (tests, local mirrors).
 
 use serde::{Deserialize, Serialize};
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod disk;
+pub mod index;
+pub mod net;
+pub mod plan;
+
+pub use index::{GitSource, Located, locate, matches, parse_index, resolve_wasm_url};
+pub use net::{CloneIndex, Fetched, fetch_index, fetch_wasm};
+pub use plan::{InstalledState, check_updates, plan_install, sha256_hex, verify_installed};
 
 pub use rt_plugin::api::Permissions;
 
@@ -83,6 +108,9 @@ pub struct SourceIndex {
 pub struct InstallPlan {
     pub source: String,
     pub entry: CatalogueEntry,
+    /// Where the module was downloaded from (`entry.wasm.url` resolved against the index).
+    #[serde(default)]
+    pub wasm_url: String,
     /// SHA-256 of the downloaded module (equal to `entry.wasm.sha256`, else the plan is an
     /// error and is never returned).
     pub sha256: String,

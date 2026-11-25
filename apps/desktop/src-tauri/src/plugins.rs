@@ -554,8 +554,23 @@ impl PluginParts {
     /// Installs or updates (same id) a plugin and grants what its manifest requests; the UI
     /// asked the user first. An update keeps the position and the enabled state.
     pub fn install(&self, wasm: &[u8]) -> Result<PluginInfo, AppError> {
+        self.install_from(wasm, None)
+    }
+
+    /// The plugin folder, if anything is persisted (the catalogue keeps its state there).
+    pub fn dir(&self) -> Option<&PluginDir> {
+        self.dir.as_ref()
+    }
+
+    /// [`PluginParts::install`], recording where the module came from (the plugin catalogue,
+    /// wave 18).
+    pub fn install_from(
+        &self,
+        wasm: &[u8],
+        origin: Option<rt_plugin::host::dir::Origin>,
+    ) -> Result<PluginInfo, AppError> {
         let plugin = match &self.dir {
-            Some(dir) => dir.install(wasm)?,
+            Some(dir) => dir.install_from(wasm, origin)?,
             None => {
                 let manifest = PluginHost::inspect(wasm)?;
                 let enabled = lock(&self.plugins)

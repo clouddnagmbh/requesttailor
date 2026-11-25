@@ -457,7 +457,7 @@ export class WebBackend implements Backend {
     });
     this.lint = webLint(() => this.session());
     this.views = webViews(() => this.session());
-    this.catalogue = webCatalogue();
+    this.catalogue = webCatalogue(host, () => this.companionOn);
     this.snapshots = webSnapshots(
       () => this.session(),
       async (s, environment) => (await this.secretValues(s, environment)).map(([, value]) => value),

@@ -14,7 +14,10 @@
 //!
 //! `RT_DATA_DIR` replaces the data folder for the CLI (`$RT_DATA_DIR/plugins`). Inside:
 //! - `<id>.wasm`: the module as installed, unchanged;
-//! - `plugins.json`: installation order, the granted permissions, enabled or not;
+//! - `plugins.json`: installation order, the granted permissions, enabled or not, and, for a
+//!   plugin installed from a catalogue source (wave 18), the source and the SHA-256 of the module;
+//! - `sources.json`: the catalogue sources the user added (written by the app layer through
+//!   [`PluginDir::read_aux`] and [`PluginDir::write_aux`]; nothing here reads it);
 //! - `storage/<id>.json`: the plugin's `storage` (one JSON object per plugin).
 //!
 //! Writes go to a temporary file first and are renamed into place, so a crash never leaves
@@ -66,6 +69,33 @@ struct Entry {
     version: String,
     granted: Permissions,
     enabled: bool,
+    /// Where the module was installed from (a catalogue source), if it was (wave 18).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source: Option<String>,
+    /// SHA-256 of the installed module (lower-case hex), with `source`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sha256: Option<String>,
+}
+
+/// Where an installed module came from: recorded by [`PluginDir::install_from`] (wave 18, the
+/// plugin catalogue).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Origin {
+    /// The catalogue source the user added.
+    pub source: String,
+    /// SHA-256 of the module (lower-case hex).
+    pub sha256: String,
+}
+
+/// One installed plugin as recorded in `plugins.json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstalledRecord {
+    pub id: String,
+    pub version: String,
+    pub granted: Permissions,
+    pub enabled: bool,
+    /// `None`: installed from a file.
+    pub origin: Option<Origin>,
 }
 
 /// The plugin folder.
@@ -91,6 +121,11 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     ));
     std::fs::write(&tmp, bytes)?;
     std::fs::rename(&tmp, path)
+}
+
+/// A plain file name (no folders), so a caller cannot reach outside the plugin folder.
+fn aux_name(name: &str) -> bool {
+    !name.is_empty() && !name.starts_with('.') && !name.contains(['/', '\\', '\0'])
 }
 
 impl PluginDir {
@@ -158,6 +193,12 @@ impl PluginDir {
     /// the user first). An update keeps the plugin's place in the order and whether it was
     /// enabled; a new plugin is enabled.
     pub fn install(&self, wasm: &[u8]) -> Result<Plugin, PluginError> {
+        self.install_from(wasm, None)
+    }
+
+    /// [`PluginDir::install`], recording where the module came from (`None`: a file; an
+    /// earlier origin of an updated plugin is dropped then).
+    pub fn install_from(&self, wasm: &[u8], origin: Option<Origin>) -> Result<Plugin, PluginError> {
         let manifest: Manifest = super::PluginHost::inspect(wasm)?;
         let mut state = self.state();
         let enabled = state
@@ -172,6 +213,8 @@ impl PluginDir {
             version: manifest.version.clone(),
             granted: manifest.permissions.clone(),
             enabled,
+            source: origin.as_ref().map(|o| o.source.clone()),
+            sha256: origin.map(|o| o.sha256),
         };
         match state.plugins.iter_mut().find(|e| e.id == manifest.id) {
             Some(e) => *e = entry,
@@ -179,6 +222,47 @@ impl PluginDir {
         }
         self.save_state(&state)?;
         Ok(plugin)
+    }
+
+    /// What is installed, in installation order, as recorded (nothing is compiled).
+    pub fn records(&self) -> Vec<InstalledRecord> {
+        self.state()
+            .plugins
+            .into_iter()
+            .map(|e| InstalledRecord {
+                origin: match (e.source, e.sha256) {
+                    (Some(source), Some(sha256)) => Some(Origin { source, sha256 }),
+                    _ => None,
+                },
+                id: e.id,
+                version: e.version,
+                granted: e.granted,
+                enabled: e.enabled,
+            })
+            .collect()
+    }
+
+    /// The installed module `id`, unchanged.
+    pub fn module_bytes(&self, id: &str) -> Option<Vec<u8>> {
+        std::fs::read(self.module_path(id)).ok()
+    }
+
+    /// A small file next to the plugins (`sources.json`), or `None`.
+    pub fn read_aux(&self, name: &str) -> Option<Vec<u8>> {
+        if !aux_name(name) {
+            return None;
+        }
+        std::fs::read(self.dir.join(name)).ok()
+    }
+
+    /// Writes a small file next to the plugins (atomically).
+    pub fn write_aux(&self, name: &str, bytes: &[u8]) -> Result<(), PluginError> {
+        if !aux_name(name) {
+            return Err(io(format!(
+                "{name:?} is not a file name of the plugin folder"
+            )));
+        }
+        write_atomic(&self.dir.join(name), bytes).map_err(io)
     }
 
     /// Removes a plugin, its module and its storage.
