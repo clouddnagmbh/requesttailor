@@ -174,7 +174,6 @@ max = 0.02
 [metrics.egress_overhead]
 description = "Time one egress call adds over the transport (fake transport, 100 allowed hosts, 1000 calls), median"
 unit = "ms"
-pending = "wave 19, strand B"
 max = 1
 
 # Strand C (scripts/perf/journal.mjs).

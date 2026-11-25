@@ -796,3 +796,8 @@ Types: `rt_core::transport::companion`.
 The timeout and redirect settings of the `WireRequest` apply exactly as in `rt send`; the
 timeout covers the whole exchange including the body. If it fires while the body is
 streaming, the connection is cut and the web app reports a timeout.
+
+A request header `x-rt-egress` (wave 19) marks a call as network access of an extension
+(`Backend.egress`, which the web app has already checked against the user's list of allowed
+hosts and its send guard): the companion removes the header, sends the request like any other
+and does not hand the exchange to the observers of a distribution.

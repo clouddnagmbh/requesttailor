@@ -17,7 +17,16 @@
 //!   instance an air-gap policy) wins ([`EgressError::Blocked`]);
 //! - on the web a browser that refuses with CORS goes through the companion service.
 //!
-//! Interface: types only; the calls answer "not implemented yet" until strand B.
+//! [`request`] is the one function every shell calls (native, browser and companion path
+//! differ only in the transport they pass); [`HostList`] is the list of allowed hosts.
+
+mod call;
+mod hosts;
+
+pub use call::{Context, lookup_secrets, request, secret_names};
+#[cfg(not(target_arch = "wasm32"))]
+pub use hosts::file;
+pub use hosts::{HostError, HostList, MAX_HOSTS};
 
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +63,10 @@ pub struct EgressRequest {
     /// The collection whose secrets `{{secret:<name>}}` names (`None`: the active one).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub collection: Option<String>,
+    /// The environment whose secret variable `{{secret:<name>}}` names (`None`: the first
+    /// environment of the collection that has a value for it). Additive (wave 19, strand B).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment: Option<String>,
 }
 
 /// The answer. Header values and the body are masked (every secret value of the call).
@@ -73,7 +86,8 @@ pub struct EgressResponse {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EgressHost {
     pub host: String,
-    /// `None`: the scheme's default port.
+    /// `None`: port 443 (the default of `https`); a host reached over plain `http` on its
+    /// default port is listed with `Some(80)`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
     /// The extension and purpose named when it was allowed.

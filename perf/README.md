@@ -30,7 +30,7 @@ and how.
 | `schema_changes` | ≤ 300 ms | changes between two GraphQL schemas of 2000 types and 10 000 fields (200 changes) and between two Protobuf versions of 500 messages, requests named, release, median of 9, the slower of the two |
 | `catalogue_index` | ≤ 100 ms | reading and checking a plugin index with 1000 entries, release, median of 9 (pending: wave 18, strand I) |
 | `trace_inject` | ≤ 0.02 ms | The trace context on a request, `trace::inject` with and without an existing header (100 000 calls, release): median per call; 0 when off (pending: wave 19, strand A) |
-| `egress_overhead` | ≤ 1 ms | Time one egress call adds over the transport (fake transport, 100 allowed hosts, 1000 calls), median (pending: wave 19, strand B) |
+| `egress_overhead` | ≤ 1 ms | Time one egress call adds over the transport (fake transport, 100 allowed hosts, 1000 calls), median (`crates/rt-app/tests/egress_perf.rs`, release) |
 | `journal_overhead` | ≤ 1 ms | Time the journal adds to one writing send (10 000 entries into the channel), median; reading 5000 entries under 50 ms |
 | `access_check` | ≤ 10 ms | Own time of one two-user access check (fake transport, 200 checks, compare and evidence), median (pending: wave 19, strand D) |
 | `shrink_probes` | ≤ 60 probes | Probes to shrink a 200-part request with one cause (at most 60) and 160 for three scattered causes; own time under 100 ms (`scripts/perf/shrink.mjs`, `--only shrink`) |
@@ -251,4 +251,4 @@ Nine budgets, all `pending` in `budgets.toml` until their strand measures them (
 
 ## Evidence and cleaning up (wave 19)
 
-Ten budgets, `pending` in `budgets.toml` until their strand measures them (`shrink_probes` is measured by strand E) (`node scripts/perf/run.mjs --only trace|egress|journal|access|shrink|consumers|sequence|security|notebook|debugger`, one script each in `scripts/perf/`). The interface commit holds the scripts as stubs that report nothing; a strand removes `pending` in the same change that makes its script measure.
+Ten budgets, `pending` in `budgets.toml` until their strand measures them (`trace_inject`, `egress_overhead`, `journal_overhead` and `shrink_probes` are measured) (`node scripts/perf/run.mjs --only trace|egress|journal|access|shrink|consumers|sequence|security|notebook|debugger`, one script each in `scripts/perf/`). The interface commit holds the scripts as stubs that report nothing; a strand removes `pending` in the same change that makes its script measure.
