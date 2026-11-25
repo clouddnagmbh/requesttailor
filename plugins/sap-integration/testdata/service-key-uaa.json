@@ -1,0 +1,8 @@
+{
+  "url": "https://rt-uaa.it-cpi002.cfapps.us10.hana.ondemand.com",
+  "uaa": {
+    "clientid": "sb-rt-uaa!b2001",
+    "clientsecret": "RT-CANARY-uaa-secret-55d0",
+    "url": "https://rt-uaa.authentication.us10.hana.ondemand.com"
+  }
+}
