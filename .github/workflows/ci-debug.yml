@@ -29,7 +29,7 @@ jobs:
             release-like) add "debug = false\ncodegen-units = 1\ndebug-assertions = false\noverflow-checks = false" ;;
             lto) sed -i 's/^\[profile.dev.package.wasmi\]/[profile.dev]\nlto = "thin"\n\n[profile.dev.package.wasmi]/' Cargo.toml ;;
           esac
-          git diff | head -30; grep -n "profile.release" -A6 Cargo.toml
+          git diff | head -30; true
       - name: tests
         shell: bash
         run: |
