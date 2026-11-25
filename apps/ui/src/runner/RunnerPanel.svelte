@@ -16,6 +16,7 @@
   import { getApp } from "../state/app.svelte";
   import { dataPreview, progressText, scrollToShow, stepCounts, stepState, stepTime, windowRange } from "./model";
   import type { RunnerState } from "./runner.svelte";
+  import WaitingLine from "../ratelimit/WaitingLine.svelte";
 
   let { runner }: { runner: RunnerState } = $props();
 
@@ -39,6 +40,7 @@
       current: r.current,
       counts: { ...r.counts },
       summary: r.summary,
+      waiting: r.waiting,
     };
   });
   const range = $derived(windowRange(scrollTop, viewport, ROW, view.count));
@@ -179,6 +181,10 @@
         <input type="checkbox" data-testid="runner-bail" bind:checked={runner.bail} disabled={runner.running} />
         Stop at the first failure
       </label>
+      <label class="check">
+        <input type="checkbox" data-testid="runner-respect-limits" bind:checked={runner.respectLimits} disabled={runner.running} />
+        Wait for rate limits
+      </label>
       <span class="env" data-testid="runner-environment">
         Environment: <strong>{app.environment ?? "none"}</strong>
       </span>
@@ -257,6 +263,7 @@
         <span data-testid="runner-progress">
           {#if runner.running}
             Running {progressText(view.count, view.total)}{#if view.current}: {view.current.request_path}{/if}
+            <WaitingLine waiting={view.waiting} />
           {:else if view.summary}
             {view.summary.stopped ? "Stopped" : "Finished"} after {view.count} requests in {formatDuration(view.summary.duration_ms)}
           {/if}

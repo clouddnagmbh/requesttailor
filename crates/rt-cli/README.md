@@ -167,6 +167,7 @@ files).
 | `--iterations N` | Run the requests `N` times; with `--data`, take `N` rows, starting over at the end |
 | `--delay MS` | Wait `MS` milliseconds between requests |
 | `--bail` | Stop at the first failed request, test or assertion |
+| `--respect-limits`, `--max-wait T` | Wait for the rate limits servers announce: when a host has nothing left (`RateLimit-*`, `X-RateLimit-*`) or answered `429`/`503` with `Retry-After`, wait until the reset before the next request to that host. Reading requests that got a `429` are sent again (twice at most); writing requests never are. One wait is at most `T` (default `60s`, hard maximum `600s`): a longer one ends the run with the reason and exit code 4. Off by default; it never lowers `--delay`, the longer wait counts |
 | `--reporter NAME[=FILE]` | `text`, `json` or `junit`, repeatable. Without `FILE` the report goes to stdout (one reporter at most); missing folders of `FILE` are created |
 | `--out FILE` | The file of the reporter just before it: `--reporter junit --out junit.xml` is `--reporter junit=junit.xml` |
 | `--body-limit`, `--plugin`, `--no-plugins`, `--cookie-jar`, `--no-prompt`, `--no-scripts` | As for `rt send` |

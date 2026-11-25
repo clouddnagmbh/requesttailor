@@ -56,6 +56,8 @@ export class RunResults {
   current: { iteration: number; request_path: string } | null = null;
   counts: Counts = emptyCounts();
   summary: RunSummary | null = null;
+  /** Wave 18: the run holds the next request back for a rate limit; `null` otherwise. */
+  waiting: { request_path: string; until: number; reason: string } | null = null;
 
   apply(event: RunEvent): void {
     switch (event.kind) {
@@ -64,11 +66,16 @@ export class RunResults {
         break;
       case "request":
         this.current = { iteration: event.iteration, request_path: event.request_path };
+        this.waiting = null;
+        break;
+      case "waiting":
+        this.waiting = { request_path: event.request_path, until: event.until, reason: event.reason };
         break;
       case "step": {
         const step = event.step;
         this.steps.push(step);
         this.current = null;
+        this.waiting = null;
         const c = this.counts;
         c.requests++;
         const state = stepState(step);
@@ -85,6 +92,7 @@ export class RunResults {
       case "finished":
         this.summary = event.summary;
         this.current = null;
+        this.waiting = null;
         break;
     }
   }
@@ -130,6 +138,8 @@ export interface RunConfig {
   delayMs: number;
   bail: boolean;
   data: DataRow[] | null;
+  /** Wave 18: wait for rate limits (`RunPlan.throttle`); the core's defaults apply. */
+  respectLimits?: boolean;
 }
 
 /** The plan for `requests` with `config` (iterations at least 1; ignored with data). */
@@ -141,6 +151,7 @@ export function planOf(requests: string[], config: RunConfig): RunPlan {
     iterations: whole(config.iterations, 1),
     delay_ms: whole(config.delayMs, 0),
     bail: config.bail,
+    ...(config.respectLimits ? { throttle: { mode: "respect" as const } } : {}),
   };
 }
 

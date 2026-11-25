@@ -131,6 +131,10 @@ pub struct Expect {
     pub var_changes: Option<Vec<Value>>,
     pub error_contains: Option<String>,
     pub script: Option<ScriptExpect>,
+    /// Wave 18, strand D: `report.rate_limit`, compared as a whole (`null`: the report has
+    /// none).
+    #[serde(default, deserialize_with = "some_value")]
+    pub rate_limit: Option<Value>,
 }
 
 /// Wave 7: what scripts produced. Each given field is compared exactly.
@@ -335,6 +339,14 @@ pub fn check(case: &Case, target: Target, port: u16, report: &Value) -> Vec<Stri
     }
     if let Some(script) = &expect.script {
         check_script(script, report, &mut f);
+    }
+    if let Some(want) = &expect.rate_limit
+        && report["rate_limit"] != *want
+    {
+        f.push(format!(
+            "rate_limit: expected {want}, got {}",
+            report["rate_limit"]
+        ));
     }
     if expect.no_request && !report["request"].is_null() {
         f.push("request: expected null".into());

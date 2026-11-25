@@ -358,14 +358,6 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
         let _ = writeln!(stderr, "rt: {msg}");
         code
     };
-    if args.throttle.mode == rt_core::ratelimit::ThrottleMode::Respect {
-        // Wave 18, strand D replaces this with the runner's waiting.
-        return fail(
-            stderr,
-            EXIT_USAGE,
-            "--respect-limits is not implemented yet (wave 18, strand D).",
-        );
-    }
     if let Err(e) = crate::sequence_flag::check(&args.sequence) {
         return fail(stderr, EXIT_USAGE, &e);
     }
@@ -493,8 +485,19 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
     let summary = {
         let mut last_iteration = None;
         let mut on_event = |event: RunEvent| {
-            let RunEvent::Step { step } = event else {
-                return;
+            let step = match event {
+                RunEvent::Step { step } => step,
+                // Wave 18: one line on stderr while the run holds back for a rate limit.
+                RunEvent::Waiting {
+                    request_path,
+                    reason,
+                    ..
+                } => {
+                    let _ = writeln!(stderr, "  waiting before {request_path}: {reason}");
+                    let _ = stderr.flush();
+                    return;
+                }
+                _ => return,
             };
             let mut chunk = String::new();
             if info.iterations > 1 && last_iteration != Some(step.iteration) {

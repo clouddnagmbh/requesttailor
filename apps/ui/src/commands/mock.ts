@@ -17,6 +17,7 @@
 // Wave 14 (strand A): "Open folder" opens two collections ("Demo API" with the requests above,
 // "Billing API"), `./mock-collections.ts`; the per-collection commands act on the active one.
 
+import { mockRateLimit } from "./mock-ratelimit";
 import type {
   AuthApi,
   Backend,
@@ -752,6 +753,8 @@ export class MockBackend implements Backend {
       Object.assign(report, rest);
       if (var_changes) report.var_changes = [...var_changes, ...(report.var_changes ?? [])];
     }
+    const rateLimit = mockRateLimit();
+    if (rateLimit) report.rate_limit = rateLimit;
     return { report, response_id: id, size, line_count: stored.lineCount, is_text: true };
   }
 

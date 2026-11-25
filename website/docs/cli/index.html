@@ -111,6 +111,7 @@ rt run . --data users.csv --reporter junit=reports/junit.xml</code></pre>
 <tbody>
 <tr><td><code>--data FILE</code></td><td>CSV or JSON; each row's values are variables of one iteration</td></tr>
 <tr><td><code>--iterations N</code>, <code>--delay MS</code></td><td>Repeat the run, wait between requests</td></tr>
+<tr><td><code>--respect-limits</code>, <code>--max-wait T</code></td><td>Wait for the rate limits servers announce (default off); a wait longer than <code>T</code> (60s, at most 600s) ends the run with the reason</td></tr>
 <tr><td><code>--bail</code></td><td>Stop at the first failed request, test or assertion</td></tr>
 <tr><td><code>--reporter NAME[=FILE]</code></td><td><code>text</code>, <code>json</code> or <code>junit</code>, repeatable</td></tr>
 <tr><td><code>--no-scripts</code></td><td>Do not run scripts; declarative assertions still run</td></tr>

@@ -124,7 +124,6 @@ max = 2500
 [metrics.ratelimit_wait]
 description = "Error of the wait before the next send when a response says Retry-After 1 s (rt run with --respect-limits), median of 9"
 unit = "ms"
-pending = "wave 18, strand D"
 max = 50
 
 # Strand E (scripts/perf/inbox.mjs).
