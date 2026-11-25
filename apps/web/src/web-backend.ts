@@ -439,7 +439,7 @@ export class WebBackend implements Backend {
     this.journal = webJournal({ session: host.session, sendContext, plugins: () => this.plugins.list() });
     this.access = webAccess({ session: host.session, sendContext });
     this.shrink = webShrink({ session: host.session, sendContext });
-    this.consumers = webConsumers();
+    this.consumers = webConsumers({ repository: () => host.repository?.() ?? null, core: () => host.deps.loadCore(), sendContext });
     this.sequence = webSequence();
     this.security = webSecurity({ session: host.session, core: () => host.deps.loadCore() });
     this.notebook = webNotebook();

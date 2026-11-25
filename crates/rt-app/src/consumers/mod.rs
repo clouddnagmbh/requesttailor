@@ -29,7 +29,24 @@
 //! Limits: [`MAX_CONSUMERS`] consumers, [`MAX_REQUESTS`] requests per run, 10 minutes
 //! (hard 60), clones shallow and at most 256 MiB each. Writing requests of consumers only
 //! with `allow_writes` and never against production; the guard is asked per request.
-//! Interface: types only.
+//!
+//! Layout: [`run`] runs one loaded consumer through the runner (any target, the same code as
+//! `rt run`), [`report`] writes the text and GitHub forms, `fetch` (native only) finds a
+//! consumer on disk or clones it. The shells decide where consumers come from; the web shell
+//! only has the collections of its set.
+
+mod report;
+mod run;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod fetch;
+
+pub use report::{github, text};
+pub use run::{Budget, DEFAULT_MINUTES, HARD_MINUTES, Loaded, run_consumer};
+
+use rt_format::FileSet;
+
+use crate::AppError;
 
 use serde::{Deserialize, Serialize};
 
@@ -74,10 +91,54 @@ pub struct ConsumerVerifyRequest {
     /// Let consumers' writing requests run (never against production).
     #[serde(default)]
     pub allow_writes: bool,
+    /// Time limit of the whole run in minutes (default [`DEFAULT_MINUTES`], at most
+    /// [`HARD_MINUTES`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_minutes: Option<u32>,
 }
 
 fn yes() -> bool {
     true
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
+}
+
+/// The consumers the provider's `opencollection.yml` in `files` lists.
+pub fn list(files: &FileSet) -> Result<Vec<ConsumerRef>, AppError> {
+    Ok(rt_format::consumers_config::configured(files)?
+        .into_iter()
+        .map(|e| ConsumerRef {
+            name: e.name,
+            source: e.source,
+            git_ref: e.git_ref,
+            path: e.path,
+            environment: e.environment,
+            vars: e.vars,
+        })
+        .collect())
+}
+
+/// The consumers `only` names (empty: all), in the file's order. A name that is not listed is
+/// an error, so a typo never means "verified nothing".
+pub fn select<'a>(
+    all: &'a [ConsumerRef],
+    only: &[String],
+) -> Result<Vec<&'a ConsumerRef>, AppError> {
+    if let Some(unknown) = only.iter().find(|n| !all.iter().any(|c| &c.name == *n)) {
+        return Err(AppError::Format(format!(
+            "no consumer named {unknown:?} (listed: {})",
+            all.iter()
+                .map(|c| c.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )));
+    }
+    Ok(all
+        .iter()
+        .filter(|c| only.is_empty() || only.contains(&c.name))
+        .collect())
 }
 
 /// One request of a consumer that failed.
@@ -99,7 +160,12 @@ pub struct ConsumerResult {
     /// The commit that was run (for a clone), else `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commit: Option<String>,
+    /// Requests that were sent.
     pub requests: u32,
+    /// Writing requests (and others) the run left out: writes need `allow_writes` and never
+    /// run against production.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub skipped: u32,
     pub failures: Vec<ConsumerFailure>,
     /// The consumer could not be fetched or run: why.
     #[serde(default, skip_serializing_if = "Option::is_none")]

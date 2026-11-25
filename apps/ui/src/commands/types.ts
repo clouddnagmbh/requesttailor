@@ -3259,6 +3259,7 @@ export interface ConsumerVerifyRequest {
   keep_going?: boolean;
   trust_scripts?: boolean;
   allow_writes?: boolean;
+  max_minutes?: number;
 }
 
 export interface ConsumerFailure {
@@ -3272,6 +3273,7 @@ export interface ConsumerResult {
   name: string;
   commit?: string;
   requests: number;
+  skipped?: number;
   failures: ConsumerFailure[];
   error?: string;
 }

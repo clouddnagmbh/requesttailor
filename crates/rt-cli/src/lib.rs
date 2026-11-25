@@ -958,6 +958,11 @@ fn with_guard(command: Command, (guard, observers): (&GuardHandle, &ObserverSet)
             a.observers = observers.clone();
             Command::Shrink(a)
         }
+        Command::VerifyConsumers(mut a) => {
+            a.guard = guard.clone();
+            a.observers = observers.clone();
+            Command::VerifyConsumers(a)
+        }
         other => other,
     }
 }

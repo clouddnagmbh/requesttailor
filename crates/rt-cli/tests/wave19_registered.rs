@@ -21,10 +21,6 @@ fn new_commands_are_registered_and_not_implemented_yet() {
     let cases: &[(&[&str], &str)] = &[
         (&["security", "audit", "."], "wave 19"),
         (&["notebook", "run", "a.notebook.md"], "wave 19"),
-        (
-            &["verify-consumers", "--base-url", "http://localhost:1"],
-            "wave 19",
-        ),
         (&["send", "a.yml", "--debug"], "wave 19"),
         (&["send", "a.yml", "--sequence", "out.md"], "wave 19"),
     ];

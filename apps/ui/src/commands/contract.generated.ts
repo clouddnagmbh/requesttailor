@@ -7578,6 +7578,7 @@ export const consumerVerify: ConsumerVerifyRequest = {
   "base_url": "http://localhost:3000",
   "fetch": true,
   "keep_going": true,
+  "max_minutes": 5,
   "only": [
     "mobile"
   ],
@@ -7597,7 +7598,8 @@ export const consumerReport: ConsumerReport = {
         }
       ],
       "name": "mobile",
-      "requests": 3
+      "requests": 3,
+      "skipped": 1
     }
   ]
 };

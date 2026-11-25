@@ -34,7 +34,7 @@ and how.
 | `journal_overhead` | ≤ 1 ms | Time the journal adds to one writing send (10 000 entries into the channel), median; reading 5000 entries under 50 ms |
 | `access_check` | ≤ 10 ms | Own time of one two-user access check (fake transport, 200 checks, compare and evidence), median (`scripts/perf/access.mjs`, `--only access`) |
 | `shrink_probes` | ≤ 60 probes | Probes to shrink a 200-part request with one cause (at most 60) and 160 for three scattered causes; own time under 100 ms (`scripts/perf/shrink.mjs`, `--only shrink`) |
-| `consumers_verify` | ≤ 1000 ms | Own time of verifying 20 local consumers of 50 requests each against rt-testserver, report and JSON included (pending: wave 19, strand F) |
+| `consumers_verify` | ≤ 1000 ms | Own time of verifying 20 consumers of 50 requests each (reading, runner against a transport that answers at once, text report and JSON), median of 5 runs (`scripts/perf/consumers.mjs`, `--only consumers`) |
 | `sequence_render` | ≤ 100 ms | Mermaid text 20 ms and SVG layout 100 ms for 500 messages; scroll p95 frame gap at most 20 ms on 2000 messages (pending: wave 19, strand G) |
 | `security_passive` | ≤ 2 ms | All passive security rules on one response (headers, tokens, TLS info), native release, median (pending: wave 19, strand R) |
 | `notebook_open` | ≤ 300 ms | Opening a notebook with 50 blocks: parse, render model and first paint, median of 9 (pending: wave 19, strand W) |

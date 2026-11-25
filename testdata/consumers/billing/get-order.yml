@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Get order
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/orders/{{orderId}}?expand=items"
+  headers:
+    - name: x-api-key
+      value: "{{apiKey}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.items[0].price
+      operator: isNumber

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+name: ci
+variables:
+  - name: baseUrl
+    value: http://localhost:1
+  - name: orderId
+    value: "1"
+  - name: apiKey
+    secret: true
