@@ -180,7 +180,10 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
         return crate::EXIT_USAGE;
     }
     let lines = server::stdin_lines();
-    match server::Server::new(args, stdout, stderr) {
+    // Wave 19: the diagram is rewritten every 5 s and once more when the session ends.
+    let sequence = args.sequence.clone();
+    let periodic = crate::sequence_flag::Periodic::start(&sequence);
+    let code = match server::Server::new(args, stdout, stderr) {
         Ok(mut server) => {
             server.serve(lines);
             crate::EXIT_OK
@@ -189,7 +192,11 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
             let _ = writeln!(stderr, "rt mcp: {e}");
             crate::EXIT_USAGE
         }
+    };
+    if let Some(p) = periodic {
+        p.stop();
     }
+    crate::sequence_flag::finish(&sequence, stderr, code)
 }
 
 #[cfg(test)]

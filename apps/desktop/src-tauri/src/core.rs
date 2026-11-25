@@ -433,9 +433,10 @@ impl<S: SecretStore> Core<S> {
     /// `rt_core::observe::ObserverHandle`). Call it right after creating the core, before it is
     /// shared.
     pub fn with_observers(mut self, observers: rt_core::observe::ObserverHandle) -> Self {
-        std::sync::Arc::get_mut(&mut self.services)
-            .expect("with_observers is called before the core is shared")
-            .observers = observers;
+        let parts = std::sync::Arc::get_mut(&mut self.services)
+            .expect("with_observers is called before the core is shared");
+        // The recorder of sequence diagrams (wave 19) stays one of the observers.
+        parts.observers = observers.with(parts.recorder.clone());
         self
     }
 

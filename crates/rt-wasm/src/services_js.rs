@@ -47,9 +47,10 @@ impl SendServices {
             scripts: self.scripts.runner(),
             guard: self.guard.guard(),
             caller: rt_core::guard::Caller::App,
-            // The web app has no native observers: its extensions hear sends through the UI's
-            // `AppExtension.onExchange`, and a companion (`rt agent`) delivers to its own observers.
-            observers: None,
+            // The web app has no distribution observers: its extensions hear sends through the
+            // UI's `AppExtension.onExchange`, and a companion (`rt agent`) delivers to its own
+            // observers. The sequence recorder (wave 19) is the one observer of the page.
+            observers: Some(crate::sequence_js::observers()),
             snapshots: None,
         }
     }

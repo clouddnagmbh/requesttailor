@@ -354,6 +354,12 @@ fn method_of(collection: &Collection, step: &RunStep) -> String {
 }
 
 pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
+    let sequence = args.sequence.clone();
+    let code = run_collection(args, stdout, stderr);
+    crate::sequence_flag::finish(&sequence, stderr, code)
+}
+
+fn run_collection(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
     let fail = |stderr: &mut dyn Write, code: i32, msg: &str| {
         let _ = writeln!(stderr, "rt: {msg}");
         code

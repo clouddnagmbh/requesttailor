@@ -17,6 +17,7 @@ import {
 } from "@requesttailor/ui";
 
 import type { CoreSendServices } from "./send-services";
+import { markRun } from "./sequence";
 import { runRecorder } from "./timeline";
 import { toBackendError, type CompanionCredentials, type CoreModule, type CoreSendInput } from "./wasm";
 import type { Session } from "./web-backend";
@@ -89,7 +90,14 @@ export function webRunner(host: WebRunnerHost): RunnerApi {
             record(event);
             onEvent(event);
           };
-          return await ws.run(plan, context.input, context.companion, context.services, events, () => token.cancelled);
+          // Wave 19: the exchanges of the run belong together in a sequence diagram.
+          const mark = markRun(await host.loadCore());
+          mark.begin();
+          try {
+            return await ws.run(plan, context.input, context.companion, context.services, events, () => token.cancelled);
+          } finally {
+            mark.end();
+          }
         } finally {
           active = null;
         }

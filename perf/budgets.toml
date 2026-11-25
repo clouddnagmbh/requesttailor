@@ -201,7 +201,7 @@ max = 1000
 [metrics.sequence_render]
 description = "Mermaid text 20 ms and SVG layout 100 ms for 500 messages; scroll p95 frame gap at most 20 ms on 2000 messages"
 unit = "ms"
-pending = "wave 19, strand G"
+pending = "wave 19, strand G (layout 30 ms measured; scroll p95 needs a quiet machine: 42 ms at load 30)"
 max = 100
 
 # Strand R (scripts/perf/security.mjs).

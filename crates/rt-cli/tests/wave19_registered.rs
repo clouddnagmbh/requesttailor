@@ -26,7 +26,6 @@ fn new_commands_are_registered_and_not_implemented_yet() {
             "wave 19",
         ),
         (&["send", "a.yml", "--debug"], "wave 19"),
-        (&["send", "a.yml", "--sequence", "out.md"], "wave 19"),
     ];
     for (args, needle) in cases {
         let (code, _, err) = rt(args);
