@@ -423,7 +423,7 @@ export class MockBackend implements Backend {
   });
   readonly consumers = mockConsumers();
   readonly sequence = mockSequence();
-  readonly security = mockSecurity();
+  readonly security = mockSecurity(() => this.inspect);
   readonly notebook = mockNotebook();
   readonly debugger = mockDebugger();
   /** Wave 18: placeholders until the strands (`wave18-stubs.ts`). */

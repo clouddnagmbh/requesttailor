@@ -29,7 +29,13 @@ pub fn attach(
     if !args.checks {
         return Ok(());
     }
-    let ignore = collection_ignore(args);
+    let mut ignore = collection_ignore(args);
+    // Wave 19: the device's security settings (the file the desktop app writes) switch the
+    // passive security rules off as a group or one by one.
+    let data = rt_plugin::host::dir::data_dir();
+    ignore.extend(rt_app::security::ignored_by(
+        &rt_app::security::read_settings(data.as_deref()),
+    ));
     report.checks = rt_app::inspect::check_report(report, &ignore);
     for observation in &report.checks {
         let _ = writeln!(stderr, "{}", line(observation));

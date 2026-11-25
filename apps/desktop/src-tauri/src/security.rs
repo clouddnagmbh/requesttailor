@@ -1,46 +1,65 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! Passive security checks for the desktop app (`Backend.security`, `rt_app::security`). Wave 19 interface:
-//! registered, "not implemented yet"; strand R answers them.
+//! Passive security checks for the desktop app (`Backend.security`, `rt_app::security`).
+//! Answered from the kept responses on the Rust side: nothing is sent. The device's settings
+//! (one flag and rule ids, never a value) are `security.json` in the data folder, shared with
+//! `rt send --checks`; a collection switches rules off in `checks.ignore` of
+//! `opencollection.yml`.
 
-use rt_app::AppError;
+use rt_app::inspect;
+use rt_app::security::{self, SecurityFinding, SecurityRule, SecuritySettings, SecurityTarget};
+use tauri::State;
 
-use crate::commands::CommandError;
-
-fn not_yet<T>() -> Result<T, CommandError> {
-    Err(AppError::Unsupported(
-        "Passive security checks is not implemented yet (wave 19, strand R).".into(),
-    )
-    .into())
-}
+use crate::commands::{AppCore, CommandError};
+use crate::inspect::device_ignored;
 
 #[tauri::command]
 pub async fn security_check(
-    _app: tauri::AppHandle,
-    _target: rt_app::security::SecurityTarget,
-) -> Result<Vec<rt_app::security::SecurityFinding>, CommandError> {
-    not_yet()
+    core: State<'_, AppCore>,
+    target: SecurityTarget,
+) -> Result<Vec<SecurityFinding>, CommandError> {
+    let device = device_ignored(core.data_dir.as_deref());
+    let settings = security::read_settings(core.data_dir.as_deref());
+    Ok(core.with_responses(|ws, responses| {
+        let ignore = inspect::all_ignored(ws, &device);
+        security::passive_of(responses, u64::from(target.response_id), &ignore, &settings)
+    })?)
 }
 
 #[tauri::command]
-pub async fn security_rules(
-    _app: tauri::AppHandle,
-) -> Result<Vec<rt_app::security::SecurityRule>, CommandError> {
-    not_yet()
+pub async fn security_rules() -> Result<Vec<SecurityRule>, CommandError> {
+    Ok(security::rules())
 }
 
 #[tauri::command]
-pub async fn security_settings(
-    _app: tauri::AppHandle,
-) -> Result<rt_app::security::SecuritySettings, CommandError> {
-    not_yet()
+pub async fn security_settings(core: State<'_, AppCore>) -> Result<SecuritySettings, CommandError> {
+    Ok(security::read_settings(core.data_dir.as_deref()))
 }
 
 #[tauri::command]
 pub async fn security_set_settings(
-    _app: tauri::AppHandle,
-    _settings: rt_app::security::SecuritySettings,
+    core: State<'_, AppCore>,
+    settings: SecuritySettings,
 ) -> Result<(), CommandError> {
-    not_yet()
+    Ok(security::write_settings(
+        core.data_dir.as_deref(),
+        &settings,
+    )?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_rules_are_listed_with_their_categories() {
+        let rules = security::rules();
+        assert!(
+            rules
+                .iter()
+                .any(|r| r.id == "sec/tls-weak-key" && r.native_only)
+        );
+        assert!(rules.iter().any(|r| r.id == "chk/hsts-missing"));
+    }
 }

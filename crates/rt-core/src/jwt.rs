@@ -110,6 +110,35 @@ impl Jwt {
     }
 }
 
+/// Whether `token` is an HS256 token signed with exactly `candidate` as the shared secret
+/// (wave 19, strand R: the passive check for guessable secrets tries a short list of common
+/// ones). Pure computation on the token already in hand; says nothing about the secret but
+/// yes or no, and a token of another algorithm is always `false`.
+pub fn hs256_secret_matches(token: &str, candidate: &str) -> bool {
+    use base64::Engine as _;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use hmac::{Hmac, Mac};
+
+    let token = token.trim();
+    let Some((signing_input, signature)) = token.rsplit_once('.') else {
+        return false;
+    };
+    let is_hs256 = parse(token)
+        .ok()
+        .is_some_and(|t| t.algorithm() == Some("HS256"));
+    if !is_hs256 {
+        return false;
+    }
+    let Ok(signature) = URL_SAFE_NO_PAD.decode(signature) else {
+        return false;
+    };
+    let Ok(mut mac) = Hmac::<sha2::Sha256>::new_from_slice(candidate.as_bytes()) else {
+        return false;
+    };
+    mac.update(signing_input.as_bytes());
+    mac.verify_slice(&signature).is_ok()
+}
+
 /// Tokens that expire in fewer seconds than this count as "expires soon".
 pub const EXPIRES_SOON_SECS: i64 = 30;
 

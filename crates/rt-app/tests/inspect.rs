@@ -56,6 +56,8 @@ fn reply() -> Reply {
             ("Content-Type", "application/json".into()),
             ("Strict-Transport-Security", "max-age=31536000".into()),
             ("X-Content-Type-Options", "nosniff".into()),
+            // A clean API answer also states its rate limit (wave 19, `sec/no-rate-limit`).
+            ("RateLimit-Limit", "100".into()),
         ],
         request_headers: Vec::new(),
         body: b"{\"ok\":true}".to_vec(),

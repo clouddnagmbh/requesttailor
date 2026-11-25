@@ -11,6 +11,8 @@
   import { checksVersion, loadChecks, resetChecks } from "./checks.svelte";
   import JwtDialog from "./JwtDialog.svelte";
   import { locationText, sortObservations } from "./model";
+  import { owaspShort, owaspTitle } from "../security/owasp";
+  import { securityRules } from "../security/rules";
 
   let { app, requestPath, response }: ResponseSlotProps = $props();
 
@@ -18,6 +20,18 @@
   let tokens = $state<FoundToken[]>([]);
   let loaded = $state(false);
   let error = $state<string | null>(null);
+  /** OWASP tags of the security rules (wave 19, strand R), by rule id. */
+  let rules = $state(new Map<string, import("../commands/types").SecurityRule>());
+
+  $effect(() => {
+    let live = true;
+    securityRules(app.backend).then((found) => {
+      if (live) rules = found;
+    });
+    return () => {
+      live = false;
+    };
+  });
 
   $effect(() => {
     void checksVersion();
@@ -75,6 +89,10 @@
         <div class="head">
           <Badge tone={o.severity === "warn" ? "warn" : "info"} value={o.severity === "warn" ? "Warning" : "Note"} />
           <code class="id">{o.id}</code>
+          {#if rules.get(o.id)}
+            {@const rule = rules.get(o.id)!}
+            <Badge value={owaspShort(rule.category)} title={owaspTitle(rule.category)} data-testid="checks-owasp" data-category={rule.category} />
+          {/if}
           <span class="where">{o.location}</span>
         </div>
         <p class="why">{o.why}</p>

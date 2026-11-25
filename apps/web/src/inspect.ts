@@ -31,6 +31,8 @@ export interface InspectHost {
   core(): Promise<CoreModule>;
   /** The core's send input as a send gets it (session variables, secret values). */
   coreInput(input: SendInput): Promise<CoreSendInput>;
+  /** Rule ids the device's other settings switch off (the security settings, wave 19). */
+  extraIgnored?(): Promise<string[]>;
 }
 
 export const DEVICE_KEY = "rt.inspect.checks-off";
@@ -86,7 +88,9 @@ export function webInspect(host: InspectHost): InspectApi {
     checks: (target) =>
       guard(async () => {
         await host.core();
-        return target.response_id == null ? [] : ws().inspectChecks(target.response_id, deviceIgnored());
+        if (target.response_id == null) return [];
+        const extra = (await host.extraIgnored?.()) ?? [];
+        return ws().inspectChecks(target.response_id, [...deviceIgnored(), ...extra]);
       }),
     ignoreCheck: (id: string, scope: CheckScope) =>
       guard(async () => {
