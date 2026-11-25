@@ -353,52 +353,102 @@ fn method_of(collection: &Collection, step: &RunStep) -> String {
     }
 }
 
-pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
+/// A collection run that is set up but not started: everything `rt run` and `rt security
+/// audit` share (wave 19). Holds the resolved collection (secret values included, for sending
+/// only), the services with the distribution's guard, and the plan.
+pub(crate) struct Opened {
+    pub root: PathBuf,
+    /// The collection with its secrets resolved. Never print any part of it.
+    pub collection: Collection,
+    pub plan: RunPlan,
+    pub info: RunInfo,
+    pub files: DirFiles,
+    transport: rt_core::transport::native::NativeTransport,
+    runtime: tokio::runtime::Runtime,
+    cli: services::CliServices,
+    environment: Option<String>,
+    vars: Vec<(String, String)>,
+    body_limit: usize,
+    /// The options the services were built from.
+    pub send_args: SendArgs,
+    /// Requests the caller left out of the plan (path, reason).
+    pub skipped: Vec<(String, String)>,
+}
+
+/// Keeps a request of the plan (`Ok`) or leaves it out with a reason.
+pub(crate) type PlanFilter<'a> = &'a dyn Fn(&Collection, &str) -> Result<(), String>;
+
+/// Locates and loads the collection, checks the arguments, prints the production banner and
+/// builds the plan and the services. `Err(code)`: the message is on `stderr`.
+pub(crate) fn open(
+    args: &RunArgs,
+    stderr: &mut dyn Write,
+    filter: Option<PlanFilter<'_>>,
+) -> Result<Opened, i32> {
     let fail = |stderr: &mut dyn Write, code: i32, msg: &str| {
         let _ = writeln!(stderr, "rt: {msg}");
         code
     };
     if let Err(e) = crate::sequence_flag::check(&args.sequence) {
-        return fail(stderr, EXIT_USAGE, &e);
+        return Err(fail(stderr, EXIT_USAGE, &e));
     }
     let (root, folder) = match locate(args.path.as_deref().unwrap_or(Path::new("."))) {
         Ok(r) => r,
-        Err(e) => return fail(stderr, EXIT_USAGE, &e),
+        Err(e) => return Err(fail(stderr, EXIT_USAGE, &e)),
     };
     let doc = match crate::load_collection(&root) {
         Ok(d) => d,
-        Err(e) => return fail(stderr, EXIT_USAGE, &e),
+        Err(e) => return Err(fail(stderr, EXIT_USAGE, &e)),
     };
     let model = doc.model();
     if let Some(f) = &folder
         && !has_folder(&model.items, f)
     {
-        return fail(
+        return Err(fail(
             stderr,
             EXIT_USAGE,
             &format!("{f} is not a folder of the collection {}", root.display()),
-        );
+        ));
     }
     if let Some(env) = &args.environment
         && model.environment(env).is_none()
     {
-        return fail(
+        return Err(fail(
             stderr,
             EXIT_USAGE,
             &format!("no environment {env:?} in {}", root.display()),
-        );
+        ));
     }
-    let data = match data_rows(&args) {
+    let data = match data_rows(args) {
         Ok(d) => d,
-        Err(e) => return fail(stderr, EXIT_USAGE, &e),
+        Err(e) => return Err(fail(stderr, EXIT_USAGE, &e)),
     };
-    let requests = rt_core::runner::plan(model, folder.as_deref());
+    let mut requests = rt_core::runner::plan(model, folder.as_deref());
+    let mut skipped = Vec::new();
+    if let Some(filter) = filter {
+        requests.retain(|path| match filter(model, path) {
+            Ok(()) => true,
+            Err(reason) => {
+                skipped.push((path.clone(), reason));
+                false
+            }
+        });
+    }
     if requests.is_empty() {
         let place = folder.as_deref().map_or_else(
             || root.display().to_string(),
             |f| format!("{f} ({})", root.display()),
         );
-        return fail(stderr, EXIT_USAGE, &format!("no requests in {place}"));
+        let why = if skipped.is_empty() {
+            String::new()
+        } else {
+            format!(" ({} left out)", skipped.len())
+        };
+        return Err(fail(
+            stderr,
+            EXIT_USAGE,
+            &format!("no requests in {place}{why}"),
+        ));
     }
     if let Some(text) = crate::send_banner::run_banner(
         &model.config.agents,
@@ -436,11 +486,17 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
 
     let files = match DirFiles::new(&root) {
         Ok(f) => f,
-        Err(e) => return fail(stderr, EXIT_USAGE, &format!("{}: {e}", root.display())),
+        Err(e) => {
+            return Err(fail(
+                stderr,
+                EXIT_USAGE,
+                &format!("{}: {e}", root.display()),
+            ));
+        }
     };
     let transport = match rt_core::transport::native::NativeTransport::new() {
         Ok(t) => t,
-        Err(e) => return fail(stderr, EXIT_TRANSPORT, &e.to_string()),
+        Err(e) => return Err(fail(stderr, EXIT_TRANSPORT, &e.to_string())),
     };
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -448,11 +504,11 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
     {
         Ok(r) => r,
         Err(e) => {
-            return fail(
+            return Err(fail(
                 stderr,
                 EXIT_TRANSPORT,
                 &format!("cannot start runtime: {e}"),
-            );
+            ));
         }
     };
     let send_args = args.send_args();
@@ -463,68 +519,143 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
         &crate::oauth::collection_id(files.root()),
     )) {
         Ok(c) => c,
-        Err(e) => return fail(stderr, EXIT_PREPARE, &e),
+        Err(e) => return Err(fail(stderr, EXIT_PREPARE, &e)),
     };
     let cli = match services::CliServices::new(&send_args, files.root()) {
         Ok(s) => s,
-        Err(e) => return fail(stderr, EXIT_PREPARE, &e),
+        Err(e) => return Err(fail(stderr, EXIT_PREPARE, &e)),
     };
-    let input = PrepareInput {
-        environment: args.environment.as_deref(),
-        globals: Vec::new(),
-        runtime: args.vars.clone(),
-    };
-    let options = SendOptions {
+    Ok(Opened {
+        root,
+        collection,
+        plan,
+        info,
+        files,
+        transport,
+        runtime,
+        cli,
+        environment: args.environment.clone(),
+        vars: args.vars.clone(),
         body_limit: args.body_limit,
-        iteration: None,
-    };
+        send_args,
+        skipped,
+    })
+}
 
-    let mut text = report::text::started(&info, plan.requests.len());
-    let _ = stderr.write_all(text.as_bytes());
-    let mut steps: Vec<RunStep> = Vec::new();
-    let summary = {
-        let mut last_iteration = None;
-        let mut on_event = |event: RunEvent| {
-            let step = match event {
-                RunEvent::Step { step } => step,
-                // Wave 18: one line on stderr while the run holds back for a rate limit.
-                RunEvent::Waiting {
-                    request_path,
-                    reason,
-                    ..
-                } => {
-                    let _ = writeln!(stderr, "  waiting before {request_path}: {reason}");
-                    let _ = stderr.flush();
-                    return;
-                }
-                _ => return,
-            };
-            let mut chunk = String::new();
-            if info.iterations > 1 && last_iteration != Some(step.iteration) {
-                chunk.push_str(&report::text::iteration(step.iteration, info.iterations));
-                last_iteration = Some(step.iteration);
-            }
-            chunk.push_str(&report::text::step(&step, &method_of(&collection, &step)));
-            let _ = stderr.write_all(chunk.as_bytes());
-            let _ = stderr.flush();
-            text.push_str(&chunk);
-            steps.push(*step);
+impl Opened {
+    /// The services of this run (guard, observers, scripts, plugins, cookies, tokens).
+    pub fn services(&self) -> rt_core::services::Services<'_> {
+        self.cli.services()
+    }
+
+    /// Sends one request of `collection` (this run's collection, possibly changed by the
+    /// caller) the way the run does: through `send_with`, with this run's variables and the
+    /// given services (a different guard). The report is masked.
+    pub fn send_with_services(
+        &self,
+        collection: &Collection,
+        request_path: &str,
+        services: &rt_core::services::Services<'_>,
+    ) -> rt_core::send::SendReport {
+        let input = PrepareInput {
+            environment: self.environment.as_deref(),
+            globals: Vec::new(),
+            runtime: self.vars.clone(),
         };
-        runtime.block_on(rt_core::runner::run(
-            &collection,
-            &plan,
+        let options = SendOptions {
+            body_limit: self.body_limit,
+            iteration: None,
+        };
+        self.runtime.block_on(rt_core::send::send_with(
+            collection,
+            request_path,
             &input,
-            &files,
-            &transport,
+            &self.files,
+            &self.transport,
             &options,
-            &cli.services(),
-            &mut on_event,
-            &|| false,
+            services,
         ))
+    }
+
+    /// Runs the plan. The live text goes to `stderr`; returns the summary, the steps and the
+    /// text report.
+    pub fn execute(&self, stderr: &mut dyn Write) -> (RunSummary, Vec<RunStep>, String) {
+        let input = PrepareInput {
+            environment: self.environment.as_deref(),
+            globals: Vec::new(),
+            runtime: self.vars.clone(),
+        };
+        let options = SendOptions {
+            body_limit: self.body_limit,
+            iteration: None,
+        };
+        let mut text = report::text::started(&self.info, self.plan.requests.len());
+        let _ = stderr.write_all(text.as_bytes());
+        let mut steps: Vec<RunStep> = Vec::new();
+        let summary = {
+            let mut last_iteration = None;
+            let mut on_event = |event: RunEvent| {
+                let step = match event {
+                    RunEvent::Step { step } => step,
+                    // Wave 18: one line on stderr while the run holds back for a rate limit.
+                    RunEvent::Waiting {
+                        request_path,
+                        reason,
+                        ..
+                    } => {
+                        let _ = writeln!(stderr, "  waiting before {request_path}: {reason}");
+                        let _ = stderr.flush();
+                        return;
+                    }
+                    _ => return,
+                };
+                let mut chunk = String::new();
+                if self.info.iterations > 1 && last_iteration != Some(step.iteration) {
+                    chunk.push_str(&report::text::iteration(
+                        step.iteration,
+                        self.info.iterations,
+                    ));
+                    last_iteration = Some(step.iteration);
+                }
+                chunk.push_str(&report::text::step(
+                    &step,
+                    &method_of(&self.collection, &step),
+                ));
+                let _ = stderr.write_all(chunk.as_bytes());
+                let _ = stderr.flush();
+                text.push_str(&chunk);
+                steps.push(*step);
+            };
+            self.runtime.block_on(rt_core::runner::run(
+                &self.collection,
+                &self.plan,
+                &input,
+                &self.files,
+                &self.transport,
+                &options,
+                &self.cli.services(),
+                &mut on_event,
+                &|| false,
+            ))
+        };
+        let end = report::text::summary(&summary);
+        let _ = stderr.write_all(end.as_bytes());
+        text.push_str(&end);
+        (summary, steps, text)
+    }
+}
+
+pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
+    let fail = |stderr: &mut dyn Write, code: i32, msg: &str| {
+        let _ = writeln!(stderr, "rt: {msg}");
+        code
     };
-    let end = report::text::summary(&summary);
-    let _ = stderr.write_all(end.as_bytes());
-    text.push_str(&end);
+    let opened = match open(&args, stderr, None) {
+        Ok(o) => o,
+        Err(code) => return code,
+    };
+    let info = &opened.info;
+    let (summary, steps, text) = opened.execute(stderr);
 
     let mut code = exit_code(&summary, &steps);
     for r in &args.reporters {
@@ -532,7 +663,7 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
             ReporterKind::Text if r.out.is_none() => continue,
             ReporterKind::Text => text.clone(),
             ReporterKind::Json => report::json(&summary, &steps),
-            ReporterKind::Junit => report::junit(&info, &summary, &steps),
+            ReporterKind::Junit => report::junit(info, &summary, &steps),
         };
         match &r.out {
             None => {
@@ -558,7 +689,7 @@ pub fn run(args: RunArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32
 }
 
 /// Writes a report file, creating missing parent folders (`--reporter junit=out/junit.xml`).
-fn write_file(file: &Path, content: &str) -> std::io::Result<()> {
+pub(crate) fn write_file(file: &Path, content: &str) -> std::io::Result<()> {
     if let Some(parent) = file.parent().filter(|p| !p.as_os_str().is_empty()) {
         std::fs::create_dir_all(parent)?;
     }

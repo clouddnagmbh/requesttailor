@@ -166,6 +166,35 @@ impl PartialEq for GuardHandle {
 
 impl Eq for GuardHandle {}
 
+/// A guard that asks the wrapped guard about every send of the main request as
+/// [`Purpose::Audit`] instead of [`Purpose::Main`] (wave 19). An API audit sends its probes
+/// through `send_with` with this guard in `Services.guard`, so the distribution's policy sees
+/// them for what they are. Script requests stay [`Purpose::Script`]. Without a wrapped guard
+/// every send is allowed.
+#[derive(Clone, Default)]
+pub struct AuditGuard(GuardHandle);
+
+impl AuditGuard {
+    pub fn new(inner: GuardHandle) -> Self {
+        Self(inner)
+    }
+}
+
+impl SendGuard for AuditGuard {
+    fn check(&self, check: &SendCheck) -> GuardVerdict {
+        let Some(guard) = self.0.get() else {
+            return GuardVerdict::Allow;
+        };
+        if check.purpose == Purpose::Main {
+            let mut audit = check.clone();
+            audit.purpose = Purpose::Audit;
+            guard.check(&audit)
+        } else {
+            guard.check(check)
+        }
+    }
+}
+
 /// Methods that only read (RFC 9110 "safe" methods).
 const READING_METHODS: &[&str] = &["GET", "HEAD", "OPTIONS", "TRACE"];
 

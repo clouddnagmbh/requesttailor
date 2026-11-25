@@ -116,6 +116,7 @@ output mode is not part of wave 2; pipe through `jq` meanwhile.
 | 3 | The request could not be prepared: unknown environment, invalid URL after variable substitution, unsupported auth, unreadable body file; authentication failed; a plugin or a pre-request script stopped it |
 | 4 | A response was received but a test or assertion failed |
 | 5 | A policy of this installation refused the request; nothing was sent (builds of this repository have none; see "Send guard") |
+| 9 | `rt security audit` found a finding at or above `--fail-on` |
 
 ## Secret variables
 
@@ -686,6 +687,55 @@ collection (`*.mcp.yaml` files next to the requests, made in the app) against th
 `{"tests", "passed", "failed"}` as JSON with secrets shown as `***`. Exit code 0 when all
 passed, 4 when a test failed, 1 when a server could not be reached or started, 2 on a usage
 error or when there are no tests, 3 when external secrets could not be read.
+
+## API security audit: `rt security audit`
+
+```sh
+rt security audit [<folder>] [-e ENV] [--var N=V]... [--format text|markdown|html|json|sarif]
+                  [--out FILE] [--fail-on info|low|medium|high|critical] [--allow-writes]
+                  [--no-scripts] [--no-plugins] [--respect-limits] [--max-wait T]
+```
+
+Runs the collection like `rt run` (same runner, send guard, rate limits, production banner),
+reads every response with the passive rules of `rt_app::security` (open CORS, weak or
+expired tokens, missing security headers, no sign of rate limiting, TLS problems, revealing
+error pages; rules the device or the collection switched off stay quiet) and prints one
+report grouped by rule, with the OWASP API Top 10 (2023) category and severity of each. It
+sends every request once and nothing else; writing requests are left out unless
+`--allow-writes`. Findings are indications, not proof, and the report says so. No secret or
+token value appears in any format; request URLs are shown without their query.
+
+- Formats: `text` (default), `markdown`, `html` (one self-contained page, escaped, no
+  external references), `json`, `sarif` (2.1.0: one rule per rule id with an `OWASP-API…`
+  tag, one result per finding with the request file as location). `--out FILE` writes the
+  report to a file instead of stdout.
+- Exit codes: 0 when no finding reaches `--fail-on` (without it the audit never fails on
+  findings), 9 when one does, 5 when the send guard refused a request, 2 on a usage error.
+  This build has no active probes: `--i-am-authorized` and unknown flags are refused.
+
+### Distributions: active probes and their own report
+
+A distribution plugs in with `Distribution.security_audit: Option<&dyn SecurityAuditExtension>`
+(`rt_cli::security_cmd`). When set, the distribution handles `rt security audit`: the core
+parses the common flags above, runs the free passive pass and calls
+
+```rust
+fn run(&self, ctx: &AuditContext<'_>, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32;
+```
+
+- `ctx.args`: the parsed common arguments; `ctx.args.run.guard` and `.observers` are the
+  distribution's own. Flags the core does not know (e.g. `--i-am-authorized`) are in
+  `ctx.args.rest` in order; give flags that take a value as `--flag=value`, because after the
+  first unknown flag every value goes there.
+- `ctx.passive`: the `AuditReport` of the passive pass. Add findings to a copy (or push
+  requests), then `rt_cli::security_cmd::write_report` (or `render`) prints it in the chosen
+  format; `AuditReport::exit_code(fail_on)` gives the exit code of the free audit.
+- `ctx.session`: sends probes through the core's send path (`AuditSession::send(path,
+  Some(changed_spec))`): variables, inheritance, OAuth, SigV4 and secrets are resolved by the
+  core, the report comes back masked, and the guard sees `Purpose::Audit` instead of `Main`
+  (`rt_core::guard::AuditGuard`). The session never hands out a secret value;
+  `AuditSession::mask` replaces them in text. Checking production and the hosts of the
+  collection is the distribution's job before it sends.
 
 ## Send guard (for distributions)
 
