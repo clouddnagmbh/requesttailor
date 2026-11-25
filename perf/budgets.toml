@@ -195,7 +195,6 @@ max = 10
 [metrics.shrink_probes]
 description = "Probes to shrink a 200-part request with one cause (at most 60) and 160 for three scattered causes; own time under 100 ms"
 unit = "probes"
-pending = "wave 19, strand E"
 max = 60
 
 # Strand F (scripts/perf/consumers.mjs).

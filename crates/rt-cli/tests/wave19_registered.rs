@@ -25,7 +25,6 @@ fn new_commands_are_registered_and_not_implemented_yet() {
             &["access", "check", "a.yml", "--as", "A", "--as", "B"],
             "wave 19",
         ),
-        (&["shrink", "a.yml"], "wave 19"),
         (
             &["verify-consumers", "--base-url", "http://localhost:1"],
             "wave 19",

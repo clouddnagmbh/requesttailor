@@ -25,6 +25,8 @@ rt-format = { path = "../rt-format" }
 # gRPC descriptors and JSON <-> protobuf (wave 8, strand B).
 rt-grpc = { path = "../rt-grpc" }
 rt-plugin = { path = "../rt-plugin" }
+# Body patterns of the minimal-case search (wave 19, `shrink`); already in the tree via rt-core.
+regex-lite = "0.1"
 serde = { version = "1", features = ["derive"] }
 # float_roundtrip: history entries (duration_ms) read back exactly as written.
 serde_json = { version = "1", features = ["float_roundtrip"] }
