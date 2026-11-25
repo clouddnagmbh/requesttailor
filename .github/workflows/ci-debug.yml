@@ -9,37 +9,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [opt2, noassert, noassert-opt2]
+        variant: [threads-default, threads-minstack, linkstack, both]
     env:
-      RUSTFLAGS: -D warnings
+      RUSTFLAGS: -D warnings ${{ (matrix.variant == 'linkstack' || matrix.variant == 'both') && '-C link-arg=/STACK:67108864' || '' }}
+      RUST_MIN_STACK: ${{ (matrix.variant == 'threads-minstack' || matrix.variant == 'both') && '67108864' || '' }}
     steps:
       - uses: actions/checkout@v7
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.variant }}
-      - name: apply the variant
+      - name: tests (default thread count)
         shell: bash
         run: |
-          case "${{ matrix.variant }}" in
-            opt2)
-              sed -i 's/^opt-level = 3/opt-level = 2/' Cargo.toml; git diff --stat ;;
-            noassert)
-              sed -i 's/^opt-level = 3/opt-level = 3\ndebug-assertions = false\noverflow-checks = false/' Cargo.toml; git diff | head -30 ;;
-            noassert-opt2)
-              sed -i 's/^opt-level = 3/opt-level = 2\ndebug-assertions = false\noverflow-checks = false/' Cargo.toml; git diff --stat ;;
-            portable)
-              sed -i 's/"auto-dispatch"\]/"auto-dispatch", "portable-dispatch"]/' crates/rt-script/Cargo.toml crates/rt-plugin/Cargo.toml
-              git diff --stat ;;
-            lowopt)
-              sed -i 's/^opt-level = 3/opt-level = 1/' Cargo.toml; git diff --stat ;;
-            noopt)
-              sed -i 's/^opt-level = 3/opt-level = 0/' Cargo.toml; git diff --stat ;;
-          esac
-      - name: tests
-        shell: bash
-        run: |
-          flags=""
-          [ "${{ matrix.variant }}" = release ] && flags="--release"
-          cargo test $flags -p rt-script --test sandbox --locked -- --nocapture --test-threads=1 2>&1 | tail -25 || true
-          cargo test $flags -p rt-plugin --test host --locked -- --nocapture --test-threads=1 2>&1 | tail -25 || true
+          cargo test -p rt-script --test sandbox --locked 2>&1 | tail -12 || true
+          cargo test -p rt-plugin --test host --locked 2>&1 | tail -12 || true
+          cargo test -p rt-cli --test gate_w7 --locked 2>&1 | tail -12 || true
