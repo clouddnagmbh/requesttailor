@@ -360,12 +360,19 @@ fn an_import_without_requests_adds_no_folder_and_no_carry_over_note() {
     let mut workspace = base_with_prod();
     let before = workspace.collection().items.len();
     let result = add_to_workspace(&mut workspace, &import.files, "Destinations").unwrap();
-    assert_eq!(workspace.collection().items.len(), before, "no empty folder");
+    assert_eq!(
+        workspace.collection().items.len(),
+        before,
+        "no empty folder"
+    );
     assert!(result.folder.is_empty());
     assert_eq!(result.requests, 0);
     assert_eq!(result.environments_added, ["Staging"]);
     assert!(
-        result.losses.iter().all(|l| !l.detail.contains("inherited")),
+        result
+            .losses
+            .iter()
+            .all(|l| !l.detail.contains("inherited")),
         "{:?}",
         result.losses
     );
