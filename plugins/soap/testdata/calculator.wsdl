@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic test data written for RequestTailor (Apache-2.0). Not taken from any vendor. -->
+<wsdl:definitions name="Calculator"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+    xmlns:http="http://schemas.xmlsoap.org/wsdl/http/"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="urn:requesttailor:test:calc"
+    xmlns:t="urn:requesttailor:test:types"
+    targetNamespace="urn:requesttailor:test:calc">
+  <wsdl:types>
+    <xs:schema targetNamespace="urn:requesttailor:test:calc" elementFormDefault="qualified">
+      <xs:import namespace="urn:requesttailor:test:types" schemaLocation="types.xsd"/>
+      <xs:element name="Add">
+        <xs:complexType><xs:sequence>
+          <xs:element name="a" type="xs:int"/>
+          <xs:element name="b" type="xs:int"/>
+        </xs:sequence></xs:complexType>
+      </xs:element>
+      <xs:element name="AddResponse">
+        <xs:complexType><xs:sequence><xs:element name="result" type="xs:int"/></xs:sequence></xs:complexType>
+      </xs:element>
+      <xs:element name="Divide">
+        <xs:complexType><xs:sequence>
+          <xs:element name="a" type="xs:int"/>
+          <xs:element name="b" type="xs:int"/>
+        </xs:sequence></xs:complexType>
+      </xs:element>
+      <xs:element name="DivideResponse">
+        <xs:complexType><xs:sequence><xs:element name="result" type="xs:decimal"/></xs:sequence></xs:complexType>
+      </xs:element>
+      <xs:element name="Quote">
+        <xs:complexType><xs:sequence>
+          <xs:element name="price" type="t:Money"/>
+          <xs:element name="ship" type="t:Address" minOccurs="0"/>
+          <xs:element name="tag" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+          <xs:choice>
+            <xs:element name="coupon" type="xs:string"/>
+            <xs:element name="voucher" type="xs:int"/>
+          </xs:choice>
+          <xs:element name="tree" type="t:Node"/>
+          <xs:any minOccurs="0"/>
+        </xs:sequence></xs:complexType>
+      </xs:element>
+      <xs:element name="QuoteResponse">
+        <xs:complexType><xs:sequence><xs:element name="total" type="t:Money"/></xs:sequence></xs:complexType>
+      </xs:element>
+      <xs:element name="TraceId" type="xs:string"/>
+    </xs:schema>
+  </wsdl:types>
+  <wsdl:message name="AddIn"><wsdl:part name="parameters" element="tns:Add"/></wsdl:message>
+  <wsdl:message name="AddOut"><wsdl:part name="parameters" element="tns:AddResponse"/></wsdl:message>
+  <wsdl:message name="DivideIn"><wsdl:part name="parameters" element="tns:Divide"/></wsdl:message>
+  <wsdl:message name="DivideOut"><wsdl:part name="parameters" element="tns:DivideResponse"/></wsdl:message>
+  <wsdl:message name="QuoteIn"><wsdl:part name="parameters" element="tns:Quote"/></wsdl:message>
+  <wsdl:message name="QuoteOut"><wsdl:part name="parameters" element="tns:QuoteResponse"/></wsdl:message>
+  <wsdl:message name="EchoIn"><wsdl:part name="text" type="xs:string"/><wsdl:part name="times" type="xs:int"/></wsdl:message>
+  <wsdl:message name="EchoOut"><wsdl:part name="text" type="xs:string"/></wsdl:message>
+  <wsdl:message name="TraceHeader"><wsdl:part name="trace" element="tns:TraceId"/></wsdl:message>
+  <wsdl:message name="NotifyIn"><wsdl:part name="parameters" element="tns:Add"/></wsdl:message>
+  <wsdl:portType name="CalculatorPort">
+    <wsdl:operation name="Add"><wsdl:input message="tns:AddIn"/><wsdl:output message="tns:AddOut"/></wsdl:operation>
+    <wsdl:operation name="Divide"><wsdl:input message="tns:DivideIn"/><wsdl:output message="tns:DivideOut"/></wsdl:operation>
+    <wsdl:operation name="Quote"><wsdl:input message="tns:QuoteIn"/><wsdl:output message="tns:QuoteOut"/></wsdl:operation>
+    <wsdl:operation name="Echo"><wsdl:input message="tns:EchoIn"/><wsdl:output message="tns:EchoOut"/></wsdl:operation>
+    <wsdl:operation name="Notify"><wsdl:input message="tns:NotifyIn"/></wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="CalculatorSoap11" type="tns:CalculatorPort">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="Add">
+      <soap:operation soapAction="urn:requesttailor:test:calc/Add"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input><wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Divide">
+      <soap:operation soapAction="urn:requesttailor:test:calc/Divide"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input><wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Quote">
+      <soap:operation soapAction="urn:requesttailor:test:calc/Quote"/>
+      <wsdl:input>
+        <soap:header message="tns:TraceHeader" part="trace" use="literal"/>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Echo">
+      <soap:operation soapAction="urn:requesttailor:test:calc/Echo" style="rpc"/>
+      <wsdl:input><soap:body use="encoded" namespace="urn:requesttailor:test:echo" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:input>
+      <wsdl:output><soap:body use="encoded" namespace="urn:requesttailor:test:echo"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Notify">
+      <soap:operation soapAction=""/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="CalculatorSoap12" type="tns:CalculatorPort">
+    <soap12:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="Add">
+      <soap12:operation soapAction="urn:requesttailor:test:calc/Add"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input><wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Divide">
+      <soap12:operation soapAction="urn:requesttailor:test:calc/Divide"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input><wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="CalculatorHttp" type="tns:CalculatorPort">
+    <http:binding verb="GET"/>
+    <wsdl:operation name="Add"><http:operation location="/add"/></wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="CalculatorService">
+    <wsdl:port name="CalculatorSoap11" binding="tns:CalculatorSoap11">
+      <soap:address location="http://127.0.0.1:48812/soap11"/>
+    </wsdl:port>
+    <wsdl:port name="CalculatorSoap12" binding="tns:CalculatorSoap12">
+      <soap12:address location="http://127.0.0.1:48812/soap12"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

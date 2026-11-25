@@ -1,10 +1,25 @@
 {
   "id": "soap",
   "name": "SOAP and WSDL",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "api": 1,
-  "description": "SOAP 1.1/1.2 and WSDL: operations as requests, envelopes, WS-Security.",
+  "description": "SOAP 1.1 and 1.2 with WSDL import, readable responses, faults as plain text and WS-Security username tokens with placeholder credentials.",
   "license": "Apache-2.0",
   "permissions": { "network": [], "storage": false, "variables": false },
-  "contributes": {}
+  "contributes": {
+    "prepare": true,
+    "response": true,
+    "tabs": [
+      { "id": "soap", "title": "SOAP", "place": "request", "content_types": [] },
+      {
+        "id": "soap-response",
+        "title": "SOAP",
+        "place": "response",
+        "content_types": ["text/xml", "application/soap+xml", "multipart/related", "application/xop+xml"]
+      }
+    ],
+    "importers": [
+      { "id": "wsdl", "label": "SOAP service (WSDL 1.1 or 2.0, with its XSD files)", "extensions": ["wsdl", "xsd", "xml"] }
+    ]
+  }
 }
