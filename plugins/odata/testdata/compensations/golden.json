@@ -1,0 +1,84 @@
+{
+  "note": "Synthetic. Shapes follow the OData V2 and V4 specifications; host names and ids are invented.",
+  "cases": [
+    {
+      "name": "v2 create, Location header",
+      "method": "POST",
+      "url": "https://s4.example.test:44300/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderSet",
+      "rule": "odata-v2-sap",
+      "headers": {
+        "Location": "https://s4.example.test:44300/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderSet('0500000009')",
+        "ETag": "W/\"datetimeoffset'2026-01-01T10%3A00%3A00.0000000Z'\""
+      },
+      "body": { "d": { "SalesOrderID": "0500000009" } },
+      "id": "https://s4.example.test:44300/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderSet('0500000009')",
+      "etag": "W/\"datetimeoffset'2026-01-01T10%3A00%3A00.0000000Z'\""
+    },
+    {
+      "name": "v2 create, only d.__metadata (no headers)",
+      "method": "POST",
+      "url": "https://s4.example.test/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderSet",
+      "rule": "odata-v2-sap",
+      "headers": {},
+      "body": { "d": { "SalesOrderID": "0500000009", "__metadata": { "id": "https://s4.example.test/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderSet('0500000009')", "uri": "https://s4.example.test/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderSet('0500000009')", "etag": "W/\"1\"" } } },
+      "id": "https://s4.example.test/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderSet('0500000009')",
+      "etag": "W/\"1\""
+    },
+    {
+      "name": "v2 composite key",
+      "method": "POST",
+      "url": "https://s4.example.test/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderItemSet",
+      "rule": "odata-v2-sap",
+      "headers": { "location": "https://s4.example.test/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderItemSet(SalesOrderID='0500000009',ItemPosition='0000000010')" },
+      "body": null,
+      "id": "https://s4.example.test/sap/opu/odata/sap/ZRT_SALES_SRV/SalesOrderItemSet(SalesOrderID='0500000009',ItemPosition='0000000010')",
+      "etag": null
+    },
+    {
+      "name": "v2 CAP adapter, update answer carries the version in the body",
+      "method": "MERGE",
+      "url": "https://cap.example.test/odata/v2/admin/Books(201)",
+      "rule": "odata-v2-cap",
+      "headers": {},
+      "body": { "d": { "ID": 201, "__metadata": { "uri": "https://cap.example.test/odata/v2/admin/Books(201)", "etag": "W/\"2026-01-01T10:00:00.000Z\"" } } },
+      "id": "https://cap.example.test/odata/v2/admin/Books(201)",
+      "etag": "W/\"2026-01-01T10:00:00.000Z\""
+    },
+    {
+      "name": "v4 create, 204 with OData-EntityId only",
+      "method": "POST",
+      "url": "https://s4.example.test/sap/opu/odata4/sap/zrt_salesorder/srvd_a2x/sap/zrt_salesorder/0001/SalesOrder",
+      "rule": "odata-v4-sap",
+      "headers": {
+        "OData-EntityId": "https://s4.example.test/sap/opu/odata4/sap/zrt_salesorder/srvd_a2x/sap/zrt_salesorder/0001/SalesOrder(SalesOrderUUID=0b7e2f0a-6c1d-4e5f-9a10-000000000009,IsActiveEntity=true)"
+      },
+      "body": null,
+      "id": "https://s4.example.test/sap/opu/odata4/sap/zrt_salesorder/srvd_a2x/sap/zrt_salesorder/0001/SalesOrder(SalesOrderUUID=0b7e2f0a-6c1d-4e5f-9a10-000000000009,IsActiveEntity=true)",
+      "etag": null
+    },
+    {
+      "name": "v4 CAP create, @odata.id (relative, as services send it) and @odata.etag",
+      "method": "POST",
+      "url": "https://cap.example.test/odata/v4/admin/Books",
+      "rule": "odata-v4-cap",
+      "headers": {},
+      "body": { "ID": 301, "@odata.id": "Books(ID=301,IsActiveEntity=true)", "@odata.etag": "W/\"2026-01-01T10:00:00.000Z\"" },
+      "id": "Books(ID=301,IsActiveEntity=true)",
+      "etag": "W/\"2026-01-01T10:00:00.000Z\""
+    },
+    {
+      "name": "v4 CAP draft activation",
+      "method": "POST",
+      "url": "https://cap.example.test/odata/v4/admin/Books(ID=301,IsActiveEntity=false)/AdminService.draftActivate",
+      "rule": "odata-v4-cap",
+      "not_reversible": "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no request that undoes it."
+    },
+    {
+      "name": "v4 RAP discard of a draft",
+      "method": "DELETE",
+      "url": "https://s4.example.test/sap/opu/odata4/sap/zrt_salesorder/srvd_a2x/sap/zrt_salesorder/0001/SalesOrder(SalesOrderUUID=0b7e2f0a-6c1d-4e5f-9a10-000000000009,IsActiveEntity=false)",
+      "rule": "odata-v4-sap",
+      "not_reversible": "A draft instance lives by the draft life cycle: discard or activate it in the app, a later write cannot put it back."
+    }
+  ]
+}
