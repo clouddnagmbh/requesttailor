@@ -8,11 +8,12 @@
 //!
 //! 1. the request itself: `GET` or `POST`, an `http(s)` URL without credentials, a body up to
 //!    [`MAX_BODY`], headers without line breaks ([`EgressError::Limit`]);
-//! 2. the host must be on the device's list ([`EgressError::NotAllowed`]; the UI asks the user
+//! 2. the send guard is asked with `Purpose::Egress` ([`EgressError::Blocked`]), before anyone is
+//!    asked about the host;
+//! 3. the host must be on the device's list ([`EgressError::NotAllowed`]; the UI asks the user
 //!    once and calls `allow`);
-//! 3. `{{secret:<name>}}` in a header value is resolved from the values the shell found (never
+//! 4. `{{secret:<name>}}` in a header value is resolved from the values the shell found (never
 //!    sent over plain `http` to a host other than loopback);
-//! 4. the send guard is asked with `Purpose::Egress` ([`EgressError::Blocked`]);
 //! 5. the transport sends without following redirects and with [`TIMEOUT_MS`];
 //! 6. the answer is cut at [`MAX_RESPONSE`] and masked with every secret value of the call.
 //!
@@ -189,33 +190,6 @@ pub async fn request<T: Transport>(
         }
     }
 
-    // 2. The host is allowed on this device.
-    if !ctx.hosts.allows(&host, url.port(), url.scheme()) {
-        return Err(EgressError::NotAllowed {
-            host,
-            port: url.port(),
-        });
-    }
-
-    // 3. Secrets in headers.
-    let mut headers = Vec::with_capacity(request.headers.len());
-    let mut uses_secret = false;
-    for (name, value) in &request.headers {
-        uses_secret |= value.contains("{{secret:");
-        match resolve(value, ctx.secrets) {
-            Ok(resolved) => headers.push((name.clone(), resolved)),
-            Err(missing) => {
-                return Err(limit(format!(
-                    "the secret \"{missing}\" has no value on this device"
-                )));
-            }
-        }
-    }
-    if uses_secret && url.scheme() == "http" && !is_loopback(&host) {
-        return Err(limit(
-            "a secret is not sent over plain http to a host other than this device",
-        ));
-    }
     let secrets: Vec<String> = ctx
         .secrets
         .iter()
@@ -223,7 +197,8 @@ pub async fn request<T: Transport>(
         .filter(|v| !v.is_empty())
         .collect();
 
-    // 4. The guard, for every call.
+    // 2. The guard, for every call and before the per-host question (a refusing guard means
+    // the user is never asked).
     if let Some(guard) = ctx.guard {
         let check = SendCheck {
             caller: ctx.caller,
@@ -248,6 +223,33 @@ pub async fn request<T: Transport>(
         }
     }
 
+    // 3. The host is allowed on this device.
+    if !ctx.hosts.allows(&host, url.port(), url.scheme()) {
+        return Err(EgressError::NotAllowed {
+            host,
+            port: url.port(),
+        });
+    }
+
+    // 4. Secrets in headers.
+    let mut headers = Vec::with_capacity(request.headers.len());
+    let mut uses_secret = false;
+    for (name, value) in &request.headers {
+        uses_secret |= value.contains("{{secret:");
+        match resolve(value, ctx.secrets) {
+            Ok(resolved) => headers.push((name.clone(), resolved)),
+            Err(missing) => {
+                return Err(limit(format!(
+                    "the secret \"{missing}\" has no value on this device"
+                )));
+            }
+        }
+    }
+    if uses_secret && url.scheme() == "http" && !is_loopback(&host) {
+        return Err(limit(
+            "a secret is not sent over plain http to a host other than this device",
+        ));
+    }
     // 5. The wire.
     let wire = HttpRequest {
         method: match request.method {

@@ -680,17 +680,35 @@ fn a_guard_that_refuses_wins_and_nothing_goes_out() {
         }
     );
     assert_eq!(wire.calls(), 0);
-    // A host that is not allowed is refused before the guard is asked: the guard only sees
-    // calls that would go out.
+    // The guard is asked before the host list: a guard that refuses wins even for a host that
+    // is not allowed (the user is never asked about it), and one that allows lets the list answer.
+    let blocked = run(
+        &wire,
+        &HostList::new(),
+        Some(&AirGap),
+        &[],
+        &get("https://other.example/"),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(blocked, EgressError::Blocked { .. }),
+        "{blocked:?}"
+    );
     let spy = Recorder(Mutex::new(Vec::new()));
-    let _ = run(
+    let unlisted = run(
         &wire,
         &HostList::new(),
         Some(&spy),
         &[],
         &get("https://other.example/"),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(unlisted, EgressError::NotAllowed { .. }),
+        "{unlisted:?}"
     );
-    assert!(spy.0.lock().unwrap().is_empty());
+    assert_eq!(spy.0.lock().unwrap().len(), 1);
+    assert_eq!(wire.calls(), 0);
 }
 
 // ---- the real transport: redirects, size and time (rt-testserver) ----

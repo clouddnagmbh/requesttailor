@@ -399,7 +399,7 @@ export class MockBackend implements Backend {
 
   /** Wave 16: scripts of the collection and its folders. */
   readonly folderScripts = mockFolderScripts(() => this.requests);
-  /** Wave 19: placeholders until the strands (`wave19-stubs.ts`). */
+  /** Wave 19 groups. */
   readonly egress = mockEgress();
   readonly journal = mockJournal({
     getRequest: (path) => this.getRequest(path),
@@ -433,7 +433,7 @@ export class MockBackend implements Backend {
     environments: () => this.environments(),
   });
   readonly debugger = mockDebugger();
-  /** Wave 18: placeholders until the strands (`wave18-stubs.ts`). */
+  /** Wave 18 groups. */
   readonly envCompare = mockEnvCompare({
     tree: () => this.tree(),
     getRequest: (path) => this.getRequest(path),

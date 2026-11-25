@@ -106,12 +106,22 @@ export function webEgress(deps: EgressDeps): EgressApi {
     const guard = deps.sendGuard();
     const services = guard ? { guard } : null;
     let credentials = await deps.companion.active();
+    // A writing call is never repeated: a refused browser call may still have reached the server.
+    // With a paired companion it goes that way at once; otherwise it is tried once, here.
+    const writes = request.method !== "GET";
+    if (writes && !credentials) credentials = await deps.companion.paired();
     for (;;) {
       try {
         return await c.egressRequest(request, hosts, found.values, found.collection, credentials, services);
       } catch (e) {
         const error = toBackendError(e);
         const refused = error.kind === "transport" && error.message.startsWith(BLOCKED_PREFIX);
+        if (refused && writes && !credentials) {
+          throw new BackendError(
+            "transport",
+            `${error.message}. A writing call is not repeated; run \`rt agent\` and turn on the companion to send it that way.`,
+          );
+        }
         if (!refused || credentials) {
           throw refused ? new BackendError("transport", `${error.message}. The companion could not reach it either.`) : error;
         }

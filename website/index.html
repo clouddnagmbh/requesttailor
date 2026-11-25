@@ -268,7 +268,7 @@ fails the build.</p>
 <tr><td>What one network call of an extension adds over the plain transport (allowed host, guard asked)</td><td>at most <span data-budget="egress_overhead">1</span> ms</td></tr>
 <tr><td>What the test-data journal adds to one writing send</td><td>at most <span data-budget="journal_overhead">1</span> ms</td></tr>
 <tr><td>Passive checks of a 1 MiB response</td><td>at most <span data-budget="response_checks">20</span> ms</td></tr>
-<tr><td>Linting a collection with 1000 requests</td><td>at most <span data-budget="lint_1000">500</span> ms</td></tr>
+<tr><td>Linting a collection with 1000 requests</td><td>at most <span data-budget="lint_1000">150</span> ms</td></tr>
 <tr><td>Applying a saved JSONPath view to a 10 MiB JSON response</td><td>at most <span data-budget="view_apply">300</span> ms</td></tr>
 <tr><td>Finding the breaking changes between two versions of a GraphQL schema with 2000 types, or of Protobuf files with 500 messages</td><td>at most <span data-budget="schema_changes">300</span> ms</td></tr>
 <tr><td>One step of the script debugger</td><td>at most <span data-budget="debug_step">20</span> ms</td></tr>

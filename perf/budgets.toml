@@ -135,7 +135,7 @@ max = 5
 [metrics.lint_1000]
 description = "rt lint on a collection with 1000 requests (native release, median of 9)"
 unit = "ms"
-max = 500
+max = 150
 
 # Strand G (scripts/perf/views.mjs).
 [metrics.view_apply]

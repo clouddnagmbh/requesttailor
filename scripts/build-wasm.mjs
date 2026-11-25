@@ -15,7 +15,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -115,7 +115,10 @@ function main() {
   );
   if (build.status !== 0) fail("cargo build of rt-wasm failed");
 
-  const targetDir = JSON.parse(run("cargo", ["metadata", "--format-version", "1", "--no-deps"])).target_directory;
+  // `CARGO_TARGET_DIR` wins (relative paths count from the repository root, where cargo ran).
+  const targetDir = process.env.CARGO_TARGET_DIR
+    ? resolve(ROOT, process.env.CARGO_TARGET_DIR)
+    : JSON.parse(run("cargo", ["metadata", "--format-version", "1", "--no-deps"])).target_directory;
   const wasm = join(targetDir, TARGET, "release", "rt_wasm.wasm");
   mkdirSync(OUT_DIR, { recursive: true });
   const bindgen = spawnSync(
