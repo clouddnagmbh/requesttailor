@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Health
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/health"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"

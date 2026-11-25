@@ -275,6 +275,7 @@ fails the build.</p>
 <tr><td>Shrinking a failing request of 200 parts with one cause to that cause, in sends</td><td>at most <span data-budget="shrink_probes">60</span> requests</td></tr>
 <tr><td>Following 100 pages of 100 items and merging them into one response</td><td>at most <span data-budget="paging_merge">2500</span> ms</td></tr>
 <tr><td>One two-user access check, the own time besides the two requests</td><td>at most <span data-budget="access_check">10</span> ms</td></tr>
+<tr><td>Verifying 20 consumer collections of 50 requests each, the own time besides the requests</td><td>at most <span data-budget="consumers_verify">1000</span> ms</td></tr>
 <tr><td>All passive security rules over one response (headers, tokens, TLS details)</td><td>at most <span data-budget="security_passive">2</span> ms</td></tr>
 <tr><td>A request reaching the local webhook inbox, from its last byte to the event shown (median; the 99th percentile stays under 20 ms)</td><td>at most <span data-budget="inbox_latency">5</span> ms</td></tr>
 <tr><td>Reading and searching a plugin index with 1000 entries</td><td>at most <span data-budget="catalogue_index">20</span> ms</td></tr>

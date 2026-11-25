@@ -4663,14 +4663,14 @@ mod wave19 {
                 "ConsumerVerifyRequest",
                 via::<ConsumerVerifyRequest>(json!({
                     "base_url": "http://localhost:3000", "only": ["mobile"], "fetch": true, "keep_going": true,
-                    "trust_scripts": false, "allow_writes": false
+                    "trust_scripts": false, "allow_writes": false, "max_minutes": 5
                 })),
             ),
             (
                 "consumerReport",
                 "ConsumerReport",
                 via::<ConsumerReport>(json!({ "consumers": [{
-                "name": "mobile", "commit": "abc", "requests": 3,
+                "name": "mobile", "commit": "abc", "requests": 3, "skipped": 1,
                 "failures": [{ "request_path": "a.yml", "request": "Get", "assertion": "res.status eq 200", "difference": "got 404" }],
                 "error": null
             }] })),

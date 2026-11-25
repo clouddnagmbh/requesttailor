@@ -672,6 +672,7 @@ mod companions_js;
 mod catalogue_js;
 #[cfg(target_arch = "wasm32")]
 mod collections_js;
+#[cfg(target_arch = "wasm32")]
 mod consumers_js;
 #[cfg(target_arch = "wasm32")]
 mod cookies_js;
