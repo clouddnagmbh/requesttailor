@@ -93,6 +93,7 @@ fails the build.</p>
 <tr><td>What three extensions that listen to every answer add to sending a request</td><td>at most <span data-budget="observer_overhead">1</span> ms</td></tr>
 <tr><td>Sending again after you save a file with <code>rt send --watch</code>, from the change to the request</td><td>at most <span data-budget="watch_resend">500</span> ms</td></tr>
 <tr><td>Comparing 100 reading requests in two environments, from start to the finished list</td><td>at most <span data-budget="env_compare">500</span> ms</td></tr>
+<tr><td>Linting a collection with 1000 requests</td><td>at most <span data-budget="lint_1000">500</span> ms</td></tr>
 </tbody>
 </table>
 <p>How each number is measured is described in <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/perf/README.md">perf/README.md</a>. The <a href="benchmark/">benchmark</a> measures the same numbers for other API clients on the same machine, with a script you can run yourself.</p>
