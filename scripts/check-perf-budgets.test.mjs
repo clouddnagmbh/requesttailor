@@ -75,10 +75,26 @@ test("gate: every budget met and measured passes with --require-all", () => {
   assert.equal(r.status, 0, r.stderr);
 });
 
+test("gate: cold_start and idle_memory are release gates: reported on CI, failing with --release", () => {
+  assert.equal(budgets.cold_start.gate, "release");
+  assert.equal(budgets.idle_memory.gate, "release");
+  for (const [metric, value] of [["cold_start", 501], ["idle_memory", 150.1]]) {
+    const ci = gate({ ...ALL_OK, [metric]: value }, "--require-all");
+    assert.equal(ci.status, 0, ci.stderr);
+    assert.match(ci.stdout, new RegExp(`REPORT ONLY \\(release gate\\): ${metric}`));
+    const rel = gate({ ...ALL_OK, [metric]: value }, "--require-all", "--release");
+    assert.equal(rel.status, 1, rel.stdout);
+    assert.match(rel.stderr, new RegExp(metric));
+  }
+  // Missing: ignored on CI, required with --release.
+  const { cold_start: _gone, ...without } = ALL_OK;
+  assert.equal(gate(without, "--require-all").status, 0);
+  assert.equal(gate(without, "--require-all", "--release").status, 1);
+  assert.equal(gate(ALL_OK, "--require-all", "--release").status, 0);
+});
+
 test("gate: an exceeded budget fails the build, with or without --require-all", () => {
   for (const [metric, value] of [
-    ["cold_start", 501],
-    ["idle_memory", 150.1],
     ["large_response_frame", 33.4],
     ["send_keystrokes", 3],
     ["semantic_diff", 200.1],
@@ -117,13 +133,13 @@ test("gate: an exceeded budget fails the build, with or without --require-all", 
 });
 
 test("gate: a missing measurement fails with --require-all only", () => {
-  const { idle_memory: _gone, ...partial } = ALL_OK;
+  const { large_response_frame: _gone, ...partial } = ALL_OK;
   const strict = gate(partial, "--require-all");
   assert.equal(strict.status, 1);
-  assert.match(strict.stderr, /FAILED: idle_memory/);
+  assert.match(strict.stderr, /FAILED: large_response_frame/);
   assert.equal(gate(partial).status, 0);
   // A value that is not a number counts as missing.
-  assert.equal(gate({ ...ALL_OK, cold_start: "fast" }, "--require-all").status, 1);
+  assert.equal(gate({ ...ALL_OK, large_response_frame: "fast" }, "--require-all").status, 1);
 });
 
 test("gate: no results file at all fails with --require-all", () => {

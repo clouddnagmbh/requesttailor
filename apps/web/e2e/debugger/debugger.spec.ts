@@ -10,7 +10,7 @@ import { expect, test, type Page } from "@playwright/test";
 const MOD = "ControlOrMeta";
 
 async function openDebugger(page: Page) {
-  await page.goto("/?backend=mock");
+  await page.goto("/?backend=mock&debugger=1");
   await page.getByTestId("open-collection").click();
   await expect(page.getByTestId("collection-name")).toHaveText("Demo API");
   await page.getByTestId("tree-request").filter({ hasText: "List users" }).click();

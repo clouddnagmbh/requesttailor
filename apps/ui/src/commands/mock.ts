@@ -134,8 +134,12 @@ function sampleRequests(): Map<string, RequestSpec> {
       "users/list-users.yml",
       r("List users", "GET", "{{baseUrl}}/users?page=1", {
         params: [{ name: "page", value: "1", kind: "query", enabled: true }],
-        // What the mock debugger steps through (`mock-debugger.ts`).
-        scripts: [{ phase: "before-request", code: MOCK_DEBUG_SOURCE }],
+        // What the mock debugger steps through (`mock-debugger.ts`); only with `?debugger=1`,
+        // so other tests (lint, suggested edits) keep a request without scripts.
+        scripts:
+          new URLSearchParams(globalThis.location?.search ?? "").get("debugger") === "1"
+            ? [{ phase: "before-request", code: MOCK_DEBUG_SOURCE }]
+            : [],
         headers: [{ name: "Accept", value: "application/json", enabled: true }],
       }),
     ],

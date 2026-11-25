@@ -28,7 +28,7 @@ async function inspectToken(page: Page, value: string) {
 
 test("the view shows header, claims with their meaning, times as date and relative time", async ({ page }) => {
   await openDemo(page);
-  await inspectToken(page, token({ iss: "https://idp.example", sub: "ada", exp: now() + 3600, iat: now() - 60, scope: "read write" }));
+  await inspectToken(page, token({ iss: "https://idp.example", sub: "ada", exp: now() + 3700, iat: now() - 60, scope: "read write" }));
   await expect(page.getByTestId("jwt-unverified")).toContainText("Signature not verified");
   await expect(page.getByTestId("jwt-header")).toContainText('"alg": "RS256"');
   const claims = page.getByTestId("jwt-claims");

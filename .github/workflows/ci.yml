@@ -277,7 +277,7 @@ jobs:
           - { name: windows, os: windows-latest, app: true, parts: "desktop,diff" }
           # Everything else the gate requires (perf/budgets.toml; `perf` below fails on a budget
           # no job measured). Native tools and the shared UI: one OS is enough, no desktop app.
-          - { name: linux-tools, os: ubuntu-latest, app: false, parts: "consumers,compare,status,graph-large,snapshots,share,observe,watch,envcompare,checks,paging,ratelimit,inbox,lint,views,schemas,catalogue,trace,egress,journal,access,shrink,security,notebook" }
+          - { name: linux-tools, os: ubuntu-latest, app: false, parts: "consumers,compare,status,graph-large,snapshots,share,observe,watch,envcompare,checks,paging,ratelimit,inbox,lint,views,schemas,catalogue,trace,egress,journal,access,shrink,security,notebook,debugger" }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -398,6 +398,10 @@ jobs:
       # Runs the UI tests (mock backend) and the shell tests (e2e/shells, real core). With
       # RT_BIN the tests against a real `rt agent` run too (companion, web Git push/pull via
       # `git http-backend`; git is preinstalled on the runners).
+      # The tests' fixed ports (47xxx, 48xxx) lie inside Linux's default ephemeral range
+      # (32768-60999); an outgoing connection can hold one (EADDRINUSE on the fake AI provider).
+      - name: Keep the fixed test ports out of the ephemeral range
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="20000 32767"
       - name: Playwright
         env:
           RT_BIN: ${{ github.workspace }}/target/debug/rt

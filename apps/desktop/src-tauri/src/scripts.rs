@@ -260,11 +260,30 @@ mod tests {
         parts.set_trusted("/c", true).unwrap();
         let send = parts.for_send("/c");
         let runner = send.runner().unwrap();
-        let started = std::time::Instant::now();
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap();
+        // The first run of a process compiles the engine (seconds in a debug build): not the limit.
+        let warm = runtime.block_on(runner.run(ScriptCall {
+            phase: ScriptPhase::BeforeRequest,
+            scripts: vec![ScriptSource {
+                origin: "request".into(),
+                code: "1".into(),
+            }],
+            request: ScriptRequest {
+                method: "GET".into(),
+                url: "http://h/".into(),
+                headers: Vec::new(),
+                body: None,
+            },
+            response: None,
+            variables: Vec::new(),
+            info: ScriptInfo::default(),
+            sender: None,
+        }));
+        assert_eq!(warm.error, None);
+        let started = std::time::Instant::now();
         let outcome = runtime.block_on(runner.run(ScriptCall {
             phase: ScriptPhase::BeforeRequest,
             scripts: vec![ScriptSource {
