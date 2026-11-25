@@ -12,6 +12,9 @@ commits = ["c200c28ffde1f0b6399650cd9b25d9b163829675"]
 # The same for an `alg: none` JWT whose subject is RT-CANARY-... (crates/rt-cli/tests/security_audit.rs).
 regexes = [
   '''RT-CANARY-[A-Za-z0-9_-]+''',
+  # The sample GitHub token of GitHub's own documentation, planted to show the sequence export
+  # withholds secret-shaped values (crates/rt-app/tests/sequence.rs).
+  '''ghp_16C7e42F292c6912E7710c838347Ae178B4a''',
   '''eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0\.eyJzdWIiOiJSVC1DQU5BUlkt[A-Za-z0-9_-]*\.?''',
 ]
 paths = [
