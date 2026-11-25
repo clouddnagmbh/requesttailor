@@ -9,19 +9,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [threads-default, threads-minstack, linkstack, both]
+        variant: [debug-false, cgu1, opts, release-like, lto]
     env:
-      RUSTFLAGS: -D warnings ${{ (matrix.variant == 'linkstack' || matrix.variant == 'both') && '-C link-arg=/STACK:67108864' || '' }}
-      RUST_MIN_STACK: ${{ (matrix.variant == 'threads-minstack' || matrix.variant == 'both') && '67108864' || '' }}
+      RUSTFLAGS: -D warnings
     steps:
       - uses: actions/checkout@v7
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.variant }}
-      - name: tests (default thread count)
+      - name: apply the variant
+        shell: bash
+        run: |
+          add() { sed -i "s/^opt-level = 3/opt-level = 3\n$1/" Cargo.toml; }
+          case "${{ matrix.variant }}" in
+            debug-false) add "debug = false" ;;
+            cgu1) add "codegen-units = 1" ;;
+            opts) sed -i 's/^opt-level = 3/opt-level = "s"/' Cargo.toml ;;
+            release-like) add "debug = false\ncodegen-units = 1\ndebug-assertions = false\noverflow-checks = false" ;;
+            lto) sed -i 's/^\[profile.dev.package.wasmi\]/[profile.dev]\nlto = "thin"\n\n[profile.dev.package.wasmi]/' Cargo.toml ;;
+          esac
+          git diff | head -30; grep -n "profile.release" -A6 Cargo.toml
+      - name: tests
         shell: bash
         run: |
           cargo test -p rt-script --test sandbox --locked 2>&1 | tail -12 || true
           cargo test -p rt-plugin --test host --locked 2>&1 | tail -12 || true
-          cargo test -p rt-cli --test gate_w7 --locked 2>&1 | tail -12 || true
