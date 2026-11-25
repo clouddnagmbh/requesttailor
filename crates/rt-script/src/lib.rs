@@ -94,6 +94,11 @@ impl Sandbox {
             sender: call.sender,
         };
         let r = engine::run(&input, self.limits.time_ms, self.limits.memory_bytes, &host).await;
+        self.outcome_of(r)
+    }
+
+    /// The outcome of a finished engine run (also for a debug run).
+    pub(crate) fn outcome_of(&self, r: Result<Vec<u8>, engine::Failure>) -> ScriptOutcome {
         match r {
             Ok(reply) => self.outcome(&reply),
             Err(failure) => ScriptOutcome {
@@ -110,7 +115,7 @@ impl Sandbox {
         }
     }
 
-    fn outcome(&self, reply: &[u8]) -> ScriptOutcome {
+    pub(crate) fn outcome(&self, reply: &[u8]) -> ScriptOutcome {
         let out: Out = match serde_json::from_slice(reply) {
             Ok(out) => out,
             Err(e) => {
@@ -168,7 +173,7 @@ struct Out {
 }
 
 /// The message `rt_run` gets.
-fn input_of(call: &ScriptCall<'_>) -> Vec<u8> {
+pub(crate) fn input_of(call: &ScriptCall<'_>) -> Vec<u8> {
     let response = call.response.as_ref().map(|r| {
         serde_json::json!({
             "status": r.status,
@@ -199,8 +204,8 @@ fn input_of(call: &ScriptCall<'_>) -> Vec<u8> {
 }
 
 /// Answers `rt.sendRequest` and `rt.sleep` for one run.
-struct Host<'a> {
-    sender: Option<&'a dyn ScriptSender>,
+pub(crate) struct Host<'a> {
+    pub(crate) sender: Option<&'a dyn ScriptSender>,
 }
 
 #[derive(Deserialize)]

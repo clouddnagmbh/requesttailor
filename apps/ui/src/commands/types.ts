@@ -3465,6 +3465,8 @@ export interface DebugTarget {
   phase: string;
   folder?: string;
   environment?: string;
+  /** A kept response, for `after-response` and `tests`. */
+  response_id?: number;
   breakpoints: Breakpoint[];
   stop_on_entry?: boolean;
 }

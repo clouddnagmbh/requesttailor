@@ -443,7 +443,11 @@ export class WebBackend implements Backend {
     this.sequence = webSequence({ loadCore: () => host.deps.loadCore() });
     this.security = webSecurity({ session: host.session, core: () => host.deps.loadCore() });
     this.notebook = webNotebook({ session: host.session, sendContext });
-    this.debugger = webDebugger();
+    this.debugger = webDebugger({
+      session: () => this.session(),
+      trusted: (id) => this.scriptTrust.forSend(id),
+      input: (s, input) => this.coreInput(s, input, true),
+    });
     this.inspect = webInspect({
       session: host.session,
       core: () => host.deps.loadCore(),

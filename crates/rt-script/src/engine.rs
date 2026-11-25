@@ -71,6 +71,17 @@ pub enum Failure {
 /// Answers the guest's host calls (`rt.host`): the JSON message in, the JSON reply out.
 pub trait HostCalls {
     fn call<'a>(&'a self, message: Vec<u8>, deadline: Instant) -> LocalBoxFuture<'a, Vec<u8>>;
+
+    /// Time the host kept the guest waiting for the user (a paused debug run); handed back
+    /// after each call and added to the time limit, so looking at a script costs it nothing.
+    fn take_credit(&self) -> Duration {
+        Duration::ZERO
+    }
+
+    /// Multiplies the fuel backstop of the run (a debug run, whose pauses run JavaScript).
+    fn fuel_factor(&self) -> u64 {
+        1
+    }
 }
 
 fn engine() -> &'static Engine {
@@ -472,7 +483,7 @@ impl Instance {
         &mut self,
         func: TypedFunc<(i32, i32), i64>,
         input: &[u8],
-        hard_deadline: Instant,
+        mut hard_deadline: Instant,
         hard_fuel: u64,
         host: Option<&dyn HostCalls>,
     ) -> Result<Vec<u8>, Failure> {
@@ -522,6 +533,12 @@ impl Instance {
                         Some(host) => host.call(message, self.store.data().deadline).await,
                         None => br#"{"error":"no host calls while the engine starts"}"#.to_vec(),
                     };
+                    let credit = host.map_or(Duration::ZERO, |h| h.take_credit());
+                    if !credit.is_zero() {
+                        let data = self.store.data_mut();
+                        data.deadline += credit;
+                        hard_deadline += credit;
+                    }
                     let (ptr, len) = self.write(&reply)?;
                     let packed = (i64::from(ptr as u32) << 32) | i64::from(len as u32);
                     self.store.data_mut().last_yield = Instant::now();
@@ -621,7 +638,9 @@ pub async fn run(
     let started = Instant::now();
     let limit = Duration::from_millis(time_ms);
     let deadline = started + limit;
-    let fuel_budget = time_ms.saturating_mul(FUEL_PER_MS);
+    let fuel_budget = time_ms
+        .saturating_mul(FUEL_PER_MS)
+        .saturating_mul(host.fuel_factor());
     let (mut instance, handle) =
         Instance::new(&prepared.module, memory_bytes, deadline, fuel_budget)?;
     // Restore the snapshot: grow to its size, copy it over.

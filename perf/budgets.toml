@@ -217,7 +217,6 @@ max = 300
 
 # Strand Y (scripts/perf/debugger.mjs).
 [metrics.debug_step]
-description = "One step of the script debugger (pause to next pause, release), median of 100"
+description = "One step of the script debugger (pause to next pause, release), median of 50 on a 60-line script with 20 variables in scope"
 unit = "ms"
-pending = "wave 19, strand Y"
 max = 20
