@@ -7,12 +7,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="The rt command line: send requests from a collection with a JSON report, import other tools&#x27; exports, scan for credentials, diff, merge and bisect collections in Git, and the rt agent companion.">
-<title>Command line: rt · RequestTailor</title>
+<title>The rt command line: send, run, import, scan and more</title>
+<meta name="description" content="Reference for rt: send, run, import, scan, snapshot, mock, docs, lint, compare-env, inbox, access, shrink, journal, Git commands, MCP and the companion.">
+<link rel="canonical" href="https://clouddnagmbh.github.io/requesttailor/docs/cli/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="The rt command line: send, run, import, scan and more">
+<meta property="og:description" content="Reference for rt: send, run, import, scan, snapshot, mock, docs, lint, compare-env, inbox, access, shrink, journal, Git commands, MCP and the companion.">
+<meta property="og:url" content="https://clouddnagmbh.github.io/requesttailor/docs/cli/">
+<meta property="og:image" content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The rt command line: send, run, import, scan and more">
+<meta name="twitter:description" content="Reference for rt: send, run, import, scan, snapshot, mock, docs, lint, compare-env, inbox, access, shrink, journal, Git commands, MCP and the companion.">
+<meta name="twitter:image" content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png">
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
 <link rel="stylesheet" href="../../assets/site.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://clouddnagmbh.github.io/requesttailor/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://clouddnagmbh.github.io/requesttailor/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Command line: rt",
+   "item": "https://clouddnagmbh.github.io/requesttailor/docs/cli/"
+  }
+ ]
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -23,7 +64,8 @@
 <ul>
 <li><a href="../../">Home</a></li>
 <li><a href="../../sap/">SAP and OData</a></li>
-<li><a href="../../docs/" aria-current="true">Docs</a></li>
+<li><a href="../../docs/" aria-current="page">Docs</a></li>
+<li><a href="../../compare/">Compare</a></li>
 <li><a href="../../download/">Download</a></li>
 <li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
 </ul>
@@ -38,6 +80,11 @@
 <li><a href="../../docs/">Getting started</a></li>
 <li><a href="../../docs/collections/">Collections as files</a></li>
 <li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/git/">Git client</a></li>
+<li><a href="../../docs/inspect/">Check and inspect responses</a></li>
+<li><a href="../../docs/quality/">Safety and quality tools</a></li>
+<li><a href="../../docs/share/">Share and copy requests</a></li>
+<li><a href="../../docs/ai/">AI assistants</a></li>
 <li><a href="../../docs/cli/" aria-current="page">Command line: rt</a></li>
 <li><a href="../../docs/mcp/">MCP server</a></li>
 <li><a href="../../docs/plugins/">Plugins</a></li>
@@ -46,6 +93,7 @@
 </ul>
 </nav>
 <article>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Home</a> / <a href="../../docs/">Docs</a> / <span aria-current="page">Command line: rt</span></nav>
 <h1>Command line: <code>rt</code></h1>
 <p class="lead"><code>rt</code> runs the same core as the apps. What is green in the app is
 green in the pipeline.</p>
@@ -55,13 +103,27 @@ rt run [FOLDER] [--env NAME] [--var NAME=VALUE]... [--data FILE] [--reporter NAM
 rt import &lt;file&gt;... --out DIR [--format FORMAT] [--json]
 rt import openapi &lt;file|url&gt;... --out DIR [--names operation-id] [--group tag|path|flat] [--keep-spec] [--json]
 rt scan [PATH]... [--json]
+rt snapshot update [PATH]... [--all] [-e NAME] [--var NAME=VALUE]...
+rt mock [FOLDER] [--env NAME] [--port PORT]
+rt docs [FOLDER] --out DIR [--env NAME]
+rt lint [FOLDER] [--format text|json|github] [--min-score N] [--fail-on warn|error] [--rule ID=LEVEL]...
+rt compare-env [FOLDER] --env A --env B... [--json] [--ignore-env-values] [--fail-on-diff]
+rt access check &lt;request-file&gt; --as ENV-A --as ENV-B [--allow-writes] [--b-must-be-denied] [--rate N]
+rt shrink &lt;request-file&gt; [-e ENV] [--predicate P] [--keep PART]... [--max-probes N] [--max-seconds N]
+rt journal [list | revert ID --with REQUEST-FILE | clear] [-C COLLECTION] [--yes-production]
+rt inbox [--port PORT] [--status CODE] [--json]
 rt diff [REV | REV..REV] [--json] [COLLECTION]
 rt merge-driver BASE OURS THEIRS [PATH]
 rt bisect --good REV --bad REV [--env NAME] [--json] [FOLDER]
 rt changelog REV..REV [COLLECTION] [--out FILE]
 rt mcp [COLLECTION] [--var NAME=VALUE]... [--env-default NAME]
+rt mcp-test [PATH]... [-e NAME]
+rt mcp-demo [--http] [--port PORT]
+rt approvals | approve ID | deny ID
 rt agent [--port PORT] [--allow-origin ORIGIN]... [--allow-secrets]
-rt --help</code></pre>
+rt --help | --version</code></pre>
+<p><code>rt --help</code> is the complete reference and is what this page follows. Commands named
+there that are not described on this page are not part of the current build.</p>
 
 <h2 id="send">rt send</h2>
 <p>Sends one request. The collection is the nearest folder above the request file that
@@ -74,6 +136,15 @@ contains <code>opencollection.yml</code>.</p>
 <tr><td><code>--plugin FILE</code></td><td>Run a plugin's hooks for this send, for example <code>target/plugins/odata.wasm</code></td></tr>
 <tr><td><code>--body-limit BYTES</code></td><td>Keep at most this many body bytes in the report (default 10 MiB)</td></tr>
 <tr><td><code>--pretty</code></td><td>Indent the JSON</td></tr>
+<tr><td><code>--no-plugins</code>, <code>--no-scripts</code>, <code>--no-prompt</code></td><td>Skip installed plugins, skip scripts (declarative assertions still run), fail instead of asking for an OAuth login</td></tr>
+<tr><td><code>--cookie-jar FILE</code></td><td>Send cookies from <code>FILE</code> and store new ones in it</td></tr>
+<tr><td><code>--watch</code>, <code>--allow-writes</code></td><td>Send again on every change of the request and its files; see <a href="../quality/#watch">send again on every save</a></td></tr>
+<tr><td><code>--timing</code>, <code>--trace</code></td><td>Print the one-line timing bar or the trace id on stderr; see <a href="../inspect/#timing">timing and trace</a></td></tr>
+<tr><td><code>--checks</code></td><td>Passive response checks, one line each on stderr and in the report; see <a href="../inspect/#checks">response checks</a></td></tr>
+<tr><td><code>--all-pages</code>, <code>--max-pages N</code></td><td>Follow and merge the pages of a reading request (default 20, at most 1000); see <a href="../inspect/#paging">pagination</a></td></tr>
+<tr><td><code>--view NAME</code>, <code>--view-expr EXPR</code></td><td>Print what a saved view or a JSONPath expression picks, not the report</td></tr>
+<tr><td><code>--respect-limits</code>, <code>--max-wait T</code></td><td>Wait for announced rate limits (also with <code>rt run</code>)</td></tr>
+<tr><td><code>--sse</code>, <code>--message TITLE</code>, <code>--duration S</code>, <code>--until-close</code></td><td>Sessions: read a response as Server-Sent Events, or open a WebSocket or gRPC request and print the message history</td></tr>
 </tbody>
 </table>
 <p>The output is one JSON object, the send report: what went on the wire (secrets as
@@ -87,6 +158,8 @@ their origin, unresolved placeholders and any error. The web app produces the sa
 <tr><td>2</td><td>Usage error, no collection, invalid files, or the request is not in the collection</td></tr>
 <tr><td>3</td><td>The request could not be prepared: unknown environment, invalid URL, unsupported auth, unreadable body file</td></tr>
 <tr><td>4</td><td>A response arrived, but a test or assertion failed</td></tr>
+<tr><td>5</td><td>A policy of this installation refused the request; nothing was sent</td></tr>
+<tr><td>7</td><td><code>rt lint</code> found what it was told to fail on</td></tr>
 </tbody>
 </table>
 <p>A status check in a pipeline, with <code>jq</code>:</p>
@@ -186,6 +259,45 @@ files of the collection&rsquo;s Protobuf settings and what they import. Each lis
 changes first, with the GraphQL requests that select a changed field and the gRPC requests
 that call a changed method or reach a changed message.</p>
 
+<h2 id="snapshot">rt snapshot</h2>
+<p><code>rt snapshot update</code> writes the snapshot files (<code>&lt;request&gt;.snap.json</code>) anew from a
+fresh response; <code>--all</code> takes every request with a snapshot assertion. <code>rt send</code> and
+<code>rt run</code> only compare. Exit code 0 when written, 2 on a usage error. See
+<a href="../quality/#snapshots">snapshots</a>.</p>
+
+<h2 id="mock">rt mock and rt docs</h2>
+<p><code>rt mock</code> serves the saved examples of a collection as a local API, and <code>rt docs</code>
+writes a collection as one static HTML page; both are described in
+<a href="../#mock">getting started</a>.</p>
+
+<h2 id="lint">rt lint</h2>
+<p>Health score and findings of a collection; exit code 7 when a finding reaches
+<code>--fail-on</code> or the score is below <code>--min-score</code>. <code>--format github</code> prints
+annotations for GitHub Actions. See <a href="../quality/#lint">lint</a>.</p>
+<pre><code>rt lint . --format github --min-score 80</code></pre>
+
+<h2 id="compare-env">rt compare-env</h2>
+<p>Sends the reading requests in two or more environments and lists what differs. Exit code 0
+even with differences; <code>--fail-on-diff</code> exits 1 for them. See
+<a href="../quality/#compare-env">compare environments</a>.</p>
+
+<h2 id="access">rt access, rt shrink, rt journal</h2>
+<p><code>rt access check</code> is the two-user access check (exit code 4 when access is broken),
+<code>rt shrink</code> reduces a failing request to its smallest form (exit code 1 when not reproducible),
+<code>rt journal</code> lists test data a session wrote and puts it back with a request you choose.
+Writing requests need <code>--allow-writes</code> (or <code>--yes-production</code> for the journal) and
+never run against production otherwise. See <a href="../quality/">safety and quality tools</a>.</p>
+
+<h2 id="inbox">rt inbox</h2>
+<p>Listens on <code>127.0.0.1</code> (default port 47855), prints every request it gets and answers
+with a fixed reply. In memory only, no tunnel. See <a href="../inspect/#inbox">webhook inbox</a>.</p>
+
+<h2 id="mcp-test">rt mcp-test and rt mcp-demo</h2>
+<p><code>rt mcp-test</code> runs saved MCP tests (<code>*.mcp.yaml</code>) against their servers and prints
+JSON; exit code 0 when all passed, 4 when a test failed, 1 when a server could not be reached.
+<code>rt mcp-demo</code> is a demo MCP server with fake data for trying any MCP client, on stdio or with
+<code>--http</code> on <code>127.0.0.1:47850</code>. See <a href="../mcp/#demo">the demo server</a>.</p>
+
 <h2 id="mcp">rt mcp</h2>
 <p>Offers a collection to AI agents over the Model Context Protocol. See
 <a href="../mcp/">MCP server</a>.</p>
@@ -207,6 +319,7 @@ through a single-use code printed in your terminal, and keeps its tokens in memo
 <div class="wrap">
 <p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
 
+<p>Product website: <a href="https://requesttailor.com/en/">requesttailor.com</a></p>
 <p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
 </div>
 </footer>

@@ -7,7 +7,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { budgetMaxima, checkWebsite } from "./check-website.mjs";
+import { budgetMaxima, canonicalOf, checkWebsite } from "./check-website.mjs";
 
 const SITE = fileURLToPath(new URL("../website", import.meta.url));
 const budgets = budgetMaxima(readFileSync(new URL("../perf/budgets.toml", import.meta.url), "utf8"));
@@ -93,4 +93,90 @@ test("pages need a title, one h1 and a main landmark", () => {
   });
   assert.ok(errors.includes('docs/privacy/index.html: no <main id="main">'), errors.join("\n"));
   assert.ok(errors.includes("docs/mcp/index.html: 0 <h1> elements, expected 1"), errors.join("\n"));
+});
+
+test("a JSON-LD data block is allowed, every other script is not", () => {
+  const ld = '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Thing"}</script>\n</head>';
+  assert.deepEqual(withCopy((root) => change(root, "docs/cli/index.html", "</head>", ld)), []);
+
+  const errors = withCopy((root) => {
+    change(root, "index.html", "</head>", "<script>alert(1)</script>\n</head>");
+    change(root, "sap/index.html", "</head>", '<script type="module">import "./a.js"</script>\n</head>');
+    change(root, "docs/index.html", "</head>", '<script type="application/ld+json" src="x.json"></script>\n</head>');
+    change(root, "download/index.html", "</head>", '<script type="application/ld+json">{not json</script>\n</head>');
+    change(root, "run/index.html", "</head>", '<script type="application/ld+json" src="https://example.com/a.json">{}</script>\n</head>');
+  });
+  for (const page of ["index.html", "sap/index.html", "docs/index.html", "run/index.html"]) {
+    assert.ok(errors.some((e) => e.startsWith(`${page}: <script> is not allowed`)), errors.join("\n"));
+  }
+  assert.ok(errors.some((e) => e.startsWith("download/index.html: JSON-LD does not parse")), errors.join("\n"));
+});
+
+test("canonical and social URLs may name only the two project origins", () => {
+  const errors = withCopy((root) => {
+    change(root, "index.html", 'href="https://clouddnagmbh.github.io/requesttailor/"', 'href="https://example.com/"');
+    change(root, "sap/index.html", 'content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png"', 'content="https://cdn.example.com/og.png"');
+    change(root, "docs/cli/index.html", '<link rel="canonical" href="https://clouddnagmbh.github.io/requesttailor/docs/cli/">', '<link rel="canonical" href="https://clouddnagmbh.github.io/requesttailor/docs/cli/">\n<link rel="stylesheet" href="https://clouddnagmbh.github.io/requesttailor/assets/site.css">');
+  });
+  assert.ok(errors.some((e) => e.startsWith("index.html: canonical https://example.com/")), errors.join("\n"));
+  assert.ok(errors.some((e) => e.includes("sap/index.html: og:image https://cdn.example.com/og.png is not on")), errors.join("\n"));
+  // Everything else with an absolute URL in a <link> stays forbidden.
+  assert.ok(errors.some((e) => e.includes('docs/cli/index.html: link href="https://clouddnagmbh.github.io/requesttailor/assets/site.css"')), errors.join("\n"));
+  // The two project origins are fine.
+  assert.deepEqual(
+    withCopy((root) => change(root, "index.html", 'content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png"', 'content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png"')),
+    [],
+  );
+});
+
+test("search metadata is required and limited", () => {
+  const long = "x".repeat(70);
+  const errors = withCopy((root) => {
+    change(root, "download/index.html", "<title>Download RequestTailor for macOS and the rt CLI</title>", `<title>${long}</title>`);
+    change(root, "run/index.html", '<link rel="canonical" href="https://clouddnagmbh.github.io/requesttailor/run/">', '<link rel="canonical" href="https://clouddnagmbh.github.io/requesttailor/runs/">');
+    change(root, "benchmark/index.html", '<meta property="og:image:alt"', '<meta property="og:imagealt"');
+    change(root, "docs/mcp/index.html", '<img src="../../assets/logo-mark.svg" alt="" width="24" height="24">', '<img src="../../assets/logo-mark.svg" width="24" height="24">');
+  });
+  assert.ok(errors.some((e) => e.startsWith("download/index.html: title is 70 characters")), errors.join("\n"));
+  assert.ok(errors.some((e) => e.startsWith("run/index.html: canonical link is https://clouddnagmbh.github.io/requesttailor/runs/")), errors.join("\n"));
+  assert.ok(errors.some((e) => e === "benchmark/index.html: no og:image:alt meta tag"), errors.join("\n"));
+  assert.ok(errors.some((e) => e.startsWith("docs/mcp/index.html: <img> without alt")), errors.join("\n"));
+  assert.equal(canonicalOf("docs/cli/index.html"), "https://clouddnagmbh.github.io/requesttailor/docs/cli/");
+  assert.equal(canonicalOf("index.html"), "https://clouddnagmbh.github.io/requesttailor/");
+});
+
+test("duplicate titles, duplicate ids and a stale sitemap are found", () => {
+  const errors = withCopy((root) => {
+    const home = readFileSync(join(root, "index.html"), "utf8");
+    const title = home.match(/<title>([^<]*)<\/title>/)[1];
+    change(root, "run/index.html", "<title>Run in RequestTailor: open a repository's API requests</title>", `<title>${title}</title>`);
+    change(root, "docs/privacy/index.html", '<h2 id="data">', '<h2 id="app">');
+    writeFileSync(join(root, "sitemap.xml"), readFileSync(join(root, "sitemap.xml"), "utf8").replace("<loc>https://clouddnagmbh.github.io/requesttailor/sap/</loc>", "<loc>https://clouddnagmbh.github.io/requesttailor/gone/</loc>"));
+    writeFileSync(join(root, "robots.txt"), "User-agent: *\nAllow: /\n");
+  });
+  assert.ok(errors.some((e) => e.startsWith("run/index.html: title") && e.includes("is also used by")), errors.join("\n"));
+  assert.ok(errors.some((e) => e === 'docs/privacy/index.html: duplicate id "app"'), errors.join("\n"));
+  assert.ok(errors.some((e) => e.startsWith("sitemap.xml:") && e.includes("/sap/") && e.includes("/gone/")), errors.join("\n"));
+  assert.ok(errors.includes("robots.txt: no Sitemap line"), errors.join("\n"));
+});
+
+test("metadata names only this site; plain links may reach the product site and the app", () => {
+  const errors = withCopy((root) => {
+    change(root, "index.html", 'content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png"', 'content="https://app.requesttailor.com/og.png"');
+    change(root, "sap/index.html", 'href="https://clouddnagmbh.github.io/requesttailor/sap/"', 'href="https://requesttailor.com/sap/"');
+  });
+  assert.ok(errors.some((e) => e.includes("index.html: og:image https://app.requesttailor.com/og.png is not on")), errors.join("\n"));
+  assert.ok(errors.some((e) => e.startsWith("sap/index.html: canonical https://requesttailor.com/sap/")), errors.join("\n"));
+  const ok = withCopy((root) =>
+    change(root, "docs/cli/index.html", "</article>", '<p><a href="https://app.requesttailor.com/">Web app</a> <a href="https://requesttailor.com/en/">Product website</a></p></article>'));
+  assert.deepEqual(ok, []);
+});
+
+test("the 404 page names its assets by absolute site URL, and they must exist", () => {
+  const errors = withCopy((root) =>
+    change(root, "404.html", "assets/site.css", "assets/missing.css"));
+  assert.ok(errors.some((e) => e.startsWith("404.html: link href=") && e.includes("does not exist")), errors.join("\n"));
+  const other = withCopy((root) =>
+    change(root, "index.html", 'href="assets/site.css"', 'href="https://clouddnagmbh.github.io/requesttailor/assets/site.css"'));
+  assert.ok(other.some((e) => e.includes("index.html: link href=")), other.join("\n"));
 });

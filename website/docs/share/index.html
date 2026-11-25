@@ -1,0 +1,147 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Share requests as links and copy as cURL, fetch or Python</title>
+<meta name="description" content="Share a request as a link whose data stays in the URL fragment: no upload, no secrets. Copy as cURL, fetch or Python; paste cURL to create a request.">
+<link rel="canonical" href="https://clouddnagmbh.github.io/requesttailor/docs/share/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Share requests as links and copy as cURL, fetch or Python">
+<meta property="og:description" content="Share a request as a link whose data stays in the URL fragment: no upload, no secrets. Copy as cURL, fetch or Python; paste cURL to create a request.">
+<meta property="og:url" content="https://clouddnagmbh.github.io/requesttailor/docs/share/">
+<meta property="og:image" content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Share requests as links and copy as cURL, fetch or Python">
+<meta name="twitter:description" content="Share a request as a link whose data stays in the URL fragment: no upload, no secrets. Copy as cURL, fetch or Python; paste cURL to create a request.">
+<meta name="twitter:image" content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
+<link rel="stylesheet" href="../../assets/site.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://clouddnagmbh.github.io/requesttailor/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://clouddnagmbh.github.io/requesttailor/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Share and copy requests",
+   "item": "https://clouddnagmbh.github.io/requesttailor/docs/share/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../"><img src="../../assets/logo-mark.svg" alt="" width="24" height="24">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="page">Docs</a></li>
+<li><a href="../../compare/">Compare</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/git/">Git client</a></li>
+<li><a href="../../docs/inspect/">Check and inspect responses</a></li>
+<li><a href="../../docs/quality/">Safety and quality tools</a></li>
+<li><a href="../../docs/share/" aria-current="page">Share and copy requests</a></li>
+<li><a href="../../docs/ai/">AI assistants</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Home</a> / <a href="../../docs/">Docs</a> / <span aria-current="page">Share and copy requests</span></nav>
+<h1>Share and copy requests</h1>
+<p class="lead">Send a request to a colleague or into another tool without an account and
+without uploading anything.</p>
+
+<h2 id="link">Share link</h2>
+<p>A link looks like <code>https://app.requesttailor.com/#rt=1.&lt;data&gt;</code>. The data is
+the request, compressed and encoded, and it sits after the <code>#</code>: a browser never sends
+that part to a server. Creating a link makes no network request and there is no upload. A
+typical request gives a link of about 1000 characters (at most 2000 at the 95th percentile);
+the limit is 8000, and a QR code works up to 2000.</p>
+<p>The same request is also copied as plain <code>rt:&lt;data&gt;</code> text, which RequestTailor
+recognises when you paste it. Pasting a link, the fragment or an <code>rt:</code> text opens the request as an
+unsaved draft. Nothing runs and nothing is sent until you send it.</p>
+
+<h3 id="secrets">What is never in a link</h3>
+<ul>
+<li>Secret values. The link has the definition with unresolved <code>{{variables}}</code> and
+variable names; auth keeps its type and <code>{{secret:&lt;name&gt;}}</code>.</li>
+<li>Values of ordinary variables, unless you switch on <em>Include variable values</em>.</li>
+<li>Anything the secret scanner takes for a credential: if it cannot be replaced, no link is
+made.</li>
+</ul>
+
+<h2 id="copy-as">Copy as cURL, fetch or Python</h2>
+<p>Copy a request as a <code>curl</code> command, a JavaScript <code>fetch</code> call or Python
+code. Variables stay variables of the target: <code>$TOKEN</code> in the shell,
+<code>process.env.TOKEN</code> in JavaScript, <code>os.environ["TOKEN"]</code> in Python, so no secret value
+lands in your clipboard. With the OData plugin switched on, a request can also be copied as ABAP for
+ABAP Platform or ABAP Cloud (see <a href="../../sap/">SAP and OData</a>).</p>
+
+<h2 id="paste">Create a request from a snippet</h2>
+<p>Paste a cURL command into the <em>New…</em> dialog and RequestTailor builds the request
+without any model or network call. <code>rt import</code> also reads cURL, HAR, <code>.http</code> files,
+Postman, Insomnia and OpenAPI; see <a href="../collections/#import">importing</a>.</p>
+
+<h2 id="more">See also</h2>
+<p><a href="../environments/">Environments and secrets</a>, <a href="../ai/">AI assistants</a>
+(a request from a description).</p>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+<p>Product website: <a href="https://requesttailor.com/en/">requesttailor.com</a></p>
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

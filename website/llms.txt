@@ -1,0 +1,40 @@
+# RequestTailor
+
+> RequestTailor is an open-source (Apache 2.0) API client with a Rust core. It runs natively on macOS, in the browser as WebAssembly, as the command line `rt` and as an MCP server for AI agents. Requests are readable YAML files (OpenCollection format) in your Git repository. There is no account, it works offline, secrets stay on your machine, and it never connects to RequestTailor servers. Source code: https://github.com/clouddnagmbh/requesttailor
+
+Facts that answer common questions: free to use (Apache 2.0); no account, no telemetry, no update check; secrets in the OS keychain or a secret manager; imports Postman, Insomnia, OpenAPI/Swagger, cURL, HAR and .http; opens Bruno collections in OpenCollection YAML unchanged; built-in Git client; `rt run` for CI with JUnit reports; optional OData plugin for SAP S/4HANA, CAP and RAP; AI assistants use your own key and are off by default. Desktop app for macOS only; web app and `rt` (macOS, Linux, Docker) elsewhere.
+
+## Overview
+
+- [Product website](https://requesttailor.com/llms.txt): the separate product site (editions and company information live there; llms.txt of that site)
+
+- [Home](https://clouddnagmbh.github.io/requesttailor/): what it is, principles, performance budgets, FAQ
+- [Capabilities at a glance](https://clouddnagmbh.github.io/requesttailor/compare/): a yes/no list of what RequestTailor does and does not do
+- [Download](https://clouddnagmbh.github.io/requesttailor/download/): macOS app, `rt` command line, Docker image, checksums and signatures
+- [Benchmark](https://clouddnagmbh.github.io/requesttailor/benchmark/): the performance budgets measured against other API clients
+
+## Documentation
+
+- [Getting started](https://clouddnagmbh.github.io/requesttailor/docs/): install, open a collection, send, OpenAPI import, mock server, generated API docs
+- [Collections as files](https://clouddnagmbh.github.io/requesttailor/docs/collections/): the OpenCollection YAML layout, importers, several collections
+- [Environments and secrets](https://clouddnagmbh.github.io/requesttailor/docs/environments/): variable layers, keychain, secret managers, credential scanner
+- [Git client](https://clouddnagmbh.github.io/requesttailor/docs/git/): graph, wizards with undo, semantic diff and merge, blame, bisect, pull requests
+- [Check and inspect responses](https://clouddnagmbh.github.io/requesttailor/docs/inspect/): response checks, OWASP-tagged security hints, JWT reader, rate limits, pagination, trace, webhook inbox
+- [Safety and quality tools](https://clouddnagmbh.github.io/requesttailor/docs/quality/): production guard, watch mode, snapshots, lint, environment compare, access check, shrink
+- [Share and copy requests](https://clouddnagmbh.github.io/requesttailor/docs/share/): share links without upload, copy as cURL, fetch or Python
+- [AI assistants](https://clouddnagmbh.github.io/requesttailor/docs/ai/): bring your own key, providers, what is sent
+- [Command line: rt](https://clouddnagmbh.github.io/requesttailor/docs/cli/): commands, options and exit codes
+- [MCP server](https://clouddnagmbh.github.io/requesttailor/docs/mcp/): test MCP servers, serve a collection to AI agents with approvals
+- [Plugins](https://clouddnagmbh.github.io/requesttailor/docs/plugins/): sandboxed WebAssembly plugins and the plugin API
+- [Privacy](https://clouddnagmbh.github.io/requesttailor/docs/privacy/): what is stored and sent
+
+## SAP and OData
+
+- [OData for SAP S/4HANA, CAP and RAP](https://clouddnagmbh.github.io/requesttailor/sap/): the optional OData plugin
+- [OData and SAP guide](https://clouddnagmbh.github.io/requesttailor/docs/odata/): step-by-step use
+
+## Optional
+
+- [Run in RequestTailor](https://clouddnagmbh.github.io/requesttailor/run/): open a repository's API collection, README badge
+- [Full text of this site](https://clouddnagmbh.github.io/requesttailor/llms-full.txt): all pages condensed in one file
+- [Source code and issues](https://github.com/clouddnagmbh/requesttailor): Apache License 2.0

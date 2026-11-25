@@ -368,3 +368,16 @@ td code {
   display: block;
   flex: none;
 }
+
+/* Breadcrumb line above a docs page title */
+
+.crumbs {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: var(--fg-soft);
+  overflow-wrap: anywhere;
+}
+
+.crumbs a {
+  color: var(--fg-soft);
+}

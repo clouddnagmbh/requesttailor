@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 The RequestTailor Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Git client for APIs: graph, semantic merge, undo</title>
+<meta name="description" content="A Git client for any repository: history graph, plain-language wizards with undo, field-by-field diff and merge, blame, reflog, bisect, pull requests.">
+<link rel="canonical" href="https://clouddnagmbh.github.io/requesttailor/docs/git/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Git client for APIs: graph, semantic merge, undo">
+<meta property="og:description" content="A Git client for any repository: history graph, plain-language wizards with undo, field-by-field diff and merge, blame, reflog, bisect, pull requests.">
+<meta property="og:url" content="https://clouddnagmbh.github.io/requesttailor/docs/git/">
+<meta property="og:image" content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Git client for APIs: graph, semantic merge, undo">
+<meta name="twitter:description" content="A Git client for any repository: history graph, plain-language wizards with undo, field-by-field diff and merge, blame, reflog, bisect, pull requests.">
+<meta name="twitter:image" content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
+<link rel="stylesheet" href="../../assets/site.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://clouddnagmbh.github.io/requesttailor/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://clouddnagmbh.github.io/requesttailor/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Git client",
+   "item": "https://clouddnagmbh.github.io/requesttailor/docs/git/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="wrap">
+<a class="brand" href="../../"><img src="../../assets/logo-mark.svg" alt="" width="24" height="24">RequestTailor</a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+<li><a href="../../">Home</a></li>
+<li><a href="../../sap/">SAP and OData</a></li>
+<li><a href="../../docs/" aria-current="page">Docs</a></li>
+<li><a href="../../compare/">Compare</a></li>
+<li><a href="../../download/">Download</a></li>
+<li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="wrap">
+<div class="docs">
+<nav class="docs-nav" aria-label="Documentation">
+<ul>
+<li><a href="../../docs/">Getting started</a></li>
+<li><a href="../../docs/collections/">Collections as files</a></li>
+<li><a href="../../docs/environments/">Environments and secrets</a></li>
+<li><a href="../../docs/git/" aria-current="page">Git client</a></li>
+<li><a href="../../docs/inspect/">Check and inspect responses</a></li>
+<li><a href="../../docs/quality/">Safety and quality tools</a></li>
+<li><a href="../../docs/share/">Share and copy requests</a></li>
+<li><a href="../../docs/ai/">AI assistants</a></li>
+<li><a href="../../docs/cli/">Command line: rt</a></li>
+<li><a href="../../docs/mcp/">MCP server</a></li>
+<li><a href="../../docs/plugins/">Plugins</a></li>
+<li><a href="../../docs/odata/">OData and SAP guide</a></li>
+<li><a href="../../docs/privacy/">Privacy</a></li>
+</ul>
+</nav>
+<article>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Home</a> / <a href="../../docs/">Docs</a> / <span aria-current="page">Git client</span></nav>
+<h1>Git client</h1>
+<p class="lead">RequestTailor includes a Git client. It works on any repository, not only on
+collections, and it talks only to your own Git host.</p>
+
+<p>Collections are plain files, so Git is how you version, review and share them. The app
+reads and writes the repository itself (gitoxide on the desktop, isomorphic-git in the
+browser, through the companion <code>rt agent</code> for network access) and does not need
+the <code>git</code> program. Files of a collection get a field-by-field diff and merge; every
+other file gets a line diff and a line merge.</p>
+
+<h2 id="history">History graph</h2>
+<p>The graph shows branches as lanes, with tags, remotes and signed commits marked. Opening the
+history of a repository with 100 000 commits shows the first rows in under 1500 ms, and a
+repository with 10 000 commits scrolls at a 95th percentile frame time of 20 ms
+(<a href="../../#performance">budgets</a>). Select a commit to see its changed files and the
+semantic diff.</p>
+
+<h2 id="changes">Changes and commits</h2>
+<p>There is no staging area by default. The commit form lists the changed files with a
+checkbox each; <code>commit(message, paths)</code> commits exactly those. Before every commit
+a scanner checks the files for credentials and refuses the commit if it finds one (see
+<a href="../environments/#scanner">secret scanner</a>). The change view shows text diffs with
+word-level highlights and image diffs, and filters by <em>Staged</em>.</p>
+
+<h2 id="wizards">Wizards that explain first</h2>
+<p>Branch, switch, merge, pull, push, publish, fetch, stash (shown as <em>Park changes</em>),
+cherry-pick, revert, reset, discard, amend, tags and remotes each open a plan before anything
+happens. The plan says in plain language which branches move and which files change, and why
+an action is blocked, for example because of unsaved changes, an unfinished merge, a detached
+head, no upstream or diverged branches.</p>
+<ul>
+<li><strong>Backup before every change.</strong> Before an action moves a branch or changes
+working files, the app writes a backup ref
+<code>refs/requesttailor/backup/&lt;unix time&gt;/&lt;name&gt;</code> and a line in a local
+action journal.</li>
+<li><strong>Undo.</strong> The last action can be undone. Undo is refused once the refs have
+moved since, so it never overwrites newer work.</li>
+<li><strong>No force-push, no rewriting published history.</strong> A diverged branch offers a
+merge or <em>take theirs</em> (a reset, with a backup). Rewriting commits that were already
+published is blocked.</li>
+<li><strong>Lost work.</strong> The reflog view finds commits that no branch points to any
+more and restores a branch from them.</li>
+</ul>
+
+<h2 id="diff-merge">Semantic diff and merge</h2>
+<p>A collection change is shown per field: URL, method, header, parameter, body, auth,
+script, assertion, setting. Two branches that change different fields of the same request
+merge without a conflict; only the same field changed differently on both sides is one, and
+the app asks per field. Secret values never appear in a diff.</p>
+<p>The same engine is available outside the app:</p>
+<pre><code>rt diff main..feature --json
+git config merge.requesttailor.driver "rt merge-driver %O %A %B %P"
+echo "*.yml merge=requesttailor" &gt;&gt; .gitattributes</code></pre>
+<p>With the merge driver set up, <code>git merge</code>, <code>pull</code>, <code>rebase</code>
+and <code>cherry-pick</code> merge collection files field by field. Details: <a href="../cli/#git">Git for APIs
+in the CLI guide</a>. Comparing 1000 requests with 100 changed takes under 200 ms.</p>
+
+<h2 id="history-tools">Blame, file history and search</h2>
+<p><em>Blame</em> shows per field which commit last changed it. The file history follows
+renames, and you can restore an old version of a request from it. History search finds
+commits by message, author, path or content.</p>
+
+<h2 id="compare">Compare two versions by running them</h2>
+<p>Pick two revisions, for example <em>main</em> and a branch. The compare view lists changed,
+new, removed and breaking requests, shows both definitions side by side, and can run the
+changed requests against both versions and show the two responses next to each other:
+status, headers, timing and a JSON diff. Environments and secrets come from your current
+setup. <code>rt bisect --good v1.4.0 --bad HEAD</code> finds the first commit at which a
+request, test or assertion fails; 50 commits take at most 7 runs.</p>
+
+<h2 id="review">Pull requests</h2>
+<p>For GitHub and GitLab (also self-hosted), the app lists pull and merge requests, shows
+their semantic diff and the CI status, runs the changed requests, notes breaking changes
+against the OpenAPI spec, lets you comment on a line, and creates a pull request or draft.
+The access token is kept in the OS keychain (desktop) or encrypted in the browser. Calls go
+only to your host.</p>
+
+<h2 id="rescue">Rescue a committed secret</h2>
+<p>If a credential reached the history, the rescue assistant finds it in HEAD and all local
+branches, rewrites the local commits after writing a backup, and shows the
+<code>git push --force-with-lease</code> command and the reminder to rotate the credential. It
+never pushes by itself. Secret values do not reach the interface; Rust reads them from the
+repository only to replace them.</p>
+
+<h2 id="more">See also</h2>
+<ul>
+<li><a href="../collections/#git">Collections and Git</a></li>
+<li><a href="../cli/">Command line: rt</a> for <code>rt diff</code>, <code>rt merge-driver</code>,
+<code>rt bisect</code> and <code>rt changelog</code></li>
+<li><a href="../quality/">Safety and quality tools</a></li>
+</ul>
+</article>
+</div>
+</div>
+</main>
+<footer class="site-footer">
+<div class="wrap">
+<p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
+<p>Product website: <a href="https://requesttailor.com/en/">requesttailor.com</a></p>
+<p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../../docs/privacy/">Privacy</a></p>
+</div>
+</footer>
+</body>
+</html>

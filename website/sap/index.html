@@ -7,8 +7,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="The OData plugin for RequestTailor: OData V2 and V4 for SAP S/4HANA, CAP and RAP, with CSRF tokens, ETags, $batch, drafts and DEV/QAS/PRD landscapes with sap-client.">
-<title>SAP and OData · RequestTailor</title>
+<title>OData for SAP S/4HANA, CAP and RAP: RequestTailor</title>
+<meta name="description" content="OData V2 and V4 plugin for SAP S/4HANA, CAP and RAP: CSRF, ETags, $batch, drafts, Gateway errors, paging and DEV/QAS/PRD landscapes. Optional, open source.">
+<link rel="canonical" href="https://clouddnagmbh.github.io/requesttailor/sap/">
+<meta property="og:site_name" content="RequestTailor">
+<meta property="og:locale" content="en">
+<meta property="og:type" content="website">
+<meta property="og:title" content="OData for SAP S/4HANA, CAP and RAP: RequestTailor">
+<meta property="og:description" content="OData V2 and V4 plugin for SAP S/4HANA, CAP and RAP: CSRF, ETags, $batch, drafts, Gateway errors, paging and DEV/QAS/PRD landscapes. Optional, open source.">
+<meta property="og:url" content="https://clouddnagmbh.github.io/requesttailor/sap/">
+<meta property="og:image" content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="RequestTailor: open-source API client, requests are files in Git">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="OData for SAP S/4HANA, CAP and RAP: RequestTailor">
+<meta name="twitter:description" content="OData V2 and V4 plugin for SAP S/4HANA, CAP and RAP: CSRF, ETags, $batch, drafts, Gateway errors, paging and DEV/QAS/PRD landscapes. Optional, open source.">
+<meta name="twitter:image" content="https://clouddnagmbh.github.io/requesttailor/assets/og-image.png">
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
@@ -24,6 +39,7 @@
 <li><a href="../">Home</a></li>
 <li><a href="../sap/" aria-current="page">SAP and OData</a></li>
 <li><a href="../docs/">Docs</a></li>
+<li><a href="../compare/">Compare</a></li>
 <li><a href="../download/">Download</a></li>
 <li><a href="https://github.com/clouddnagmbh/requesttailor">Source code</a></li>
 </ul>
@@ -105,11 +121,45 @@ CAP.</p>
 <code>sap-client</code> and <code>sap-language</code> to every URL unless it has them.</p>
 </div>
 <div class="card">
+<h3>Gateway errors</h3>
+<p>For an answer of 400 or more with an OData error body (V2 JSON and XML, V4 JSON), a note and
+an <em>Error</em> tab show the code, the message, the transaction ID and the resolution hints of
+the system.</p>
+</div>
+<div class="card">
+<h3>Server time</h3>
+<p>Switch <em>Measure server time</em> on for a service and the plugin adds
+<code>sap-statistics: true</code> and shows what the header reports (gateway, application,
+database) as timing segments next to the total. The header format is read tolerantly and has
+not been checked against a real system yet.</p>
+</div>
+<div class="card">
+<h3>Paging rules</h3>
+<p>Rules for <code>@odata.nextLink</code> (V4) and <code>d.__next</code> (V2), so
+<code>rt send --all-pages</code> and the app follow and merge the pages of an entity set. A rule
+you write for a request wins.</p>
+</div>
+<div class="card">
+<h3>Clean-up rules</h3>
+<p>Data for the <a href="../docs/quality/#journal">test-data journal</a>: a created entity is
+put back with a <code>DELETE</code> to the URL the server named (<code>Location</code>,
+<code>OData-EntityId</code> or <code>__metadata.uri</code>), changes with <code>If-Match</code>
+from the ETag. Drafts are not undone, and the reason is shown.</p>
+</div>
+<div class="card">
+<h3>Copy as ABAP</h3>
+<p>A tab turns the OData request into an ABAP snippet for ABAP Platform
+(<code>cl_http_client</code>) or ABAP Cloud (<code>cl_web_http_client_manager</code>), with
+placeholders instead of logon data.</p>
+</div>
+<div class="card">
 <h3>Importers</h3>
 <p>Creates requests from a <code>$metadata</code> file: list, read by key, create, update and
 delete as the entity set allows, plus its operations. Also reads API specifications you have
 downloaded from the SAP Business Accelerator Hub (EDMX, or OpenAPI with <code>x-sap</code>
-extensions).</p>
+extensions). It also reads an exported SAP BTP destination: one environment per
+destination with host, client and, for Basic or OAuth 2.0 client credentials, the secrets as
+names without values.</p>
 </div>
 </div>
 
@@ -156,6 +206,7 @@ assertion flow) and client certificates.</li>
 <div class="wrap">
 <p>The RequestTailor source code is licensed under the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/LICENSE">Apache License 2.0</a>. The name RequestTailor and its logos are not covered by that license; see the <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/TRADEMARKS.md">trademark policy</a>.</p>
 <p>SAP, S/4HANA, SAP Gateway, ABAP and other SAP products named here are trademarks or registered trademarks of SAP SE in Germany and other countries. RequestTailor is not affiliated with, endorsed or sponsored by SAP SE.</p>
+<p>Product website: <a href="https://requesttailor.com/en/">requesttailor.com</a></p>
 <p>This site is static: no cookies, no analytics, nothing loaded from other servers. <a href="../docs/privacy/">Privacy</a></p>
 </div>
 </footer>
