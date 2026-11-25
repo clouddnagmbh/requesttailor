@@ -63,9 +63,19 @@ impl Plugin for OData {
         let first = landscape::prepare(&request, &context)?;
         let request = apply(request, &first.patch);
         let second = write::prepare(&request, &context)?;
+        let patch = merge(first.patch, second.patch);
+        let request = apply(request, &patch);
+        // Last: the header that asks for the server's time (`gateway`) goes with the request
+        // as it will be sent.
+        let third = gateway::prepare(&request, &context)?;
         Ok(PrepareReply {
-            patch: merge(first.patch, second.patch),
-            notes: first.notes.into_iter().chain(second.notes).collect(),
+            patch: merge(patch, third.patch),
+            notes: first
+                .notes
+                .into_iter()
+                .chain(second.notes)
+                .chain(third.notes)
+                .collect(),
         })
     }
 
@@ -78,9 +88,12 @@ impl Plugin for OData {
         // `metadata` caches `$metadata` responses; `write` remembers ETags and CSRF tokens.
         let mut notes = metadata::response(&request, &response, &context)?.notes;
         notes.extend(write::response(&request, &response, &context)?.notes);
+        // `gateway`: the server's own time (`sap-statistics`) and the Gateway error of a 4xx/5xx.
+        let gateway = gateway::response(&request, &response, &context)?;
+        notes.extend(gateway.notes);
         Ok(NotesReply {
             notes,
-            segments: Vec::new(),
+            segments: gateway.segments,
         })
     }
 
@@ -92,6 +105,7 @@ impl Plugin for OData {
             "draft" => write::render_draft(tab),
             "landscape" => landscape::render(tab),
             "abap" => abap::render(tab),
+            gateway::ERROR_TAB | gateway::STATISTICS_TAB => gateway::render(tab),
             other => Err(Error::new(format!("unknown tab {other}"))),
         }
     }
@@ -104,6 +118,7 @@ impl Plugin for OData {
             "draft" => write::action_draft(action),
             "landscape" => landscape::action(action),
             "abap" => abap::action(action),
+            gateway::ERROR_TAB | gateway::STATISTICS_TAB => gateway::action(action),
             other => Err(Error::new(format!("unknown tab {other}"))),
         }
     }

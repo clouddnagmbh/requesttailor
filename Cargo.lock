@@ -5271,11 +5271,14 @@ dependencies = [
 name = "rt-plugin-odata"
 version = "1.0.0"
 dependencies = [
+ "rt-app",
+ "rt-core",
  "rt-format",
  "rt-odata-testserver",
  "rt-plugin-sdk",
  "serde",
  "serde_json",
+ "serde_json_path",
 ]
 
 [[package]]

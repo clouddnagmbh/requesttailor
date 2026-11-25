@@ -1,0 +1,15 @@
+{
+  "shape": "v2-xml",
+  "code": "ZRT_SALES/004",
+  "message": "Sales order 4711 is locked by user RT_USER2",
+  "transaction_id": "5F3A9C1E2B7D4E0A9C1D000000000001",
+  "timestamp": "20261124103015",
+  "details": [
+    { "code": "ZRT_SALES/004", "message": "Sales order 4711 is locked by user RT_USER2", "severity": "error", "target": "SalesOrderID" },
+    { "code": "ZRT_SALES/017", "message": "Delivery date is in the past & must be corrected", "severity": "warning", "target": "DeliveryDate" }
+  ],
+  "resolution": {
+    "transaction": "Run transaction /IWFND/ERROR_LOG on the gateway system and search for the transaction ID",
+    "note": "See SAP Note 9999999 for details"
+  }
+}

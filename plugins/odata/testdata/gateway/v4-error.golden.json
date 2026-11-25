@@ -1,0 +1,15 @@
+{
+  "shape": "v4-json",
+  "code": "ZRT_SALESORDER/012",
+  "message": "Customer 0000100099 is blocked for sales",
+  "transaction_id": "6A4B0D2F3C8E5F1BAD2E000000000002",
+  "timestamp": "20261124103122",
+  "target": "SoldToParty",
+  "details": [
+    { "code": "ZRT_SALESORDER/012", "message": "Customer 0000100099 is blocked for sales", "severity": "error", "target": "SoldToParty" },
+    { "code": "ZRT_SALESORDER/031", "message": "Payment terms are missing", "severity": "warning", "target": "PaymentTerms" }
+  ],
+  "resolution": {
+    "transaction": "Run transaction /IWFND/ERROR_LOG on the gateway system and search for the transaction ID"
+  }
+}

@@ -215,6 +215,18 @@ function mockTraceOn(): boolean {
   return new URLSearchParams(globalThis.location?.search ?? "").get("trace") === "1";
 }
 
+/** Wave 18, strand J: `?segments=1` mirrors a plugin that reported the server's own time
+ *  (`SendReport.segments`, as the OData plugin does from `sap-statistics`). */
+function mockSegments(): SendReport["segments"] {
+  if (new URLSearchParams(globalThis.location?.search ?? "").get("segments") !== "1") return undefined;
+  return [
+    { id: "gateway", label: "Gateway", ms: 12, parent: "server" },
+    { id: "application", label: "Application", ms: 30, parent: "server" },
+    { id: "database", label: "Database", ms: 8, parent: "server" },
+    { id: "rest", label: "Other", ms: 3, parent: "server" },
+  ];
+}
+
 export class MockBackend implements Backend {
   readonly kind = "mock" as const;
   /** Every file "written" by `save`, for tests (`window.__rt.backend.files`); files of a
@@ -680,6 +692,7 @@ export class MockBackend implements Backend {
       unresolved: [...new Set(unresolved)],
       error: null,
       ...(trace ? { trace } : {}),
+      ...(mockSegments() ? { segments: mockSegments()! } : {}),
     };
 
     const outcome = this.scriptOutcome?.(path) ?? null;

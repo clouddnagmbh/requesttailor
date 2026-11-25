@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<error xmlns="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <code>ZRT_SALES/004</code>
+  <message xml:lang="en">Sales order 4711 is locked by user RT_USER2</message>
+  <innererror>
+    <transactionid>5F3A9C1E2B7D4E0A9C1D000000000001</transactionid>
+    <timestamp>20261124103015</timestamp>
+    <Error_Resolution>
+      <SAP_Transaction>Run transaction /IWFND/ERROR_LOG on the gateway system and search for the transaction ID</SAP_Transaction>
+      <SAP_Note>See SAP Note 9999999 for details</SAP_Note>
+    </Error_Resolution>
+    <errordetails>
+      <errordetail>
+        <code>ZRT_SALES/004</code>
+        <message>Sales order 4711 is locked by user RT_USER2</message>
+        <propertyref/>
+        <severity>error</severity>
+        <target>SalesOrderID</target>
+      </errordetail>
+      <errordetail>
+        <code>ZRT_SALES/017</code>
+        <message>Delivery date is in the past &amp; must be corrected</message>
+        <propertyref/>
+        <severity>warning</severity>
+        <target>DeliveryDate</target>
+      </errordetail>
+    </errordetails>
+  </innererror>
+</error>

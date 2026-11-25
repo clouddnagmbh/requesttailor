@@ -40,6 +40,7 @@
 
 pub mod batch;
 pub mod client;
+pub mod gateway;
 pub mod odata;
 pub mod services;
 
@@ -224,6 +225,7 @@ impl State {
             .or_else(|| header("sap-language"))
             .unwrap_or("en")
             .to_ascii_lowercase();
+        let query_for_gateway = query.clone();
         let host = header("Host").unwrap_or("127.0.0.1");
         let base = format!("http://{host}{}", def.root);
         let ctx = Ctx {
@@ -347,6 +349,7 @@ impl State {
             }
         };
         reply.headers.extend(extra);
+        gateway::finish(def, headers, &query_for_gateway, &mut reply);
         reply
     }
 }

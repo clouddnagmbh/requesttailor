@@ -184,3 +184,33 @@ These were known before the strands started and are part of the wave 6 interface
   write per response.
 - **Proposal:** a `storage-list { prefix }` host call (keys only), or `storage-set` with
   `expires_ms`.
+
+## Wave 18, strand J (paging, server time, Gateway errors)
+
+### The collection in the context of hooks
+
+- **What:** `PluginContext` has no collection id.
+- **Why:** "Measure server time" should be a switch per collection; the plugin storage is per
+  device and plugin.
+- **Workaround:** the switch is kept per OData service root (`statistics:<root>`), which is finer
+  than a collection and does not need the id.
+- **Proposal:** `PluginContext.collection` (a stable id of the open collection).
+
+### Naming `TimingSegment` from a plugin
+
+- **What:** `NotesReply.segments` is `Vec<rt_core::TimingSegment>`, but `rt-plugin-sdk` does not
+  re-export the type.
+- **Workaround:** the plugin crate depends on `rt-core` directly (already in its tree).
+- **Proposal:** `pub use rt_core::TimingSegment;` in `rt-plugin-sdk`.
+
+### Response tabs by status
+
+- **What:** a response tab can be limited by content type but not by status; the "Error" tab is
+  offered for every JSON or XML answer and says "not an error" for the others.
+- **Proposal:** `TabContribution.min_status` (or a `status` range).
+
+### A total for paging rules
+
+- **What:** `__count` / `@odata.count` cannot be named in a paging rule, so the UI cannot show
+  "n of N loaded".
+- **Proposal:** `PagingSpec.total` (a JSONPath to the total count).

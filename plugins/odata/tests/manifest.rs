@@ -29,6 +29,8 @@ fn manifest_is_valid() {
             ("draft", TabPlace::Request),
             ("abap", TabPlace::Request),
             ("landscape", TabPlace::Collection),
+            ("error", TabPlace::Response),
+            ("statistics", TabPlace::Request),
         ]
     );
     let importers: Vec<_> = m

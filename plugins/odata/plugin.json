@@ -15,12 +15,36 @@
       { "id": "batch", "title": "Batch", "place": "request", "content_types": [] },
       { "id": "draft", "title": "Draft", "place": "request", "content_types": [] },
       { "id": "abap", "title": "ABAP", "place": "request", "content_types": [] },
-      { "id": "landscape", "title": "SAP systems", "place": "collection", "content_types": [] }
+      { "id": "landscape", "title": "SAP systems", "place": "collection", "content_types": [] },
+      { "id": "error", "title": "Error", "place": "response", "content_types": ["application/json", "application/xml", "text/xml"] },
+      { "id": "statistics", "title": "Server time", "place": "request", "content_types": [] }
     ],
     "importers": [
       { "id": "edmx", "label": "OData metadata ($metadata, EDMX)", "extensions": ["edmx", "xml"] },
       { "id": "sap-hub", "label": "SAP Business Accelerator Hub (API specification)", "extensions": ["edmx", "xml", "json"] },
       { "id": "btp-destinations", "label": "SAP BTP destinations (exported JSON or .properties)", "extensions": ["json", "properties"] }
+    ],
+    "paging": [
+      {
+        "id": "odata-v4-sap",
+        "match": { "content_types": ["application/json"], "url_pattern": "*/odata4/*" },
+        "rule": { "rule": { "kind": "json-url", "next": "$['@odata.nextLink']" }, "merge": "$.value" }
+      },
+      {
+        "id": "odata-v4-cap",
+        "match": { "content_types": ["application/json"], "url_pattern": "*/odata/v4/*" },
+        "rule": { "rule": { "kind": "json-url", "next": "$['@odata.nextLink']" }, "merge": "$.value" }
+      },
+      {
+        "id": "odata-v2-sap",
+        "match": { "content_types": ["application/json"], "url_pattern": "*/sap/opu/odata/*" },
+        "rule": { "rule": { "kind": "json-url", "next": "$.d.__next" }, "merge": "$.d.results" }
+      },
+      {
+        "id": "odata-v2-cap",
+        "match": { "content_types": ["application/json"], "url_pattern": "*/odata/v2/*" },
+        "rule": { "rule": { "kind": "json-url", "next": "$.d.__next" }, "merge": "$.d.results" }
+      }
     ],
     "welcome": {
       "label": "SAP and OData",
