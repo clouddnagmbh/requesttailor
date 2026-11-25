@@ -20,7 +20,6 @@ fn rt(args: &[&str]) -> (i32, String, String) {
 fn new_commands_are_registered_and_not_implemented_yet() {
     let cases: &[(&[&str], &str)] = &[
         (&["notebook", "run", "a.notebook.md"], "wave 19"),
-        (&["send", "a.yml", "--debug"], "wave 19"),
         (&["send", "a.yml", "--sequence", "out.md"], "wave 19"),
     ];
     for (args, needle) in cases {

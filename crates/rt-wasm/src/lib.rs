@@ -676,6 +676,7 @@ mod collections_js;
 mod consumers_js;
 #[cfg(target_arch = "wasm32")]
 mod cookies_js;
+#[cfg(target_arch = "wasm32")]
 mod debugger_js;
 mod egress_js;
 #[cfg(target_arch = "wasm32")]

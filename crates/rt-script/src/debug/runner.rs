@@ -15,8 +15,9 @@ use crate::{Limits, Sandbox};
 
 /// Where the stops are shown and the commands come from.
 pub trait DebugTerminal {
-    /// The script stopped. `None` (no more input): the script continues.
-    fn paused(&self, state: &DebugState) -> Option<DebugCommand>;
+    /// The script (its source as written) stopped. `None` (no more input): the script
+    /// continues.
+    fn paused(&self, source: &str, state: &DebugState) -> Option<DebugCommand>;
     /// The script ended (or the session did).
     fn finished(&self, state: &DebugState);
 }
@@ -47,6 +48,12 @@ impl<T: DebugTerminal> ScriptRunner for DebugRunner<T> {
             if !call.scripts.iter().any(|s| s.origin == "request") {
                 return Sandbox::new(self.limits).run(call).await;
             }
+            let source = call
+                .scripts
+                .iter()
+                .find(|s| s.origin == "request")
+                .map(|s| s.code.clone())
+                .unwrap_or_default();
             let id = self.next_session.get();
             self.next_session.set(id + 1);
             let breakpoints = self
@@ -72,7 +79,7 @@ impl<T: DebugTerminal> ScriptRunner for DebugRunner<T> {
             while state.status == DebugStatus::Paused {
                 let command = self
                     .terminal
-                    .paused(&state)
+                    .paused(&source, &state)
                     .unwrap_or(DebugCommand::Continue);
                 state = session.command(command).await;
             }

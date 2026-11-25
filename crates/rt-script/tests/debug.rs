@@ -673,7 +673,7 @@ struct Scripted {
 }
 
 impl DebugTerminal for &Scripted {
-    fn paused(&self, state: &DebugState) -> Option<DebugCommand> {
+    fn paused(&self, _source: &str, state: &DebugState) -> Option<DebugCommand> {
         let pause = state.pause.as_ref().unwrap();
         self.stops
             .borrow_mut()
