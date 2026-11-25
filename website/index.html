@@ -102,6 +102,7 @@ fails the build.</p>
 <tr><td>Adding a trace context to a request (opt-in per collection)</td><td>at most <span data-budget="trace_inject">0.02</span> ms</td></tr>
 <tr><td>Shrinking a failing request of 200 parts with one cause to that cause, in sends</td><td>at most <span data-budget="shrink_probes">60</span> requests</td></tr>
 <tr><td>Following 100 pages of 100 items and merging them into one response</td><td>at most <span data-budget="paging_merge">2500</span> ms</td></tr>
+<tr><td>One two-user access check, the own time besides the two requests</td><td>at most <span data-budget="access_check">10</span> ms</td></tr>
 </tbody>
 </table>
 <p>How each number is measured is described in <a href="https://github.com/clouddnagmbh/requesttailor/blob/main/perf/README.md">perf/README.md</a>. The <a href="benchmark/">benchmark</a> measures the same numbers for other API clients on the same machine, with a script you can run yourself.</p>

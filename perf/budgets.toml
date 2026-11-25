@@ -184,7 +184,6 @@ max = 1
 [metrics.access_check]
 description = "Own time of one two-user access check (fake transport, 200 checks, compare and evidence), median"
 unit = "ms"
-pending = "wave 19, strand D"
 max = 10
 
 # Strand E (scripts/perf/shrink.mjs).

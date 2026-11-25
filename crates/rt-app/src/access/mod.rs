@@ -23,9 +23,18 @@
 //! audit log) and only where neither profile is production (`rt_app::agents::is_production`),
 //! else [`AccessVerdict::Skipped`] with `skipped (writes)` or `skipped (production)`. The
 //! guard is asked per request; no brute force, no id enumeration (only ids A itself saw),
-//! the rate is limited. Interface: types only.
+//! the rate is limited (default [`DEFAULT_RATE`] requests per second, and the rate limits the
+//! host reports are waited for, never retried). One audit entry per check.
 
 use serde::{Deserialize, Serialize};
+
+mod check;
+mod evidence;
+
+pub use check::{AccessEnv, NO_REFERENCE, SKIPPED_PRODUCTION, SKIPPED_WRITES, check, check_with};
+
+/// Requests per second when [`AccessOptions::rate`] is `0`.
+pub const DEFAULT_RATE: u32 = 5;
 
 /// Longest evidence value, in bytes.
 pub const EVIDENCE_LIMIT: usize = 512;
