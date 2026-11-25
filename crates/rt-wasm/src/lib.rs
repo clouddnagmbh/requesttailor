@@ -702,6 +702,7 @@ mod sequence_js;
 mod services_js;
 #[cfg(target_arch = "wasm32")]
 mod share_js;
+#[cfg(target_arch = "wasm32")]
 mod shrink_js;
 #[cfg(target_arch = "wasm32")]
 mod snapshots_js;

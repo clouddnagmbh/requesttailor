@@ -5079,6 +5079,7 @@ dependencies = [
  "memchr",
  "miniz_oxide 0.9.1",
  "qrcode",
+ "regex-lite",
  "rt-core",
  "rt-format",
  "rt-grpc",

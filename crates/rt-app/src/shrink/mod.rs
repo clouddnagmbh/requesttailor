@@ -19,9 +19,17 @@
 //! ("This sends up to N requests that write."), never against production. A hit is
 //! confirmed once; a predicate that flips ends with `flaky`. Output: the shrunk request as
 //! an unsaved draft, "Copy as curl" and "Copy link" through `rt_app::share` (no secret
-//! values), and what was removed (paths, no values). Interface: types only.
+//! values), and what was removed (paths, no values).
 
 use serde::{Deserialize, Serialize};
+
+mod engine;
+mod json;
+mod parts;
+mod predicate;
+
+pub use engine::shrink;
+pub use predicate::{describe as describe_failure, failure_of, holds};
 
 use rt_core::model::RequestSpec;
 

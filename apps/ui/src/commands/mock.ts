@@ -383,7 +383,10 @@ export class MockBackend implements Backend {
   readonly egress = mockEgress();
   readonly journal = mockJournal();
   readonly access = mockAccess();
-  readonly shrink = mockShrink();
+  readonly shrink = mockShrink({
+    getRequest: (path) => this.getRequest(path),
+    policy: () => this.agents.policy(),
+  });
   readonly consumers = mockConsumers();
   readonly sequence = mockSequence();
   readonly security = mockSecurity();
