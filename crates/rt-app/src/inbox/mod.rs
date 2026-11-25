@@ -12,12 +12,25 @@
 //! the listener lives in `server.rs` (strand E, native only); turning a capture into a
 //! request ([`InboxDraft`]) runs everywhere. Making a request: `Authorization`, `Cookie`
 //! and headers whose name contains `signature`, `token`, `secret` or `key` become secret
-//! variables **without a value**; the secret scanner runs over headers and body. Interface:
-//! types only.
+//! variables **without a value**; the secret scanner runs over headers and body.
+//!
+//! `buffer` (the bounded store) and `draft` run everywhere; `server` (the listener, [`Inbox`])
+//! is native only. The browser reaches an inbox through the companion (`rt agent`, route
+//! `/v1/inbox`).
 
 use serde::{Deserialize, Serialize};
 
 use rt_core::model::RequestSpec;
+
+mod buffer;
+mod draft;
+#[cfg(not(target_arch = "wasm32"))]
+mod server;
+
+pub use buffer::{Buffer, Limits};
+pub use draft::{BASE_URL, draft};
+#[cfg(not(target_arch = "wasm32"))]
+pub use server::{Inbox, is_loopback_peer, validate};
 
 pub use rt_core::inbox::{
     CapturedRequest, DEFAULT_PORT, InboxEvent, InboxPage, InboxSettings, InboxStatus,

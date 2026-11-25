@@ -53,6 +53,8 @@ const SEND: &str = "/v1/send";
 const SECRETS: &str = "/v1/secrets";
 /// Wave 8, strand A (`stream.rs`).
 const STREAM: &str = "/v1/stream";
+/// Wave 18, strand E (`inbox.rs`).
+const INBOX: &str = "/v1/inbox";
 
 pub struct Agent {
     port: u16,
@@ -65,6 +67,8 @@ pub struct Agent {
     allow_secrets: bool,
     /// Wave 17: handed every request of `/v1/send` (strand A wires the delivery).
     observers: RefCell<rt_core::observe::ObserverSet>,
+    /// Wave 18: the webhook inbox of the browser (`/v1/inbox`); it listens only after `start`.
+    inbox: rt_app::inbox::Inbox,
 }
 
 impl Agent {
@@ -78,6 +82,7 @@ impl Agent {
             transport,
             allow_secrets,
             observers: RefCell::new(rt_core::observe::ObserverSet::new()),
+            inbox: rt_app::inbox::Inbox::new(),
         }))
     }
 
@@ -133,6 +138,10 @@ impl Agent {
 
     pub(super) fn transport(&self) -> &NativeTransport {
         &self.transport
+    }
+
+    pub(super) fn inbox(&self) -> &rt_app::inbox::Inbox {
+        &self.inbox
     }
 
     pub(super) fn port(&self) -> u16 {
@@ -201,7 +210,7 @@ pub async fn serve(listener: TcpListener, agent: Rc<Agent>) -> std::io::Result<(
 
 async fn handle(agent: &Agent, mut req: Request<Incoming>) -> Response<AgentBody> {
     // Wave 8: only `/v1/stream` may take over the connection.
-    let upgrade = (req.uri().path() == STREAM).then(|| hyper::upgrade::on(&mut req));
+    let upgrade = matches!(req.uri().path(), STREAM | INBOX).then(|| hyper::upgrade::on(&mut req));
     let (parts, body) = req.into_parts();
     let req = Request::from_parts(parts, ());
     let mut body = Some(body);
@@ -266,7 +275,11 @@ async fn route(
             Ok(response) => response.map(|()| AgentBody::Full(None)),
             Err((status, message)) => text(status, message, cors),
         },
-        (_, STATUS | PAIR | SEND | SECRETS | STREAM) => {
+        (Method::GET, INBOX) => match super::inbox::upgrade(agent, req, upgrade, &origin) {
+            Ok(response) => response.map(|()| AgentBody::Full(None)),
+            Err((status, message)) => text(status, message, cors),
+        },
+        (_, STATUS | PAIR | SEND | SECRETS | STREAM | INBOX) => {
             text(StatusCode::METHOD_NOT_ALLOWED, "method not allowed", cors)
         }
         _ => text(StatusCode::NOT_FOUND, "not found", cors),
@@ -325,7 +338,7 @@ fn status(agent: &Agent, origin: Option<&str>, headers: &HeaderMap) -> Response<
         version: env!("CARGO_PKG_VERSION").to_owned(),
         paired,
         // Wave 8, strand A: `/v1/stream`.
-        features: vec!["stream".to_owned()],
+        features: vec!["stream".to_owned(), "inbox".to_owned()],
     };
     json(StatusCode::OK, &status, origin)
 }
