@@ -1107,7 +1107,7 @@ where
         Some(report) => report,
         None => runtime.block_on(send_request(&doc, &request_path, &args, &files, &transport)),
     };
-    if let Err(e) = checks::attach(&args, &mut report) {
+    if let Err(e) = checks::attach(&args, &mut report, stderr) {
         return fail(stderr, EXIT_USAGE, &e);
     }
     // Wave 17: a production environment is said out loud, never refused.

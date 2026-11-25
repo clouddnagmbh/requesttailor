@@ -110,7 +110,6 @@ max = 500
 [metrics.response_checks]
 description = "Passive response checks (headers, cookies, CORS, tokens) on a 1 MiB response: Observation list, native release, median of 9"
 unit = "ms"
-pending = "wave 18, strand B"
 max = 20
 
 # Strand C (scripts/perf/paging.mjs).

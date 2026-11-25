@@ -263,7 +263,7 @@ export class MockBackend implements Backend {
   }
   private responses = new Map<number, Stored>();
   /** Wave 17: what a snapshot needs of a kept response (status and allowlisted headers). */
-  private responseMeta = new Map<number, { status: number; headers: [string, string][] }>();
+  private responseMeta = new Map<number, { status: number; headers: [string, string][]; url: string; cookies: string[] }>();
   private nextId = 1;
   private mode: TransportMode = "browser";
 
@@ -418,7 +418,17 @@ export class MockBackend implements Backend {
     send: (path, input) => this.sendNow(path, input),
     releaseResponse: (id) => this.releaseResponse(id),
   });
-  readonly inspect = mockInspect();
+  readonly inspect = mockInspect({
+    getRequest: (path) => this.getRequest(path),
+    environments: () => this.environments(),
+    response: (id) => {
+      const s = this.responses.get(id);
+      const meta = this.responseMeta.get(id);
+      return s && meta
+        ? { status: meta.status, headers: [...meta.headers, ...meta.cookies.map((v): [string, string] => ["set-cookie", v])], url: meta.url, text: s.text }
+        : null;
+    },
+  });
   readonly paging = mockPaging();
   readonly inbox = mockInbox();
   readonly lint = mockLint({
@@ -717,7 +727,12 @@ export class MockBackend implements Backend {
       size = stored.bytes!.length;
     }
     this.responses.set(id, stored);
-    this.responseMeta.set(id, { status: 200, headers: [["content-type", contentType]] });
+    this.responseMeta.set(id, {
+      status: 200,
+      headers: [["content-type", contentType]],
+      url: mask(url),
+      cookies: setCookie.map(maskSetCookie),
+    });
     this.cookies.store(input.environment ?? "", url, setCookie);
     report.response = {
       status: 200,

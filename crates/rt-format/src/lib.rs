@@ -29,6 +29,8 @@ mod agents;
 /// Wave 16, strand A: `extensions.requesttailor.ai` (reading only).
 mod ai_config;
 mod auth;
+/// `extensions.requesttailor.checks` (wave 18, strand B).
+pub mod checks_config;
 /// Wave 12, strand F: OpenAPI contract check, breaking changes, API changelog.
 pub mod contract;
 /// OpenAPI import wizard: `extensions.requesttailor.contract.spec` (writing).
