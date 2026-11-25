@@ -85,9 +85,13 @@ export async function expectInsideAndAligned(page: Page): Promise<void> {
         );
       })
       .map((el) => `${el.tagName.toLowerCase()}.${el.className} ${el.dataset.testid ?? ""}`);
-    return { inset, blocks, overflowing, scroll: panel.scrollWidth - panel.clientWidth };
+    // What makes the panel scroll sideways: elements reaching past its content box.
+    const wide = [...panel.querySelectorAll<HTMLElement>("*")]
+      .filter((el) => el.getBoundingClientRect().right > box.left + panel.clientWidth + 0.5 && el.getBoundingClientRect().width > 0 && !el.closest('[role="menu"]'))
+      .map((el) => `${el.tagName.toLowerCase()}.${el.className} ${el.dataset.testid ?? ""} right+${Math.round(el.getBoundingClientRect().right - box.left - panel.clientWidth)}`);
+    return { inset, blocks, overflowing, scroll: panel.scrollWidth - panel.clientWidth, wide };
   });
-  expect(r.scroll, "no horizontal scroll").toBeLessThanOrEqual(0);
+  expect(r.scroll, `no horizontal scroll (reaching past: ${r.wide.join("; ")})`).toBeLessThanOrEqual(0);
   expect(r.overflowing, "nothing sticks out of the panel").toEqual([]);
   for (const b of r.blocks) {
     expect(Math.round(b.left), `${b.name} left inset`).toBe(r.inset);

@@ -1,6 +1,8 @@
 # TEMPORARY (ci-fix branch): find out why wasmi crashes on Windows. Deleted before merge.
 name: ci-debug
-on: workflow_dispatch
+on:
+  push:
+    branches: [ci-fix-debug]
 jobs:
   win:
     runs-on: windows-latest

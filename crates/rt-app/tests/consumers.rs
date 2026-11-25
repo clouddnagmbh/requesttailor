@@ -13,10 +13,21 @@ use std::sync::atomic::Ordering;
 use consumers_support::*;
 use rt_app::consumers::{self, fetch};
 
+
+/// `file://` URL of a local path that `git` accepts: `file:///C:/x` on Windows, `file:///x` elsewhere.
+fn file_url(path: &std::path::Path) -> String {
+    let text = path.to_string_lossy().replace('\\', "/");
+    if text.starts_with('/') {
+        format!("file://{text}")
+    } else {
+        format!("file:///{text}")
+    }
+}
+
 fn clone_entry(repo: &std::path::Path) -> String {
     format!(
-        "      - name: mobile\n        source: file://{}\n        environment: ci\n",
-        repo.display()
+        "      - name: mobile\n        source: {}\n        environment: ci\n",
+        file_url(repo)
     )
 }
 
@@ -222,7 +233,7 @@ fn a_clone_over_the_size_limit_is_refused_and_removed() {
     let repo = mobile_repo(&tmp.0);
     let consumer = consumers::ConsumerRef {
         name: "mobile".into(),
-        source: format!("file://{}", repo.display()),
+        source: file_url(&repo),
         git_ref: None,
         path: None,
         environment: "ci".into(),

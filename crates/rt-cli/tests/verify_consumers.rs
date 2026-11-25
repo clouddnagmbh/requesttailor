@@ -136,8 +136,8 @@ fn setup(tmp: &Path, with_clone: bool) -> PathBuf {
         git(&repo, &["add", "."]);
         git(&repo, &["commit", "-q", "-m", "one"]);
         entries.push_str(&format!(
-            "      - name: mobile\n        source: file://{}\n        environment: ci\n",
-            repo.display()
+            "      - name: mobile\n        source: {}\n        environment: ci\n",
+            file_url(&repo)
         ));
     }
     let root = tmp.join("provider");
@@ -352,4 +352,14 @@ fn a_consumer_that_cannot_run_still_breaks_the_build() {
         "{}",
         out(&o)
     );
+}
+
+/// `file://` URL of a local path that `git` accepts: `file:///C:/x` on Windows, `file:///x` elsewhere.
+fn file_url(path: &std::path::Path) -> String {
+    let text = path.to_string_lossy().replace('\\', "/");
+    if text.starts_with('/') {
+        format!("file://{text}")
+    } else {
+        format!("file:///{text}")
+    }
 }
