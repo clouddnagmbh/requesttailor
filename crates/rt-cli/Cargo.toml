@@ -58,6 +58,9 @@ name = "observe"
 harness = false
 
 [dev-dependencies]
+# Signing a synthetic token in the checks test (wave 19, strand R); already in the tree via rt-core.
+hmac = "0.12"
+sha2 = "0.10"
 rt-testserver = { path = "../rt-testserver" }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["rt", "net", "time", "macros"] }

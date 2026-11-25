@@ -101,7 +101,7 @@ import { webAccess } from "./access";
 import { webShrink } from "./shrink";
 import { webConsumers } from "./consumers";
 import { webSequence } from "./sequence";
-import { webSecurity } from "./security";
+import { securityIgnored, webSecurity } from "./security";
 import { webNotebook } from "./notebook";
 import { webDebugger } from "./debugger";
 
@@ -441,13 +441,14 @@ export class WebBackend implements Backend {
     this.shrink = webShrink({ session: host.session, sendContext });
     this.consumers = webConsumers();
     this.sequence = webSequence();
-    this.security = webSecurity();
+    this.security = webSecurity({ session: host.session, core: () => host.deps.loadCore() });
     this.notebook = webNotebook();
     this.debugger = webDebugger();
     this.inspect = webInspect({
       session: host.session,
       core: () => host.deps.loadCore(),
       coreInput: (input) => this.coreInput(this.session(), input, true),
+      extraIgnored: () => securityIgnored(() => host.deps.loadCore()),
     });
     this.paging = webPaging({ session: host.session, sendContext, plugins: () => this.plugins.list() });
     this.inbox = webInbox();

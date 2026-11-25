@@ -55,6 +55,9 @@ keyring = { version = "3.6", features = ["async-secret-service", "async-io", "cr
 
 # A fake token endpoint for `auth::fetch_token` (both already in the tree via rt-core).
 [dev-dependencies]
+# Signing synthetic tokens in the passive security tests (wave 19, strand R); both already in the tree via rt-core.
+hmac = "0.12"
+sha2 = "0.10"
 # The contract test serialises the debugger types (wave 19).
 rt-script = { path = "../rt-script" }
 bytes = "1"

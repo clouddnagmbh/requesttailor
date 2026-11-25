@@ -713,7 +713,10 @@ async fn finish<T: Transport>(
                 files,
             )
             .await;
-            let received = received(completed, &secrets);
+            // Wave 19: what the native transport knows about the TLS connection.
+            let tls = transport.tls_info(&completed.head.url);
+            let mut received = received(completed, &secrets);
+            received.tls = tls;
             // Wave 18: what the response says about rate limits.
             report.rate_limit = crate::ratelimit::observe(&received);
             // Wave 19: a trace id the response carries, when the request had none (only for

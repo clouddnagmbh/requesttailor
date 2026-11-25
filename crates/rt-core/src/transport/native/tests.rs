@@ -642,3 +642,35 @@ async fn untrusted_certificate_is_a_tls_error() {
         other => panic!("{other:?}"),
     }
 }
+
+#[tokio::test]
+async fn the_tls_details_of_a_response_are_known_even_on_a_reused_connection() {
+    let server = tls_server(&[b"h2", b"http/1.1"]).await;
+    let t = NativeTransport::with_extra_root_certificates([server.ca_der]).unwrap();
+    let url = format!("https://localhost:{}/", server.addr.port());
+    assert_eq!(
+        t.tls_info(&url),
+        None,
+        "nothing before the first connection"
+    );
+    send(&t, request("GET", &url)).await.unwrap();
+    for _ in 0..2 {
+        let info = t.tls_info(&format!("{url}other?x=1")).expect("tls info");
+        assert_eq!(info.protocol.as_deref(), Some("TLSv1.3"));
+        assert!(
+            info.cipher
+                .as_deref()
+                .is_some_and(|c| c.starts_with("TLS13_"))
+        );
+        assert_eq!(info.key_algorithm.as_deref(), Some("EC"));
+        assert_eq!(info.key_bits, Some(256));
+        let now = crate::jwt::now_secs();
+        assert!(info.not_before.unwrap() <= now + 86_400, "{info:?}");
+        assert!(info.not_after.unwrap() > now, "{info:?}");
+        // The next request reuses the connection (h2) and still has the details.
+        send(&t, request("GET", &url)).await.unwrap();
+    }
+    // Plain http and other origins have none.
+    assert_eq!(t.tls_info("http://localhost/"), None);
+    assert_eq!(t.tls_info("https://localhost:1/"), None);
+}

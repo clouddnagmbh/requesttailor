@@ -210,7 +210,6 @@ max = 100
 [metrics.security_passive]
 description = "All passive security rules on one response (headers, tokens, TLS info), native release, median"
 unit = "ms"
-pending = "wave 19, strand R"
 max = 2
 
 # Strand W (scripts/perf/notebook.mjs).

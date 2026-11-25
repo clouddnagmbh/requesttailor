@@ -21,6 +21,7 @@
 use memchr::{memchr, memmem};
 use rt_core::inspect::{Observation, Severity};
 use rt_core::jwt;
+use rt_core::transport::TlsInfo;
 
 /// How much of the body the checks read.
 pub const BODY_LIMIT: usize = 1024 * 1024;
@@ -37,6 +38,9 @@ pub struct ResponseView<'a> {
     pub headers: &'a [(String, String)],
     pub body: &'a [u8],
     pub body_complete: bool,
+    /// What the native transport learned about the TLS connection (wave 19, strand R); `None`
+    /// in the browser, for plain http and when the caller does not know.
+    pub tls: Option<&'a TlsInfo>,
 }
 
 impl<'a> ResponseView<'a> {
@@ -57,7 +61,14 @@ impl<'a> ResponseView<'a> {
             headers,
             body,
             body_complete: body.len() as u64 >= total,
+            tls: None,
         }
+    }
+
+    /// The same view with the TLS details of the connection (wave 19, strand R).
+    pub fn with_tls(mut self, tls: Option<&'a TlsInfo>) -> Self {
+        self.tls = tls;
+        self
     }
 
     /// The first response header called `name` (case-insensitive).
@@ -98,7 +109,7 @@ impl<'a> ResponseView<'a> {
     }
 
     /// Statuses that carry no representation; header rules skip them.
-    fn has_representation(&self) -> bool {
+    pub(crate) fn has_representation(&self) -> bool {
         !matches!(self.status, 100..=199 | 204 | 304)
     }
 }

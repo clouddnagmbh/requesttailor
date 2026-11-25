@@ -32,7 +32,7 @@ pub fn device_ignored(data_dir: Option<&Path>) -> Vec<String> {
 
 /// Switches `id` off on this device.
 pub fn ignore_on_device(data_dir: Option<&Path>, id: &str) -> Result<(), AppError> {
-    if !inspect::rules().iter().any(|r| r.id == id) {
+    if !inspect::all_rules().iter().any(|r| r.id == id) {
         return Err(AppError::Shell(format!("unknown check: {id}")));
     }
     let Some(path) = device_path(data_dir) else {
@@ -86,7 +86,12 @@ pub async fn inspect_checks(
     let Some(id) = target.response_id else {
         return Ok(Vec::new());
     };
-    let device = device_ignored(core.data_dir.as_deref());
+    let mut device = device_ignored(core.data_dir.as_deref());
+    // Wave 19: the device's security settings switch the security rules off (as a group or one
+    // by one) in the same pass.
+    device.extend(rt_app::security::ignored_by(
+        &rt_app::security::read_settings(core.data_dir.as_deref()),
+    ));
     Ok(core.with_responses(|ws, responses| {
         let ignore = inspect::all_ignored(ws, &device);
         inspect::checks_of(responses, id, &ignore)

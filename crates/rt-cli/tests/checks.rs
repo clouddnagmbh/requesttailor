@@ -112,6 +112,7 @@ fn plain_reply() -> String {
         "200 OK",
         &[
             "Content-Type: application/json",
+            "RateLimit-Limit: 100",
             "Server: nginx/1.18.0",
             "Set-Cookie: sid=abc; Path=/",
             "Access-Control-Allow-Origin: *",
@@ -245,4 +246,82 @@ fn an_expired_token_is_a_note_and_the_send_goes_ahead() {
     assert!(!note["text"].as_str().unwrap().contains(CANARY));
     assert!(!note["text"].as_str().unwrap().contains(&t));
     assert!(!out.stderr.contains(&t));
+}
+
+// ---- wave 19, strand R: the passive security rules in `rt send --checks` ----
+
+fn rule_ids(report: &Value) -> Vec<String> {
+    report["checks"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .map(|o| o["id"].as_str().unwrap().to_owned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[test]
+fn the_security_rules_show_in_the_checks_and_never_quote_a_token_or_a_secret() {
+    let weak = {
+        use hmac::{Hmac, Mac};
+        let part = |v: Value| URL_SAFE_NO_PAD.encode(v.to_string());
+        let input = format!(
+            "{}.{}",
+            part(json!({"alg": "HS256"})),
+            part(json!({"sub": CANARY}))
+        );
+        let mut mac = Hmac::<sha2::Sha256>::new_from_slice(b"changeme").unwrap();
+        mac.update(input.as_bytes());
+        format!(
+            "{input}.{}",
+            URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes())
+        )
+    };
+    let reply = http(
+        "200 OK",
+        &["Content-Type: application/json"],
+        &format!("{{\"access_token\":\"{weak}\"}}"),
+    );
+    let (port, count) = serve(reply);
+    let dir = collection("sec", "", "", port);
+    let out = send(&dir, &["--checks"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(count.load(Ordering::SeqCst), 1, "no extra request");
+    let report: Value = serde_json::from_str(&out.stdout).unwrap();
+    let ids = rule_ids(&report);
+    for id in [
+        "sec/jwt-weak-hmac",
+        "sec/jwt-no-exp",
+        "sec/cache-control-tokens",
+        "sec/no-rate-limit",
+    ] {
+        assert!(ids.iter().any(|i| i == id), "{id} in {ids:?}");
+        assert!(out.stderr.contains(id), "{id} on stderr: {}", out.stderr);
+    }
+    for needle in [CANARY, "changeme", weak.as_str()] {
+        assert!(!out.stderr.contains(needle), "{needle} on stderr");
+        assert!(
+            !report["checks"].to_string().contains(needle),
+            "{needle} in the checks"
+        );
+    }
+}
+
+#[test]
+fn a_rule_the_collection_switched_off_stays_quiet_for_the_security_rules_too() {
+    let (port, _) = serve(http("200 OK", &["Content-Type: application/json"], "{}"));
+    let dir = collection(
+        "sec-off",
+        "extensions:\n  requesttailor:\n    checks:\n      ignore:\n        - sec/no-rate-limit\n",
+        "",
+        port,
+    );
+    let out = send(&dir, &["--checks"]);
+    let report: Value = serde_json::from_str(&out.stdout).unwrap();
+    assert!(
+        !rule_ids(&report).iter().any(|i| i == "sec/no-rate-limit"),
+        "{}",
+        out.stderr
+    );
 }

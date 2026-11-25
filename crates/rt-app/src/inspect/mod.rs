@@ -17,7 +17,7 @@
 //! collection (`extensions.requesttailor.checks.ignore`, [`ignore_in_collection`]).
 
 mod checks;
-mod tokens;
+pub(crate) mod tokens;
 
 use rt_core::prepare::{PrepareInput, prepare};
 use rt_core::send::{ReportBody, SendReport};
@@ -146,6 +146,32 @@ pub fn rules() -> Vec<RuleInfo> {
         .collect()
 }
 
+/// The built-in rules and the passive security rules of wave 19 (`rt_app::security`), for the
+/// lists that switch rules off (device and collection). [`rules`] stays the nine of wave 18.
+pub fn all_rules() -> Vec<RuleInfo> {
+    all_checks()
+        .map(|c| RuleInfo {
+            id: c.id().to_owned(),
+            title: c.title().to_owned(),
+            severity: c.severity(),
+        })
+        .collect()
+}
+
+/// Every check the apps run on a response: the built-in ones, then the security ones.
+pub fn all_checks() -> impl Iterator<Item = &'static dyn ResponseCheck> {
+    builtin()
+        .iter()
+        .chain(crate::security::checks().iter())
+        .copied()
+}
+
+/// All checks ([`all_checks`]) over `view`, minus the ids in `ignore`.
+pub fn check_all(view: &ResponseView<'_>, ignore: &[String]) -> Vec<Observation> {
+    let checks: Vec<&dyn ResponseCheck> = all_checks().collect();
+    run_checks(view, &checks, &|id| ignore.iter().any(|i| i == id))
+}
+
 /// Reads `token` for display ([`rt_core::jwt::parse`]); never verifies the signature.
 pub fn jwt(token: &str) -> Result<JwtInfo, AppError> {
     jwt_at(token, rt_core::jwt::now_secs())
@@ -232,7 +258,7 @@ pub fn checks_of(
         response.size,
     );
     view.body_complete = complete;
-    Ok(check_response(&view, ignore))
+    Ok(check_all(&view.with_tls(response.tls.as_ref()), ignore))
 }
 
 /// The passive checks of a finished report (`rt send --checks`): the report's body is the
@@ -263,8 +289,9 @@ pub fn check_report(report: &SendReport, ignore: &[String]) -> Vec<Observation> 
         &response.headers,
         body,
         response.size,
-    );
-    check_response(&view, ignore)
+    )
+    .with_tls(response.tls.as_ref());
+    check_all(&view, ignore)
 }
 
 /// The rule ids the open collection switches off (`extensions.requesttailor.checks.ignore`,
@@ -276,7 +303,7 @@ pub fn collection_ignored(ws: &Workspace) -> Vec<String> {
 /// Switches `id` off for the collection (unsaved: `opencollection.yml` is staged like any
 /// edit; only the `checks` block changes). Refused for an id the checks do not know.
 pub fn ignore_in_collection(ws: &mut Workspace, id: &str) -> Result<(), AppError> {
-    if !builtin().iter().any(|c| c.id() == id) {
+    if !all_checks().any(|c| c.id() == id) {
         return Err(AppError::Shell(format!("unknown check: {id}")));
     }
     let mut config = ws.doc().checks_config();

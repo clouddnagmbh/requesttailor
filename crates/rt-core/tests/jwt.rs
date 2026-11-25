@@ -194,3 +194,36 @@ fn the_query_parameter_is_looked_at_too_and_a_good_token_is_quiet() {
     );
     assert!(notes_at(&req, NOW).is_empty());
 }
+
+#[test]
+fn an_hs256_secret_is_recognised_without_being_named() {
+    use base64::Engine as _;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use hmac::{Hmac, Mac};
+    let part = |v: serde_json::Value| URL_SAFE_NO_PAD.encode(v.to_string());
+    let sign = |alg: &str, key: &str| {
+        let input = format!(
+            "{}.{}",
+            part(serde_json::json!({"alg": alg})),
+            part(serde_json::json!({"sub": "x"}))
+        );
+        let mut mac = Hmac::<sha2::Sha256>::new_from_slice(key.as_bytes()).unwrap();
+        mac.update(input.as_bytes());
+        format!(
+            "{input}.{}",
+            URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes())
+        )
+    };
+    let token = sign("HS256", "changeme");
+    assert!(rt_core::jwt::hs256_secret_matches(&token, "changeme"));
+    assert!(!rt_core::jwt::hs256_secret_matches(&token, "another"));
+    // Another algorithm in the header, or no token at all: never a match.
+    assert!(!rt_core::jwt::hs256_secret_matches(
+        &sign("RS256", "changeme"),
+        "changeme"
+    ));
+    assert!(!rt_core::jwt::hs256_secret_matches(
+        "not a token",
+        "changeme"
+    ));
+}
