@@ -179,6 +179,11 @@ fn agent_delivers_without_collection(data: &Path, dir: &Path, server: u16) {
         "max_redirects": 5
     });
     let reply = post("/v1/send", Some(&token), &wire);
+    // An egress call of an extension (wave 19) is answered and handed to no observer.
+    let mut marked = wire.clone();
+    marked["headers"] = json!([[rt_core::transport::companion::EGRESS_HEADER, "1"]]);
+    let egress_reply = post("/v1/send", Some(&token), &marked);
+    assert!(String::from_utf8_lossy(&egress_reply).contains(SECRET));
     let _ = child.kill();
     let _ = child.wait();
     // The browser still gets the real body: the companion streams it unchanged.

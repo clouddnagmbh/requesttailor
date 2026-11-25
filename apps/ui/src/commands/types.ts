@@ -3008,6 +3008,8 @@ export interface EgressRequest {
   extension: string;
   purpose: string;
   collection?: string;
+  /** The environment whose secret variable `{{secret:<name>}}` names (default: the first with a value). */
+  environment?: string;
 }
 
 export interface EgressResponse {

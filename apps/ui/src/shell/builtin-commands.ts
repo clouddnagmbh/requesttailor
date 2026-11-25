@@ -10,6 +10,7 @@ import { accessCommands } from "../access/commands";
 import { catalogueCommands } from "../catalogue/commands";
 import { consumersCommands } from "../consumers/commands";
 import { debuggerCommands } from "../debugger/commands";
+import { egressCommands } from "../egress/commands";
 import { envcompareCommands } from "../envcompare/commands";
 import { inboxCommands } from "../inbox/commands";
 import { inspectCommands } from "../inspect/commands";
@@ -39,6 +40,7 @@ const SOURCES: BuiltinCommandSource[] = [
   catalogueCommands,
   // Wave 19.
   traceCommands,
+  egressCommands,
   accessCommands,
   shrinkCommands,
   consumersCommands,

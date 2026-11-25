@@ -17,7 +17,7 @@ export interface ExtensionEgress {
   /** The hosts the user allowed on this device. */
   hosts(): Promise<EgressHost[]>;
   /** Sends one call (`GET` or `POST`) to an allowed host; asks the user once for a new host.
-   *  Rejects with a `BackendError` (`unsupported` until strand B; `not-allowed` when the user
+   *  Rejects with a `BackendError` (`not-allowed` when the user
    *  declines; `blocked` when the guard refuses, as under air-gap rules). */
   request(request: EgressRequest): Promise<EgressResponse>;
 }
@@ -25,7 +25,8 @@ export interface ExtensionEgress {
 function hostOf(url: string): { host: string; port: number | null } | null {
   try {
     const u = new URL(url);
-    return { host: u.hostname, port: u.port ? Number(u.port) : null };
+    // Plain http on its default port is port 80; https on its default port is no port (443).
+    return { host: u.hostname, port: u.port ? Number(u.port) : u.protocol === "http:" ? 80 : null };
   } catch {
     return null;
   }

@@ -402,7 +402,40 @@ export class WebBackend implements Backend {
     this.companions = webCompanions(() => this.session());
     this.folderScripts = webFolderScripts(() => this.session());
     this.envCompare = webEnvCompare({ session: host.session, sendContext });
-    this.egress = webEgress();
+    this.egress = webEgress({
+      core: () => deps.loadCore(),
+      sendGuard: () => this.sendGuard,
+      companion: {
+        on: () => this.companionOn,
+        active: async () => (this.companionOn ? await this.companionCredentials() : null),
+        paired: async () => {
+          try {
+            return await this.client().credentials();
+          } catch {
+            return null;
+          }
+        },
+      },
+      // The values of the secret variables a call's headers name (the core resolves them).
+      secrets: async (request, names) => {
+        const s = this.session();
+        if (request.collection && request.collection !== s.id) {
+          throw new BackendError("limit", "Secrets of a collection that is not the open one are not available.");
+        }
+        const values: [string, string][] = [];
+        for (const env of s.ws.environments()) {
+          if (request.environment && request.environment !== env.name) continue;
+          const declared = env.variables.filter((v) => v.secret && v.enabled).map((v) => v.name);
+          if (!names.some((n) => declared.includes(n))) continue;
+          const stored = await this.secretValues(s, env.name);
+          for (const name of names) {
+            const hit = stored.find(([n]) => n === name);
+            if (hit && declared.includes(name) && !values.some(([n]) => n === name)) values.push([name, hit[1]]);
+          }
+        }
+        return { collection: s.ws.name(), values };
+      },
+    });
     this.journal = webJournal({ session: host.session, sendContext, plugins: () => this.plugins.list() });
     this.access = webAccess();
     this.shrink = webShrink({ session: host.session, sendContext });

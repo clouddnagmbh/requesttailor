@@ -33,6 +33,10 @@ async function startShell() {
     extensions.push((await import("./dev-extensions"))[({ demo: "demoExtension", demo15: "demo15Extension", demo16: "demo16Extension", demo17: "demo17Extension", demo19: "demo19Extension" } as const)[demo]]);
   }
 
+  if (import.meta.env.DEV && demo === "egress") {
+    extensions.push((await import("./dev-egress")).egressDemoExtension);
+  }
+
   startApp(document.getElementById("app")!, backend, { extensions });
   await takeSharedFragment(backend);
 }

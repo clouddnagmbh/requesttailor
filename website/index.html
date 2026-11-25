@@ -94,6 +94,7 @@ fails the build.</p>
 <tr><td>Sending again after you save a file with <code>rt send --watch</code>, from the change to the request</td><td>at most <span data-budget="watch_resend">500</span> ms</td></tr>
 <tr><td>Comparing 100 reading requests in two environments, from start to the finished list</td><td>at most <span data-budget="env_compare">500</span> ms</td></tr>
 <tr><td>Waiting for a rate limit (<code>Retry-After</code>) when running with <code>--respect-limits</code>: how far off the announced wait is</td><td>at most <span data-budget="ratelimit_wait">50</span> ms</td></tr>
+<tr><td>What one network call of an extension adds over the plain transport (allowed host, guard asked)</td><td>at most <span data-budget="egress_overhead">1</span> ms</td></tr>
 <tr><td>What the test-data journal adds to one writing send</td><td>at most <span data-budget="journal_overhead">1</span> ms</td></tr>
 <tr><td>Passive checks of a 1 MiB response</td><td>at most <span data-budget="response_checks">20</span> ms</td></tr>
 <tr><td>Linting a collection with 1000 requests</td><td>at most <span data-budget="lint_1000">500</span> ms</td></tr>

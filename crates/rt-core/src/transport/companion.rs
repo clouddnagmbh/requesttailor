@@ -128,6 +128,12 @@ pub struct WireHead {
 /// The companion lists it in `Access-Control-Expose-Headers` so `fetch` can read it.
 pub const HEAD_HEADER: &str = "x-rt-head";
 
+/// A request header of `POST /v1/send` that marks the call as an *egress* call of an extension
+/// (wave 19, `rt_app::egress`). The companion removes it before the request goes out and does
+/// not hand the exchange to its observers: an egress call leaves no trace in a distribution's
+/// memory of exchanges.
+pub const EGRESS_HEADER: &str = "x-rt-egress";
+
 /// Encodes a [`WireHead`] for [`HEAD_HEADER`]. Everything but printable ASCII is escaped as
 /// `\uXXXX`: browsers decode header values as Latin-1, and a header value may not contain
 /// control characters.

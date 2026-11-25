@@ -379,10 +379,17 @@ async fn send(
         Ok(w) => w,
         Err(response) => return with_cors(response, origin),
     };
-    let request = match HttpRequest::try_from(wire) {
+    let mut request = match HttpRequest::try_from(wire) {
         Ok(r) => r,
         Err(e) => return text(StatusCode::BAD_REQUEST, &e, cors),
     };
+    // An egress call of an extension (wave 19): the marker goes no further, and the exchange
+    // is not handed to the observers.
+    let before = request.headers.len();
+    request.headers.retain(|(name, _)| {
+        !name.eq_ignore_ascii_case(rt_core::transport::companion::EGRESS_HEADER)
+    });
+    let egress = request.headers.len() != before;
     let method = request.method.clone();
     let target = log_target(&request.url);
     if agent.is_self(&request.url) {
@@ -398,7 +405,7 @@ async fn send(
     let started = Instant::now();
     // Wave 17: what an observer needs of the request, kept only if there is one.
     let observers = agent.observers();
-    let sent = (!observers.is_empty()).then(|| {
+    let sent = (!egress && !observers.is_empty()).then(|| {
         (
             request.url.clone(),
             request.headers.clone(),
