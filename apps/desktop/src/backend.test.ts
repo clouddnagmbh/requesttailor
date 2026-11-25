@@ -658,7 +658,7 @@ describe("TauriBackend", () => {
       ["inspect_tokens", { target: { path: "a.yml" } }],
       ["inspect_checks", { target: { path: "a.yml", response_id: 1 } }],
       ["inspect_ignore_check", { id: "cookie/no-secure", scope: "device" }],
-      ["paging_rule", { path: "a.yml" }],
+      ["paging_rule", { path: "a.yml", responseId: null }],
       ["paging_set_rule", { path: "a.yml", spec: null, scope: "request" }],
       ["paging_run", { run: { path: "a.yml", input: { environment: null, vars: [], secrets: [] }, mode: "next" } }],
       ["inbox_settings", undefined],
