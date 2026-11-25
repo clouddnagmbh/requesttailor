@@ -20,6 +20,7 @@
 mod files;
 mod json;
 mod reflection;
+mod schema;
 
 use prost_reflect::{DescriptorPool, MethodDescriptor};
 use rt_core::model::{GrpcMethodType, GrpcSpec, ProtobufConfig};
@@ -27,6 +28,9 @@ use rt_core::stream::{Frame, StreamEvent, StreamTransport};
 use serde::{Deserialize, Serialize};
 
 pub use files::{Loader, join as join_path, normalize as normalize_path};
+pub use schema::{
+    Label, ProtoEnum, ProtoField, ProtoFile, ProtoMessage, ProtoMethod, ProtoSchema, ProtoService,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GrpcService {
@@ -152,6 +156,11 @@ impl Descriptors {
         Ok(Self {
             pool: reflection::fetch(transport, url, metadata).await?,
         })
+    }
+
+    /// The compiled files as plain data, for comparing two versions (wave 18).
+    pub fn schema(&self) -> ProtoSchema {
+        schema::of(&self.pool)
     }
 
     /// Services and their methods, sorted by name; the reflection service itself is left out.

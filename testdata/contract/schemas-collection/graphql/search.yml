@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Search
+  type: graphql
+  seq: 5
+
+graphql:
+  method: POST
+  url: "{{baseUrl}}/graphql"
+  body:
+    query: |-
+      query {
+        search(text: "a") {
+          ... on Category {
+            label
+          }
+          ... on Product {
+            name
+          }
+        }
+      }
+    variables: |-
+      {}
+  auth: inherit

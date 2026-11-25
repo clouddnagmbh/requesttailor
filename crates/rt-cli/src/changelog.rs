@@ -5,10 +5,14 @@
 //! (`rt_app::contract::changelog`) of the OpenAPI spec and the collection between two
 //! revisions, read from Git without a checkout (`rt-git`), written as Markdown to stdout.
 //!
-//! Wave 12, strand F. A distribution appends its own sections
+//! Wave 12, strand F. Since wave 18 (strand H) the changes of a GraphQL schema and of the
+//! Protobuf files of `config.protobuf` follow as the sections `## GraphQL` and `## Protobuf`
+//! (`rt_app::contract::SchemaSection`), before the sections of a distribution. A distribution appends its own sections
 //! ([`crate::Distribution::changelog`], since wave 13). The spec is the one `opencollection.yml` names
 //! (`extensions.requesttailor.contract.spec`), else `openapi.yaml`, `openapi.yml` or
-//! `openapi.json` next to the collection or at the repository root, on each side of the range.
+//! `openapi.json` next to the collection or at the repository root, on each side of the range. A GraphQL schema is
+//! `extensions.requesttailor.contract.graphql`, else `schema.graphql`, `schema.gql` or
+//! `schema.graphqls` next to the collection or at the repository root.
 //! Since wave 16 a distribution can offer other writers ([`crate::Distribution::
 //! changelog_writers`]): `rt changelog <range> --<flag> [--<option> <value>]...` gives them
 //! the facts of the range ([`ChangelogFacts`]) instead of writing the Markdown itself; their
@@ -21,7 +25,8 @@ use std::path::PathBuf;
 
 use rt_app::AppError;
 use rt_app::contract::{
-    ChangelogFacts, ChangelogSection, ChangelogWriter, Side, changelog_facts, changelog_with,
+    ChangelogFacts, ChangelogSection, ChangelogWriter, SchemaKind, SchemaSection, Side,
+    changelog_facts, changelog_with,
 };
 use rt_git::{Options, Repo};
 
@@ -41,7 +46,7 @@ pub fn writers_help(writers: &[&dyn ChangelogWriter]) -> String {
 }
 
 /// The section in `rt --help`.
-pub const HELP: &str = "rt changelog writes an API changelog in Markdown for a range of Git revisions:\nthe breaking and other changes of the OpenAPI spec (with the requests they\naffect) and the changes of the collection. The spec is named in opencollection.yml\n(extensions.requesttailor.contract.spec) or is openapi.yaml/.yml/.json next to\nthe collection or at the repository root. <collection> defaults to the current\nfolder; --out writes to a file instead of stdout.\n";
+pub const HELP: &str = "rt changelog writes an API changelog in Markdown for a range of Git revisions:\nthe breaking and other changes of the OpenAPI spec (with the requests they\naffect) and the changes of the collection. The spec is named in opencollection.yml\n(extensions.requesttailor.contract.spec) or is openapi.yaml/.yml/.json next to\nthe collection or at the repository root. The changes of a GraphQL schema\n(extensions.requesttailor.contract.graphql, else schema.graphql next to the\ncollection or at the repository root) and of the Protobuf files of\nconfig.protobuf follow in the sections GraphQL and Protobuf, with the requests\nthey affect. <collection> defaults to the current folder; --out writes to a file\ninstead of stdout.\n";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Args {
@@ -157,17 +162,33 @@ fn with_sides<T>(
     )
 }
 
+/// The schema sections of this repository, then what a distribution appends.
+fn with_schemas<T>(
+    extra: &[&dyn ChangelogSection],
+    f: impl FnOnce(&[&dyn ChangelogSection]) -> T,
+) -> T {
+    let graphql = SchemaSection::new(SchemaKind::Graphql);
+    let protobuf = SchemaSection::new(SchemaKind::Protobuf);
+    let mut all: Vec<&dyn ChangelogSection> = vec![&graphql, &protobuf];
+    all.extend_from_slice(extra);
+    f(&all)
+}
+
 fn render(args: &Args, sections: &[&dyn ChangelogSection]) -> Result<String, AppError> {
-    with_sides(args, |_, old, new| {
-        changelog_with(old, new, &args.from, &args.to, sections)
+    with_schemas(sections, |all| {
+        with_sides(args, |_, old, new| {
+            changelog_with(old, new, &args.from, &args.to, all)
+        })
     })
 }
 
 /// What a writer builds on: the changelog, its parts and the commits of the range.
 fn facts(args: &Args, sections: &[&dyn ChangelogSection]) -> Result<ChangelogFacts, AppError> {
-    with_sides(args, |repo, old, new| {
-        let commits = repo.changelog_commits(&args.from, &args.to)?;
-        changelog_facts(old, new, &args.from, &args.to, sections, commits)
+    with_schemas(sections, |all| {
+        with_sides(args, |repo, old, new| {
+            let commits = repo.changelog_commits(&args.from, &args.to)?;
+            changelog_facts(old, new, &args.from, &args.to, all, commits)
+        })
     })
 }
 

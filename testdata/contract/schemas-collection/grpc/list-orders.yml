@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: List orders
+  type: grpc
+  seq: 2
+
+grpc:
+  url: "{{host}}"
+  method: /shop.orders.Orders/ListOrders
+  methodType: server-streaming
+  message:
+    - title: message 1
+      message: |-
+        {}

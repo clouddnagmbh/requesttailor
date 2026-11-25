@@ -5,7 +5,7 @@
 
 use std::fmt::Write as _;
 
-use super::{SpecChange, SpecChanges};
+use super::{SchemaKind, SpecChange, SpecChanges};
 use crate::diff::{ChangeKind, ChangeTarget, CollectionDiff, FileStatus, ModelChange};
 
 fn line(c: &SpecChange) -> String {
@@ -80,4 +80,32 @@ pub(super) fn render(title: &str, spec: &SpecChanges, collection: &CollectionDif
         }
     }
     out
+}
+
+/// The part of the changelog for a GraphQL or Protobuf schema (wave 18): its own heading,
+/// breaking changes first, the rest after; `None` if nothing changed.
+pub(super) fn schema_section(kind: SchemaKind, spec: &SpecChanges) -> Option<String> {
+    if spec.changes.is_empty() {
+        return None;
+    }
+    let title = match kind {
+        SchemaKind::Graphql => "GraphQL",
+        SchemaKind::Protobuf => "Protobuf",
+    };
+    let mut out = format!("## {title}\n\n### Breaking changes\n\n");
+    let breaking: Vec<&SpecChange> = spec.changes.iter().filter(|c| c.breaking).collect();
+    if breaking.is_empty() {
+        out.push_str("None.\n");
+    }
+    for c in &breaking {
+        out.push_str(&line(c));
+    }
+    let other: Vec<&SpecChange> = spec.changes.iter().filter(|c| !c.breaking).collect();
+    if !other.is_empty() {
+        out.push_str("\n### Other changes\n\n");
+        for c in &other {
+            out.push_str(&line(c));
+        }
+    }
+    Some(out)
 }

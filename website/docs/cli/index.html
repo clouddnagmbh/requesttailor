@@ -178,6 +178,12 @@ with the requests they affect, then the changes of the collection. The spec is
 <code>openapi.yaml</code> (or <code>.yml</code>, <code>.json</code>) next to the collection or
 at the repository root, or the path in <code>extensions.requesttailor.contract.spec</code> of
 <code>opencollection.yml</code>.</p>
+<p>Two more sections follow when the collection has the files: <em>GraphQL</em> for a schema in
+SDL (<code>extensions.requesttailor.contract.graphql</code>, or <code>schema.graphql</code> next
+to the collection or at the repository root) and <em>Protobuf</em> for the <code>.proto</code>
+files of the collection&rsquo;s Protobuf settings and what they import. Each lists the breaking
+changes first, with the GraphQL requests that select a changed field and the gRPC requests
+that call a changed method or reach a changed message.</p>
 
 <h2 id="mcp">rt mcp</h2>
 <p>Offers a collection to AI agents over the Model Context Protocol. See

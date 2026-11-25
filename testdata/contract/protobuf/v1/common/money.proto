@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+syntax = "proto3";
+
+package shop.common;
+
+message Money {
+  string currency = 1;
+  int64 units = 2;
+}

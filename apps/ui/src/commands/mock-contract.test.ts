@@ -39,4 +39,18 @@ describe("mock contract", () => {
     expect(text).toContain("## Breaking changes");
     expect(text).toContain("`DELETE /orders/{id}`");
   });
+
+  it("has GraphQL and Protobuf changes with the demo, none without (a hint is never an error)", async () => {
+    const off = await demo(false);
+    expect((await off.schemaChanges("graphql", "HEAD", "HEAD")).changes).toEqual([]);
+    const c = await demo(true);
+    const graphql = await c.schemaChanges("graphql", "HEAD", "HEAD");
+    expect(graphql.changes.filter((x) => x.breaking).map((x) => x.operation)).toEqual(["Order.total", "Query.orders"]);
+    const protobuf = await c.schemaChanges("protobuf", "HEAD", "HEAD");
+    expect(protobuf.changes.filter((x) => x.breaking)).toHaveLength(1);
+    await expect(c.schemaChanges("graphql", "nope", "HEAD")).rejects.toBeInstanceOf(BackendError);
+    const text = await c.changelog("HEAD", "HEAD");
+    expect(text.indexOf("## GraphQL")).toBeGreaterThan(text.indexOf("## Other changes"));
+    expect(text.indexOf("## Protobuf")).toBeGreaterThan(text.indexOf("## GraphQL"));
+  });
 });

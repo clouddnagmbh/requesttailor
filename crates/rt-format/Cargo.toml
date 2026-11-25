@@ -10,6 +10,9 @@ publish.workspace = true
 
 [dependencies]
 rt-core = { path = "../rt-core" }
+# Wave 18, strand H: compiled proto files as plain data, for the Protobuf contract. The same
+# pure-Rust compiler (protox) the gRPC requests use; builds on every target.
+rt-grpc = { path = "../rt-grpc" }
 # Loss reports and import formats are part of the app and CLI JSON.
 serde = { version = "1", features = ["derive"] }
 # Arguments of saved MCP tests (wave 8, `mcp_test`); already in the tree.

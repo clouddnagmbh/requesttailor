@@ -1,0 +1,77 @@
+// Synthetic Orders protocol, version 1 (written for RequestTailor tests, Apache-2.0).
+syntax = "proto3";
+
+package shop.orders;
+
+import "common/money.proto";
+
+service Orders {
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  rpc ListOrders(ListOrdersRequest) returns (stream Order);
+  rpc Upload(stream Chunk) returns (UploadResult);
+  rpc Watch(WatchRequest) returns (stream Order);
+  rpc Cancel(CancelRequest) returns (Order);
+}
+
+service Admin {
+  rpc Purge(PurgeRequest) returns (PurgeResult);
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message ListOrdersRequest {
+  int32 limit = 1;
+  string customer = 2;
+  int32 offset = 3;
+}
+
+message Order {
+  string id = 1;
+  shop.common.Money total = 2;
+  Status status = 3;
+  repeated string tags = 4;
+  string note = 5;
+  oneof contact {
+    string email = 6;
+    string phone = 7;
+  }
+  int32 priority = 8;
+  string legacy = 9;
+  Customer customer = 10;
+  map<string, string> labels = 11;
+
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    OPEN = 1;
+    PAID = 2;
+    CANCELLED = 3;
+  }
+
+  message Customer {
+    string name = 1;
+  }
+}
+
+message Chunk {
+  bytes data = 1;
+}
+
+message UploadResult {
+  int64 size = 1;
+}
+
+message WatchRequest {
+  string customer = 1;
+}
+
+message CancelRequest {
+  string id = 1;
+}
+
+message PurgeRequest {}
+
+message PurgeResult {
+  int32 removed = 1;
+}
