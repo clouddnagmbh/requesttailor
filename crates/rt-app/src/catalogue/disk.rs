@@ -39,7 +39,8 @@ impl DiskCatalogue {
     }
 
     fn save(&self, sources: &[CatalogueSource]) -> Result<(), AppError> {
-        let json = serde_json::to_vec_pretty(sources).map_err(|e| AppError::Shell(e.to_string()))?;
+        let json =
+            serde_json::to_vec_pretty(sources).map_err(|e| AppError::Shell(e.to_string()))?;
         Ok(self.dir.write_aux(SOURCES_FILE, &json)?)
     }
 
@@ -67,7 +68,9 @@ impl DiskCatalogue {
         let before = all.len();
         all.retain(|s| s.url != url);
         if all.len() == before {
-            return Err(AppError::Plugin(format!("{url} is not one of your sources")));
+            return Err(AppError::Plugin(format!(
+                "{url} is not one of your sources"
+            )));
         }
         self.save(&all)
     }

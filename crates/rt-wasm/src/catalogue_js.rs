@@ -134,7 +134,13 @@ pub fn catalogue_plan(
     Ok(wasm_bindgen_futures::future_to_promise(async move {
         let plan = match companion {
             Some(c) => {
-                plan_over(&CompanionTransport::new(c.url, c.token), &source, &id, installed).await
+                plan_over(
+                    &CompanionTransport::new(c.url, c.token),
+                    &source,
+                    &id,
+                    installed,
+                )
+                .await
             }
             None => plan_over(&FetchTransport::new(), &source, &id, installed).await,
         };
@@ -176,7 +182,9 @@ pub fn catalogue_module(
     let installed = installed_state(&installed)?;
     Ok(wasm_bindgen_futures::future_to_promise(async move {
         let bytes = match companion {
-            Some(c) => module_over(&CompanionTransport::new(c.url, c.token), &plan, installed).await,
+            Some(c) => {
+                module_over(&CompanionTransport::new(c.url, c.token), &plan, installed).await
+            }
             None => module_over(&FetchTransport::new(), &plan, installed).await,
         };
         Ok(Uint8Array::from(bytes.map_err(app_error)?.as_slice()).into())

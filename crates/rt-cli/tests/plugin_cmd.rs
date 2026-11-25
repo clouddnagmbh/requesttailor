@@ -65,7 +65,10 @@ impl Host {
         Self { port, files, asked }
     }
     fn serve(&self, path: &str, body: impl Into<Vec<u8>>) {
-        self.files.lock().unwrap().insert(path.to_owned(), body.into());
+        self.files
+            .lock()
+            .unwrap()
+            .insert(path.to_owned(), body.into());
     }
     fn url(&self, path: &str) -> String {
         format!("http://127.0.0.1:{}{path}", self.port)
@@ -130,7 +133,12 @@ fn rt(data: &Data, stdin: &str, args: &[&str]) -> Out {
         .stderr(Stdio::piped())
         .spawn()
         .expect("run rt");
-    child.stdin.take().unwrap().write_all(stdin.as_bytes()).unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(stdin.as_bytes())
+        .unwrap();
     let out = child.wait_with_output().unwrap();
     Out {
         code: out.status.code().unwrap_or(-1),
@@ -156,14 +164,23 @@ fn yes_needs_a_checksum_and_there_is_no_built_in_index() {
     let o = rt(&data, "", &["sources", "list"]);
     assert_eq!(o.code, 0);
     assert!(o.stdout.contains("No sources"), "{}", o.stdout);
-    let o = rt(&data, "", &["sources", "add", "http://plugins.example.test/plugins.json"]);
+    let o = rt(
+        &data,
+        "",
+        &["sources", "add", "http://plugins.example.test/plugins.json"],
+    );
     assert_eq!(o.code, 2, "plain http is only for localhost: {}", o.stderr);
 }
 
 #[test]
 fn a_source_costs_nothing_until_a_command_needs_its_index() {
     let host = Host::start();
-    host.publish("demo", "1.0.0", &fixture("demo.wasm"), json!({"storage": true}));
+    host.publish(
+        "demo",
+        "1.0.0",
+        &fixture("demo.wasm"),
+        json!({"storage": true}),
+    );
     let data = Data::new("quiet");
     let url = host.url("/plugins.json");
     assert_eq!(rt(&data, "", &["sources", "add", &url]).code, 0);
@@ -175,7 +192,12 @@ fn a_source_costs_nothing_until_a_command_needs_its_index() {
     assert_eq!(o.code, 0, "{}", o.stderr);
     assert!(o.stdout.contains("demo  1.0.0"), "{}", o.stdout);
     assert_eq!(host.asked(), 1, "one request: the index");
-    assert!(rt(&data, "", &["sources", "list"]).stdout.contains("(Fake index)"), "the name is remembered");
+    assert!(
+        rt(&data, "", &["sources", "list"])
+            .stdout
+            .contains("(Fake index)"),
+        "the name is remembered"
+    );
 }
 
 #[test]
@@ -220,14 +242,22 @@ fn a_wrong_checksum_a_tampered_module_and_a_declined_question_install_nothing() 
     let none = || !data.0.join("plugins/demo.wasm").exists();
 
     // The user verified another checksum than the index lists.
-    let o = rt(&data, "", &["install", "demo", "--yes", "--sha256", &"0".repeat(64)]);
+    let o = rt(
+        &data,
+        "",
+        &["install", "demo", "--yes", "--sha256", &"0".repeat(64)],
+    );
     assert_eq!(o.code, 1);
     assert!(o.stderr.contains("Nothing was installed"), "{}", o.stderr);
     assert!(none());
 
     // The module on the host is not the one the index describes.
     host.serve("/demo-1.0.0.wasm", republished(wasm.clone()));
-    let o = rt(&data, "", &["install", "demo", "--yes", "--sha256", &sha256_hex(&wasm)]);
+    let o = rt(
+        &data,
+        "",
+        &["install", "demo", "--yes", "--sha256", &sha256_hex(&wasm)],
+    );
     assert_eq!(o.code, 1);
     assert!(o.stderr.contains("checksum does not match"), "{}", o.stderr);
     assert!(none());
@@ -257,8 +287,16 @@ fn rights_come_from_the_module_and_a_difference_warns() {
     rt(&data, "", &["sources", "add", &host.url("/plugins.json")]);
     let o = rt(&data, "n\n", &["install", "demo"]);
     assert!(o.stdout.contains("rights   storage"), "{}", o.stdout);
-    assert!(o.stdout.contains("warning  The index names other rights"), "{}", o.stdout);
-    assert!(!o.stdout.contains("network"), "the claim is not shown as a right: {}", o.stdout);
+    assert!(
+        o.stdout.contains("warning  The index names other rights"),
+        "{}",
+        o.stdout
+    );
+    assert!(
+        !o.stdout.contains("network"),
+        "the claim is not shown as a right: {}",
+        o.stdout
+    );
 }
 
 #[test]
@@ -268,27 +306,70 @@ fn a_republished_release_is_refused_and_an_update_with_more_rights_asks() {
     host.publish("demo", "1.0.0", &v1, json!({"storage": true}));
     let data = Data::new("update");
     rt(&data, "", &["sources", "add", &host.url("/plugins.json")]);
-    assert_eq!(rt(&data, "", &["install", "demo", "--yes", "--sha256", &sha256_hex(&v1)]).code, 0);
+    assert_eq!(
+        rt(
+            &data,
+            "",
+            &["install", "demo", "--yes", "--sha256", &sha256_hex(&v1)]
+        )
+        .code,
+        0
+    );
 
     // The index now lists other bytes under 1.0.0.
     let changed = republished(v1.clone());
     host.publish("demo", "1.0.0", &changed, json!({"storage": true}));
-    let o = rt(&data, "", &["install", "demo", "--yes", "--sha256", &sha256_hex(&changed)]);
+    let o = rt(
+        &data,
+        "",
+        &[
+            "install",
+            "demo",
+            "--yes",
+            "--sha256",
+            &sha256_hex(&changed),
+        ],
+    );
     assert_eq!(o.code, 1);
-    assert!(o.stderr.contains("the index changed a published release"), "{}", o.stderr);
-    assert_eq!(std::fs::read(data.0.join("plugins/demo.wasm")).unwrap(), v1, "still the old module");
+    assert!(
+        o.stderr.contains("the index changed a published release"),
+        "{}",
+        o.stderr
+    );
+    assert_eq!(
+        std::fs::read(data.0.join("plugins/demo.wasm")).unwrap(),
+        v1,
+        "still the old module"
+    );
 
     // Version 2 asks for network access: found when asked, asked about, never silent.
     let v2 = fixture("demo-v2.wasm");
-    host.publish("demo", "2.0.0", &v2, json!({"network": ["{request}"], "storage": true}));
+    host.publish(
+        "demo",
+        "2.0.0",
+        &v2,
+        json!({"network": ["{request}"], "storage": true}),
+    );
     let o = rt(&data, "", &["update", "--check"]);
     assert_eq!(o.code, 0, "{}", o.stderr);
     assert!(o.stdout.contains("demo  1.0.0 -> 2.0.0"), "{}", o.stdout);
-    assert_eq!(rt(&data, "", &["list"]).stdout.matches("1.0.0").count(), 1, "--check installs nothing");
+    assert_eq!(
+        rt(&data, "", &["list"]).stdout.matches("1.0.0").count(),
+        1,
+        "--check installs nothing"
+    );
     // `--yes` with the verified checksum still asks about more rights.
-    let o = rt(&data, "", &["install", "demo", "--yes", "--sha256", &sha256_hex(&v2)]);
+    let o = rt(
+        &data,
+        "",
+        &["install", "demo", "--yes", "--sha256", &sha256_hex(&v2)],
+    );
     assert_eq!(o.code, 2, "{}", o.stdout);
-    assert!(o.stdout.contains("asks for more than you granted before"), "{}", o.stdout);
+    assert!(
+        o.stdout.contains("asks for more than you granted before"),
+        "{}",
+        o.stdout
+    );
     let o = rt(&data, "y\n", &["update"]);
     assert_eq!(o.code, 0, "{}{}", o.stdout, o.stderr);
     assert!(rt(&data, "", &["list"]).stdout.contains("demo  2.0.0"));
@@ -303,11 +384,23 @@ fn a_module_by_address_needs_a_question_or_a_checksum() {
     let url = host.url("/demo.wasm");
     let o = rt(&data, "n\n", &["install", &url]);
     assert_eq!(o.code, 2);
-    assert!(o.stdout.contains(&sha256_hex(&wasm)), "the computed checksum is shown: {}", o.stdout);
-    let o = rt(&data, "", &["install", &url, "--yes", "--sha256", &"1".repeat(64)]);
+    assert!(
+        o.stdout.contains(&sha256_hex(&wasm)),
+        "the computed checksum is shown: {}",
+        o.stdout
+    );
+    let o = rt(
+        &data,
+        "",
+        &["install", &url, "--yes", "--sha256", &"1".repeat(64)],
+    );
     assert_eq!(o.code, 1, "{}", o.stdout);
     assert!(o.stderr.contains("checksum does not match"), "{}", o.stderr);
-    let o = rt(&data, "", &["install", &url, "--yes", "--sha256", &sha256_hex(&wasm)]);
+    let o = rt(
+        &data,
+        "",
+        &["install", &url, "--yes", "--sha256", &sha256_hex(&wasm)],
+    );
     assert_eq!(o.code, 0, "{}{}", o.stdout, o.stderr);
 }
 

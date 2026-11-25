@@ -258,7 +258,9 @@ impl PluginDir {
     /// Writes a small file next to the plugins (atomically).
     pub fn write_aux(&self, name: &str, bytes: &[u8]) -> Result<(), PluginError> {
         if !aux_name(name) {
-            return Err(io(format!("{name:?} is not a file name of the plugin folder")));
+            return Err(io(format!(
+                "{name:?} is not a file name of the plugin folder"
+            )));
         }
         write_atomic(&self.dir.join(name), bytes).map_err(io)
     }

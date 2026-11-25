@@ -202,7 +202,10 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
 /// `run` with `ask` answering the questions (tests).
 pub fn run_with(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write, ask: Ask<'_>) -> i32 {
     let Some(dir) = PluginDir::shared() else {
-        let _ = writeln!(stderr, "rt: plugin: there is no data folder (set RT_DATA_DIR)");
+        let _ = writeln!(
+            stderr,
+            "rt: plugin: there is no data folder (set RT_DATA_DIR)"
+        );
         return crate::EXIT_USAGE;
     };
     let mut ctx = Ctx {
@@ -227,7 +230,14 @@ pub fn run_with(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write, ask:
             source,
             yes,
             sha256,
-        } => install(&mut ctx, &target, source.as_deref(), yes, sha256.as_deref(), ask),
+        } => install(
+            &mut ctx,
+            &target,
+            source.as_deref(),
+            yes,
+            sha256.as_deref(),
+            ask,
+        ),
         Action::Update { check } => update(&mut ctx, check, ask),
         Action::Verify => verify(&mut ctx),
         Action::Remove(id) => remove(&mut ctx, &id),
@@ -414,7 +424,11 @@ fn search(ctx: &mut Ctx<'_>, text: &str) -> Outcome {
                 e.id,
                 e.version,
                 e.name,
-                f.index.source.name.as_deref().unwrap_or(&f.index.source.url),
+                f.index
+                    .source
+                    .name
+                    .as_deref()
+                    .unwrap_or(&f.index.source.url),
                 e.description,
                 rights(&e.permissions)
             );
@@ -582,7 +596,10 @@ fn finish_install(
 fn update(ctx: &mut Ctx<'_>, check: bool, ask: Ask<'_>) -> Outcome {
     let installed = ctx.disk.installed_sources();
     if installed.is_empty() {
-        let _ = writeln!(ctx.out, "Nothing was installed from a source; nothing to update.");
+        let _ = writeln!(
+            ctx.out,
+            "Nothing was installed from a source; nothing to update."
+        );
         return Ok(crate::EXIT_OK);
     }
     let mut wanted: Vec<CatalogueSource> = Vec::new();

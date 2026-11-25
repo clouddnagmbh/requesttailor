@@ -4,7 +4,7 @@
 // Wave 18, strand I: `catalogue_index` (perf/README.md). Reading and searching a plugin index with
 // 1000 entries, release build of rt-app, median of 9 (crates/rt-app/tests/catalogue_perf.rs,
 // `catalogue_index_is_measured`); the SHA-256 of a 10 MiB module is reported in the details and
-// must stay under 50 ms.
+// is held at 250 ms (software SHA-256).
 
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

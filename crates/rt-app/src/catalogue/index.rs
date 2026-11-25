@@ -45,7 +45,9 @@ pub fn parse_index(bytes: &[u8]) -> Result<CatalogueIndex, AppError> {
                 .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
             || id.starts_with('-')
         {
-            return Err(err(format!("the index names a plugin {id:?}: not a plugin id")));
+            return Err(err(format!(
+                "the index names a plugin {id:?}: not a plugin id"
+            )));
         }
         if !seen.insert(id.clone()) {
             return Err(err(format!("the index lists {id} twice")));
@@ -125,10 +127,7 @@ pub fn locate(source: &str) -> Result<Located, AppError> {
             "a source is an https:// address without a password (http only for localhost)",
         ));
     }
-    let git_ref = url
-        .fragment()
-        .map(str::to_owned)
-        .filter(|r| !r.is_empty());
+    let git_ref = url.fragment().map(str::to_owned).filter(|r| !r.is_empty());
     let mut bare = url.clone();
     bare.set_fragment(None);
     if git_ref.is_none() && bare.path().to_ascii_lowercase().ends_with(".json") {
@@ -216,9 +215,12 @@ pub fn short(commit: &str) -> String {
 pub fn resolve_wasm_url(index_url: &str, entry: &CatalogueEntry) -> Result<String, AppError> {
     let base = url::Url::parse(index_url)
         .map_err(|_| err(format!("{index_url:?} is not a web address")))?;
-    let url = base
-        .join(entry.wasm.url.trim())
-        .map_err(|_| err(format!("{}: {:?} is not an address", entry.id, entry.wasm.url)))?;
+    let url = base.join(entry.wasm.url.trim()).map_err(|_| {
+        err(format!(
+            "{}: {:?} is not an address",
+            entry.id, entry.wasm.url
+        ))
+    })?;
     if !allowed_url(&url) {
         return Err(err(format!(
             "{}: the module must come from an https:// address ({url})",

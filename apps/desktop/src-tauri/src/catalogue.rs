@@ -99,7 +99,9 @@ pub async fn refresh<T: Transport>(
     let urls: Vec<String> = match source {
         Some(url) => {
             if !store.sources().iter().any(|s| s.url == url) {
-                return Err(AppError::Plugin(format!("{url} is not one of your sources")));
+                return Err(AppError::Plugin(format!(
+                    "{url} is not one of your sources"
+                )));
             }
             vec![url.to_owned()]
         }
@@ -240,10 +242,10 @@ pub async fn catalogue_refresh(
     source: Option<String>,
 ) -> Result<Vec<SourceIndex>, CommandError> {
     let services = core.services.clone();
-    Ok(native(move |t| async move {
-        refresh(&services.plugins, &t, source.as_deref()).await
-    })
-    .await?)
+    Ok(
+        native(move |t| async move { refresh(&services.plugins, &t, source.as_deref()).await })
+            .await?,
+    )
 }
 
 #[tauri::command]
