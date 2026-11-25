@@ -3431,6 +3431,13 @@ export interface NotebookRun {
   block?: string;
   environment?: string;
   allow_writes?: boolean;
+  /** Variables of earlier blocks the view holds (a masked value is not carried). */
+  vars?: [string, string][];
+}
+
+export interface BlockView {
+  show: NotebookShow;
+  result: ViewResult;
 }
 
 export interface BlockResult {
@@ -3438,6 +3445,9 @@ export interface BlockResult {
   report?: SendReport;
   set?: [string, string][];
   skipped?: string;
+  /** Tables and chart values of the block's `show:` lines (never saved). */
+  views?: BlockView[];
+  notes?: string[];
 }
 
 export interface NotebookOutcome {

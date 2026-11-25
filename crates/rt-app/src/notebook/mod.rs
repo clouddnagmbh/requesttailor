@@ -5,24 +5,48 @@
 //! Markdown companion file `<name>.notebook.md` in the collection (files are the truth;
 //! OpenCollection is not touched, the reader only reads `.yml`): prose, executable request
 //! blocks, variables passed between blocks. **Outputs are never saved** (a response, a table
-//! from a JSONPath, a simple chart are shown in the view), only on request as a snapshot.
+//! from a JSONPath, a simple chart are shown in the view and held in memory), only on request
+//! as a snapshot (the existing snapshot feature, not this module).
 //!
 //! Format: ordinary Markdown. A request block is a fenced code block whose info string is
-//! `rt-request`; its body is YAML with `ref: <path of a request file>` or an embedded
-//! request (`method`, `url`, `headers`, `body`) and an optional `id`, `set:` (variables to
-//! take from the response: `name: $.json.path`) and `show:` (`response`, `table: $.items[*]`,
-//! `chart: $.values`). `{{variables}}` resolve like in any request; earlier blocks' `set:`
-//! values are runtime variables for the following ones. Secrets are `{{secret:name}}` and
-//! never appear in the file or an output.
+//! `rt-request`; everything outside such blocks is prose and is kept byte for byte. The body
+//! of a block is a small, YAML-like list of `key: value` lines (two-space indents):
 //!
-//! Running a block sends a request: guard, production question, rate tracker and audit as
-//! usual; `rt notebook run` sends reading blocks and writing ones only with `--allow-writes`,
-//! never against production. Interface: types and the two hooks [`parse`] and [`render`]
-//! (answer "not implemented yet").
+//! ```text
+//! id: login            optional, unique; a block without one is `block-<n>`
+//! ref: auth/login.yml  a request file of the collection ...
+//! method: POST         ... or an embedded request: method (default GET), url, headers:
+//! url: {{base}}/login  (indented `Name: value` lines) and body (`body: <text>` or `body: |`
+//! headers:             and indented lines; raw bodies only)
+//!   Accept: application/json
+//! set:                 variables taken from the response: `name: $.json.path` (the first match)
+//!   token: $.access_token
+//! show:                what the view shows of the response (never stored)
+//!   - response
+//!   - table: $.items[*]
+//!   - chart: $.values
+//! ```
+//!
+//! `{{variables}}` resolve like in any request; earlier blocks' `set:` values are runtime
+//! variables for the following ones. Secrets are `{{secret:name}}` (or secret variables of the
+//! environment) and never appear in the file or an output; a variable set from a response whose
+//! name looks like a credential (`token`, `secret`, `password`, `key`, `auth`) is carried to the
+//! next block but shown as `***`.
+//!
+//! Running a block sends a request: the send guard, the production question (asked by the
+//! shell), the rate limits of the host and the audit log work as for any send. A writing
+//! block runs only if the user allowed writes for this run, and never against a production
+//! environment (`skipped (writes)`, `skipped (production)`). One audit entry per run.
 
 use serde::{Deserialize, Serialize};
 
 use rt_core::model::RequestSpec;
+
+mod format;
+mod run;
+
+pub use format::{FENCE_INFO, default_id, parse, render};
+pub use run::{NotebookEnv, SKIPPED_EARLIER, SKIPPED_PRODUCTION, SKIPPED_WRITES, run, run_with};
 
 /// A notebook file's suffix.
 pub const SUFFIX: &str = ".notebook.md";
@@ -91,6 +115,10 @@ pub struct NotebookRun {
     /// production).
     #[serde(default)]
     pub allow_writes: bool,
+    /// Variables of earlier blocks the view holds (a single block runs with them); a masked
+    /// value is not carried. Running all blocks needs none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub vars: Vec<(String, String)>,
 }
 
 /// What running a block produced (kept in memory by the view, not saved).
@@ -106,6 +134,21 @@ pub struct BlockResult {
     /// Why it was skipped (`skipped (writes)`, `skipped (production)`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub skipped: Option<String>,
+    /// What the `show:` lines of the block make of the response (tables and chart values;
+    /// `response` is the report itself). Held in memory by the view, never saved.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub views: Vec<BlockView>,
+    /// Problems worth a line in the view (a `set:` path that matched nothing).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
+}
+
+/// One `show:` item shaped for the view.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BlockView {
+    pub show: Show,
+    /// Table rows or the matched values; `notice` says why there are none.
+    pub result: crate::views::ViewResult,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -113,19 +156,79 @@ pub struct NotebookOutcome {
     pub results: Vec<BlockResult>,
 }
 
-/// Reads a notebook file's text. Interface: answers "not implemented yet".
-pub fn parse(text: &str) -> Result<Notebook, crate::AppError> {
-    let _ = text;
-    Err(crate::AppError::Unsupported(
-        "Notebooks are not implemented yet (wave 19, strand W).".into(),
-    ))
+/// Whether `path` names a notebook file.
+pub fn is_notebook(path: &str) -> bool {
+    path.ends_with(SUFFIX)
 }
 
-/// Writes a notebook back; reading and writing again leaves an unchanged file byte for byte.
-/// Interface: answers "not implemented yet".
-pub fn render(notebook: &Notebook) -> Result<String, crate::AppError> {
-    let _ = notebook;
-    Err(crate::AppError::Unsupported(
-        "Notebooks are not implemented yet (wave 19, strand W).".into(),
-    ))
+fn stem_of(path: &str) -> &str {
+    let file = path.rsplit('/').next().unwrap_or(path);
+    file.strip_suffix(SUFFIX).unwrap_or(file)
+}
+
+/// Reads `path` with the file name as the title when it has no heading.
+pub fn parse_named(path: &str, text: &str) -> Result<Notebook, crate::AppError> {
+    let mut notebook = parse(text)?;
+    if notebook.title.is_empty() {
+        notebook.title = stem_of(path).to_owned();
+    }
+    Ok(notebook)
+}
+
+/// The notebook files of the collection (unsaved ones included), sorted by path. A file that
+/// does not parse is listed with its problem as the title and no blocks, so it can be fixed.
+pub fn list(workspace: &crate::workspace::Workspace) -> Vec<NotebookEntry> {
+    crate::companions::list(workspace, "")
+        .into_iter()
+        .filter(|p| is_notebook(p))
+        .map(|path| {
+            let text = crate::companions::read(workspace, &path).unwrap_or_default();
+            match parse_named(&path, &text) {
+                Ok(n) => NotebookEntry {
+                    blocks: n
+                        .blocks
+                        .iter()
+                        .filter(|b| matches!(b, Block::Request { .. }))
+                        .count() as u32,
+                    title: n.title,
+                    path,
+                },
+                Err(e) => NotebookEntry {
+                    title: format!("{} (unreadable: {e})", stem_of(&path)),
+                    blocks: 0,
+                    path,
+                },
+            }
+        })
+        .collect()
+}
+
+/// Reads a notebook of the collection.
+pub fn read(
+    workspace: &crate::workspace::Workspace,
+    path: &str,
+) -> Result<Notebook, crate::AppError> {
+    if !is_notebook(path) {
+        return Err(crate::AppError::Shell(format!(
+            "{path} is not a notebook file (it ends in {SUFFIX})"
+        )));
+    }
+    let text = crate::companions::read(workspace, path)
+        .ok_or_else(|| crate::AppError::Shell(format!("no notebook {path}")))?;
+    parse_named(path, &text)
+}
+
+/// Stages `notebook` as the file `path` for the next save (unsaved until then).
+pub fn stage(
+    workspace: &mut crate::workspace::Workspace,
+    path: &str,
+    notebook: &Notebook,
+) -> Result<(), crate::AppError> {
+    if !is_notebook(path) {
+        return Err(crate::AppError::Shell(format!(
+            "{path} is not a notebook file (it ends in {SUFFIX})"
+        )));
+    }
+    let text = render(notebook)?;
+    crate::companions::stage(workspace, path, &text)
 }

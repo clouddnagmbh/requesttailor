@@ -24,7 +24,8 @@
 //! `RunEvent`s, streams (a loop) and the history (metadata only). Limits: [`MAX_MESSAGES`]
 //! messages per diagram (more as a "n more" note), [`MAX_MESSAGES_PER_SWITCH`] per
 //! participant switch, text at most 1 MiB. Escaping for `;`, `#`, `:`, newlines and labels
-//! over [`MAX_LABEL`] characters is the renderer's job. Interface: types only.
+//! over [`MAX_LABEL`] characters is the renderer's job. A run is a stretch of exchanges between
+//! [`Recorder::begin_run`] and [`Recorder::end_run`]; `Run { run_id: 0 }` means the latest.
 
 use serde::{Deserialize, Serialize};
 
@@ -147,21 +148,10 @@ pub struct SequenceText {
     pub markdown: String,
 }
 
-/// An `ExchangeObserver` that builds a [`SequenceModel`] from every exchange it sees. The
-/// interface commit has the type only; strand G adds the model building.
-#[derive(Debug, Default)]
-pub struct Recorder {
-    _private: (),
-}
+mod build;
+mod mermaid;
+mod record;
 
-impl Recorder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl rt_core::observe::ExchangeObserver for Recorder {
-    fn observe(&self, exchange: &rt_core::observe::Exchange) {
-        let _ = exchange;
-    }
-}
+pub use build::{model_from_audit, model_from_history, model_from_stream};
+pub use mermaid::{render, to_markdown};
+pub use record::Recorder;

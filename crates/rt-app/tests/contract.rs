@@ -4769,14 +4769,19 @@ mod wave19 {
                 "notebookRun",
                 "NotebookRun",
                 via::<NotebookRun>(
-                    json!({ "path": "a.notebook.md", "block": "list", "environment": "Test", "allow_writes": false }),
+                    json!({ "path": "a.notebook.md", "block": "list", "environment": "Test", "allow_writes": false, "vars": [["token", "abc"]] }),
                 ),
             ),
             (
                 "notebookOutcome",
                 "NotebookOutcome",
                 via::<NotebookOutcome>(json!({ "results": [
-                { "block": "list", "set": [["id", "7"]] }, { "block": "x", "skipped": "writes need confirmation" }
+                { "block": "list", "set": [["id", "7"]], "notes": ["n: $.x matched nothing"],
+                  "views": [{ "show": { "kind": "table", "path": "$.items" },
+                              "result": { "display": "table", "values": [], "columns": ["id"], "rows": [[1]], "notice": null } },
+                            { "show": { "kind": "chart", "path": "$.n" },
+                              "result": { "display": "json", "values": [1, 2], "columns": [], "rows": [], "notice": null } }] },
+                { "block": "x", "skipped": "writes need confirmation" }
             ] })),
             ),
             (

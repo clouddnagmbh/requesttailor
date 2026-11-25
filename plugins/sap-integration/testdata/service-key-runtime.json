@@ -1,0 +1,9 @@
+{
+  "oauth": {
+    "clientid": "sb-rt-flow!b1002",
+    "clientsecret": "RT-CANARY-runtime-secret-91c4",
+    "url": "https://rt-test.it-cpi001-rt.cfapps.eu10.hana.ondemand.com",
+    "tokenurl": "https://rt-test.authentication.eu10.hana.ondemand.com/oauth/token",
+    "createdate": "2026-11-01T10:05:00.000Z"
+  }
+}

@@ -1,10 +1,24 @@
 {
   "id": "sap-integration",
   "name": "SAP Integration Suite",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "api": 1,
-  "description": "SAP Integration Suite (Cloud Integration): flows, message processing logs and the OData API of the tenant.",
+  "description": "Trigger an iFlow, check its message processing log as an assertion, and turn a BTP service key into a collection and environment without the secret.",
   "license": "Apache-2.0",
   "permissions": { "network": [], "storage": false, "variables": false },
-  "contributes": {}
+  "contributes": {
+    "response": true,
+    "tabs": [
+      { "id": "integration", "title": "Integration", "place": "request", "content_types": [] },
+      {
+        "id": "integration-log",
+        "title": "Message log",
+        "place": "response",
+        "content_types": ["application/json"]
+      }
+    ],
+    "importers": [
+      { "id": "service-key", "label": "SAP BTP service key (Integration Suite, JSON)", "extensions": ["json"] }
+    ]
+  }
 }

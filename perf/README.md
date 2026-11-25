@@ -37,7 +37,7 @@ and how.
 | `consumers_verify` | ≤ 1000 ms | Own time of verifying 20 consumers of 50 requests each (reading, runner against a transport that answers at once, text report and JSON), median of 5 runs (`scripts/perf/consumers.mjs`, `--only consumers`) |
 | `sequence_render` | ≤ 100 ms | Mermaid text 20 ms and SVG layout 100 ms for 500 messages; scroll p95 frame gap at most 20 ms on 2000 messages (pending: wave 19, strand G) |
 | `security_passive` | ≤ 2 ms | All passive security rules on one response (headers, tokens, TLS info), native release, median (pending: wave 19, strand R) |
-| `notebook_open` | ≤ 300 ms | Opening a notebook with 50 blocks: parse, render model and first paint, median of 9 (pending: wave 19, strand W) |
+| `notebook_open` | ≤ 300 ms | Reading a notebook of 50 request blocks and writing it back, native release, median of 9 (`scripts/perf/notebook.mjs`, `--only notebook`) |
 | `debug_step` | ≤ 20 ms | One step of the script debugger (pause to next pause, release), median of 100 (pending: wave 19, strand Y) |
 
 ```sh
@@ -251,4 +251,4 @@ Nine budgets, all `pending` in `budgets.toml` until their strand measures them (
 
 ## Evidence and cleaning up (wave 19)
 
-Ten budgets, `pending` in `budgets.toml` until their strand measures them (`trace_inject`, `egress_overhead`, `journal_overhead`, `shrink_probes` and `access_check` are measured) (`node scripts/perf/run.mjs --only trace|egress|journal|access|shrink|consumers|sequence|security|notebook|debugger`, one script each in `scripts/perf/`). The interface commit holds the scripts as stubs that report nothing; a strand removes `pending` in the same change that makes its script measure.
+Ten budgets, `pending` in `budgets.toml` until their strand measures them (`trace_inject`, `egress_overhead`, `journal_overhead`, `shrink_probes` and `access_check` and `notebook_open` are measured) (`node scripts/perf/run.mjs --only trace|egress|journal|access|shrink|consumers|sequence|security|notebook|debugger`, one script each in `scripts/perf/`). The interface commit holds the scripts as stubs that report nothing; a strand removes `pending` in the same change that makes its script measure.

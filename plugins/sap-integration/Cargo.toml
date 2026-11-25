@@ -1,14 +1,20 @@
 [package]
 name = "rt-plugin-sap-integration"
-description = "SAP Integration Suite (Cloud Integration): flows, message processing logs and the OData API of the tenant."
+description = "SAP Integration Suite (Cloud Integration): trigger an iFlow, check its message processing log, import a BTP service key."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
-# A plain library, built into `target/plugins/sap-integration.wasm` by `scripts/build-plugins.mjs` (see
-# plugins/example/Cargo.toml). Uses only the public plugin API through rt-plugin-sdk.
+# A plain library, built into `target/plugins/sap-integration.wasm` by `scripts/build-plugins.mjs`
+# (see plugins/example/Cargo.toml). Uses only the public plugin API through rt-plugin-sdk.
+
+[features]
+default = ["plugin"]
+# The plugin's `rt_call` export and manifest section on wasm32 (`rt_plugin_sdk::plugin!`).
+# A crate that uses the parsers as a library turns it off (`default-features = false`).
+plugin = []
 
 [dependencies]
 rt-plugin-sdk = { path = "../../crates/rt-plugin-sdk" }
@@ -17,3 +23,8 @@ serde_json = "1"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+rt-core = { path = "../../crates/rt-core" }
+rt-format = { path = "../../crates/rt-format" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }

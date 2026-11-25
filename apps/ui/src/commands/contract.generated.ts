@@ -7838,18 +7838,64 @@ export const notebookRun: NotebookRun = {
   "allow_writes": false,
   "block": "list",
   "environment": "Test",
-  "path": "a.notebook.md"
+  "path": "a.notebook.md",
+  "vars": [
+    [
+      "token",
+      "abc"
+    ]
+  ]
 };
 
 export const notebookOutcome: NotebookOutcome = {
   "results": [
     {
       "block": "list",
+      "notes": [
+        "n: $.x matched nothing"
+      ],
       "set": [
         [
           "id",
           "7"
         ]
+      ],
+      "views": [
+        {
+          "result": {
+            "columns": [
+              "id"
+            ],
+            "display": "table",
+            "notice": null,
+            "rows": [
+              [
+                1
+              ]
+            ],
+            "values": []
+          },
+          "show": {
+            "kind": "table",
+            "path": "$.items"
+          }
+        },
+        {
+          "result": {
+            "columns": [],
+            "display": "json",
+            "notice": null,
+            "rows": [],
+            "values": [
+              1,
+              2
+            ]
+          },
+          "show": {
+            "kind": "chart",
+            "path": "$.n"
+          }
+        }
       ]
     },
     {
