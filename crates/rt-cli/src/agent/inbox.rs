@@ -84,7 +84,14 @@ type Socket = WebSocketStream<TokioIo<hyper::upgrade::Upgraded>>;
 
 async fn relay(mut ws: Socket, inbox: Inbox) {
     let mut since = 0;
-    if !send(&mut ws, &InboxServerMessage::Status { status: inbox.status() }).await {
+    if !send(
+        &mut ws,
+        &InboxServerMessage::Status {
+            status: inbox.status(),
+        },
+    )
+    .await
+    {
         return;
     }
     let mut tick = tokio::time::interval(TICK);

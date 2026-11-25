@@ -107,7 +107,7 @@ import { webDebugger } from "./debugger";
 
 import { webInspect } from "./inspect";
 import { webPaging } from "./paging";
-import { webInbox } from "./inbox";
+import { webInbox, type CoreInbox } from "./inbox";
 import { webLint } from "./lint";
 import { webViews } from "./views";
 import { webCatalogue } from "./catalogue";
@@ -450,7 +450,10 @@ export class WebBackend implements Backend {
       coreInput: (input) => this.coreInput(this.session(), input, true),
     });
     this.paging = webPaging({ session: host.session, sendContext, plugins: () => this.plugins.list() });
-    this.inbox = webInbox();
+    this.inbox = webInbox({
+      credentials: () => this.client().credentials(),
+      core: async () => (await deps.loadCore()) as unknown as CoreInbox,
+    });
     this.lint = webLint(() => this.session());
     this.views = webViews();
     this.catalogue = webCatalogue();

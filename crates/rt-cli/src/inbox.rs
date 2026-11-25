@@ -93,7 +93,10 @@ pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
                         } else {
                             line(&request)
                         };
-                        if writeln!(stdout, "{line}").and_then(|()| stdout.flush()).is_err() {
+                        if writeln!(stdout, "{line}")
+                            .and_then(|()| stdout.flush())
+                            .is_err()
+                        {
                             return crate::EXIT_OK; // the reader went away
                         }
                     }

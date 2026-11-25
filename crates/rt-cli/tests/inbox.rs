@@ -15,9 +15,7 @@ use std::time::Duration;
 
 use futures_util::{SinkExt as _, StreamExt as _};
 use rt_core::inbox::{CapturedRequest, InboxEvent, InboxSettings};
-use rt_core::transport::companion::{
-    InboxClientMessage, InboxServerMessage, PairResponse, Status,
-};
+use rt_core::transport::companion::{InboxClientMessage, InboxServerMessage, PairResponse, Status};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
 
@@ -63,7 +61,11 @@ impl Inbox {
             .and_then(|r| r.split('/').next())
             .and_then(|p| p.parse().ok())
             .unwrap_or_else(|| panic!("an address, got {line:?}"));
-        Inbox { child, stdout, port }
+        Inbox {
+            child,
+            stdout,
+            port,
+        }
     }
 
     fn line(&self) -> String {
@@ -109,7 +111,12 @@ fn rt_inbox_prints_one_line_per_request_and_answers_with_the_fixed_reply() {
         "{line}"
     );
     // The line never carries headers or a body.
-    post(inbox.port, "/s", &format!("Authorization: Bearer {CANARY}\r\n"), CANARY);
+    post(
+        inbox.port,
+        "/s",
+        &format!("Authorization: Bearer {CANARY}\r\n"),
+        CANARY,
+    );
     assert!(!inbox.line().contains(CANARY));
 }
 
@@ -119,9 +126,17 @@ fn rt_inbox_json_prints_one_capture_per_line_and_uses_the_status() {
     let answer = post(inbox.port, "/j", "X-Event: e\r\n", "body");
     assert!(answer.starts_with("HTTP/1.1 202 "), "{answer}");
     let request: CapturedRequest = serde_json::from_str(&inbox.line()).unwrap();
-    assert_eq!((request.method.as_str(), request.target.as_str()), ("POST", "/j"));
+    assert_eq!(
+        (request.method.as_str(), request.target.as_str()),
+        ("POST", "/j")
+    );
     assert_eq!(request.body.as_deref(), Some("body"));
-    assert!(request.headers.iter().any(|(n, v)| n == "X-Event" && v == "e"));
+    assert!(
+        request
+            .headers
+            .iter()
+            .any(|(n, v)| n == "X-Event" && v == "e")
+    );
 }
 
 #[test]
@@ -143,7 +158,11 @@ fn rt_inbox_refuses_a_port_in_use_and_a_bad_status() {
         .args(["inbox", "--host", "0.0.0.0"])
         .output()
         .unwrap();
-    assert_eq!(out.status.code(), Some(2), "there is no --host: loopback only");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "there is no --host: loopback only"
+    );
 }
 
 #[test]
@@ -163,7 +182,13 @@ struct Agent {
 impl Agent {
     fn start() -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_rt"))
-            .args(["agent", "--port", &AGENT_PORT.to_string(), "--allow-origin", ORIGIN])
+            .args([
+                "agent",
+                "--port",
+                &AGENT_PORT.to_string(),
+                "--allow-origin",
+                ORIGIN,
+            ])
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
@@ -243,8 +268,12 @@ async fn connect(query: &str, origin: &str) -> Result<Socket, u16> {
     let mut request = format!("ws://127.0.0.1:{AGENT_PORT}/v1/inbox{query}")
         .into_client_request()
         .unwrap();
-    request.headers_mut().insert("origin", origin.parse().unwrap());
-    let tcp = tokio::net::TcpStream::connect(("127.0.0.1", AGENT_PORT)).await.unwrap();
+    request
+        .headers_mut()
+        .insert("origin", origin.parse().unwrap());
+    let tcp = tokio::net::TcpStream::connect(("127.0.0.1", AGENT_PORT))
+        .await
+        .unwrap();
     match tokio_tungstenite::client_async(request, tcp).await {
         Ok((ws, _)) => Ok(ws),
         Err(tokio_tungstenite::tungstenite::Error::Http(r)) => Err(r.status().as_u16()),
@@ -313,7 +342,9 @@ fn the_companion_checks_the_token_and_the_origin_and_relays_the_inbox() {
         assert_eq!(connect("", ORIGIN).await.err(), Some(401));
         assert_eq!(connect("?token=nope", ORIGIN).await.err(), Some(401));
         assert_eq!(
-            connect(&format!("?token={token}"), "http://evil.example").await.err(),
+            connect(&format!("?token={token}"), "http://evil.example")
+                .await
+                .err(),
             Some(403)
         );
 
@@ -340,7 +371,10 @@ fn the_companion_checks_the_token_and_the_origin_and_relays_the_inbox() {
         );
         assert!(answer.starts_with("HTTP/1.1 201 "), "{answer}");
         let request = request_event(&mut ws).await;
-        assert_eq!((request.method.as_str(), request.target.as_str()), ("POST", "/hook/a"));
+        assert_eq!(
+            (request.method.as_str(), request.target.as_str()),
+            ("POST", "/hook/a")
+        );
         assert_eq!(request.body.as_deref(), Some("payload"));
 
         // A second page sees what is held.
@@ -374,5 +408,8 @@ fn the_companion_checks_the_token_and_the_origin_and_relays_the_inbox() {
         }
         drop(busy);
     });
-    assert!(TcpStream::connect((Ipv4Addr::LOCALHOST, INBOX_PORT)).is_err(), "stopped");
+    assert!(
+        TcpStream::connect((Ipv4Addr::LOCALHOST, INBOX_PORT)).is_err(),
+        "stopped"
+    );
 }

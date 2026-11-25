@@ -124,12 +124,12 @@ description = "Error of the wait before the next send when a response says Retry
 unit = "ms"
 max = 50
 
-# Strand E (scripts/perf/inbox.mjs).
+# Strand E (scripts/perf/inbox.mjs, crates/rt-app/tests/inbox_perf.rs). The test also holds the
+# 99th percentile to 20 ms and lossless delivery up to 200 requests per second.
 [metrics.inbox_latency]
-description = "Webhook inbox: from the request on the loopback port to the event in InboxApi.events, median of 100"
+description = "Webhook inbox: from the last byte of a request on the loopback port to the event at a subscriber, median over 2000 requests of 2 KB (p99 at most 20 ms)"
 unit = "ms"
-pending = "wave 18, strand E"
-max = 50
+max = 5
 
 # Strand F (scripts/perf/lint.mjs).
 [metrics.lint_1000]

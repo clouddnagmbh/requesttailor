@@ -98,7 +98,11 @@ fn takes_five_methods_on_any_path_and_answers_with_a_fixed_reply() {
         );
         assert_eq!(a.status, 200, "{m}");
         assert_eq!(a.body, "", "the default answer has no body");
-        assert!(!a.head.to_ascii_lowercase().contains("access-control"), "no CORS header: {}", a.head);
+        assert!(
+            !a.head.to_ascii_lowercase().contains("access-control"),
+            "no CORS header: {}",
+            a.head
+        );
     }
     let held = requests(&inbox);
     assert_eq!(held.len(), 5);
@@ -106,8 +110,16 @@ fn takes_five_methods_on_any_path_and_answers_with_a_fixed_reply() {
     assert_eq!(held[0].target, "/hooks/orders/0?x=1&y=two");
     assert_eq!(held[0].body.as_deref(), Some("{\"id\":7}"));
     assert_eq!(held[0].size, 8);
-    assert!(held[0].headers.iter().any(|(n, v)| n == "X-Event" && v == "order"));
-    assert_eq!(held.iter().map(|r| r.id).collect::<Vec<_>>(), [1, 2, 3, 4, 5]);
+    assert!(
+        held[0]
+            .headers
+            .iter()
+            .any(|(n, v)| n == "X-Event" && v == "order")
+    );
+    assert_eq!(
+        held.iter().map(|r| r.id).collect::<Vec<_>>(),
+        [1, 2, 3, 4, 5]
+    );
     // Other methods are not taken.
     assert_eq!(call(port, "OPTIONS", "/x", &[], "").status, 405);
     assert_eq!(requests(&inbox).len(), 5);
@@ -153,10 +165,22 @@ fn the_reply_is_configurable_within_limits() {
     // The reply never contains the capture.
     assert!(!a.body.contains('a') || a.body == "{\"ok\":true}");
     for bad in [
-        InboxSettings { delay_ms: 5001, ..InboxSettings::default() },
-        InboxSettings { status: 99, ..InboxSettings::default() },
-        InboxSettings { status: 600, ..InboxSettings::default() },
-        InboxSettings { content_type: Some("a\r\nb".into()), ..InboxSettings::default() },
+        InboxSettings {
+            delay_ms: 5001,
+            ..InboxSettings::default()
+        },
+        InboxSettings {
+            status: 99,
+            ..InboxSettings::default()
+        },
+        InboxSettings {
+            status: 600,
+            ..InboxSettings::default()
+        },
+        InboxSettings {
+            content_type: Some("a\r\nb".into()),
+            ..InboxSettings::default()
+        },
     ] {
         assert!(inbox.set_settings(bad).is_err());
     }
@@ -240,7 +264,11 @@ fn paced_at_200_per_second_nothing_is_lost() {
         if let Some(wait) = due.checked_duration_since(Instant::now()) {
             std::thread::sleep(wait);
         }
-        assert_eq!(call(port, "POST", "/p", &[], "x").status, 200, "request {i}");
+        assert_eq!(
+            call(port, "POST", "/p", &[], "x").status,
+            200,
+            "request {i}"
+        );
     }
     assert_eq!(requests(&inbox).len(), 200);
     inbox.stop();
@@ -261,7 +289,13 @@ fn the_buffer_holds_500_requests_and_counts_what_fell_out() {
         .events(0)
         .events
         .iter()
-        .map(|e| if let InboxEvent::Dropped { count } = e { *count } else { 0 })
+        .map(|e| {
+            if let InboxEvent::Dropped { count } = e {
+                *count
+            } else {
+                0
+            }
+        })
         .sum();
     assert_eq!(dropped, 20);
     assert!(inbox.get(1).is_none() && inbox.get(21).is_some());
@@ -308,7 +342,10 @@ fn events_since_wait_and_clear() {
     let status = inbox.status();
     assert_eq!(status.held, 0);
     assert!(requests(&inbox).is_empty());
-    assert!(matches!(inbox.events(0).events.last(), Some(InboxEvent::Cleared)));
+    assert!(matches!(
+        inbox.events(0).events.last(),
+        Some(InboxEvent::Cleared)
+    ));
     // Ids go on counting.
     call(port, "POST", "/d", &[], "4");
     assert_eq!(requests(&inbox)[0].id, 4);
@@ -318,7 +355,11 @@ fn events_since_wait_and_clear() {
 #[test]
 fn start_stop_and_a_port_in_use() {
     let (inbox, port) = started(loose());
-    assert_eq!(inbox.start().unwrap().port, Some(port), "starting twice is harmless");
+    assert_eq!(
+        inbox.start().unwrap().port,
+        Some(port),
+        "starting twice is harmless"
+    );
     let other = Inbox::new();
     other
         .set_settings(InboxSettings {
@@ -331,7 +372,10 @@ fn start_stop_and_a_port_in_use() {
     assert!(!other.status().running);
     let stopped = inbox.stop();
     assert!(!stopped.running);
-    assert!(TcpStream::connect((Ipv4Addr::LOCALHOST, port)).is_err(), "the port is free again");
+    assert!(
+        TcpStream::connect((Ipv4Addr::LOCALHOST, port)).is_err(),
+        "the port is free again"
+    );
     // After a stop it starts again; what was captured stays.
     call_after_restart(&inbox);
 }
@@ -344,8 +388,15 @@ fn call_after_restart(inbox: &Inbox) {
 }
 
 /// Files below `dir` changed since `since` and containing the canary (depth 3, small files).
-fn files_with_canary(dir: &std::path::Path, since: std::time::SystemTime, depth: u8, out: &mut Vec<String>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+fn files_with_canary(
+    dir: &std::path::Path,
+    since: std::time::SystemTime,
+    depth: u8,
+    out: &mut Vec<String>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for e in entries.flatten() {
         let path = e.path();
         let Ok(meta) = e.metadata() else { continue };
@@ -355,7 +406,8 @@ fn files_with_canary(dir: &std::path::Path, since: std::time::SystemTime, depth:
             }
         } else if meta.len() < 4 * 1024 * 1024
             && meta.modified().is_ok_and(|m| m >= since)
-            && std::fs::read(&path).is_ok_and(|b| b.windows(CANARY.len()).any(|w| w == CANARY.as_bytes()))
+            && std::fs::read(&path)
+                .is_ok_and(|b| b.windows(CANARY.len()).any(|w| w == CANARY.as_bytes()))
         {
             out.push(path.display().to_string());
         }
@@ -408,11 +460,17 @@ fn make_request_replays_against_base_url_and_turns_secrets_into_variables() {
     );
     let draft = inbox.make_request(1).unwrap();
     let json = serde_json::to_string(&draft).unwrap();
-    assert!(!json.contains(CANARY), "no secret value in the draft: {json}");
+    assert!(
+        !json.contains(CANARY),
+        "no secret value in the draft: {json}"
+    );
     assert_eq!(draft.spec.method, "POST");
     assert_eq!(draft.name, "POST /hooks/orders");
     assert!(
-        draft.spec.url.starts_with("{{baseUrl}}/hooks/orders?x=1&api_key={{api_key}}&token={{token}}"),
+        draft
+            .spec
+            .url
+            .starts_with("{{baseUrl}}/hooks/orders?x=1&api_key={{api_key}}&token={{token}}"),
         "{}",
         draft.spec.url
     );
@@ -421,7 +479,16 @@ fn make_request_replays_against_base_url_and_turns_secrets_into_variables() {
     for gone in ["Host", "Content-Length", "Connection", "Accept-Encoding"] {
         assert!(!names.contains(&gone), "{gone} is not replayed");
     }
-    let value = |n: &str| draft.spec.headers.iter().find(|h| h.name == n).unwrap().value.clone();
+    let value = |n: &str| {
+        draft
+            .spec
+            .headers
+            .iter()
+            .find(|h| h.name == n)
+            .unwrap()
+            .value
+            .clone()
+    };
     assert_eq!(value("Authorization"), "{{authorization}}");
     assert_eq!(value("Cookie"), "{{cookie}}");
     assert_eq!(value("X-Hub-Signature-256"), "{{x_hub_signature_256}}");
@@ -432,8 +499,20 @@ fn make_request_replays_against_base_url_and_turns_secrets_into_variables() {
     };
     assert!(data.contains("\"order\":42") && data.contains("\"note\":\"plain\""));
     assert!(data.contains("{{password}}") && data.contains("{{api_key}}"));
-    for want in ["authorization", "cookie", "x_hub_signature_256", "x_api_key", "api_key", "token", "password"] {
-        assert!(draft.secrets.contains(&want.to_owned()), "{want} in {:?}", draft.secrets);
+    for want in [
+        "authorization",
+        "cookie",
+        "x_hub_signature_256",
+        "x_api_key",
+        "api_key",
+        "token",
+        "password",
+    ] {
+        assert!(
+            draft.secrets.contains(&want.to_owned()),
+            "{want} in {:?}",
+            draft.secrets
+        );
     }
     assert!(inbox.make_request(99).is_err());
     inbox.stop();
@@ -447,7 +526,10 @@ fn the_scanner_catches_credentials_in_ordinary_headers_and_bodies() {
         port,
         "POST",
         "/x",
-        &[("X-Forwarded-Auth", &format!("Bearer {jwt}")), ("Content-Type", "text/plain")],
+        &[
+            ("X-Forwarded-Auth", &format!("Bearer {jwt}")),
+            ("Content-Type", "text/plain"),
+        ],
         &format!("aws_secret_access_key: {CANARY}-wJalrXUtnFEMI/K7MDENG/bPxRfiCY"),
     );
     let draft = inbox.make_request(1).unwrap();

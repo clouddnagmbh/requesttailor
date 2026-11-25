@@ -64,7 +64,11 @@ fn inbox_latency_is_measured() {
         };
         let sent = request(port, &body);
         let (arrived, page) = subscriber.join().unwrap();
-        assert!(page.events.iter().any(|e| matches!(e, InboxEvent::Request { .. })));
+        assert!(
+            page.events
+                .iter()
+                .any(|e| matches!(e, InboxEvent::Request { .. }))
+        );
         next = page.next;
         // The event may have come before the answer was read; the interval starts at the last byte.
         ms.push(arrived.saturating_duration_since(sent).as_secs_f64() * 1000.0);
@@ -76,13 +80,14 @@ fn inbox_latency_is_measured() {
     if let Ok(dir) = std::env::var("RT_PERF_OUT") {
         std::fs::write(
             std::path::Path::new(&dir).join("inbox.json"),
-            format!(
-                "{{\"inbox_latency\":{median:.3},\"p99\":{p99:.3},\"requests\":{REQUESTS}}}"
-            ),
+            format!("{{\"inbox_latency\":{median:.3},\"p99\":{p99:.3},\"requests\":{REQUESTS}}}"),
         )
         .unwrap();
     }
-    assert!(median <= MEDIAN_MS, "median {median:.3} ms over {MEDIAN_MS} ms");
+    assert!(
+        median <= MEDIAN_MS,
+        "median {median:.3} ms over {MEDIAN_MS} ms"
+    );
     assert!(p99 <= P99_MS, "p99 {p99:.3} ms over {P99_MS} ms");
     // The buffer kept its limits all along.
     let status = inbox.status();

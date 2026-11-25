@@ -118,11 +118,9 @@ impl Buffer {
             };
             self.total -= w;
             fell += 1;
-            if let Some(i) = self
-                .log
-                .iter()
-                .position(|(_, e)| matches!(e, InboxEvent::Request { request } if request.id == old_id))
-            {
+            if let Some(i) = self.log.iter().position(
+                |(_, e)| matches!(e, InboxEvent::Request { request } if request.id == old_id),
+            ) {
                 self.log.remove(i);
             }
         }

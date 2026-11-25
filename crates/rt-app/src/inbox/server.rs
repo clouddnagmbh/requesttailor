@@ -371,7 +371,11 @@ fn serve(mut stream: TcpStream, shared: &Shared, generation: u64) -> std::io::Re
     };
     let settings = {
         let mut inner = shared.lock();
-        if inner.run.as_ref().is_none_or(|r| r.generation != generation) {
+        if inner
+            .run
+            .as_ref()
+            .is_none_or(|r| r.generation != generation)
+        {
             return Ok(()); // stopped meanwhile
         }
         inner.buffer.push(captured);
@@ -417,7 +421,11 @@ fn reply(stream: &mut TcpStream, status: u16, text: &str) -> std::io::Result<()>
     )
 }
 
-fn read_more(stream: &mut TcpStream, buf: &mut Vec<u8>, deadline: Instant) -> std::io::Result<bool> {
+fn read_more(
+    stream: &mut TcpStream,
+    buf: &mut Vec<u8>,
+    deadline: Instant,
+) -> std::io::Result<bool> {
     if Instant::now() >= deadline {
         return Ok(false);
     }

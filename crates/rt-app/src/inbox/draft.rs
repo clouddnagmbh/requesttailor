@@ -57,7 +57,11 @@ fn slug(name: &str) -> String {
         }
     }
     let out = out.trim_end_matches('_').to_owned();
-    if out.is_empty() { "secret".to_owned() } else { out }
+    if out.is_empty() {
+        "secret".to_owned()
+    } else {
+        out
+    }
 }
 
 #[derive(Default)]
