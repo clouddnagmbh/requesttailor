@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// Wave 19, strand D: the access check, one Tauri command per method (`src-tauri/src/access.rs`,
-// placeholders until strand D).
+// Wave 19, strand D: the access check, one Tauri command per method (`src-tauri/src/access.rs`).
 
 import type { AccessApi } from "@requesttailor/ui";
 

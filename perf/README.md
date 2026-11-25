@@ -32,7 +32,7 @@ and how.
 | `trace_inject` | ≤ 0.02 ms | The trace context on a request, `trace::inject` with and without an existing header (100 000 calls, release): median per call; 0 when off (pending: wave 19, strand A) |
 | `egress_overhead` | ≤ 1 ms | Time one egress call adds over the transport (fake transport, 100 allowed hosts, 1000 calls), median (pending: wave 19, strand B) |
 | `journal_overhead` | ≤ 1 ms | Time the journal adds to one writing send (10 000 entries into the channel), median; reading 5000 entries under 50 ms |
-| `access_check` | ≤ 10 ms | Own time of one two-user access check (fake transport, 200 checks, compare and evidence), median (pending: wave 19, strand D) |
+| `access_check` | ≤ 10 ms | Own time of one two-user access check (fake transport, 200 checks, compare and evidence), median (`scripts/perf/access.mjs`, `--only access`) |
 | `shrink_probes` | ≤ 60 probes | Probes to shrink a 200-part request with one cause (at most 60) and 160 for three scattered causes; own time under 100 ms (`scripts/perf/shrink.mjs`, `--only shrink`) |
 | `consumers_verify` | ≤ 1000 ms | Own time of verifying 20 local consumers of 50 requests each against rt-testserver, report and JSON included (pending: wave 19, strand F) |
 | `sequence_render` | ≤ 100 ms | Mermaid text 20 ms and SVG layout 100 ms for 500 messages; scroll p95 frame gap at most 20 ms on 2000 messages (pending: wave 19, strand G) |
@@ -251,4 +251,4 @@ Nine budgets, all `pending` in `budgets.toml` until their strand measures them (
 
 ## Evidence and cleaning up (wave 19)
 
-Ten budgets, `pending` in `budgets.toml` until their strand measures them (`shrink_probes` is measured by strand E) (`node scripts/perf/run.mjs --only trace|egress|journal|access|shrink|consumers|sequence|security|notebook|debugger`, one script each in `scripts/perf/`). The interface commit holds the scripts as stubs that report nothing; a strand removes `pending` in the same change that makes its script measure.
+Ten budgets, `pending` in `budgets.toml` until their strand measures them (`shrink_probes` is measured by strand E, `access_check` by strand D) (`node scripts/perf/run.mjs --only trace|egress|journal|access|shrink|consumers|sequence|security|notebook|debugger`, one script each in `scripts/perf/`). The interface commit holds the scripts as stubs that report nothing; a strand removes `pending` in the same change that makes its script measure.

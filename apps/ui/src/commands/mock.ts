@@ -400,7 +400,11 @@ export class MockBackend implements Backend {
       }
     },
   });
-  readonly access = mockAccess();
+  readonly access = mockAccess({
+    getRequest: (path) => this.getRequest(path),
+    policy: () => this.agents.policy(),
+    environments: () => this.environments(),
+  });
   readonly shrink = mockShrink({
     getRequest: (path) => this.getRequest(path),
     policy: () => this.agents.policy(),

@@ -404,7 +404,7 @@ export class WebBackend implements Backend {
     this.envCompare = webEnvCompare({ session: host.session, sendContext });
     this.egress = webEgress();
     this.journal = webJournal({ session: host.session, sendContext, plugins: () => this.plugins.list() });
-    this.access = webAccess();
+    this.access = webAccess({ session: host.session, sendContext });
     this.shrink = webShrink({ session: host.session, sendContext });
     this.consumers = webConsumers();
     this.sequence = webSequence();

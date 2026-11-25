@@ -646,6 +646,8 @@ mod workspace_js {
 // Wave 4, one module per strand: git (A2), import (B), history (E).
 // Wave 8: one module per strand.
 #[cfg(target_arch = "wasm32")]
+mod access_js;
+#[cfg(target_arch = "wasm32")]
 mod agents_js;
 #[cfg(target_arch = "wasm32")]
 mod ai_js;
@@ -654,7 +656,6 @@ mod auth_js;
 #[cfg(target_arch = "wasm32")]
 mod companions_js;
 // Wave 14, strand A: several collections in the sidebar.
-mod access_js;
 #[cfg(target_arch = "wasm32")]
 mod catalogue_js;
 #[cfg(target_arch = "wasm32")]
