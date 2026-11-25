@@ -117,8 +117,10 @@ test("command palette opens with Mod+K, filters and runs send", async ({ page })
   await expect(palette.getByRole("option").filter({ hasText: "Environment: PRD" })).toBeVisible();
 
   await input.fill("sndreq");
-  await expect(palette.getByRole("option")).toHaveCount(1);
+  // Later waves added commands that also contain the letters s-n-d-r-e-q in order; the filter
+  // must narrow the list and rank the best match first, whatever else matches.
   await expect(palette.getByRole("option").first()).toContainText("Send request");
+  expect(await palette.getByRole("option").count()).toBeLessThan(5);
   await input.press("Enter");
   await expect(palette).toBeHidden();
   await expect(page.getByTestId("response-status")).toHaveText("200");
