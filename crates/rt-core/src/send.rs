@@ -741,7 +741,7 @@ async fn finish<T: Transport>(
             observers.notify(&exchange);
         }
         if journaled {
-            crate::journal::record(&exchange);
+            crate::journal::record(&exchange, crate::guard::effect(&context.request.spec));
         }
     }
     report

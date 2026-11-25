@@ -766,6 +766,8 @@ export interface Contributions {
   welcome: WelcomeChoice | null;
   /** Wave 18: paging rules for responses of other services; omitted when empty. */
   paging?: PagingContribution[];
+  /** Wave 19: rules that say how writing requests are put back; omitted when empty. */
+  compensations?: CompensationContribution[];
 }
 
 export interface WelcomeChoice {

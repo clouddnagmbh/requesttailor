@@ -682,6 +682,7 @@ mod import_js;
 mod inbox_js;
 #[cfg(target_arch = "wasm32")]
 mod inspect_js;
+#[cfg(target_arch = "wasm32")]
 mod journal_js;
 #[cfg(target_arch = "wasm32")]
 mod lint_js;

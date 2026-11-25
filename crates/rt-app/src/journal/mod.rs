@@ -27,9 +27,25 @@
 //! (`contributes.compensations`, [`JournalApi::plugin_rules`]); the core executes, the
 //! provider supplies data only.
 //!
-//! Interface: types only.
+//! Where things are: [`store`] (the ring, files, memory-only states), [`hub`] (journals by
+//! collection name and the sink on the send path), [`revert`] (plans and execution).
+//! "Track test data" holds for the session: a restart starts with it off (the entries and the
+//! id path stay).
 
 use serde::{Deserialize, Serialize};
+
+pub mod hub;
+pub mod revert;
+pub mod store;
+
+pub use hub::{forget, journal_for, refresh};
+pub use revert::{
+    RevertEnv, execute, fill_entry_values, hash_state, plan_compensations, plan_manual,
+    plugin_rules, pre_read,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use store::FileStorage;
+pub use store::{Journal, JournalStorage, QueueStorage, StorageOp, session_id};
 
 use rt_core::model::RequestSpec;
 

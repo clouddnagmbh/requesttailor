@@ -31,7 +31,7 @@ and how.
 | `catalogue_index` | ≤ 100 ms | reading and checking a plugin index with 1000 entries, release, median of 9 (pending: wave 18, strand I) |
 | `trace_inject` | ≤ 0.02 ms | The trace context on a request, `trace::inject` with and without an existing header (100 000 calls, release): median per call; 0 when off (pending: wave 19, strand A) |
 | `egress_overhead` | ≤ 1 ms | Time one egress call adds over the transport (fake transport, 100 allowed hosts, 1000 calls), median (pending: wave 19, strand B) |
-| `journal_overhead` | ≤ 1 ms | Time the journal adds to one writing send (10 000 entries into the channel), median; reading 5000 entries under 50 ms (pending: wave 19, strand C) |
+| `journal_overhead` | ≤ 1 ms | Time the journal adds to one writing send (10 000 entries into the channel), median; reading 5000 entries under 50 ms |
 | `access_check` | ≤ 10 ms | Own time of one two-user access check (fake transport, 200 checks, compare and evidence), median (pending: wave 19, strand D) |
 | `shrink_probes` | ≤ 60 probes | Probes to shrink a 200-part request with one cause (at most 60) and 160 for three scattered causes; own time under 100 ms (pending: wave 19, strand E) |
 | `consumers_verify` | ≤ 1000 ms | Own time of verifying 20 local consumers of 50 requests each against rt-testserver, report and JSON included (pending: wave 19, strand F) |

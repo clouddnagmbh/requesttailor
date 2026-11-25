@@ -381,7 +381,20 @@ export class MockBackend implements Backend {
   readonly folderScripts = mockFolderScripts(() => this.requests);
   /** Wave 19: placeholders until the strands (`wave19-stubs.ts`). */
   readonly egress = mockEgress();
-  readonly journal = mockJournal();
+  readonly journal = mockJournal({
+    getRequest: (path) => this.getRequest(path),
+    policy: () => this.agents.policy(),
+    sendSpec: async (spec, input) => {
+      // A step of a plan is not in the collection: it goes out under a hidden path.
+      const path = "__journal/step.yml";
+      this.requests.set(path, spec);
+      try {
+        return await this.sendNow(path, input);
+      } finally {
+        this.requests.delete(path);
+      }
+    },
+  });
   readonly access = mockAccess();
   readonly shrink = mockShrink();
   readonly consumers = mockConsumers();
@@ -552,7 +565,9 @@ export class MockBackend implements Backend {
     }
     const notes = this.plugins.notes();
     if (notes.length > 0) result.report.notes = [...(result.report.notes ?? []), ...notes];
-    this.history.record(this.collections.current_().info.id, await this.getRequest(path), result);
+    const sent = await this.getRequest(path);
+    this.history.record(this.collections.current_().info.id, sent, result);
+    this.journal.record(path, sent, input, result);
     return result;
   }
 

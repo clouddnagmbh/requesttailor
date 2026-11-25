@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// Wave 19, strand C: the main-area view of this tool (`ToolId` `journal`).
-// Interface placeholder: no view yet, so the app looks as before. The strand exports its
-// definition here (`{ id: "journal", title, component }`).
+// Wave 19, strand C: the main-area view of the test-data journal (`ToolId` `journal`).
 
 import type { ToolDefinition } from "../shell/tool-host.svelte";
+import JournalView from "./JournalView.svelte";
 
-export const journalTool: ToolDefinition | null = null;
+export const journalTool: ToolDefinition | null = {
+  id: "journal",
+  title: "Test-data journal",
+  component: JournalView,
+};

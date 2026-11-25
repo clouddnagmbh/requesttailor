@@ -30,7 +30,6 @@ fn new_commands_are_registered_and_not_implemented_yet() {
             &["verify-consumers", "--base-url", "http://localhost:1"],
             "wave 19",
         ),
-        (&["journal", "list"], "wave 19"),
         (&["send", "a.yml", "--debug"], "wave 19"),
         (&["send", "a.yml", "--trace"], "wave 19"),
         (&["send", "a.yml", "--sequence", "out.md"], "wave 19"),
