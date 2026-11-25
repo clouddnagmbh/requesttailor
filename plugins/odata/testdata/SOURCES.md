@@ -40,3 +40,30 @@ of SAP Gateway (V2), RAP (V4) and CAP: CSRF tokens bound to a session cookie, we
 `If-Match`, `$batch` (multipart; JSON batch on V4), drafts. The S/4 services need Basic auth
 `RT_USER` / `RT_PASS` and accept only `sap-client=100`. The full list of behaviours is the doc
 comment of `testserver/src/lib.rs`.
+
+## Gateway errors and `sap-statistics` (wave 18, strand J)
+
+`gateway/` holds synthetic golden files: error bodies in the three layouts (V2 JSON, V2 XML,
+V4 JSON, plus a CAP error and an HTML page that is no OData error) and `sap-statistics`
+header values with the segments the reader must make of them. Written by The RequestTailor
+Authors; transaction IDs, codes, messages and the SAP Note number (`9999999`) are invented.
+
+What is **not verified against a real system** (the reader is tolerant on purpose):
+
+- **`sap-statistics` header.** Assumed: `key=number` pairs separated by `,` or `;`, in
+  milliseconds unless the number carries a unit (`us`, `ms`, `s`), with the keys `total`,
+  `fw`/`gw`/`hub`/`gateway` (gateway), `app`/`be`/`application` (application) and `db`/`database`
+  (database). The real header's keys and unit must be checked against SAP's documentation and a
+  system. Parts the reader does not understand are noted, never an error.
+- **Error layouts.** From the public OData V2 and V4 specifications and the shape commonly
+  seen from SAP Gateway and RAP (`innererror` with `transactionid`, `timestamp`,
+  `Error_Resolution`, `errordetails` (V2) or `details` with `@Common.numericSeverity` (V4)).
+- **Error log transactions** named in the hint: `/IWFND/ERROR_LOG` (gateway system) and
+  `/IWBEP/ERROR_LOG` (backend). Unverified for V2 and V4; the hint is one sentence in
+  `src/gateway/mod.rs` (`LOOKUP`).
+
+The test server adds both to its S/4-style services (`testserver/src/gateway.rs`): the header
+`sap-statistics: total=48,fw=7,app=21,db=9` on a successful answer to a request that sent
+`sap-statistics: true` (or the query parameter), and, on every S/4 error, the full body with
+transaction ID `0000000000000000000000000000RT01`, details and resolution (V2 as XML when only
+`application/xml` is accepted).

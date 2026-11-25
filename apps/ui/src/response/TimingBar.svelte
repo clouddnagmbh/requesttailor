@@ -5,20 +5,38 @@
 <script lang="ts">
   import type { TimingBarData } from "./timing-bar";
 
-  let { data, sentence = true }: { data: TimingBarData; sentence?: boolean } = $props();
+  let {
+    data,
+    sentence = true,
+    reported = null,
+  }: { data: TimingBarData; sentence?: boolean; reported?: { label: string; text: string; title: string } | null } = $props();
 </script>
 
 <span class="timing-bar" data-testid="timing-bar" title={data.title}>
+  <span class="row">
   <span class="bar" role="img" aria-label={data.sentence}>
     {#each data.segments as s (s.name)}
       {#if s.pct > 0}<span class="seg {s.name}" data-phase={s.name} style:width="{s.pct}%"></span>{/if}
     {/each}
   </span>
   {#if sentence}<span class="sentence" data-testid="timing-bar-sentence">{data.sentence}</span>{/if}
+  </span>
+  {#if reported}
+    <span class="reported" data-testid="timing-segments" title={reported.title}>
+      <span class="reported-label">{reported.label}:</span> {reported.text}
+    </span>
+  {/if}
 </span>
 
 <style>
   .timing-bar {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--rt-space-1);
+    min-width: 0;
+  }
+  .row {
     display: inline-flex;
     align-items: center;
     gap: var(--rt-space-3);
@@ -50,6 +68,14 @@
   }
   .seg.transfer {
     background: var(--rt-fg-muted);
+  }
+  .reported {
+    color: var(--rt-fg-muted);
+    font-size: var(--rt-text-sm, inherit);
+    white-space: nowrap;
+  }
+  .reported-label {
+    font-style: italic;
   }
   .sentence {
     color: var(--rt-fg-muted);

@@ -12,6 +12,20 @@ export function segmentsOf(report: SendReport): TimingSegment[] {
   return report.segments ?? [];
 }
 
+/** The line under the timing bar (wave 18, strand J): what the server reported about its own
+ *  time, such as "Gateway 12 ms · Application 30 ms". Only the top-level segments (the waterfall
+ *  tab shows the tree); `null` without any. Pure text: it never touches the bar's phases or
+ *  total, the numbers come from the server's clock. */
+export function reportedLine(report: Pick<SendReport, "segments">): { label: string; text: string; title: string } | null {
+  const top = (report.segments ?? []).filter((s) => s.parent === undefined || s.parent === "server");
+  if (top.length === 0) return null;
+  return {
+    label: "as reported by the server",
+    text: top.map((s) => `${s.label} ${formatDuration(s.ms)}`).join(" \u00b7 "),
+    title: "Reported by the server on its own clock: not part of the total above",
+  };
+}
+
 /** Wave 19: segments an extension contributed after the send (`ExtensionContext.segments`),
  *  per stored response and `source` (such as `"trace"`). A later call for the same source
  *  replaces the earlier one. They are shown as "as reported by <source>" under the

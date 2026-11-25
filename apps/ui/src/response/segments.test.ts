@@ -5,7 +5,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { SegmentContributions, layoutSegments, overWaitHint } from "./segments";
+import { timingBar } from "./timing-bar";
+import { SegmentContributions, layoutSegments, overWaitHint, reportedLine } from "./segments";
 
 const seg = (id: string, ms: number, parent?: string, offset_ms?: number) => ({ id, label: id, ms, parent, offset_ms });
 
@@ -63,5 +64,35 @@ describe("SegmentContributions", () => {
     expect(c.forResponse(1)).toHaveLength(1);
     expect(c.forResponse(2)).toEqual([]);
     expect(n).toBe(4);
+  });
+});
+
+describe("reportedLine (the one line under the timing bar, wave 18 strand J)", () => {
+  const report = (segments?: ReturnType<typeof seg>[]) => ({ segments }) as Parameters<typeof reportedLine>[0];
+
+  it("says what the server reported, in the order it came, from the top-level segments", () => {
+    const line = reportedLine(report([seg("gw", 12, "server"), seg("app", 30, "server"), seg("db", 8, "server"), seg("rest", 3, "server")]));
+    expect(line).toEqual({
+      label: "as reported by the server",
+      text: "gw 12 ms \u00b7 app 30 ms \u00b7 db 8 ms \u00b7 rest 3 ms",
+      title: expect.stringContaining("not part of the total"),
+    });
+  });
+
+  it("is absent without segments and leaves nested ones to the waterfall", () => {
+    expect(reportedLine(report())).toBeNull();
+    expect(reportedLine(report([]))).toBeNull();
+    const line = reportedLine(report([seg("app", 30, "server"), seg("db", 8, "app")]));
+    expect(line?.text).toBe("app 30 ms");
+  });
+
+  it("never changes the bar: the phases still add up to the client's total", () => {
+    const timing = { dns: 5, connect: 10, tls: 20, ttfb: 340 };
+    const before = timingBar(timing, 410, "native", "https://x");
+    reportedLine(report([seg("gw", 900, "server")]));
+    const after = timingBar(timing, 410, "native", "https://x");
+    expect(after).toEqual(before);
+    expect(after.segments.reduce((sum, s) => sum + s.pct, 0)).toBeCloseTo(100, 6);
+    expect(after.total).toBe(410);
   });
 });

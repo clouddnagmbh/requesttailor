@@ -16,6 +16,7 @@
   import TimingBar from "./TimingBar.svelte";
   import { responseSlots } from "./slots";
   import { timingBar } from "./timing-bar";
+  import { reportedLine } from "./segments";
   import { contentTypeOf, tabsFor } from "../plugins/permissions";
   import PluginTab from "../plugins/PluginTab.svelte";
   import SendNotes from "../plugins/SendNotes.svelte";
@@ -290,7 +291,7 @@
     <span class="status {cls}" data-testid="response-status" data-class={cls}>{response.status}</span>
     {#if reasonPhrase(response.status)}<span class="reason {cls}">{reasonPhrase(response.status)}</span>{/if}
     <span class="metric" title="Total time"><span class="label">Time</span><span data-testid="response-time">{formatDuration(response.total)}</span></span>
-    <TimingBar data={bar} />
+    <TimingBar data={bar} reported={reportedLine(result.report)} />
     {#each slotChips as c (c.id)}
       {@const Chip = c.component}
       <Chip {app} requestPath={result.report.request_path} response={result} />
