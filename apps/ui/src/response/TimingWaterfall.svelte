@@ -47,7 +47,6 @@
   .timing {
     padding: var(--rt-gap);
     overflow: auto;
-    height: 100%;
     box-sizing: border-box;
   }
   table {

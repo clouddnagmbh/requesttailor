@@ -1029,10 +1029,9 @@ where
         Ok(Command::Notebook(args)) => return notebook::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
-    // Wave 19: `--trace` (A) and `--sequence` (G); each refuses until its strand builds it.
-    if let Err(e) = trace_flag::check(args.trace)
-        .and_then(|()| sequence_flag::check(&args.sequence))
-        .and_then(|()| debug_flag::check(&args.debug))
+    // Wave 19: `--sequence` (G) and `--debug`; each refuses until its strand builds it.
+    if let Err(e) =
+        sequence_flag::check(&args.sequence).and_then(|()| debug_flag::check(&args.debug))
     {
         return fail(stderr, EXIT_USAGE, &e);
     }
@@ -1112,6 +1111,9 @@ where
         && let Some(line) = send_banner::timing_line(&report)
     {
         let _ = writeln!(stderr, "{line}");
+    }
+    if args.trace {
+        let _ = writeln!(stderr, "{}", trace_flag::line(&report));
     }
     match views::render(&args, &report) {
         Ok(Some(text)) => {
