@@ -37,8 +37,13 @@ mod matching;
 pub mod protobuf;
 mod run;
 mod schema;
+mod schema_sources;
 mod spec;
 mod strict;
+
+pub use schema_sources::{
+    GRAPHQL_CANDIDATES, SchemaProbe, configured_graphql, schema_sources, schema_wanted,
+};
 
 /// Looked for, in this order, when `opencollection.yml` names no spec.
 pub const SPEC_CANDIDATES: &[&str] = &[
@@ -242,6 +247,12 @@ pub fn changes(
     let old = old.map(spec::Spec::parse).transpose()?;
     let new = new.map(spec::Spec::parse).transpose()?;
     changes::changes(old.as_ref(), new.as_ref(), files)
+}
+
+/// The changelog section (Markdown, a `## GraphQL` or `## Protobuf` heading) for the changes of
+/// a schema, breaking ones first; `None` when there are none.
+pub fn schema_section(kind: SchemaKind, changes: &SpecChanges) -> Option<String> {
+    changelog::schema_section(kind, changes)
 }
 
 /// The API changelog (Markdown) for a range: spec changes (breaking first) and the

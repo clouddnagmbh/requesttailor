@@ -456,6 +456,17 @@ collection, or to the repository root with a leading `/`), otherwise the first o
 root. `--out FILE` writes to a file instead of stdout. Exit code 0 when written, 2 for usage
 errors, an unknown revision or a spec that cannot be read.
 
+Two more sections follow when the collection has the files (since wave 18): `## GraphQL` for a
+schema in SDL (`extensions.requesttailor.contract.graphql` in `opencollection.yml`, otherwise
+`schema.graphql`, `schema.gql` or `schema.graphqls` next to the collection, then at the
+repository root) and `## Protobuf` for the `.proto` files of `config.protobuf` and what they
+import. Each lists breaking changes first, then the rest, with the requests they affect (the
+GraphQL requests that select a changed field, the gRPC requests that call a changed method or
+reach a changed message). A removed or retyped field or argument, a stricter nullability, a
+changed field number or streaming kind and the like are breaking; additions, descriptions and
+wire-compatible type changes are not. A schema that does not parse stops the changelog with
+the file and line named; a schema that did not change adds nothing.
+
 ## MCP server: `rt mcp`
 
 `rt mcp` offers a collection to coding agents as tools, over the Model Context Protocol on

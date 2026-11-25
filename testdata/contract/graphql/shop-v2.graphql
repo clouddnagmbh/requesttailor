@@ -1,0 +1,89 @@
+# Synthetic shop schema, version 2: additions and wording only, nothing breaks.
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+"""A product for sale."""
+type Product implements Node & Priced {
+  id: ID!
+  name: String!
+  price: Float!
+  tags: [String!]!
+  category: Category
+  legacyCode: String
+  sku: String
+}
+
+interface Node {
+  id: ID!
+}
+
+interface Priced {
+  price: Float!
+}
+
+"""A group of products."""
+type Category {
+  id: ID!
+  label: String!
+}
+
+type Order {
+  id: ID!
+  lines: [Line!]!
+  status: OrderStatus!
+  total: Float!
+  createdAt: Date
+}
+
+type Line {
+  product: Product!
+  qty: Int!
+}
+
+type Review {
+  stars: Int!
+}
+
+union SearchResult = Product | Category | Order | Review
+
+enum OrderStatus {
+  OPEN
+  PAID
+  SHIPPED
+  CANCELLED
+  REFUNDED
+}
+
+input NewOrder {
+  productIds: [ID!]!
+  note: String
+  coupon: String
+  giftWrap: Boolean
+}
+
+input Page {
+  first: Int
+  after: String
+}
+
+scalar Date
+
+directive @cache(ttl: Int) on FIELD_DEFINITION
+
+directive @auth on FIELD_DEFINITION
+
+type Query {
+  product(id: ID!): Product
+  products(page: Page, category: ID, sort: String): [Product!]!
+  order(id: ID!): Order
+  search(text: String): [SearchResult!]!
+  legacyStats: String @deprecated(reason: "use stats")
+  stats: String
+}
+
+type Mutation {
+  placeOrder(input: NewOrder!): Order!
+  cancelOrder(id: ID!, reason: String): Order
+}

@@ -89,7 +89,57 @@ const CHANGES: SpecChange[] = [
   },
 ];
 
-function render(title: string, changes: SpecChange[]): string {
+/** Wave 18, strand H: what the demo says about the schema files of the Orders API. */
+const SCHEMA_CHANGES: Record<SchemaKind, SpecChange[]> = {
+  graphql: [
+    {
+      kind: "field-removed",
+      breaking: true,
+      operation: "Order.total",
+      location: "",
+      message: "field total removed",
+      requests: ["orders/get-order.yml"],
+    },
+    {
+      kind: "nullability-changed",
+      breaking: true,
+      operation: "Query.orders",
+      location: "",
+      message: "field may now be null: [Order!]! became [Order!]",
+      requests: ["orders/list-orders.yml"],
+    },
+    {
+      kind: "field-added",
+      breaking: false,
+      operation: "Order.coupon",
+      location: "",
+      message: "field coupon: String added",
+      requests: [],
+    },
+  ],
+  protobuf: [
+    {
+      kind: "number-changed",
+      breaking: true,
+      operation: "orders.v1.Order.id",
+      location: "",
+      message: "number changed from 1 to 2: data written with the old number is misread",
+      requests: [],
+    },
+    {
+      kind: "type-changed",
+      breaking: false,
+      operation: "orders.v1.Order.count",
+      location: "",
+      message: "type changed from int32 to int64 (wire-compatible; values may be cut or read differently)",
+      requests: [],
+    },
+  ],
+};
+
+const SCHEMA_TITLE: Record<SchemaKind, string> = { graphql: "GraphQL", protobuf: "Protobuf" };
+
+function render(title: string, changes: SpecChange[], schemas = false): string {
   const line = (c: SpecChange) =>
     `- \`${c.operation}\`: ${c.message}` +
     (c.requests.length ? ` (affects ${c.requests.map((r) => `\`${r}\``).join(", ")})` : "") +
@@ -99,6 +149,15 @@ function render(title: string, changes: SpecChange[]): string {
   let out = `# ${title}\n\n## Breaking changes\n\n`;
   out += breaking.length ? breaking.map(line).join("") : "None.\n";
   if (other.length) out += `\n## Other changes\n\n${other.map(line).join("")}`;
+  if (schemas) {
+    for (const kind of ["graphql", "protobuf"] as const) {
+      const list = SCHEMA_CHANGES[kind];
+      const hard = list.filter((c) => c.breaking);
+      const soft = list.filter((c) => !c.breaking);
+      out += `\n## ${SCHEMA_TITLE[kind]}\n\n### Breaking changes\n\n${hard.length ? hard.map(line).join("") : "None.\n"}`;
+      if (soft.length) out += `\n### Other changes\n\n${soft.map(line).join("")}`;
+    }
+  }
   return out;
 }
 
@@ -144,18 +203,25 @@ export class MockContract implements ContractApi {
 
   async changelog(from: string, to: string): Promise<string> {
     const c = await this.changes(from, to);
-    return render(`${SPEC.title} ${c.from_version} → ${c.to_version}`, c.changes);
+    return render(`${SPEC.title} ${c.from_version} → ${c.to_version}`, c.changes, this.demo);
+  }
+
+  /** Wave 18, strand H: the demo has GraphQL and Protobuf changes; without it there is no
+   *  schema, which is an empty list, not an error (a hint is never an error). */
+  async schemaChanges(kind: SchemaKind, from: string, to: string): Promise<SpecChanges> {
+    this.calls.push(`schemaChanges ${kind} ${from}..${to}`);
+    await this.host.git().revParse(from);
+    await this.host.git().revParse(to);
+    return {
+      from_version: null,
+      to_version: null,
+      changes: this.demo ? structuredClone(SCHEMA_CHANGES[kind]) : [],
+    };
   }
 
   /** Wave 17, strand A: writes the spec, unsaved (as a companion file, so `dirty` and `save`
    *  see it). Like the core it refuses a text that is no spec; the mock's check is a plain
    *  look for the `openapi` and `info` keys. */
-  /** Wave 18, strand H: placeholder. */
-  async schemaChanges(_kind: SchemaKind, _from: string, _to: string): Promise<SpecChanges> {
-    this.calls.push("schemaChanges");
-    throw new BackendError("unsupported", "GraphQL and Protobuf contracts are not implemented yet (wave 18, strand H).");
-  }
-
   async stageSpec(text: string): Promise<string> {
     this.calls.push("stageSpec");
     this.need();

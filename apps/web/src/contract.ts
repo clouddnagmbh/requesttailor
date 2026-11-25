@@ -14,8 +14,8 @@ import {
   type ContractApi,
   type ContractReport,
   type ContractSpec,
+  type SchemaKind,
   type SpecChanges,
-  stubSchemaChanges,
 } from "@requesttailor/ui";
 
 import { readDirectory } from "./fs/directory";
@@ -46,7 +46,31 @@ export interface CoreContractModule {
     to: string,
     commits: { oid: string; message: string; author: string }[],
   ): ChangelogFacts;
+  /** Wave 18, strand H: the schema files still to read (`[path, text | null][]` is what was
+   *  read so far); empty when everything is there. */
+  contractSchemaWanted(kind: SchemaKind, files: [string, string][], read: SchemaRead): string[];
+  contractSchemaChanges(
+    kind: SchemaKind,
+    oldFiles: [string, string][],
+    oldRead: SchemaRead,
+    newFiles: [string, string][],
+    newRead: SchemaRead,
+  ): SpecChanges;
+  contractSchemaSection(
+    kind: SchemaKind,
+    oldFiles: [string, string][],
+    oldRead: SchemaRead,
+    newFiles: [string, string][],
+    newRead: SchemaRead,
+  ): string | null | undefined;
 }
+
+/** What was read of the schema files of one side: path (as the core asked for it) and its text,
+ *  `null` where there is no such file. */
+type SchemaRead = [string, string | null][];
+
+/** Imports of imports of imports: far more than any real layout (as `rt_app::contract`). */
+const SCHEMA_ROUNDS = 32;
 
 /** The contract part of rt-wasm's `Workspace` (`contract_js.rs`). */
 export interface CoreContractWorkspace {
@@ -132,6 +156,45 @@ export function webContract(w: Wave12Host): ContractApi {
     });
   }
 
+  /** One side of a range for the schema comparison: the collection files and the schema files
+   *  the core asked for, read with `git show` (in the browser a leading `/` is the collection
+   *  folder, so it reads the same file). */
+  async function schemaSide(
+    c: CoreModule & CoreContractModule,
+    kind: SchemaKind,
+    rev: string,
+  ): Promise<{ files: Files; read: SchemaRead }> {
+    const files: Files = Object.entries((await w.git.treeAt(rev)).files);
+    const read = new Map<string, string | null>();
+    for (let round = 0; round < SCHEMA_ROUNDS; round++) {
+      const wanted = c.contractSchemaWanted(kind, files, [...read]);
+      if (wanted.length === 0) break;
+      for (const path of wanted) read.set(path, await w.git.show(rev, path.replace(/^\/+/, "")));
+    }
+    return { files, read: [...read] };
+  }
+
+  async function schemaChanges(kind: SchemaKind, from: string, to: string): Promise<SpecChanges> {
+    const c = await core();
+    const [old, next] = [await schemaSide(c, kind, from), await schemaSide(c, kind, to)];
+    return c.contractSchemaChanges(kind, old.files, old.read, next.files, next.read);
+  }
+
+  /** `text` with the GraphQL and Protobuf sections of the range after it, as `rt changelog`
+   *  writes them (`rt_app::contract::changelog_with`). */
+  async function withSchemaSections(text: string, from: string, to: string): Promise<string> {
+    const c = await core();
+    let out = text;
+    for (const kind of ["graphql", "protobuf"] as const) {
+      const [old, next] = [await schemaSide(c, kind, from), await schemaSide(c, kind, to)];
+      const section = c.contractSchemaSection(kind, old.files, old.read, next.files, next.read);
+      if (!section || section.trim() === "") continue;
+      while (!out.endsWith("\n\n")) out += "\n";
+      out += `${section.trim()}\n`;
+    }
+    return out;
+  }
+
   async function guard<T>(f: () => Promise<T>): Promise<T> {
     try {
       return await f();
@@ -169,7 +232,8 @@ export function webContract(w: Wave12Host): ContractApi {
       guard(async () => {
         const c = await core();
         const [old, next] = [await at(c, from), await at(c, to)];
-        return c.contractChangelog(old.files, old.spec?.bytes ?? null, next.files, next.spec?.bytes ?? null, from, to);
+        const text = c.contractChangelog(old.files, old.spec?.bytes ?? null, next.files, next.spec?.bytes ?? null, from, to);
+        return withSchemaSections(text, from, to);
       }),
 
     // Wave 16, strand D: the same facts as `rt changelog` hands to a writer.
@@ -181,7 +245,7 @@ export function webContract(w: Wave12Host): ContractApi {
         const commits = source.changelogCommits
           ? await source.changelogCommits(from, to)
           : (await w.git.commits(from, to, 10000)).map((x) => ({ oid: x.oid, message: x.summary, author: x.author }));
-        return c.contractChangelogFacts(
+        const facts = c.contractChangelogFacts(
           old.files,
           old.spec?.bytes ?? null,
           next.files,
@@ -190,13 +254,16 @@ export function webContract(w: Wave12Host): ContractApi {
           to,
           commits,
         );
+        // The schema sections are part of the text, as in `rt changelog`.
+        return { ...facts, markdown: await withSchemaSections(facts.markdown, from, to) };
       }),
 
     // Wave 17, strand A: the spec the contract names (found as `spec()` does), staged in the
     // core workspace like a request edit; `save` writes it. The core refuses any other file
     // and a text that is no spec. In the browser a leading `/` is the collection folder.
-    // Wave 18, strand H: the placeholder until the strand answers it over rt-wasm.
-    schemaChanges: stubSchemaChanges(),
+    // Wave 18, strand H: the same files and rules as the desktop and `rt changelog`, over
+    // rt-wasm.
+    schemaChanges: (kind, from, to) => guard(() => schemaChanges(kind, from, to)),
     stageSpec: (text) =>
       guard(async () => {
         const c = await core();

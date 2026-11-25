@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Legacy stats
+  type: graphql
+  seq: 4
+
+graphql:
+  method: POST
+  url: "{{baseUrl}}/graphql"
+  body:
+    query: |-
+      {
+        legacyStats
+      }
+    variables: |-
+      {}
+  auth: inherit

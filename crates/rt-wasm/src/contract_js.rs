@@ -147,6 +147,103 @@ pub fn contract_changelog_facts(
     to_js(&facts)
 }
 
+// ---- GraphQL and Protobuf schemas (wave 18, strand H) ----
+
+/// What the shell has read of the schema files so far: `[path, text | null][]`, `null` for a
+/// path that does not exist.
+type Probe = Vec<(String, Option<String>)>;
+
+fn schema_kind(kind: &str) -> Result<rt_format::contract::SchemaKind, JsValue> {
+    match kind {
+        "graphql" => Ok(rt_format::contract::SchemaKind::Graphql),
+        "protobuf" => Ok(rt_format::contract::SchemaKind::Protobuf),
+        other => Err(JsValue::from_str(&format!("unknown schema kind {other:?}"))),
+    }
+}
+
+fn probe(value: &JsValue) -> Result<rt_format::contract::SchemaProbe, JsValue> {
+    let list: Probe = from_js(value, "probe")?;
+    Ok(list
+        .into_iter()
+        .map(|(p, t)| (p, t.map(String::into_bytes)))
+        .collect())
+}
+
+/// The schema files of `kind` the shell still has to read, given what it has read so far
+/// (`[path, text | null][]`); empty when it has them all. Paths are collection-relative, or
+/// repository-relative with a leading `/`.
+#[wasm_bindgen(js_name = contractSchemaWanted)]
+pub fn contract_schema_wanted(
+    kind: &str,
+    files: JsValue,
+    read: JsValue,
+) -> Result<JsValue, JsValue> {
+    let wanted =
+        rt_format::contract::schema_wanted(schema_kind(kind)?, &file_set(&files)?, &probe(&read)?)
+            .map_err(fail)?;
+    to_js(&wanted)
+}
+
+type Sources = Option<rt_format::contract::SchemaSources>;
+
+fn sources(
+    kind: rt_format::contract::SchemaKind,
+    files: &JsValue,
+    read: &JsValue,
+) -> Result<Sources, JsValue> {
+    rt_format::contract::schema_sources(kind, &file_set(files)?, &probe(read)?).map_err(fail)
+}
+
+/// `SpecChanges` of the GraphQL or Protobuf schema from one side to the other; each side is its
+/// collection files and what was read of its schema files.
+#[wasm_bindgen(js_name = contractSchemaChanges)]
+pub fn contract_schema_changes(
+    kind: &str,
+    old_files: JsValue,
+    old_read: JsValue,
+    new_files: JsValue,
+    new_read: JsValue,
+) -> Result<JsValue, JsValue> {
+    let kind = schema_kind(kind)?;
+    let (old, new) = (
+        sources(kind, &old_files, &old_read)?,
+        sources(kind, &new_files, &new_read)?,
+    );
+    let changes = rt_format::contract::schema_changes(
+        kind,
+        old.as_ref(),
+        new.as_ref(),
+        &file_set(&new_files)?,
+    )
+    .map_err(fail)?;
+    to_js(&changes)
+}
+
+/// The changelog section (`## GraphQL` or `## Protobuf`) of a range, or `undefined` when the
+/// schema did not change; the same text `rt changelog` appends.
+#[wasm_bindgen(js_name = contractSchemaSection)]
+pub fn contract_schema_section(
+    kind: &str,
+    old_files: JsValue,
+    old_read: JsValue,
+    new_files: JsValue,
+    new_read: JsValue,
+) -> Result<Option<String>, JsValue> {
+    let kind = schema_kind(kind)?;
+    let (old, new) = (
+        sources(kind, &old_files, &old_read)?,
+        sources(kind, &new_files, &new_read)?,
+    );
+    let changes = rt_format::contract::schema_changes(
+        kind,
+        old.as_ref(),
+        new.as_ref(),
+        &file_set(&new_files)?,
+    )
+    .map_err(fail)?;
+    Ok(rt_format::contract::schema_section(kind, &changes))
+}
+
 /// Wave 17: stages `text` as the contract's spec at `path` (the spec the shell found:
 /// `opencollection.yml`'s, else `openapi.{yaml,yml,json}`), unsaved. The core refuses any other
 /// path and a text that is no spec; `prepareSave` then returns the file like a request edit.

@@ -139,21 +139,65 @@ pub fn changes(old: &Side<'_>, new: &Side<'_>) -> Result<SpecChanges> {
 
 pub use rt_format::contract::{SchemaKind, SchemaSources};
 
+/// The schema files of one side: the ones [`rt_format::contract::schema_wanted`] asks for, read
+/// with `side.read` until nothing more is wanted. `None`: the side has no schema of this kind.
+fn schema_sources(kind: SchemaKind, side: &Side<'_>) -> Result<Option<SchemaSources>> {
+    use rt_format::contract::{SchemaProbe, schema_sources, schema_wanted};
+    /// Imports of imports of imports: far more than any real layout.
+    const ROUNDS: usize = 32;
+    let mut probe = SchemaProbe::new();
+    for _ in 0..ROUNDS {
+        let wanted = schema_wanted(kind, side.files, &probe)?;
+        if wanted.is_empty() {
+            break;
+        }
+        for path in wanted {
+            let bytes = (side.read)(&path)?;
+            probe.insert(path, bytes);
+        }
+    }
+    Ok(schema_sources(kind, side.files, &probe)?)
+}
+
 /// Breaking changes of a GraphQL or Protobuf schema between two sides (wave 18, strand H): the
-/// schema files are found as `rt_format::contract::SchemaKind` describes (GraphQL: the
-/// configured file or `schema.graphql` / `schema.gql` / `*.graphqls` next to the collection,
-/// then the repository root; Protobuf: the `.proto` files of `config.protobuf`), read with
-/// `Side::read`, and compared as `rt_format::contract::schema_changes`. Interface: always
-/// `Unsupported` until the strand.
+/// schema files are found as [`rt_format::contract::schema_wanted`] describes (GraphQL: the
+/// configured file or `schema.graphql` / `schema.gql` / `schema.graphqls` next to the
+/// collection, then the repository root; Protobuf: the `.proto` files of `config.protobuf` and
+/// what they import), read with `Side::read`, and compared as
+/// [`rt_format::contract::schema_changes`]. A side without such a schema counts as empty.
 pub fn schema_changes(kind: SchemaKind, old: &Side<'_>, new: &Side<'_>) -> Result<SpecChanges> {
-    let _ = (old, new);
-    let what = match kind {
-        SchemaKind::Graphql => "GraphQL",
-        SchemaKind::Protobuf => "Protobuf",
-    };
-    Err(AppError::Unsupported(format!(
-        "{what} schema changes are not implemented yet (wave 18, strand H)."
-    )))
+    let (o, n) = (schema_sources(kind, old)?, schema_sources(kind, new)?);
+    Ok(rt_format::contract::schema_changes(
+        kind,
+        o.as_ref(),
+        n.as_ref(),
+        new.files,
+    )?)
+}
+
+/// The changelog section of one kind of schema (`## GraphQL`, `## Protobuf`): `rt changelog`
+/// adds both after the OpenAPI changes; a schema that did not change or does not exist says
+/// nothing.
+#[derive(Debug, Clone, Copy)]
+pub struct SchemaSection(SchemaKind);
+
+impl SchemaSection {
+    pub fn new(kind: SchemaKind) -> Self {
+        Self(kind)
+    }
+}
+
+impl ChangelogSection for SchemaSection {
+    fn section(
+        &self,
+        old: &Side<'_>,
+        new: &Side<'_>,
+        _from: &str,
+        _to: &str,
+    ) -> Result<Option<String>> {
+        let changes = schema_changes(self.0, old, new)?;
+        Ok(rt_format::contract::schema_section(self.0, &changes))
+    }
 }
 
 /// The heading of a changelog: `Orders API 1.1.0 → 2.0.0` when the spec's version is known,

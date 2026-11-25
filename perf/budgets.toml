@@ -150,9 +150,8 @@ max = 300
 
 # Strand H (scripts/perf/schemas.mjs).
 [metrics.schema_changes]
-description = "Changes between two GraphQL schemas of 2000 types each (100 changed), rt-format release, median of 9"
+description = "Changes between two GraphQL schemas of 2000 types and 10000 fields (200 changes) and between two Protobuf versions of 500 messages, requests named, rt-format release, median of 9 (the slower of the two)"
 unit = "ms"
-pending = "wave 18, strand H"
 max = 300
 
 # Strand I (scripts/perf/catalogue.mjs).

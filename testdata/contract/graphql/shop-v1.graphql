@@ -1,0 +1,79 @@
+# Synthetic shop schema, version 1 (written for RequestTailor tests, Apache-2.0).
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+"""A product for sale."""
+type Product implements Node & Priced {
+  id: ID!
+  name: String!
+  price: Float!
+  tags: [String!]!
+  category: Category
+  legacyCode: String
+}
+
+interface Node {
+  id: ID!
+}
+
+interface Priced {
+  price: Float!
+}
+
+type Category {
+  id: ID!
+  label: String!
+}
+
+type Order {
+  id: ID!
+  lines: [Line!]!
+  status: OrderStatus!
+  total: Float
+}
+
+type Line {
+  product: Product!
+  qty: Int!
+}
+
+union SearchResult = Product | Category | Order
+
+enum OrderStatus {
+  OPEN
+  PAID
+  SHIPPED
+  CANCELLED
+}
+
+input NewOrder {
+  productIds: [ID!]!
+  note: String
+  coupon: String
+}
+
+input Page {
+  first: Int
+  after: String
+}
+
+scalar Date
+
+directive @cache(ttl: Int) on FIELD_DEFINITION
+
+directive @auth on FIELD_DEFINITION
+
+type Query {
+  product(id: ID!): Product
+  products(page: Page, category: ID): [Product!]!
+  order(id: ID!): Order
+  search(text: String!): [SearchResult!]!
+  legacyStats: String
+}
+
+type Mutation {
+  placeOrder(input: NewOrder!): Order!
+  cancelOrder(id: ID!, reason: String): Order
+}

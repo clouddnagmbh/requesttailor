@@ -1,0 +1,67 @@
+# Synthetic shop schema, version 3: breaks version 1 in every way the rules name.
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Product implements Node {
+  id: ID!
+  name: String!
+  price: Int!
+  tags: [String!]
+}
+
+interface Node {
+  id: ID!
+}
+
+interface Priced {
+  price: Float!
+}
+
+type Order {
+  id: ID!
+  lines: [Line!]!
+  status: OrderStatus!
+  total: Float
+}
+
+type Line {
+  product: Product!
+  qty: Int!
+}
+
+union SearchResult = Product | Order
+
+enum OrderStatus {
+  OPEN
+  PAID
+  SHIPPED
+}
+
+input NewOrder {
+  productIds: [ID!]!
+  note: String
+  currency: String!
+}
+
+input Page {
+  first: Int
+  after: String
+}
+
+scalar Date
+
+directive @cache(ttl: Int) on FIELD_DEFINITION
+
+type Query {
+  product(id: ID!): Product
+  products(page: Page, region: String!): [Product!]!
+  order(id: String!): Order
+  search(text: String!): [SearchResult!]!
+}
+
+type Mutation {
+  placeOrder(input: NewOrder!): Order!
+  cancelOrder(id: ID!, reason: String!): Order
+}

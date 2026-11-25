@@ -3,13 +3,14 @@
 <!-- The collection against the OpenAPI spec of its repository (wave 12, strand F): the spec
      found, the check report (problems per request, operations no request covers), the changes
      of the spec between two revisions with breaking ones marked, and the API changelog as
-     Markdown (the text `rt changelog` writes). Talks only to `app.backend.contract`; there is
+     Markdown (the text `rt changelog` writes). Since wave 18 the same range also lists the
+     changes of a GraphQL schema and of Protobuf files (strand H). Talks only to `app.backend.contract`; there is
      no way to configure the spec here (it is `extensions.requesttailor.contract.spec` in
      opencollection.yml). -->
 <script lang="ts">
   import { onMount } from "svelte";
 
-  import type { ContractReport, ContractSpec, FindingKind, SpecChanges } from "../commands/types";
+  import type { ContractReport, ContractSpec, FindingKind, SchemaKind, SpecChange, SpecChanges } from "../commands/types";
   import { getGitViews } from "../git/views.svelte";
   import { getApp } from "../state/app.svelte";
   import { Badge, Button, Card, EmptyState, Icon, Spinner, TextField } from "../ui";
@@ -40,6 +41,14 @@
   let from = $state("HEAD~1");
   let to = $state("HEAD");
   let changes = $state<SpecChanges | null>(null);
+  /** The GraphQL and Protobuf changes of the range; an error is shown, not hidden. */
+  interface SchemaResult {
+    kind: SchemaKind;
+    title: string;
+    changes: SpecChange[];
+    error: string | null;
+  }
+  let schemas = $state<SchemaResult[]>([]);
   let changelog = $state<string | null>(null);
   let busy = $state<string | null>(null);
   let copied = $state(false);
@@ -63,7 +72,23 @@
 
   async function showChanges(): Promise<void> {
     changelog = null;
-    changes = await run("changes", () => contract.changes(from.trim(), to.trim()));
+    schemas = [];
+    const [a, b] = [from.trim(), to.trim()];
+    changes = await run("changes", () => contract.changes(a, b));
+    if (!changes) return;
+    const kinds: [SchemaKind, string][] = [
+      ["graphql", "GraphQL"],
+      ["protobuf", "Protobuf"],
+    ];
+    schemas = await Promise.all(
+      kinds.map(async ([kind, title]): Promise<SchemaResult> => {
+        try {
+          return { kind, title, changes: (await contract.schemaChanges(kind, a, b)).changes, error: null };
+        } catch (e) {
+          return { kind, title, changes: [], error: e instanceof Error ? e.message : String(e) };
+        }
+      }),
+    );
   }
 
   async function showChangelog(): Promise<void> {
@@ -191,6 +216,29 @@
           {/each}
         </ul>
       {/if}
+      {#each schemas.filter((x) => x.changes.length > 0 || x.error) as schema (schema.kind)}
+        <h3 data-testid="contract-schema-title">{schema.title}</h3>
+        {#if schema.error}
+          <p class="error" role="alert" data-testid="contract-schema-error">{schema.error}</p>
+        {:else}
+          <p class="summary" data-testid="contract-schema-summary" data-schema={schema.kind}>
+            <strong class:danger={schema.changes.some((c) => c.breaking)}>{schema.changes.filter((c) => c.breaking).length} breaking</strong>,
+            {schema.changes.filter((c) => !c.breaking).length} other.
+          </p>
+          <ul class="list" data-testid="contract-schema-list">
+            {#each schema.changes as c, i (i)}
+              <li data-testid="contract-schema-change" data-schema={schema.kind} data-breaking={c.breaking}>
+                <Badge value={c.breaking ? "Breaking" : "Change"} tone={c.breaking ? "danger" : "neutral"} />
+                {#if c.operation}<code>{c.operation}</code>{/if}
+                <span class="message">{c.message}</span>
+                {#each c.requests as r (r)}
+                  <Button variant="ghost" size="sm" class="path-link" onclick={() => openRequest(r)}>{r}</Button>
+                {/each}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      {/each}
       {#if changelog !== null}
         <div class="changelog-head">
           <h3>Changelog (Markdown)</h3>

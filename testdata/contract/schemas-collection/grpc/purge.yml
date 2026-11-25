@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Purge
+  type: grpc
+  seq: 4
+
+grpc:
+  url: "{{host}}"
+  method: /shop.orders.Admin/Purge
+  methodType: unary
+  message:
+    - title: message 1
+      message: |-
+        {}

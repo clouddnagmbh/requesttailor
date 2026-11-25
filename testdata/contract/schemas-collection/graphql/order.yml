@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The RequestTailor Authors
+info:
+  name: Get order
+  type: graphql
+  seq: 2
+
+graphql:
+  method: POST
+  url: "{{baseUrl}}/graphql"
+  body:
+    query: |-
+      query ($id: ID!) {
+        order(id: $id) {
+          id
+          total
+          lines {
+            qty
+          }
+        }
+      }
+    variables: |-
+      {}
+  auth: inherit
