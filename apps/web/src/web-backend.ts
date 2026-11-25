@@ -456,7 +456,7 @@ export class WebBackend implements Backend {
       core: async () => (await deps.loadCore()) as unknown as CoreInbox,
     });
     this.lint = webLint(() => this.session());
-    this.views = webViews();
+    this.views = webViews(() => this.session());
     this.catalogue = webCatalogue();
     this.snapshots = webSnapshots(
       () => this.session(),

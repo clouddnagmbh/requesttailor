@@ -141,7 +141,6 @@ max = 500
 [metrics.view_apply]
 description = "Applying a saved view (JSONPath) to a 10 MiB JSON response (native release, median of 9)"
 unit = "ms"
-pending = "wave 18, strand G"
 max = 300
 
 # Strand H (scripts/perf/schemas.mjs).

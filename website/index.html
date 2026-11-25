@@ -98,6 +98,7 @@ fails the build.</p>
 <tr><td>What the test-data journal adds to one writing send</td><td>at most <span data-budget="journal_overhead">1</span> ms</td></tr>
 <tr><td>Passive checks of a 1 MiB response</td><td>at most <span data-budget="response_checks">20</span> ms</td></tr>
 <tr><td>Linting a collection with 1000 requests</td><td>at most <span data-budget="lint_1000">500</span> ms</td></tr>
+<tr><td>Applying a saved JSONPath view to a 10 MiB JSON response</td><td>at most <span data-budget="view_apply">300</span> ms</td></tr>
 <tr><td>Finding the breaking changes between two versions of a GraphQL schema with 2000 types, or of Protobuf files with 500 messages</td><td>at most <span data-budget="schema_changes">300</span> ms</td></tr>
 <tr><td>Adding a trace context to a request (opt-in per collection)</td><td>at most <span data-budget="trace_inject">0.02</span> ms</td></tr>
 <tr><td>Shrinking a failing request of 200 parts with one cause to that cause, in sends</td><td>at most <span data-budget="shrink_probes">60</span> requests</td></tr>

@@ -26,7 +26,7 @@ and how.
 | `ratelimit_wait` | ≤ 50 ms | error of the wait after `Retry-After: 1`, `rt run --respect-limits`, median of 9 (real sleep, `crates/rt-core/tests/ratelimit.rs`; the fake-clock cases prove the logic exactly) |
 | `inbox_latency` | ≤ 5 ms | webhook inbox: from the last byte of a request on the loopback port to the event at a subscriber, median over 2000 requests of 2 KB; the test also holds p99 to 20 ms and lossless delivery up to 200 requests per second (measured: `node scripts/perf/run.mjs --only inbox`) |
 | `lint_1000` | ≤ 500 ms | `rt lint` on 1000 requests, native release, median of 9 (pending: wave 18, strand F) |
-| `view_apply` | ≤ 300 ms | a saved view (JSONPath) on a 10 MiB JSON response, native release, median of 9 (pending: wave 18, strand G) |
+| `view_apply` | ≤ 300 ms | a saved view (JSONPath) on a 10 MiB JSON response, native release, median of 9, the slower of a JSONPath view and a table; the same table at the 32 MiB limit stays under 500 ms (`node scripts/perf/run.mjs --only views`) |
 | `schema_changes` | ≤ 300 ms | changes between two GraphQL schemas of 2000 types and 10 000 fields (200 changes) and between two Protobuf versions of 500 messages, requests named, release, median of 9, the slower of the two |
 | `catalogue_index` | ≤ 100 ms | reading and checking a plugin index with 1000 entries, release, median of 9 (pending: wave 18, strand I) |
 | `trace_inject` | ≤ 0.02 ms | The trace context on a request, `trace::inject` with and without an existing header (100 000 calls, release): median per call; 0 when off (pending: wave 19, strand A) |

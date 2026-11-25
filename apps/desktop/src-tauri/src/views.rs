@@ -1,62 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! Saved views for the desktop app (`Backend.views`, `rt_app::views`). Wave 18 interface:
-//! registered, "not implemented yet"; strand G answers them.
+//! Saved views for the desktop app (`Backend.views`, `rt_app::views`). The file
+//! `<request>.views.json` is staged in the active collection like any companion file (unsaved
+//! until `save`); a view is evaluated here on the kept response, only the shaped result goes to
+//! the webview.
 
-use rt_app::AppError;
-use rt_app::views::{ResponseView, ViewLanguage, ViewResult};
+use rt_app::views::{self, ResponseView, ViewLanguage, ViewResult};
+use tauri::State;
 
-use crate::commands::CommandError;
-
-fn not_yet<T>() -> Result<T, CommandError> {
-    Err(
-        AppError::Unsupported("Saved views is not implemented yet (wave 18, strand G).".into())
-            .into(),
-    )
-}
+use crate::commands::{AppCore, CommandError};
 
 #[tauri::command]
 pub async fn views_list(
-    _app: tauri::AppHandle,
+    core: State<'_, AppCore>,
     path: String,
 ) -> Result<Vec<ResponseView>, CommandError> {
-    let _ = (path,);
-    not_yet()
+    Ok(core.with_workspace(|ws, _| views::list(ws, &path))?)
 }
 
 #[tauri::command]
 pub async fn views_save(
-    _app: tauri::AppHandle,
+    core: State<'_, AppCore>,
     path: String,
     view: ResponseView,
 ) -> Result<Vec<ResponseView>, CommandError> {
-    let _ = (path, view);
-    not_yet()
+    Ok(core.with_workspace(|ws, _| views::save(ws, &path, view))?)
 }
 
 #[tauri::command]
 pub async fn views_remove(
-    _app: tauri::AppHandle,
+    core: State<'_, AppCore>,
     path: String,
     name: String,
 ) -> Result<Vec<ResponseView>, CommandError> {
-    let _ = (path, name);
-    not_yet()
+    Ok(core.with_workspace(|ws, _| views::remove(ws, &path, &name))?)
 }
 
 #[tauri::command]
 pub async fn views_apply(
-    _app: tauri::AppHandle,
+    core: State<'_, AppCore>,
     path: String,
     response_id: u64,
     view: ResponseView,
 ) -> Result<ViewResult, CommandError> {
-    let _ = (path, response_id, view);
-    not_yet()
+    let _ = path;
+    Ok(core.with_responses(|_, responses| views::apply(responses, response_id, &view))?)
 }
 
 #[tauri::command]
-pub async fn views_languages(_app: tauri::AppHandle) -> Result<Vec<ViewLanguage>, CommandError> {
-    not_yet()
+pub async fn views_languages() -> Result<Vec<ViewLanguage>, CommandError> {
+    Ok(views::languages())
 }
