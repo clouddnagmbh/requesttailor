@@ -13,3 +13,8 @@ Ports 48700 to 48847 belong to wave 19 (see the pro repository's `docs/welle19.m
 that starts a service takes its port from its own range and says so in its test.
 
 - `sequence/*.mmd`, `sequence/*.md`: golden outputs of the Mermaid and Markdown writers (wave 19, strand G); written by `RT_UPDATE_GOLDEN=1 cargo test -p rt-app --test sequence`, own work, Apache-2.0.
+## notebooks/ (wave 19, strand W)
+
+`notebooks/orders.notebook.md`: a synthetic API notebook (login, list, a request file) written
+for the round-trip test of `rt_app::notebook`; no real host, no personal data. Ports 48830 to
+48835 belong to strand W (tests bind loopback ports of the system).

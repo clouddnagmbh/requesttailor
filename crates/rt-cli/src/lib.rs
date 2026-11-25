@@ -971,6 +971,11 @@ fn with_guard(command: Command, (guard, observers): (&GuardHandle, &ObserverSet)
             a.run.observers = observers.clone();
             Command::Security(a)
         }
+        Command::Notebook(mut a) => {
+            a.guard = guard.clone();
+            a.observers = observers.clone();
+            Command::Notebook(a)
+        }
         Command::VerifyConsumers(mut a) => {
             a.guard = guard.clone();
             a.observers = observers.clone();

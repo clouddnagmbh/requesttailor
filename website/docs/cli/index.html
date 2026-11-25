@@ -111,6 +111,7 @@ rt compare-env [FOLDER] --env A --env B... [--json] [--ignore-env-values] [--fai
 rt access check &lt;request-file&gt; --as ENV-A --as ENV-B [--allow-writes] [--b-must-be-denied] [--rate N]
 rt shrink &lt;request-file&gt; [-e ENV] [--predicate P] [--keep PART]... [--max-probes N] [--max-seconds N]
 rt journal [list | revert ID --with REQUEST-FILE | clear] [-C COLLECTION] [--yes-production]
+rt notebook run &lt;file.notebook.md&gt; [-e ENV] [--var NAME=VALUE]... [--block ID] [--allow-writes] [--json]
 rt inbox [--port PORT] [--status CODE] [--json]
 rt diff [REV | REV..REV] [--json] [COLLECTION]
 rt merge-driver BASE OURS THEIRS [PATH]
@@ -287,6 +288,9 @@ even with differences; <code>--fail-on-diff</code> exits 1 for them. See
 <code>rt journal</code> lists test data a session wrote and puts it back with a request you choose.
 Writing requests need <code>--allow-writes</code> (or <code>--yes-production</code> for the journal) and
 never run against production otherwise. See <a href="../quality/">safety and quality tools</a>.</p>
+<p><code>rt notebook run</code> runs the request blocks of an API notebook (a <code>.notebook.md</code> file next to your requests),
+passing variables from block to block and printing each response; outputs are printed, never saved. Writing blocks need
+<code>--allow-writes</code> and never run against production; exit code 4 when a block fails.</p>
 
 <h2 id="inbox">rt inbox</h2>
 <p>Listens on <code>127.0.0.1</code> (default port 47855), prints every request it gets and answers
