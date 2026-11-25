@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::{Collection, Item};
 use crate::prepare::{FileSource, PrepareInput};
+use crate::ratelimit::{MAX_WAIT_HARD_MS, RateTracker, ThrottleMode, Wait, host_of, unix_now_ms};
 use crate::script::TestResult;
 use crate::script::{AssertionResult, Flow, Iteration, ScriptCall, ScriptOutcome, VarChange};
 use crate::send::{SendOptions, SendReport, send_with};
@@ -239,6 +240,50 @@ pub async fn run_with<T: Transport>(
     cancelled: &dyn Fn() -> bool,
     sleep: &dyn Fn(u64) -> LocalBoxFuture<'static, ()>,
 ) -> RunSummary {
+    run_with_tracker(
+        collection,
+        plan,
+        input,
+        files,
+        transport,
+        options,
+        services,
+        on_event,
+        cancelled,
+        sleep,
+        &RateTracker::new(),
+    )
+    .await
+}
+
+/// [`run_with`] with the caller's [`RateTracker`] (wave 18, strand D): tests give it a fake
+/// clock that their `sleep` advances; a caller that wants the state afterwards keeps a clone.
+///
+/// With `plan.throttle.mode == respect` the runner records what every response says about its
+/// host's limits and, before each request, waits for the host of that request (resolved like
+/// `prepare` does) while it has nothing left or was told to retry later. It waits at most
+/// `max_wait_ms` (never more than [`MAX_WAIT_HARD_MS`]): a longer wait ends the run with the
+/// reason in a failed step instead of hanging. A `429` or `503` that says when to come back is
+/// retried up to `retries` times, only for `GET`, `HEAD` and `OPTIONS`; other methods are
+/// never repeated automatically. Waiting is announced with [`RunEvent::Waiting`], polls
+/// `cancelled` every 50 ms and measures against the tracker's clock, so it ends on time even
+/// when single sleeps overshoot. `delay_ms` is untouched; the longer of the two waits wins.
+#[allow(clippy::too_many_arguments)]
+pub async fn run_with_tracker<T: Transport>(
+    collection: &Collection,
+    plan: &RunPlan,
+    input: &PrepareInput<'_>,
+    files: &dyn FileSource,
+    transport: &T,
+    options: &SendOptions,
+    services: &Services<'_>,
+    on_event: &mut dyn FnMut(RunEvent),
+    cancelled: &dyn Fn() -> bool,
+    sleep: &dyn Fn(u64) -> LocalBoxFuture<'static, ()>,
+    tracker: &RateTracker,
+) -> RunSummary {
+    let respect = plan.throttle.mode == ThrottleMode::Respect;
+    let max_wait = plan.throttle.max_wait_ms.min(MAX_WAIT_HARD_MS);
     let started = web_time::Instant::now();
     let count = plan.iteration_count();
     let total = count.saturating_mul(u32::try_from(plan.requests.len()).unwrap_or(u32::MAX));
@@ -279,10 +324,6 @@ pub async fn run_with<T: Transport>(
             }
             first = false;
             let path = &plan.requests[at];
-            on_event(RunEvent::Request {
-                iteration: index,
-                request_path: path.clone(),
-            });
 
             let mut runtime: Vec<(String, String)> = data
                 .iter()
@@ -303,17 +344,129 @@ pub async fn run_with<T: Transport>(
                 }),
                 ..options.clone()
             };
-            recorder.changes.borrow_mut().clear();
-            let mut report = send_with(
-                collection,
-                path,
-                &send_input,
-                files,
-                transport,
-                &send_options,
-                &services,
-            )
-            .await;
+
+            // Wave 18: wait for the limits of the host this request goes to.
+            let mut refused: Option<String> = None;
+            if respect
+                && let Some(host) = next_host(collection, path, &send_input, files)
+                && let Some(wait) = tracker.wait(&host)
+            {
+                match throttle_wait(wait, max_wait, path, tracker, sleep, cancelled, on_event).await
+                {
+                    Waited::Done => {}
+                    Waited::Cancelled => {
+                        summary.stopped = true;
+                        break 'run;
+                    }
+                    Waited::TooLong(reason) => refused = Some(reason),
+                }
+            }
+            if let Some(reason) = refused {
+                // Nothing is sent: a failed step says why the run ends here.
+                summary.requests += 1;
+                summary.failed += 1;
+                summary.stopped = true;
+                let report = unsent_report(
+                    collection,
+                    path,
+                    &send_input,
+                    files,
+                    transport,
+                    &send_options,
+                    &services,
+                    reason,
+                )
+                .await;
+                on_event(RunEvent::Step {
+                    step: Box::new(RunStep {
+                        iteration: index,
+                        request_path: path.clone(),
+                        request_name: names[at].clone(),
+                        report,
+                        passed: false,
+                        skipped: false,
+                    }),
+                });
+                break 'run;
+            }
+
+            on_event(RunEvent::Request {
+                iteration: index,
+                request_path: path.clone(),
+            });
+
+            let method = collection
+                .request(path)
+                .map(|c| c.request.spec.method.to_ascii_uppercase())
+                .unwrap_or_default();
+            let mut retried = 0u32;
+            let mut abort: Option<String> = None;
+            let mut cancelled_while_waiting = false;
+            let mut report = loop {
+                recorder.changes.borrow_mut().clear();
+                let report = send_with(
+                    collection,
+                    path,
+                    &send_input,
+                    files,
+                    transport,
+                    &send_options,
+                    &services,
+                )
+                .await;
+                if !respect {
+                    break report;
+                }
+                let host = report
+                    .response
+                    .as_ref()
+                    .map(|r| r.url.as_str())
+                    .or(report.request.as_ref().map(|r| r.url.as_str()))
+                    .and_then(host_of);
+                let (Some(host), Some(limits)) = (host, report.rate_limit.clone()) else {
+                    break report;
+                };
+                tracker.record(&host, limits);
+                let status = report.response.as_ref().map(|r| r.status);
+                let retryable = matches!(status, Some(429 | 503))
+                    && matches!(method.as_str(), "GET" | "HEAD" | "OPTIONS")
+                    && retried < plan.throttle.retries;
+                if !retryable {
+                    break report;
+                }
+                let Some(wait) = tracker.wait(&host) else {
+                    break report;
+                };
+                match throttle_wait(wait, max_wait, path, tracker, sleep, cancelled, on_event).await
+                {
+                    Waited::Done => retried += 1,
+                    Waited::Cancelled => {
+                        cancelled_while_waiting = true;
+                        break report;
+                    }
+                    Waited::TooLong(reason) => {
+                        abort = Some(reason);
+                        break report;
+                    }
+                }
+            };
+            if retried > 0 {
+                report.notes.push(Note {
+                    source: "rate-limit".into(),
+                    level: NoteLevel::Info,
+                    text: format!(
+                        "sent again {retried} time{} after waiting for the rate limit",
+                        if retried == 1 { "" } else { "s" }
+                    ),
+                });
+            }
+            if let Some(reason) = &abort {
+                report.notes.push(Note {
+                    source: "rate-limit".into(),
+                    level: NoteLevel::Error,
+                    text: format!("{reason}; the run stops"),
+                });
+            }
 
             // Carry the changes with their real values: the script runner's, then the
             // variable actions' (the report lists them in that order, masked).
@@ -327,7 +480,7 @@ pub async fn run_with<T: Transport>(
             }
 
             let skipped = report.flow == Some(Flow::Skip);
-            let ok = skipped || passed(&report);
+            let ok = (skipped || passed(&report)) && abort.is_none();
             let mut next = at + 1;
             let mut stop = false;
             if let Some(Flow::Next { request }) = &report.flow {
@@ -375,6 +528,10 @@ pub async fn run_with<T: Transport>(
                     skipped,
                 }),
             });
+            if cancelled_while_waiting || abort.is_some() {
+                summary.stopped = true;
+                break 'run;
+            }
             if stop || (plan.bail && !ok) {
                 summary.stopped = true;
                 break 'run;
@@ -387,6 +544,91 @@ pub async fn run_with<T: Transport>(
         summary: summary.clone(),
     });
     summary
+}
+
+enum Waited {
+    Done,
+    Cancelled,
+    /// The wait is longer than the plan allows; the text says so.
+    TooLong(String),
+}
+
+/// Announces and sits out one rate-limit wait, or refuses it when it is longer than
+/// `max_wait_ms`. Measured against the tracker's clock in slices of at most [`SLICE_MS`].
+async fn throttle_wait(
+    wait: Wait,
+    max_wait_ms: u64,
+    path: &str,
+    tracker: &RateTracker,
+    sleep: &dyn Fn(u64) -> LocalBoxFuture<'static, ()>,
+    cancelled: &dyn Fn() -> bool,
+    on_event: &mut dyn FnMut(RunEvent),
+) -> Waited {
+    if wait.ms > max_wait_ms {
+        return Waited::TooLong(format!(
+            "{}, longer than the {} the run may wait (--max-wait)",
+            wait.reason,
+            crate::ratelimit::seconds(max_wait_ms)
+        ));
+    }
+    on_event(RunEvent::Waiting {
+        request_path: path.to_owned(),
+        until: unix_now_ms().saturating_add(i64::try_from(wait.ms).unwrap_or(i64::MAX)),
+        reason: wait.reason,
+    });
+    let deadline = tracker.now().saturating_add(wait.ms);
+    loop {
+        if cancelled() {
+            return Waited::Cancelled;
+        }
+        let now = tracker.now();
+        if now >= deadline {
+            return Waited::Done;
+        }
+        sleep((deadline - now).min(SLICE_MS)).await;
+    }
+}
+
+/// The host (and port) the request will go to, resolved like `prepare` does, without sending.
+fn next_host(
+    collection: &Collection,
+    path: &str,
+    input: &PrepareInput<'_>,
+    files: &dyn FileSource,
+) -> Option<String> {
+    let context = collection.request(path)?;
+    let prepared = crate::prepare::prepare(&context, input, files).ok()?;
+    host_of(&prepared.request.url)
+}
+
+/// The report of a request that was not sent because the run would have had to wait too long:
+/// the base of a report (made by sending nothing) with the reason as its error.
+#[allow(clippy::too_many_arguments)]
+async fn unsent_report<T: Transport>(
+    collection: &Collection,
+    path: &str,
+    input: &PrepareInput<'_>,
+    files: &dyn FileSource,
+    transport: &T,
+    options: &SendOptions,
+    services: &Services<'_>,
+    reason: String,
+) -> SendReport {
+    let mut report = send_with(
+        collection,
+        "\u{0}not-sent",
+        input,
+        files,
+        transport,
+        options,
+        services,
+    )
+    .await;
+    report.request_path = path.to_owned();
+    report.error = Some(crate::send::SendError::Prepare(format!(
+        "not sent: {reason}; the run stops"
+    )));
+    report
 }
 
 /// Waits `ms` in slices; `false` if cancelled meanwhile.

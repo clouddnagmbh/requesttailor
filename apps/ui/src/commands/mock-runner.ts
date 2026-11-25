@@ -9,6 +9,7 @@
 // (`eq`, `neq`, `gt`, `lt`) are evaluated, so passed and failed counts are meaningful.
 // Response bodies in step events are cut to 4 KiB, as the real shells do.
 
+import { mockWaitMs } from "./mock-ratelimit";
 import { BackendError, type RunnerApi, type SendInput } from "./backend";
 import type { AssertionResult, DataRow, RequestSpec, RunStep, RunSummary, SendReport, StoredResponse, TreeNode } from "./types";
 
@@ -188,6 +189,9 @@ export function mockRunner(host?: MockRunnerHost): RunnerApi {
         const count = plan.data.length > 0 ? plan.data.length : Math.max(1, plan.iterations);
         onEvent({ kind: "started", total: count * plan.requests.length });
         let first = true;
+        let lastLimits: SendReport["rate_limit"];
+        const respect = plan.throttle?.mode === "respect";
+        const maxWait = Math.min(plan.throttle?.max_wait_ms ?? 60_000, 600_000);
         outer: for (let iteration = 0; iteration < count; iteration++) {
           const row = plan.data[iteration] ?? [];
           for (const path of plan.requests) {
@@ -200,6 +204,38 @@ export function mockRunner(host?: MockRunnerHost): RunnerApi {
             if (token.cancelled) {
               summary.stopped = true;
               break outer;
+            }
+            // Wave 18: hold the request back for the host's limits (the core's throttle).
+            const wait = respect ? mockWaitMs(lastLimits) : 0;
+            if (wait > maxWait) {
+              summary.requests++;
+              summary.failed++;
+              summary.stopped = true;
+              const report: SendReport = {
+                version: 1,
+                request_path: path,
+                environment: input.environment,
+                request: null,
+                response: null,
+                variables: [],
+                unresolved: [],
+                error: { kind: "prepare", message: `not sent: rate limit: ${Math.ceil(wait / 1000)} s, longer than the ${Math.ceil(maxWait / 1000)} s the run may wait (--max-wait); the run stops` },
+              };
+              onEvent({ kind: "step", step: { iteration, request_path: path, request_name: path, report, passed: false, skipped: false } });
+              break outer;
+            }
+            if (wait > 0) {
+              onEvent({
+                kind: "waiting",
+                request_path: path,
+                until: Date.now() + wait,
+                reason: `rate limit: 0 left, resets in ${Math.ceil(wait / 1000)} s`,
+              });
+              for (let left = wait; left > 0 && !token.cancelled; left -= 50) await sleep(Math.min(50, left));
+              if (token.cancelled) {
+                summary.stopped = true;
+                break outer;
+              }
             }
             first = false;
             onEvent({ kind: "request", iteration, request_path: path });
@@ -259,6 +295,7 @@ export function mockRunner(host?: MockRunnerHost): RunnerApi {
             else summary.failed++;
             for (const t of report.tests ?? []) t.passed ? summary.tests_passed++ : summary.tests_failed++;
             for (const a of report.assertions ?? []) a.passed ? summary.assertions_passed++ : summary.assertions_failed++;
+            lastLimits = report.rate_limit;
             onEvent({ kind: "step", step });
             if (plan.bail && !passed) {
               summary.stopped = true;

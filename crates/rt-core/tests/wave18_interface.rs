@@ -6,7 +6,7 @@
 
 use rt_core::inbox::{CapturedRequest, InboxEvent};
 use rt_core::paging::{CursorParam, CursorPlace, PagingRule, PagingSpec};
-use rt_core::ratelimit::{self, Throttle, ThrottleMode};
+use rt_core::ratelimit::{Throttle, ThrottleMode};
 use rt_core::runner::{RunEvent, RunPlan};
 use rt_core::send::SendReport;
 use serde_json::json;
@@ -93,6 +93,6 @@ fn inbox_events_are_tagged() {
 
 #[test]
 fn the_hooks_of_the_strands_answer_nothing_until_they_are_built() {
-    assert!(ratelimit::parse(&[("RateLimit-Limit".into(), "10".into())]).is_none());
+    // Strand D built the rate-limit parser (tests/ratelimit.rs); only the others still wait.
     assert!(rt_core::jwt::parse("a.b.c").is_err());
 }

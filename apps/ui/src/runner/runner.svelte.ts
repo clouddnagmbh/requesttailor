@@ -31,6 +31,8 @@ export class RunnerState {
   iterations = $state(1);
   delayMs = $state(0);
   bail = $state(false);
+  /** Wave 18: wait for the rate limits servers announce (`RunPlan.throttle`). Off by default. */
+  respectLimits = $state(false);
   data = $state.raw<DataRow[] | null>(null);
   dataName = $state<string | null>(null);
   dataError = $state<string | null>(null);
@@ -99,6 +101,7 @@ export class RunnerState {
         delayMs: this.delayMs,
         bail: this.bail,
         data: this.data,
+        respectLimits: this.respectLimits,
       });
       const results = this.results;
       const summary = await backend.runner.run(

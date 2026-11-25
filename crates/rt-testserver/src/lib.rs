@@ -17,6 +17,7 @@
 //! | `GET /basic-auth/{user}/{pass}` | 200 if `Authorization: Basic` matches, else 401 with `WWW-Authenticate` |
 //! | `GET /bearer/{token}` | 200 if `Authorization: Bearer {token}`, else 401 |
 //! | `GET /cookies/set?name=value&...` | 200, one `Set-Cookie: name=value; Path=/` per parameter, JSON of the parameters |
+//! | `GET /ratelimit/{headers,retry,ignored}` | fixed rate-limit headers (wave 18): the draft's `RateLimit-*`, a 429 with `Retry-After`, a 200 with a `Retry-After` that is not about limits |
 //! | `GET /cookies` | 200, JSON `{"cookie": <Cookie header or null>}` |
 //! | `POST /graphql` | GraphQL endpoint of a tiny library schema (introspection, queries, mutations; see [`graphql`]) |
 //! | `GET /ws/echo` | WebSocket (wave 8): echoes text and binary messages; `?close=<code>` closes with that code after `?after=<n>` echoed messages (default 1, `0`: right away) |
@@ -327,6 +328,8 @@ async fn route(req: Request<Incoming>) -> Response<Body> {
         ["sse", "count", n] => sse::count(n, &query),
         ["sse", "named"] => sse::named(&query),
         ["mcp"] => mcp::route(req).await,
+        // Wave 18, strand D: rate-limit headers for the conformance cases.
+        ["ratelimit", kind] => ratelimit(kind),
         ["status", code] => match code
             .parse::<u16>()
             .ok()
@@ -476,6 +479,47 @@ async fn echo(req: Request<Incoming>, path: String, query: String) -> Response<B
             "version": version,
         }),
     )
+}
+
+/// `/ratelimit/<kind>`: fixed rate-limit answers (wave 18, strand D, conformance cases):
+/// `headers` (the draft's `RateLimit-*`), `retry` (429 with `Retry-After` and `X-RateLimit-*`),
+/// `ignored` (200 with a `Retry-After` that is not about limits).
+fn ratelimit(kind: &str) -> Response<Body> {
+    let (status, headers): (StatusCode, &[(&str, &str)]) = match kind {
+        "headers" => (
+            StatusCode::OK,
+            &[
+                ("ratelimit-limit", "60"),
+                ("ratelimit-remaining", "47"),
+                ("ratelimit-reset", "12"),
+                ("ratelimit-policy", "60;w=60"),
+            ],
+        ),
+        "retry" => (
+            StatusCode::TOO_MANY_REQUESTS,
+            &[
+                ("retry-after", "7"),
+                ("x-ratelimit-limit", "5000"),
+                ("x-ratelimit-remaining", "0"),
+                ("x-ratelimit-reset", "20"),
+            ],
+        ),
+        "ignored" => (StatusCode::OK, &[("retry-after", "5")]),
+        _ => {
+            return json(
+                StatusCode::NOT_FOUND,
+                serde_json::json!({ "error": "no such rate-limit answer" }),
+            );
+        }
+    };
+    let mut r = json(status, serde_json::json!({ "status": status.as_u16() }));
+    for (name, value) in headers {
+        r.headers_mut().insert(
+            header::HeaderName::from_static(name),
+            HeaderValue::from_static(value),
+        );
+    }
+    r
 }
 
 #[cfg(test)]
