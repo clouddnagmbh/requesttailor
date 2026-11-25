@@ -28,3 +28,34 @@ jobs:
       - name: plugin host
         shell: bash
         run: cargo test -p rt-plugin --test host --locked -- --test-threads=1 --nocapture 2>&1 | tail -40 || true
+  linux-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: |
+          fc-match sans-serif; fc-match system-ui; fc-match -s system-ui | head -5; fc-list | wc -l; fc-list : family | sort -u | head -30
+      - run: |
+          rustup toolchain install
+          rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: wasm-bindgen
+        run: |
+          v=$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/"/, "", $3); print $3 }' Cargo.lock)
+          cargo install wasm-bindgen-cli --version "$v" --locked
+      - run: node scripts/build-wasm.mjs
+      - name: failing specs
+        working-directory: apps/web
+        continue-on-error: true
+        env:
+          CI: "1"
+        run: npx playwright test e2e/brand e2e/extensions-w16/places.spec.ts e2e/git-wizards/panel-visual.spec.ts --workers=2 --reporter=list
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-results
+          path: apps/web/test-results

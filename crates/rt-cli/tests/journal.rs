@@ -72,10 +72,8 @@ fn entry(id: u64, environment: &str) -> JournalEntry {
 }
 
 fn seed(dir: &Path, root: &Path, entries: &[JournalEntry]) {
-    let id = std::fs::canonicalize(root)
-        .unwrap()
-        .to_string_lossy()
-        .into_owned();
+    // The id `rt` computes (no `\\?\` prefix on Windows).
+    let id = rt_cli::oauth::collection_id(root);
     let storage = FileStorage::new(&dir.join("data"), &id);
     for e in entries {
         storage.append(e);
