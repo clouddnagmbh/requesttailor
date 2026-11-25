@@ -27,6 +27,8 @@ rt-grpc = { path = "../rt-grpc" }
 rt-plugin = { path = "../rt-plugin" }
 # Body patterns of the minimal-case search (wave 19, `shrink`); already in the tree via rt-core.
 regex-lite = "0.1"
+# SHA-256 of plugin modules before they are installed (wave 18, `catalogue`); already in the tree via rt-core.
+sha2 = "0.10"
 serde = { version = "1", features = ["derive"] }
 # float_roundtrip: history entries (duration_ms) read back exactly as written. raw_value: the
 # paging merge cuts the arrays of pages out of their text (`paging::merge`).
@@ -57,7 +59,6 @@ keyring = { version = "3.6", features = ["async-secret-service", "async-io", "cr
 [dev-dependencies]
 # Signing synthetic tokens in the passive security tests (wave 19, strand R); both already in the tree via rt-core.
 hmac = "0.12"
-sha2 = "0.10"
 # The contract test serialises the debugger types (wave 19).
 rt-script = { path = "../rt-script" }
 bytes = "1"
