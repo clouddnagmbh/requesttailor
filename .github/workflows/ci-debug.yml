@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [release, portable, lowopt, noopt, nofuel]
+        variant: [opt2, noassert, noassert-opt2]
     env:
       RUSTFLAGS: -D warnings
     steps:
@@ -22,6 +22,12 @@ jobs:
         shell: bash
         run: |
           case "${{ matrix.variant }}" in
+            opt2)
+              sed -i 's/^opt-level = 3/opt-level = 2/' Cargo.toml; git diff --stat ;;
+            noassert)
+              sed -i 's/^opt-level = 3/opt-level = 3\ndebug-assertions = false\noverflow-checks = false/' Cargo.toml; git diff | head -30 ;;
+            noassert-opt2)
+              sed -i 's/^opt-level = 3/opt-level = 2\ndebug-assertions = false\noverflow-checks = false/' Cargo.toml; git diff --stat ;;
             portable)
               sed -i 's/"auto-dispatch"\]/"auto-dispatch", "portable-dispatch"]/' crates/rt-script/Cargo.toml crates/rt-plugin/Cargo.toml
               git diff --stat ;;
