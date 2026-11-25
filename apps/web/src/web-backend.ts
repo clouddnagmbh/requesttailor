@@ -414,7 +414,7 @@ export class WebBackend implements Backend {
     this.inspect = webInspect();
     this.paging = webPaging();
     this.inbox = webInbox();
-    this.lint = webLint();
+    this.lint = webLint(() => this.session());
     this.views = webViews();
     this.catalogue = webCatalogue();
     this.snapshots = webSnapshots(

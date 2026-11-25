@@ -1,0 +1,9 @@
+opencollection: "1.0.0"
+info:
+  name: Lint demo shop
+request:
+  variables:
+    - name: baseUrl
+      value: https://shop.example.test
+    - name: legacyUrl
+      value: https://old.example.test
