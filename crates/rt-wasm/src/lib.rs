@@ -702,6 +702,7 @@ mod journal_js;
 mod lint_js;
 #[cfg(target_arch = "wasm32")]
 mod mcp_js;
+#[cfg(target_arch = "wasm32")]
 mod notebook_js;
 #[cfg(target_arch = "wasm32")]
 mod paging_js;

@@ -11,3 +11,9 @@ from a vendor or a third party. The services listen on loopback only and hold no
 
 Ports 48700 to 48847 belong to wave 19 (see the pro repository's `docs/welle19.md`); a strand
 that starts a service takes its port from its own range and says so in its test.
+
+## notebooks/ (wave 19, strand W)
+
+`notebooks/orders.notebook.md`: a synthetic API notebook (login, list, a request file) written
+for the round-trip test of `rt_app::notebook`; no real host, no personal data. Ports 48830 to
+48835 belong to strand W (tests bind loopback ports of the system).

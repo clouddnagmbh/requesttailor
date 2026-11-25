@@ -442,7 +442,7 @@ export class WebBackend implements Backend {
     this.consumers = webConsumers({ repository: () => host.repository?.() ?? null, core: () => host.deps.loadCore(), sendContext });
     this.sequence = webSequence();
     this.security = webSecurity({ session: host.session, core: () => host.deps.loadCore() });
-    this.notebook = webNotebook();
+    this.notebook = webNotebook({ session: host.session, sendContext });
     this.debugger = webDebugger();
     this.inspect = webInspect({
       session: host.session,
