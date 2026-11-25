@@ -15,6 +15,7 @@
 
   import type { CollectionEntry } from "../commands/types";
   import type { NodeTarget } from "../extensions";
+  import { openEnvCompare } from "../envcompare/open.svelte";
   import { getApp } from "../state/app.svelte";
   import { asKind, NEW_REQUEST_KINDS, type NewRequestKind } from "../stream/kind";
   import { Badge, Button, Chip, EmptyState, Icon, IconButton, Menu, Skeleton, type MenuEntry } from "../ui";
@@ -253,6 +254,12 @@
     return /Mac/i.test(p) ? "Show in Finder" : /Win/i.test(p) ? "Show in Explorer" : "Show in file manager";
   })();
 
+  /** Runs a view of the active collection on a collection node: activates it first. */
+  async function onCollection(id: string, run: () => void) {
+    if (app.collection?.id !== id) await app.activate(id);
+    run();
+  }
+
   function menuFor(row: SideRow): MenuEntry[] {
     const id = row.collection;
     const extra: MenuEntry[] = nodeActions(row).map((ref) => ({
@@ -268,6 +275,12 @@
         { id: "new", label: "New…", icon: "add", run: () => app.openNew({ collection: id, folder: folder.path }) },
         { id: "new-request", label: "New request here", icon: "http", run: () => startNew(id, folder.path) },
         ...(onrun ? [{ id: "run", label: "Run folder", icon: "play", run: () => onrun(id, folder.path, folder.name) }] : []),
+        {
+          id: "compare-environments",
+          label: "Compare environments",
+          icon: "compare",
+          run: () => void onCollection(id, () => openEnvCompare(app, { folder: folder.path })),
+        },
         ...tail(extra),
       ];
     }
@@ -285,6 +298,13 @@
         items: panelTabs.map((t) => ({ id: `view:${t.key}`, label: t.title, run: () => onpanel(id, t.key) })),
       });
     }
+    views.push({ id: "lint", label: "Lint collection", icon: "check", run: () => void onCollection(id, () => app.show({ kind: "tool", tool: "lint" })) });
+    views.push({
+      id: "compare-environments",
+      label: "Compare environments",
+      icon: "compare",
+      run: () => void onCollection(id, () => openEnvCompare(app)),
+    });
     if (onenvironments) views.push({ id: "environments", label: "Environments…", icon: "environment", run: () => onenvironments(id) });
     if (reveal) views.push({ id: "reveal", label: revealLabel, icon: "folder-open", run: () => reveal(id) });
     return [

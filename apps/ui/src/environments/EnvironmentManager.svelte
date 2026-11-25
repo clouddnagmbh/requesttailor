@@ -14,6 +14,7 @@
   import type { Environment, Variable } from "../commands/types";
   import CodeField from "../editor/CodeField.svelte";
   import { createVarSource, provideVarSource, withEnvironmentVariable } from "../editor/var-source";
+  import { openEnvCompare } from "../envcompare/open.svelte";
   import { getApp } from "../state/app.svelte";
   import ClientCertificates from "./ClientCertificates.svelte";
   import ExternalSecrets from "./ExternalSecrets.svelte";
@@ -320,6 +321,18 @@
       <h2>Environments</h2>
       <button data-testid="env-save" onclick={() => run(() => app.save())} title="Write all changes to the files">
         Save
+      </button>
+      <button
+        data-testid="env-compare"
+        disabled={app.environments.length < 2}
+        title="Compare the environments side by side"
+        onclick={() => {
+          const first = selected;
+          close();
+          openEnvCompare(app, first ? { environments: [first] } : {});
+        }}
+      >
+        Compare…
       </button>
       <button data-testid="env-close" onclick={close}>Close</button>
     </header>

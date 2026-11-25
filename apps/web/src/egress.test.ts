@@ -190,4 +190,18 @@ describe("a call", () => {
     await expect(api.request(GET("https://traces.example/"))).rejects.toMatchObject({ kind: "transport" });
     expect(seen).toHaveLength(1);
   });
+
+  it("sends a writing call over a paired companion at once, never twice", async () => {
+    const { api, seen } = setup(() => OK, { paired: CREDENTIALS });
+    await api.request({ ...GET("https://traces.example/"), method: "POST", body: "{}" });
+    expect(seen.map((s) => s.companion)).toEqual([CREDENTIALS]);
+  });
+
+  it("does not repeat a refused writing call without a companion", async () => {
+    const { api, seen } = setup(() => named("transport", "blocked by the browser: Failed to fetch"));
+    const error = (await api.request({ ...GET("https://traces.example/"), method: "POST", body: "{}" }).catch((e: unknown) => e)) as BackendError;
+    expect(error.kind).toBe("transport");
+    expect(error.message).toContain("not repeated");
+    expect(seen).toHaveLength(1);
+  });
 });

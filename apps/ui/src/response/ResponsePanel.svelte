@@ -26,6 +26,7 @@
   import { extensionTabsFor, getExtensions } from "../shell/extension-tabs";
   import { getApp } from "../state/app.svelte";
   import SpecBadge from "../openapi/SpecBadge.svelte";
+  import ShrinkButton from "../shrink/ShrinkButton.svelte";
   import SnapshotActions from "../snapshots/SnapshotActions.svelte";
   import HeadersTable from "./HeadersTable.svelte";
   import ConsolePanel from "./ConsolePanel.svelte";
@@ -318,6 +319,7 @@
     {#if path}<SpecBadge {backend} {path} {result} />{/if}
     {#if path}<SnapshotActions {backend} {path} {result} />{/if}
     <ExplainButton {result} {backend} />
+    {#if path}<ShrinkButton {app} {path} {result} />{/if}
     <ExtensionActions actions={responseActions} label="Response actions" variant="ghost" />
   </div>
 
