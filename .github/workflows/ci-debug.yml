@@ -9,53 +9,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        stack: ["", "33554432"]
+        variant: [release, portable, lowopt, noopt, nofuel]
     env:
       RUSTFLAGS: -D warnings
-      RUST_MIN_STACK: ${{ matrix.stack }}
     steps:
       - uses: actions/checkout@v7
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
-      - name: sandbox, one test at a time
+        with:
+          key: ${{ matrix.variant }}
+      - name: apply the variant
         shell: bash
         run: |
-          cargo test -p rt-script --test sandbox --locked --no-run
-          cargo test -p rt-script --test sandbox --locked -- --list
-          for t in $(cargo test -p rt-script --test sandbox --locked -- --list 2>/dev/null | grep ': test' | sed 's/: test//'); do
-            echo "=== $t"; cargo test -p rt-script --test sandbox --locked -- --exact "$t" --nocapture 2>&1 | tail -15 || true
-          done
-      - name: plugin host
+          case "${{ matrix.variant }}" in
+            portable)
+              sed -i 's/"auto-dispatch"\]/"auto-dispatch", "portable-dispatch"]/' crates/rt-script/Cargo.toml crates/rt-plugin/Cargo.toml
+              git diff --stat ;;
+            lowopt)
+              sed -i 's/^opt-level = 3/opt-level = 1/' Cargo.toml; git diff --stat ;;
+            noopt)
+              sed -i 's/^opt-level = 3/opt-level = 0/' Cargo.toml; git diff --stat ;;
+          esac
+      - name: tests
         shell: bash
-        run: cargo test -p rt-plugin --test host --locked -- --test-threads=1 --nocapture 2>&1 | tail -40 || true
-  linux-ui:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - run: |
-          fc-match sans-serif; fc-match system-ui; fc-match -s system-ui | head -5; fc-list | wc -l; fc-list : family | sort -u | head -30
-      - run: |
-          rustup toolchain install
-          rustup target add wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-      - name: wasm-bindgen
         run: |
-          v=$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/"/, "", $3); print $3 }' Cargo.lock)
-          cargo install wasm-bindgen-cli --version "$v" --locked
-      - run: node scripts/build-wasm.mjs
-      - name: failing specs
-        working-directory: apps/web
-        continue-on-error: true
-        env:
-          CI: "1"
-        run: npx playwright test e2e/brand e2e/extensions-w16/places.spec.ts e2e/git-wizards/panel-visual.spec.ts --workers=2 --reporter=list
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ui-results
-          path: apps/web/test-results
+          flags=""
+          [ "${{ matrix.variant }}" = release ] && flags="--release"
+          cargo test $flags -p rt-script --test sandbox --locked -- --nocapture --test-threads=1 2>&1 | tail -25 || true
+          cargo test $flags -p rt-plugin --test host --locked -- --nocapture --test-threads=1 2>&1 | tail -25 || true
