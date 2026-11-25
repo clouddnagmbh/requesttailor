@@ -94,6 +94,9 @@ pub async fn run<S: SecretStore>(
     let (snapshot, id) = core.run_snapshot(input).await?;
     let parts = Arc::clone(&core.services);
     let cancelled = Arc::clone(&active.flag);
+    // Wave 19: the exchanges of this run belong together in a sequence diagram.
+    let sequence = Arc::clone(&parts.recorder);
+    sequence.begin_run();
     // The core's futures are not `Send`: run on a blocking thread driven by the app's
     // runtime, as sends do.
     let runtime = tokio::runtime::Handle::current();
@@ -104,14 +107,16 @@ pub async fn run<S: SecretStore>(
             body_limit: BODY_LIMIT,
             iteration: None,
         };
-        Ok(runtime.block_on(snapshot.run(
+        let summary = runtime.block_on(snapshot.run(
             &plan,
             &transport,
             &options,
             &services.services(),
             &mut |event| emit(rt_app::runner::for_view(event)),
             &|| cancelled.load(Ordering::SeqCst),
-        )))
+        ));
+        sequence.end_run();
+        Ok(summary)
     })
     .await
     .map_err(|e| AppError::Shell(format!("the run failed: {e}")))?

@@ -1,0 +1,8 @@
+sequenceDiagram
+    participant P0 as Client
+    participant P1 as api.example.com
+    P0->>P1: GET /orders
+    P1-->>P0: 200 (41 ms)
+    P0->>P1: GET /orders/{id}
+    P1-->>P0: 404 (41 ms)
+    Note over P0: 1 of 2 tests failed#58; finds it

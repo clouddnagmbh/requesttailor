@@ -16,6 +16,7 @@
   import { extensionRangeActions } from "../shell/extension-actions";
   import { getExtensions } from "../shell/extension-tabs";
   import ExtensionActions from "../shell/ExtensionActions.svelte";
+  import { openSequence } from "../sequence/open.svelte";
   import { getApp } from "../state/app.svelte";
   import CompareHeader from "./CompareHeader.svelte";
   import CompareList from "./CompareList.svelte";
@@ -279,6 +280,9 @@
         </span>
         {#if running}<span class="status" data-testid="compare-running"><Spinner size="sm" label="Sending" /> Sending the requests at both revisions…</span>{/if}
         {#if runError}<span class="status bad" role="alert" data-testid="compare-run-error"><Icon name="error" size="sm" /> Answers not compared: {runError}</span>{/if}
+        {#if run !== null}
+          <Button size="sm" variant="ghost" icon="diagram" onclick={() => openSequence(app, { kind: "session" })} data-testid="compare-sequence">Sequence diagram</Button>
+        {/if}
         <span class="extension-actions"><ExtensionActions actions={rangeActions(shown.from, shown.to)} label="Range actions" /></span>
       </div>
 

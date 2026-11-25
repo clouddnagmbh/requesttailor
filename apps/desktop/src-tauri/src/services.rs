@@ -26,11 +26,14 @@ pub struct ServiceParts {
     /// Wave 17: a distribution's exchange observers, from the builder's managed
     /// `rt_core::observe::ObserverHandle` (none in the builds of this repository).
     pub observers: rt_core::observe::ObserverHandle,
+    /// Wave 19, strand G: the recorder of sequence diagrams, one of the observers.
+    pub recorder: std::sync::Arc<rt_app::sequence::Recorder>,
 }
 
 impl ServiceParts {
     /// `data_dir`: the app's data folder; `None` keeps everything in memory (tests).
     pub fn new(data_dir: Option<&Path>) -> Self {
+        let recorder = std::sync::Arc::new(rt_app::sequence::Recorder::new());
         Self {
             plugins: plugins::PluginParts::new(data_dir),
             auth: auth::AuthParts::new(data_dir),
@@ -38,7 +41,8 @@ impl ServiceParts {
             scripts: scripts::ScriptParts::new(data_dir),
             session: session_vars::SessionParts::default(),
             guard: rt_core::guard::GuardHandle::none(),
-            observers: rt_core::observe::ObserverHandle::new(),
+            observers: rt_core::observe::ObserverHandle::new().with(recorder.clone()),
+            recorder,
         }
     }
 

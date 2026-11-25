@@ -713,6 +713,7 @@ mod runner_js;
 mod scripts_js;
 #[cfg(target_arch = "wasm32")]
 mod security_js;
+#[cfg(target_arch = "wasm32")]
 mod sequence_js;
 #[cfg(target_arch = "wasm32")]
 mod services_js;

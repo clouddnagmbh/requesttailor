@@ -13,7 +13,9 @@
   import { extensionRunActions } from "../shell/extension-actions";
   import { getExtensions } from "../shell/extension-tabs";
   import MethodBadge from "../shell/MethodBadge.svelte";
+  import { openSequence } from "../sequence/open.svelte";
   import { getApp } from "../state/app.svelte";
+  import { Button } from "../ui";
   import { dataPreview, progressText, scrollToShow, stepCounts, stepState, stepTime, windowRange } from "./model";
   import type { RunnerState } from "./runner.svelte";
   import WaitingLine from "../ratelimit/WaitingLine.svelte";
@@ -276,7 +278,10 @@
           {view.counts.assertions_passed}/{view.counts.assertions_passed + view.counts.assertions_failed}
         </span>
         {#if iterationsShown > 1}<span class="muted">{iterationsShown} iterations</span>{/if}
-        <span class="push"><ExtensionActions actions={runActions} label="Run actions" variant="ghost" /></span>
+        <span class="push">
+          <Button size="sm" variant="ghost" icon="diagram" onclick={() => openSequence(app, { kind: "run", run_id: 0 })} data-testid="runner-sequence">Sequence diagram</Button>
+          <ExtensionActions actions={runActions} label="Run actions" variant="ghost" />
+        </span>
       </div>
 
       <div class="results">

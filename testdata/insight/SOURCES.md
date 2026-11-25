@@ -11,3 +11,5 @@ from a vendor or a third party. The services listen on loopback only and hold no
 
 Ports 48700 to 48847 belong to wave 19 (see the pro repository's `docs/welle19.md`); a strand
 that starts a service takes its port from its own range and says so in its test.
+
+- `sequence/*.mmd`, `sequence/*.md`: golden outputs of the Mermaid and Markdown writers (wave 19, strand G); written by `RT_UPDATE_GOLDEN=1 cargo test -p rt-app --test sequence`, own work, Apache-2.0.

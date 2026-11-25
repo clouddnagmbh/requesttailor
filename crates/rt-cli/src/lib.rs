@@ -936,16 +936,19 @@ fn with_guard(command: Command, (guard, observers): (&GuardHandle, &ObserverSet)
         Command::Send(mut a) => {
             a.guard = guard.clone();
             a.observers = observers.clone();
+            sequence_flag::attach(&mut a.sequence, &mut a.observers);
             Command::Send(a)
         }
         Command::Run(mut a) => {
             a.guard = guard.clone();
             a.observers = observers.clone();
+            sequence_flag::attach(&mut a.sequence, &mut a.observers);
             Command::Run(a)
         }
         Command::Mcp(mut a) => {
             a.guard = guard.clone();
             a.observers = observers.clone();
+            sequence_flag::attach(&mut a.sequence, &mut a.observers);
             Command::Mcp(a)
         }
         Command::Journal(mut a) => {
@@ -977,6 +980,8 @@ fn with_guard(command: Command, (guard, observers): (&GuardHandle, &ObserverSet)
     }
 }
 
+// Every arm of the dispatch below ends the function; the early `return`s keep the arms uniform.
+#[allow(clippy::needless_return)]
 fn run_guarded<I>(
     args: I,
     stdout: &mut dyn Write,
@@ -1001,7 +1006,7 @@ where
     };
     let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
     let for_changelog = args.first().is_some_and(|a| a == "changelog");
-    let args = match parse_args_with(args, changelog_writers).map(|c| with_guard(c, hooks)) {
+    match parse_args_with(args, changelog_writers).map(|c| with_guard(c, hooks)) {
         Ok(Command::Help) => {
             let _ = stdout.write_all(help().as_bytes());
             if for_changelog {
@@ -1016,7 +1021,11 @@ where
         Ok(Command::Send(args)) if args.watch.watch => {
             return watch::run(args, stdout, stderr);
         }
-        Ok(Command::Send(args)) => args,
+        Ok(Command::Send(args)) => {
+            let sequence = args.sequence.clone();
+            let code = send_one(args, stdout, stderr);
+            return sequence_flag::finish(&sequence, stderr, code);
+        }
         Ok(Command::Agent(args)) => return agent::run_with(args, hooks.1.clone(), stderr),
         Ok(Command::Import(args)) => return import::run(args, stdout, stderr),
         Ok(Command::Scan(args)) => return scan::run(args, stdout, stderr),
@@ -1063,8 +1072,16 @@ where
         }
         Ok(Command::Notebook(args)) => return notebook::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
+    }
+}
+
+/// `rt send` for one request file.
+fn send_one(args: SendArgs, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
+    let fail = |stderr: &mut dyn Write, code: i32, msg: &str| {
+        let _ = writeln!(stderr, "rt: {msg}");
+        code
     };
-    // Wave 19: `--sequence` (G) and `--debug`; each refuses until its strand builds it.
+    // Wave 19: `--sequence` (G) must make sense, `--debug` refuses until its strand builds it.
     if let Err(e) =
         sequence_flag::check(&args.sequence).and_then(|()| debug_flag::check(&args.debug))
     {
