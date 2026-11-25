@@ -943,6 +943,11 @@ fn with_guard(command: Command, (guard, observers): (&GuardHandle, &ObserverSet)
             a.observers = observers.clone();
             Command::Mcp(a)
         }
+        Command::Journal(mut a) => {
+            a.guard = guard.clone();
+            a.observers = observers.clone();
+            Command::Journal(a)
+        }
         other => other,
     }
 }

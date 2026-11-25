@@ -403,7 +403,7 @@ export class WebBackend implements Backend {
     this.folderScripts = webFolderScripts(() => this.session());
     this.envCompare = webEnvCompare({ session: host.session, sendContext });
     this.egress = webEgress();
-    this.journal = webJournal();
+    this.journal = webJournal({ session: host.session, sendContext, plugins: () => this.plugins.list() });
     this.access = webAccess();
     this.shrink = webShrink();
     this.consumers = webConsumers();
