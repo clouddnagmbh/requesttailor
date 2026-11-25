@@ -277,7 +277,7 @@ jobs:
           - { name: windows, os: windows-latest, app: true, parts: "desktop,diff" }
           # Everything else the gate requires (perf/budgets.toml; `perf` below fails on a budget
           # no job measured). Native tools and the shared UI: one OS is enough, no desktop app.
-          - { name: linux-tools, os: ubuntu-latest, app: false, parts: "consumers,compare,status,graph-large,snapshots,share,observe,watch,envcompare,checks,paging,ratelimit,inbox,lint,views,schemas,catalogue,trace,egress,journal,access,shrink,security,notebook" }
+          - { name: linux-tools, os: ubuntu-latest, app: false, parts: "consumers,compare,status,graph-large,snapshots,share,observe,watch,envcompare,checks,paging,ratelimit,inbox,lint,views,schemas,catalogue,trace,egress,journal,access,shrink,security,notebook,debugger" }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
