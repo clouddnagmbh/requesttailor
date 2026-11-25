@@ -78,6 +78,9 @@ test.afterAll(() => {
 const nextCode = async () => (await agent.line(/^Pairing code: (\S+)/))[1];
 
 test("pairs by code and sends through the companion", async ({ page }) => {
+  // The first request compiles client.ts in the dev server and the debug agent starts cold:
+  // seconds on a shared runner (it passed on one run and hit 30 s on the next).
+  test.setTimeout(90_000);
   const code = await nextCode();
   await page.goto("/?backend=mock");
   const result = await page.evaluate(
