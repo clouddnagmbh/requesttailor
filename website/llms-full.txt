@@ -1,6 +1,6 @@
 # RequestTailor: condensed facts
 
-Source: https://requesttailor.com/ (all pages, as of 2026-11-25). SAP, S/4HANA, SAP Gateway, ABAP and other SAP products named here are trademarks or registered trademarks of SAP SE. RequestTailor is not affiliated with SAP SE. The name RequestTailor and its logos are not covered by the Apache License.
+Source: https://clouddnagmbh.github.io/requesttailor/ (all pages, as of 2026-11-25). The separate product website is https://requesttailor.com/en/ (llms.txt: https://requesttailor.com/llms.txt). SAP, S/4HANA, SAP Gateway, ABAP and other SAP products named here are trademarks or registered trademarks of SAP SE. RequestTailor is not affiliated with SAP SE. The name RequestTailor and its logos are not covered by the Apache License.
 
 ## What it is
 
@@ -17,7 +17,7 @@ Principles: files are the truth; no account, ever; secrets stay local; performan
 
 ## Performance budgets (release gates, measured on every build)
 
-Cold start under 500 ms; idle memory under 150 MB; 100 MB response scrolls with p95 frame time at most 20 ms; at most 2 keystrokes from app start to a sent request; semantic diff of 1000 requests (100 changed) under 200 ms; side-by-side compare view under 1000 ms; 1000 snapshot checks under 150 ms; share link at most 2000 characters (p95); history of 10 000 commits first rows under 1500 ms, of 100 000 commits under 1500 ms; status of 50 000 files under 300 ms; `rt send --watch` re-sends within 500 ms of a save; environment compare of 100 requests under 500 ms; lint of 1000 requests under 500 ms; saved JSONPath view over 10 MiB under 300 ms; GraphQL/Protobuf breaking changes under 300 ms; trace header at most 0.02 ms; webhook inbox median at most 5 ms; passive security rules at most 2 ms per response. Exact values: https://requesttailor.com/ (performance section).
+Cold start under 500 ms; idle memory under 150 MB; 100 MB response scrolls with p95 frame time at most 20 ms; at most 2 keystrokes from app start to a sent request; semantic diff of 1000 requests (100 changed) under 200 ms; side-by-side compare view under 1000 ms; 1000 snapshot checks under 150 ms; share link at most 2000 characters (p95); history of 10 000 commits first rows under 1500 ms, of 100 000 commits under 1500 ms; status of 50 000 files under 300 ms; `rt send --watch` re-sends within 500 ms of a save; environment compare of 100 requests under 500 ms; lint of 1000 requests under 500 ms; saved JSONPath view over 10 MiB under 300 ms; GraphQL/Protobuf breaking changes under 300 ms; trace header at most 0.02 ms; webhook inbox median at most 5 ms; passive security rules at most 2 ms per response. Exact values: https://clouddnagmbh.github.io/requesttailor/ (performance section).
 
 ## Collections and import
 

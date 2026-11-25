@@ -11,7 +11,7 @@
 //   blocked from doing anything by the CSP;
 // - search and sharing basics on every page except 404.html: a title of at most 60 and a
 //   description of at most 155 characters (both unique), a canonical link and Open Graph and
-//   Twitter tags with absolute URLs on the two origins of the project, an og:image that is a
+//   Twitter tags with absolute URLs on this site's origin, an og:image that is a
 //   local file, alt, width and height on every image, no duplicate ids; sitemap.xml lists
 //   exactly the pages and robots.txt names it, llms.txt exists;
 // - every page has the basics for accessibility: lang, viewport, title, one h1, a main
@@ -29,9 +29,11 @@ import { parseBudgets } from "./check-perf-budgets.mjs";
 const HEADER = "SPDX-License-Identifier: Apache-2.0";
 const FORBIDDEN_TAGS = ["iframe", "frame", "object", "embed", "form", "base"];
 // The only absolute URLs besides https links: canonical and Open Graph/Twitter metadata.
-export const SITE_ORIGIN = "https://requesttailor.com/";
-export const APP_ORIGIN = "https://app.requesttailor.com/";
-const META_ORIGINS = [SITE_ORIGIN, APP_ORIGIN];
+// The site is served by GitHub Pages under /requesttailor/. requesttailor.com is the separate
+// product website: pages may link to it and to the web app (plain https links), but canonical
+// and social metadata name only this site.
+export const SITE_ORIGIN = "https://clouddnagmbh.github.io/requesttailor/";
+const META_ORIGINS = [SITE_ORIGIN];
 export const MAX_TITLE = 60;
 export const MAX_DESCRIPTION = 155;
 const NOT_INDEXED = new Set(["404.html"]);
@@ -167,7 +169,11 @@ export function checkWebsite(root, budgets) {
         if (value === null) continue;
         const urls = key === "srcset" ? value.split(",").map((s) => s.trim().split(/\s+/)[0]) : [value];
         for (const url of urls) {
-          if (ABSOLUTE.test(url) || url.startsWith("/")) {
+          // The 404 page is served at any depth, so its stylesheet and images name the site by
+          // absolute URL (same origin, so the CSP's 'self' allows them); they must be site files.
+          if (p === "404.html" && url.startsWith(SITE_ORIGIN)) {
+            if (!existsSync(join(root, url.slice(SITE_ORIGIN.length)))) errors.push(`${p}: ${m[1]} ${key}="${url}" does not exist`);
+          } else if (ABSOLUTE.test(url) || url.startsWith("/")) {
             errors.push(`${p}: ${m[1]} ${key}="${url}" is not a relative local file`);
           } else if (!existsSync(target(root, page, url)) || !inside(target(root, page, url))) {
             errors.push(`${p}: ${m[1]} ${key}="${url}" does not exist`);

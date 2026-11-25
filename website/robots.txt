@@ -1,3 +1,4 @@
+# Effective only at a host root; on github.io/requesttailor it is advisory.
 # RequestTailor website: everyone is welcome, search engines and AI crawlers included.
 User-agent: *
 Allow: /
@@ -29,4 +30,4 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-Sitemap: https://requesttailor.com/sitemap.xml
+Sitemap: https://clouddnagmbh.github.io/requesttailor/sitemap.xml

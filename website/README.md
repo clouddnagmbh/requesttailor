@@ -12,7 +12,7 @@ The project website: plain HTML and one stylesheet, no build step, no framework.
 | `download/` | Release files per OS, checksum and signature verification |
 | `compare/` | What RequestTailor does and does not do, as a yes/no list |
 | `docs/` | Getting started, collections, environments and secrets, Git client, checks, safety and quality tools, sharing, AI assistants, CLI, MCP, plugins, OData guide, privacy |
-| `404.html` | Page not found (not indexed; its links are absolute because it is served at any path) |
+| `404.html` | Page not found (not indexed; its links, stylesheet and logo are absolute because it is served at any path) |
 | `sitemap.xml`, `robots.txt` | For crawlers; the sitemap lists every page (the check compares) and robots.txt names it |
 | `llms.txt`, `llms-full.txt` | For answer engines ([llmstxt.org](https://llmstxt.org/)): key pages, and all facts in one file |
 | `assets/og-image.png` | The 1200 x 630 image for link previews, made from the logo |
@@ -29,8 +29,14 @@ The project website: plain HTML and one stylesheet, no build step, no framework.
   the browser does not run it and the CSP stays as it is. Every other script is refused.
 - Absolute URLs appear only in two places: `https://` links, and the metadata for search and
   sharing (`<link rel="canonical">`, `og:*`, `twitter:*`), which may name only
-  `https://requesttailor.com/` and `https://app.requesttailor.com/`. Stylesheets, images and
-  scripts stay relative.
+  `https://clouddnagmbh.github.io/requesttailor/` (this site, on GitHub Pages). Plain `https://`
+  links may go anywhere, for example to the web app (`https://app.requesttailor.com/`) and the
+  separate product website (`https://requesttailor.com/en/`, linked from the home page and every
+  footer). Stylesheets, images and scripts stay relative, except on `404.html`: GitHub Pages
+  serves it at any depth, so it names its stylesheet, icon and logo by their absolute github.io
+  URL (same origin, so the CSP's `'self'` allows it; the check requires them to be site files).
+- `robots.txt` takes effect only at a host root. On `github.io/requesttailor/` it is advisory;
+  submit `sitemap.xml` in Search Console instead.
 - Every page except `404.html` has a title of at most 60 characters and a description of at most
   155 characters, both unique, a canonical link that equals its place in `sitemap.xml`, Open
   Graph and Twitter tags, an `og:image` that is a file of the site, and `alt`, `width` and
