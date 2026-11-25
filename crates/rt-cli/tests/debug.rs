@@ -59,7 +59,13 @@ fn rt(extra: &[&str], stdin: &str, data: &Path, file: &Path) -> (i32, String, St
     let mut child = Command::new(env!("CARGO_BIN_EXE_rt"))
         .arg("send")
         .arg(file)
-        .args(["-e", "Local", "--no-plugins", "--var", &format!("token={SECRET}")])
+        .args([
+            "-e",
+            "Local",
+            "--no-plugins",
+            "--var",
+            &format!("token={SECRET}"),
+        ])
         .args(extra)
         .env("RT_DATA_DIR", data)
         .stdin(Stdio::piped())

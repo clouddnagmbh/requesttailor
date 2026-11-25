@@ -62,7 +62,10 @@ fn describe(state: &DebugState, source: &str) -> String {
     let Some(pause) = &state.pause else {
         return String::new();
     };
-    let mut text = format!("\n[debug] stopped at line {} ({})\n", pause.line, pause.reason);
+    let mut text = format!(
+        "\n[debug] stopped at line {} ({})\n",
+        pause.line, pause.reason
+    );
     let lines: Vec<&str> = source.lines().collect();
     let line = pause.line as usize;
     for n in line.saturating_sub(2).max(1)..=(line + 1).min(lines.len()) {

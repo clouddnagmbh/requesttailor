@@ -59,13 +59,14 @@ import { evaluateSnapshots, mockSnapshots } from "./mock-snapshots";
 import { mockEnvCompare } from "./mock-envcompare";
 import { mockEgress } from "./mock-egress";
 import { mockJournal } from "./mock-journal";
+
 import { mockAccess } from "./mock-access";
 import { mockShrink } from "./mock-shrink";
 import { mockConsumers } from "./mock-consumers";
 import { mockSequence } from "./mock-sequence";
 import { mockSecurity } from "./mock-security";
 import { mockNotebook } from "./mock-notebook";
-import { mockDebugger } from "./mock-debugger";
+import { MOCK_DEBUG_SOURCE, mockDebugger } from "./mock-debugger";
 
 import { mockInspect } from "./mock-inspect";
 import { mockPaging } from "./mock-paging";
@@ -133,6 +134,8 @@ function sampleRequests(): Map<string, RequestSpec> {
       "users/list-users.yml",
       r("List users", "GET", "{{baseUrl}}/users?page=1", {
         params: [{ name: "page", value: "1", kind: "query", enabled: true }],
+        // What the mock debugger steps through (`mock-debugger.ts`).
+        scripts: [{ phase: "before-request", code: MOCK_DEBUG_SOURCE }],
         headers: [{ name: "Accept", value: "application/json", enabled: true }],
       }),
     ],

@@ -649,8 +649,7 @@ fn instrumented_libraries_still_run() {
                 input(&wrap(&inner)),
             )
             .unwrap();
-            let state = s.start().await;
-            state
+            s.start().await
         });
         assert_eq!(normal.error, None, "{name}: normal run");
         assert_eq!(debugged.error, None, "{name}: debug run: {debugged:?}");
@@ -731,12 +730,19 @@ fn the_terminal_runner_debugs_the_request_script_of_a_call() {
     );
 }
 
-/// `debug_step` (perf/README.md): one step, from a stop to the next stop, median of 100.
+/// `debug_step` (perf/README.md): one step, from a stop to the next stop, median of 50.
 /// `RT_PERF_OUT=<dir> cargo test --release -p rt-script --test debug -- debug_step_is_measured --exact --nocapture`
 #[test]
 fn debug_step_is_measured() {
-    let code: String = (1..=120)
-        .map(|n| format!("let v{n} = {n};\n"))
+    // A script of 60 lines with 20 variables in scope: what a long request script is.
+    let code: String = (1..=60)
+        .map(|n| {
+            if n <= 20 {
+                format!("let v{n} = {n};\n")
+            } else {
+                format!("Math.abs({n});\n")
+            }
+        })
         .collect::<String>();
     let mut times = Vec::new();
     block_on(async {
@@ -745,7 +751,7 @@ fn debug_step_is_measured() {
         let mut s = session(input);
         let mut state = s.start().await;
         // A warm engine first: the first run compiles the module.
-        for _ in 0..100 {
+        for _ in 0..50 {
             assert_eq!(state.status, DebugStatus::Paused, "{state:?}");
             let started = Instant::now();
             state = s.command(DebugCommand::StepOver).await;

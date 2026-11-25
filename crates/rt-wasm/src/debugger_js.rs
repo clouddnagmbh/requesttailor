@@ -100,7 +100,11 @@ impl WorkspaceJs {
     }
 
     #[wasm_bindgen(js_name = debuggerCommand)]
-    pub fn debugger_command(&self, session: f64, command: JsValue) -> Result<js_sys::Promise, JsValue> {
+    pub fn debugger_command(
+        &self,
+        session: f64,
+        command: JsValue,
+    ) -> Result<js_sys::Promise, JsValue> {
         let id = u32::try_from(int(session)?).map_err(|_| error("invalid session".into()))?;
         let command: DebugCommand = from_js(&command, "command")?;
         let Some(mut session) = SESSIONS.with(|s| s.borrow_mut().remove(&id)) else {

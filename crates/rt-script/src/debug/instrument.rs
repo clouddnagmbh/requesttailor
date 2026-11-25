@@ -577,7 +577,7 @@ impl<'a> Scanner<'a> {
             return false;
         }
         let t = &self.toks[i];
-        let starts = match t.kind {
+        match t.kind {
             Kind::Ident => !matches!(
                 self.text(t),
                 "in" | "of"
@@ -592,8 +592,7 @@ impl<'a> Scanner<'a> {
             Kind::Num | Kind::Str => true,
             Kind::Template | Kind::Regex => false,
             Kind::Punct => matches!(self.text(t), "!" | "~" | "{"),
-        };
-        starts
+        }
     }
 
     fn run(&mut self) {

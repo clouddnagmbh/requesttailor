@@ -44,7 +44,7 @@ export function webDebugger(deps: DebuggerDeps): DebuggerApi {
         if (!deps.trusted(s.id)) {
           throw new BackendError("shell", "Trust this collection to run its scripts before debugging them.");
         }
-        const input = await deps.input(s, { environment: target.environment ?? null, vars: [], secrets: [] });
+        const input = await deps.input(s, { environment: target.environment ?? null, vars: [] });
         return ws.debuggerStart(target, input);
       }),
     command: (session, command) => run((ws) => ws.debuggerCommand(session, command)),
