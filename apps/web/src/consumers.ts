@@ -72,7 +72,8 @@ async function readCollection(dir: FileSystemDirectoryHandle): Promise<{ path: s
   const out: { path: string; text: string }[] = [];
   let bytes = 0;
   const walk = async (d: FileSystemDirectoryHandle, prefix: string): Promise<void> => {
-    for await (const [name, handle] of d.entries()) {
+    for await (const handle of d.values()) {
+      const name = handle.name;
       if (name.startsWith(".") || name === "node_modules") continue;
       if (handle.kind === "directory") {
         await walk(handle as FileSystemDirectoryHandle, `${prefix}${name}/`);
