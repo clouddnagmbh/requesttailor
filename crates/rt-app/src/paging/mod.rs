@@ -5,17 +5,40 @@
 //! found ([`PagingRule`]: `link-header`, `json-url`, `cursor`); it comes from the request's
 //! companion `<request>.paging.json`, the collection default
 //! (`extensions.requesttailor.paging`) or a plugin (`contributes.paging`), in that order of
-//! precedence. The core knows no vendor.
+//! precedence ([`rules::effective`]). The core knows no vendor: a plugin ships what
+//! `@odata.nextLink` or `d.__next` mean as data.
 //!
 //! Limits are mandatory ([`PagingLimits`], hard maxima that no setting lifts). Only reads
 //! follow, only to the origin of the request; every page goes through `send_with` (prepare,
-//! guard, plugin hooks, rate limits). Interface: types only.
+//! guard, plugin hooks), so the send guard answers for each page and a "no" ends the run with
+//! what was loaded. Between pages the run waits for what the last response said about rate
+//! limits (`SendReport.rate_limit`), within the time limit.
+//!
+//! The result is one report: the merged body (only the arrays at the merge path grow; every
+//! other field is the first page's), kept on the Rust side like any response. The history gets
+//! one entry per run, never per page. `notes` say how many pages and why the run stopped.
+//!
+//! For a plugin: `Contributions.paging` is data (hosts, content types, a URL glob and a
+//! [`PagingSpec`]); a rule of the user always wins, and the plugin's is offered with its name.
 
 use serde::{Deserialize, Serialize};
 
 pub use rt_core::paging::{CursorParam, CursorPlace, PagingRule, PagingSpec};
 
-use crate::{SendInput, StoredResponse};
+pub mod follow;
+mod merge;
+mod next;
+pub mod rules;
+
+use rt_core::send::{SendOptions, SendReport};
+use rt_core::services::Services;
+use rt_core::transport::Transport;
+
+use crate::runner::RunSnapshot;
+use crate::{AppError, ResponseStore, SendInput, StoredResponse};
+
+pub use follow::{Follow, follow};
+pub use rules::MatchContext;
 
 pub const DEFAULT_MAX_PAGES: u32 = 20;
 pub const HARD_MAX_PAGES: u32 = 1_000;
@@ -143,4 +166,138 @@ pub struct PagedResult {
 pub enum PagingRuleScope {
     Request,
     Collection,
+}
+
+/// A rule a plugin contributes, with the plugin it comes from. The shells read these from the
+/// manifests of the active plugins.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginPaging {
+    pub plugin: String,
+    pub contribution: rt_plugin::api::PagingContribution,
+}
+
+/// The page `Next` continues from: its report and its whole body.
+#[derive(Debug, Clone)]
+pub struct PreviousPage {
+    pub report: SendReport,
+    pub body: Vec<u8>,
+}
+
+/// The page kept as response `id`.
+pub fn previous_page(store: &ResponseStore, id: u64) -> Result<PreviousPage, AppError> {
+    let report = store.report(id)?.clone();
+    let size = report.response.as_ref().map_or(0, |r| r.size);
+    let len = u32::try_from(size)
+        .map_err(|_| AppError::Shell("The page is too large to continue from.".into()))?;
+    let body = store.bytes(id, 0, len)?;
+    Ok(PreviousPage { report, body })
+}
+
+/// What a run made, before its body goes into the response store.
+#[derive(Debug, Clone)]
+pub struct PagedRun {
+    pub report: SendReport,
+    pub pages: u32,
+    pub stopped: PagingStop,
+    pub more: bool,
+}
+
+impl PagedRun {
+    /// Keeps the body in `store` and gives the result for the UI.
+    pub fn into_result(self, store: &mut ResponseStore) -> PagedResult {
+        PagedResult {
+            response: store.insert(self.report),
+            pages: self.pages,
+            stopped: self.stopped,
+            more: self.more,
+        }
+    }
+}
+
+fn slot_mut<'a>(
+    items: &'a mut [rt_core::model::Item],
+    path: &str,
+) -> Option<&'a mut rt_core::model::RequestSpec> {
+    for item in items {
+        match item {
+            rt_core::model::Item::Request(r) if r.path == path => return Some(&mut r.spec),
+            rt_core::model::Item::Folder(f) => {
+                if let Some(found) = slot_mut(&mut f.items, path) {
+                    return Some(found);
+                }
+            }
+            rt_core::model::Item::Request(_) => {}
+        }
+    }
+    None
+}
+
+/// Puts `spec` in place of the request at `path` of `collection` (the page to send).
+pub fn set_spec(
+    collection: &mut rt_core::model::Collection,
+    path: &str,
+    spec: rt_core::model::RequestSpec,
+) -> Result<(), AppError> {
+    let slot = slot_mut(&mut collection.items, path)
+        .ok_or_else(|| AppError::Shell(format!("There is no request {path}.")))?;
+    *slot = spec;
+    Ok(())
+}
+
+/// Follows the pages of `run.path` on a snapshot of the collection: the app's and the
+/// browser's way. Each page is one run of the request with the services given (so the guard,
+/// the cookies, the tokens and the plugins are those of a normal send).
+#[allow(clippy::too_many_arguments)]
+pub async fn run_on_snapshot<T: Transport>(
+    snapshot: &RunSnapshot,
+    run: &PagingRun,
+    rule: &PagingSpec,
+    previous: Option<PreviousPage>,
+    transport: &T,
+    options: &SendOptions,
+    services: &Services<'_>,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<PagedRun, AppError> {
+    let spec = snapshot
+        .collection
+        .request(&run.path)
+        .map(|r| r.request.spec.clone())
+        .ok_or_else(|| AppError::Shell(format!("There is no request {}.", run.path)))?;
+    let mut work = snapshot.clone();
+    let paths = [run.path.clone()];
+    follow(
+        Follow {
+            spec: &spec,
+            rule,
+            mode: run.mode,
+            previous,
+            limits: run.limits.clone().unwrap_or_default(),
+            first: None,
+        },
+        async |page: rt_core::model::RequestSpec| {
+            let slot = slot_mut(&mut work.collection.items, &run.path)
+                .ok_or_else(|| "the request vanished".to_owned())?;
+            *slot = page;
+            let outcome = crate::compare::run_snapshot(
+                &work,
+                None,
+                Some(&paths),
+                transport,
+                options,
+                services,
+                &mut |_| {},
+                cancelled,
+            )
+            .await;
+            outcome
+                .steps
+                .into_iter()
+                .next()
+                .map(|s| s.report)
+                .ok_or_else(|| "the page was not sent".to_owned())
+        },
+        cancelled,
+        &mut |_| {},
+    )
+    .await
 }

@@ -22,7 +22,7 @@ and how.
 | `git_status_large` | ≤ 300 ms | working copy of 50 000 tracked files, 100 changed, natively, release, median of 9 (pending: wave 15, strand B) |
 | `env_compare` | ≤ 500 ms | 100 reading requests compared in 2 environments (fake transport), run plus comparison, median of 9 |
 | `response_checks` | ≤ 20 ms | passive response checks on a 1 MiB response, native release, median of 9 (pending: wave 18, strand B) |
-| `paging_merge` | ≤ 2500 ms | following and merging 100 pages of 100 items into one stored response, median of 9 (pending: wave 18, strand C) |
+| `paging_merge` | ≤ 2500 ms | following and merging 100 pages of 100 items into one stored response, median of 9 (measured: `node scripts/perf/run.mjs --only paging`; first measurement 27 ms, peak memory growth 1.3x the result) |
 | `ratelimit_wait` | ≤ 50 ms | error of the wait after `Retry-After: 1`, `rt run --respect-limits`, median of 9 (real sleep, `crates/rt-core/tests/ratelimit.rs`; the fake-clock cases prove the logic exactly) |
 | `inbox_latency` | ≤ 50 ms | webhook inbox: request on the loopback port to the event in `InboxApi.events`, median of 100 (pending: wave 18, strand E) |
 | `lint_1000` | ≤ 500 ms | `rt lint` on 1000 requests, native release, median of 9 (pending: wave 18, strand F) |

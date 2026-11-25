@@ -52,7 +52,8 @@ pub mod mcp_test;
 /// Wave 12, strand B: three-way merge on the model.
 pub mod merge;
 mod observe_config;
-mod paging_config;
+/// Wave 18, strand C: paging rules in `<request>.paging.json` and `extensions.requesttailor.paging`.
+pub mod paging_config;
 /// Wave 8: GraphQL, gRPC and WebSocket items.
 mod protocols;
 mod read;

@@ -335,6 +335,18 @@ mod workspace_js {
             std::cell::Ref::map(self.inner.borrow(), |i| &i.responses)
         }
 
+        /// Another handle on the same workspace, for work that outlives the call (wave 18).
+        pub(crate) fn handle(&self) -> WorkspaceJs {
+            WorkspaceJs {
+                inner: Rc::clone(&self.inner),
+            }
+        }
+
+        /// The kept responses, to add one (wave 18: `paging_js` keeps the merged page run).
+        pub(crate) fn responses_mut(&self) -> std::cell::RefMut<'_, ResponseStore> {
+            std::cell::RefMut::map(self.inner.borrow_mut(), |i| &mut i.responses)
+        }
+
         /// The open workspace for edits (wave 8: `agents_js`; saved MCP tests are staged in it, `mcp_js`).
         pub(crate) fn workspace_mut(&self) -> std::cell::RefMut<'_, Workspace> {
             std::cell::RefMut::map(self.inner.borrow_mut(), |i| &mut i.workspace)

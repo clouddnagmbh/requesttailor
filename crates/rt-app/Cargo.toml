@@ -28,8 +28,9 @@ rt-plugin = { path = "../rt-plugin" }
 # Body patterns of the minimal-case search (wave 19, `shrink`); already in the tree via rt-core.
 regex-lite = "0.1"
 serde = { version = "1", features = ["derive"] }
-# float_roundtrip: history entries (duration_ms) read back exactly as written.
-serde_json = { version = "1", features = ["float_roundtrip"] }
+# float_roundtrip: history entries (duration_ms) read back exactly as written. raw_value: the
+# paging merge cuts the arrays of pages out of their text (`paging::merge`).
+serde_json = { version = "1", features = ["float_roundtrip", "raw_value"] }
 # Line diffs for the Git view (`git::text_diff`); Apache-2.0, pure Rust, builds on wasm32 and iOS.
 similar = "3"
 # JSONPath (RFC 9535) for filtering response bodies; MIT, builds on wasm32 and iOS.

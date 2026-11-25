@@ -430,7 +430,11 @@ export class MockBackend implements Backend {
         : null;
     },
   });
-  readonly paging = mockPaging();
+  readonly paging = mockPaging({
+    getRequest: (p) => this.getRequest(p),
+    send: (path, input) => this.sendNow(path, input),
+    keep: (report, body) => this.keepBody(report, body),
+  });
   readonly inbox = mockInbox();
   readonly lint = mockLint({
     requests: () => this.requests,
@@ -774,6 +778,20 @@ export class MockBackend implements Backend {
     const rateLimit = mockRateLimit();
     if (rateLimit) report.rate_limit = rateLimit;
     return { report, response_id: id, size, line_count: stored.lineCount, is_text: true };
+  }
+
+  /** Keeps `body` as a new response built on `report` (wave 18, `mock-paging.ts`). */
+  private keepBody(report: SendReport, body: string): StoredResponse {
+    const id = this.nextId++;
+    const lines = body.split("\n");
+    const bytes = new TextEncoder().encode(body);
+    this.responses.set(id, { lineCount: lines.length, lines: (start, count) => lines.slice(start, start + count), bytes, text: body });
+    this.responseMeta.set(id, { status: 200, headers: [["content-type", "application/json"]], url: report.response?.url ?? "", cookies: [] });
+    if (report.response) {
+      report.response.body = { encoding: "utf8", data: body };
+      report.response.size = bytes.length;
+    }
+    return { report, response_id: id, size: bytes.length, line_count: lines.length, is_text: true };
   }
 
   private stored(id: number): Stored {
