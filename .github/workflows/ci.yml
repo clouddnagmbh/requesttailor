@@ -42,6 +42,18 @@ jobs:
       - name: Desktop build dependencies (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ${{ env.TAURI_LINUX_DEPS }}
+      # Debug builds of the workspace crash (access violation) on Windows as soon as wasmi runs
+      # code (scripts, plugins) when wasmi is compiled at opt-level 2 or 3, which Cargo.toml
+      # asks for to keep tests fast; opt-level 1 and release builds are fine (found by bisecting
+      # the profile on the runner). Windows has no shipped debug build, so only this job lowers it.
+      - name: wasmi at opt-level 1 (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p .cargo
+          for p in wasmi wasmi_core wasmi_ir wasmi_collections; do
+            printf '[profile.dev.package.%s]\nopt-level = 1\n\n' "$p" >> .cargo/config.toml
+          done
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --all-targets --locked
       # The example plugin for the wave 5 gate test in rt-desktop ("runs unchanged"); the
