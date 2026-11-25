@@ -3,15 +3,19 @@
 # `node scripts/check-perf-budgets.mjs --require-all`, so a missing measurement fails as well.
 # What each metric measures, and how: perf/README.md.
 
+# Release gate: shared CI runners are too noisy for app start and memory; measured on a quiet
+# machine before every release, decided by the project owner 2026-11-25. CI measures and reports only.
 [metrics.cold_start]
 description = "Desktop app cold start until the first interactive frame (median of 9 starts)"
 unit = "ms"
 max = 500
+gate = "release"
 
 [metrics.idle_memory]
 description = "Memory of the desktop app and its webview processes, idle, one collection open"
 unit = "MB"
 max = 150
+gate = "release"
 
 [metrics.large_response_frame]
 description = "p95 frame time while scrolling a 100 MB response body"

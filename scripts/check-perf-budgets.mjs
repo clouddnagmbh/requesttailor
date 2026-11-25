@@ -8,6 +8,8 @@
 // always fails; with --require-all (CI, since wave 4) a missing measurement fails as well,
 // except for a budget marked `pending = "<wave, strand>"` (status "pending": the strand that
 // builds its measurement has not landed yet; since wave 15).
+// A budget marked `gate = "release"` (cold_start, idle_memory: shared CI runners are too noisy)
+// is only reported by default, over its limit or missing; with --release it fails like any other.
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -51,13 +53,14 @@ export function evaluate(budgets, results) {
     const value = results[name];
     const missing = typeof b.pending === "string" ? "pending" : "not measured";
     const status = typeof value !== "number" ? missing : value <= b.max ? "ok" : "over";
-    return { name, value, max: b.max, unit: b.unit ?? "", status, ...(status === "pending" ? { pending: b.pending } : {}) };
+    return { name, value, max: b.max, unit: b.unit ?? "", status, release: b.gate === "release", ...(status === "pending" ? { pending: b.pending } : {}) };
   });
 }
 
 function main() {
   const args = process.argv.slice(2);
   const requireAll = args.includes("--require-all");
+  const release = args.includes("--release");
   const resultsPath = resolve(args.find((a) => !a.startsWith("--")) ?? "perf/results.json");
   const budgets = parseBudgets(readFileSync(resolve("perf/budgets.toml"), "utf8"));
   const results = existsSync(resultsPath) ? JSON.parse(readFileSync(resultsPath, "utf8")) : {};
@@ -68,7 +71,13 @@ function main() {
     const note = r.status === "pending" ? `, measured from ${r.pending}` : "";
     console.log(`${r.status.padEnd(12)} ${r.name.padEnd(22)} ${shown.padStart(10)}  (max ${r.max} ${r.unit}${note})`);
   }
-  const failed = rows.filter((r) => r.status === "over" || (requireAll && r.status === "not measured"));
+  const reportOnly = (r) => r.release && !release;
+  for (const r of rows.filter((r) => reportOnly(r) && (r.status === "over" || r.status === "not measured"))) {
+    console.log(`REPORT ONLY (release gate): ${r.name} is ${r.status}; checked with --release on a quiet machine`);
+  }
+  const failed = rows.filter(
+    (r) => !reportOnly(r) && (r.status === "over" || (requireAll && r.status === "not measured")),
+  );
   if (failed.length > 0) {
     console.error(`perf budget check FAILED: ${failed.map((r) => r.name).join(", ")}`);
     process.exit(1);

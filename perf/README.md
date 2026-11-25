@@ -47,6 +47,17 @@ node scripts/perf/run.mjs --only desktop --runs 10 --memory-runs 3
 node scripts/check-perf-budgets.mjs --require-all   # the gate on an existing perf/results.json
 ```
 
+**Release gates.** `cold_start` and `idle_memory` carry `gate = "release"` in `perf/budgets.toml`:
+shared CI runners are too noisy for app start and memory, so CI measures and reports them
+(`REPORT ONLY (release gate)`) but they do not fail the build; the limits are unchanged (project
+owner's decision, 2026-11-25). Before every release, on a quiet machine:
+
+```sh
+npm run build -w apps/desktop
+node scripts/perf/run.mjs
+node scripts/check-perf-budgets.mjs --require-all --release   # now they fail like any budget
+```
+
 `run.mjs` writes `perf/results.json` (metric → number, what the gate reads) and
 `perf/report.json` (every sample, the per-process memory breakdown, machine and load). Both are
 gitignored. Nothing is sent anywhere: measurements stay on the machine or in the CI job's
