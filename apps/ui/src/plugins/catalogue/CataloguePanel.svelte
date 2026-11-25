@@ -211,11 +211,11 @@
                 <Button
                   size="sm"
                   variant={r.update || !r.installed ? "secondary" : "ghost"}
-                  disabled={busy || (r.installed === r.entry.version && !r.update)}
+                  disabled={busy}
                   onclick={() => void review(r.source.url, r.entry.id)}
                   data-testid="catalogue-install"
                 >
-                  {r.installed ? (r.installed === r.entry.version ? "Installed" : "Update") : "Install"}
+                  {r.installed ? (r.installed === r.entry.version ? "Reinstall" : "Update") : "Install"}
                 </Button>
               </div>
               {#if r.entry.description}<p class="muted">{r.entry.description}</p>{/if}
