@@ -16,6 +16,8 @@ use rt_app::consumers::{self, fetch};
 /// `file://` URL of a local path that `git` accepts: `file:///C:/x` on Windows, `file:///x` elsewhere.
 fn file_url(path: &std::path::Path) -> String {
     let text = path.to_string_lossy().replace('\\', "/");
+    // `canonicalize` gives `\\?\C:\x` on Windows.
+    let text = text.strip_prefix("//?/").unwrap_or(&text).to_owned();
     if text.starts_with('/') {
         format!("file://{text}")
     } else {

@@ -82,11 +82,11 @@ pub fn find(root: &Path) -> io::Result<Found> {
             .dirs
             .iter()
             .map(|dir| {
-                let cpath = if dir.is_empty() {
-                    path.clone()
-                } else {
-                    path.join(dir)
-                };
+                // `dir` is `/`-separated; join it piece by piece so the id never mixes separators.
+                let cpath = dir
+                    .split('/')
+                    .filter(|p| !p.is_empty())
+                    .fold(path.clone(), |p, c| p.join(c));
                 FoundCollection {
                     id: cpath.to_string_lossy().into_owned(),
                     name: manifest_name(&cpath).unwrap_or_else(|| folder_name(&cpath)),
