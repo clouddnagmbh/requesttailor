@@ -42,6 +42,18 @@ jobs:
       - name: Desktop build dependencies (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ${{ env.TAURI_LINUX_DEPS }}
+      # Debug builds of the workspace crash (access violation) on Windows as soon as wasmi runs
+      # code (scripts, plugins) when wasmi is compiled at opt-level 2 or 3, which Cargo.toml
+      # asks for to keep tests fast; opt-level 1 and release builds are fine (found by bisecting
+      # the profile on the runner). Windows has no shipped debug build, so only this job lowers it.
+      - name: wasmi at opt-level 1 (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p .cargo
+          for p in wasmi wasmi_core wasmi_ir wasmi_collections; do
+            printf '[profile.dev.package.%s]\nopt-level = 1\n\n' "$p" >> .cargo/config.toml
+          done
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --all-targets --locked
       # The example plugin for the wave 5 gate test in rt-desktop ("runs unchanged"); the
@@ -50,7 +62,8 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown
           node scripts/build-plugins.mjs
-      - run: cargo test --workspace --locked
+      # --no-fail-fast: one broken test binary must not hide the failures of the others.
+      - run: cargo test --workspace --locked --no-fail-fast
 
   # The desktop app as it ships (release, frontend embedded), without installer bundles.
   desktop:
@@ -259,9 +272,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: linux, os: ubuntu-latest, parts: "desktop,frames,keystrokes,diff" }
-          - { name: macos, os: macos-latest, parts: "desktop,diff" }
-          - { name: windows, os: windows-latest, parts: "desktop,diff" }
+          - { name: linux, os: ubuntu-latest, app: true, parts: "desktop,frames,keystrokes,diff,graph" }
+          - { name: macos, os: macos-latest, app: true, parts: "desktop,diff" }
+          - { name: windows, os: windows-latest, app: true, parts: "desktop,diff" }
+          # Everything else the gate requires (perf/budgets.toml; `perf` below fails on a budget
+          # no job measured). Native tools and the shared UI: one OS is enough, no desktop app.
+          - { name: linux-tools, os: ubuntu-latest, app: false, parts: "consumers,compare,status,graph-large,snapshots,share,observe,watch,envcompare,checks,paging,ratelimit,inbox,lint,views,schemas,catalogue,trace,egress,journal,access,shrink,security,notebook" }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -275,7 +291,7 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
       # WebKitGTK for the app, and a virtual display for its window.
       - name: Desktop build and run dependencies (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.app
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ${{ env.TAURI_LINUX_DEPS }} xvfb
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v7
@@ -293,16 +309,18 @@ jobs:
             cargo install wasm-bindgen-cli --version "$v" --locked
           fi
       - name: Build the desktop app (release, frontend embedded)
+        if: matrix.app
         run: npm run build -w apps/desktop -- --ci
-      - name: Recent collections against the real web backend
+      - name: Build the core for the web app
         if: runner.os == 'Linux'
+        run: node scripts/build-wasm.mjs
+      - name: Recent collections against the real web backend
+        if: matrix.name == 'linux'
         working-directory: apps/web
-        run: |
-          node ../../scripts/build-wasm.mjs
-          npx playwright test --config e2e/recent/playwright.recent.config.ts
+        run: npx playwright test --config e2e/recent/playwright.recent.config.ts
       - name: Measure (fails on an exceeded budget)
         run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then run="xvfb-run -a"; else run=""; fi
+          if [ "$RUNNER_OS" = "Linux" ] && [ "${{ matrix.app }}" = "true" ]; then run="xvfb-run -a"; else run=""; fi
           $run node scripts/perf/run.mjs --only "${{ matrix.parts }}" --check
       - name: Keep the results
         if: always()
@@ -333,7 +351,7 @@ jobs:
       # Every OS must have delivered results; a missing one is a failure, not a skip.
       - name: Merge (worst value per metric) and check every budget
         run: |
-          for os in linux macos windows; do
+          for os in linux macos windows linux-tools; do
             test -f "perf-results/perf-$os/results.json" || { echo "no results from $os"; exit 1; }
           done
           node scripts/perf/merge.mjs perf/results.json perf-results/perf-*/results.json
@@ -385,6 +403,13 @@ jobs:
           RT_BIN: ${{ github.workspace }}/target/debug/rt
           RT_TESTSERVER_BIN: ${{ github.workspace }}/target/debug/rt-testserver
         run: npm run e2e -w apps/web
+      - name: Keep the Playwright results of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: apps/web/test-results
+          if-no-files-found: ignore
 
   # Plugin SDKs and the example plugin: the SDK's wasm32-only ABI module under clippy, the
   # plugins built to single .wasm modules (checked against API.md by the build script), the

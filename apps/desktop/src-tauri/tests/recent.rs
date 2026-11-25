@@ -174,7 +174,7 @@ fn open_recent_opens_only_listed_folders() {
     let folders = TempDir::new("unlisted");
     let root = collection(folders.path(), "Unlisted");
     let core = Core::new(MemorySecrets::default()).unwrap();
-    let id = std::fs::canonicalize(&root).unwrap();
+    let id = rt_git::canonical(&root).unwrap();
     assert_eq!(open_recent_in(&core, &id.to_string_lossy()).unwrap(), None);
     assert!(core.tree().is_err(), "nothing was opened");
 }

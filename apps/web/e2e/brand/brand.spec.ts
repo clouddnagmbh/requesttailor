@@ -36,5 +36,6 @@ test("the header does not overflow at a narrow width", async ({ page }) => {
   await page.goto("/?backend=mock");
   await expect(page.getByTestId("brand-logo")).toBeVisible();
   const header = page.locator("header").first();
-  expect(await header.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  const { scroll, client } = await header.evaluate((e) => ({ scroll: e.scrollWidth, client: e.clientWidth }));
+  expect(scroll, `header content ${scroll}px in ${client}px`).toBeLessThanOrEqual(client);
 });

@@ -41,7 +41,7 @@ impl TempDir {
             std::env::temp_dir().join(format!("rt-desktop-stage-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        Self(std::fs::canonicalize(&dir).unwrap())
+        Self(rt_git::canonical(&dir).unwrap())
     }
 }
 

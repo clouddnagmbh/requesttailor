@@ -896,7 +896,9 @@ impl<S: SecretStore> Core<S> {
             let path = if dir.is_empty() {
                 root.path.clone()
             } else {
-                root.path.join(&dir)
+                dir.split('/')
+                    .filter(|p| !p.is_empty())
+                    .fold(root.path.clone(), |p, c| p.join(c))
             };
             if !set_files::is_free(&path) {
                 return Err(AppError::Shell(format!(

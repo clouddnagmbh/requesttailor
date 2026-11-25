@@ -81,7 +81,7 @@ test("bisect, the graph and the comparison offer their actions", async ({ page }
   const ids = await makeCommits(page);
 
   // Compare: both revisions in the header line.
-  await runCommand(page, "compare rev");
+  await runCommand(page, "compare revisions");
   await page.getByTestId("compare-from").fill(ids[1]!);
   await page.getByTestId("compare-to").fill("HEAD");
   await page.keyboard.press("Escape");

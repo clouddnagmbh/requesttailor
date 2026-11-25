@@ -957,7 +957,9 @@ describe("amend", () => {
     const before = await state(r, h.api);
     const oldCommit = (await git.readCommit({ fs: r.fs, dir: r.dir, oid: old })).commit;
     r.write("notes.txt", "a\nb\nc\nd\ne\n");
-    r.write("users/list.yml", REQUEST.replace("GET", "PUT"));
+    // A different size: the Git CLI trusts the index' stat data, so an edit of the same size
+    // within the same second as the index write would read as clean (racy).
+    r.write("users/list.yml", REQUEST.replace("GET", "PATCH"));
     r.write("loose.txt", "untracked\n");
     const raw = rawState(r);
     const p = await h.api.plan({ action: "amend", message: "second", paths: ["/notes.txt", "/loose.txt"] });

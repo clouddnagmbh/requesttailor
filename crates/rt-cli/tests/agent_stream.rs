@@ -334,7 +334,8 @@ fn the_relay_checks_token_origin_and_target() {
                     url: "ws://127.0.0.1:9/".into(),
                     headers: Vec::new(),
                     protocols: Vec::new(),
-                    timeout_ms: Some(2000),
+                    // Windows retries a refused connection for about 2 s before it reports it.
+                    timeout_ms: Some(15_000),
                     keep_alive_ms: None,
                 },
             },

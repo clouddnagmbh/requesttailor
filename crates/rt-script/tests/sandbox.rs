@@ -64,6 +64,8 @@ fn limits_are_per_sandbox() {
         time_ms: 200,
         ..Limits::default()
     });
+    // The first run of a process compiles the engine (seconds in a debug build): not the limit.
+    assert_eq!(run(&quick, "1").error, None);
     let started = web_time::Instant::now();
     let o = run(&quick, "while (true) {}");
     assert_eq!(

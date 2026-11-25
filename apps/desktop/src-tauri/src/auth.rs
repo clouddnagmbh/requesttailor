@@ -138,7 +138,8 @@ pub struct AuthParts {
 impl AuthParts {
     /// `data_dir`: `Some` in the app (tokens in the keychain), `None` in tests (in memory).
     pub fn new(data_dir: Option<&std::path::Path>) -> Self {
-        let store: Arc<dyn SecretStore + Send + Sync> = match data_dir {
+        // Unit tests never touch the OS keychain: a headless Linux runner has none.
+        let store: Arc<dyn SecretStore + Send + Sync> = match data_dir.filter(|_| !cfg!(test)) {
             Some(_) => Arc::new(rt_app::secrets::keychain::KeychainStore::default()),
             None => Arc::new(MemorySecrets::default()),
         };

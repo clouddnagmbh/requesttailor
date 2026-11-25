@@ -241,7 +241,10 @@ mod tests {
         let merge = crate::git::commit(&core, "Merge other", &[]).unwrap();
         assert_eq!(commit_info(&core, &merge.oid).unwrap().parents.len(), 2);
         assert_eq!(
-            std::fs::read_to_string(dir.join("notes.txt")).unwrap(),
+            // Git for Windows checks out CRLF by default (core.autocrlf).
+            std::fs::read_to_string(dir.join("notes.txt"))
+                .unwrap()
+                .replace("\r\n", "\n"),
             "one\nboth\nthree\n"
         );
     }

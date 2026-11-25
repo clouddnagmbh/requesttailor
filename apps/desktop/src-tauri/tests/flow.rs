@@ -75,7 +75,7 @@ async fn open_create_send_save() {
     assert_eq!(info.name, "Shell flow");
     assert_eq!(
         info.id,
-        std::fs::canonicalize(&dir.0).unwrap().to_string_lossy()
+        rt_git::canonical(&dir.0).unwrap().to_string_lossy()
     );
     core.secret_set("Local", "token", SECRET).unwrap();
     assert!(core.secret_has("Local", "token").unwrap());

@@ -20,6 +20,10 @@ const HOST = `http://127.0.0.1:${INDEX_PORT}`;
 const MOD = process.platform === "darwin" ? "Meta" : "Control";
 const script = fileURLToPath(new URL("../../../../testdata/catalogue/fake-index.mjs", import.meta.url));
 
+// One fake host on fixed ports for the whole file: the tests share it, so they run in one worker
+// (with `fullyParallel` each test would start its own host on the same ports).
+test.describe.configure({ mode: "serial" });
+
 let host: ChildProcess;
 
 test.beforeAll(async () => {

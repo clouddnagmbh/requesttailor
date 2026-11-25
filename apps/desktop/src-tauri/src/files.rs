@@ -173,11 +173,12 @@ pub fn resolve(root: &Path, rel: &str) -> io::Result<PathBuf> {
 }
 
 /// The collection id on this device: the canonical root path (`SecretKey::collection`).
-/// On Windows the verbatim prefix `\\?\` is removed so the id reads like a normal path.
+/// On Windows the verbatim prefix `\\?\` is removed from the path too (`rt_git::canonical`), so
+/// the id, every path made from it and the repository ids all read like normal paths and compare
+/// equal.
 pub fn collection_id(root: &Path) -> io::Result<(PathBuf, String)> {
-    let canonical = std::fs::canonicalize(root)?;
-    let text = canonical.to_string_lossy();
-    let id = text.strip_prefix(r"\\?\").unwrap_or(&text).to_owned();
+    let canonical = rt_git::canonical(root)?;
+    let id = canonical.to_string_lossy().into_owned();
     Ok((canonical, id))
 }
 
@@ -345,7 +346,7 @@ mod tests {
         let dir = TempDir::new("id");
         dir.put("sub/x", b"");
         let (canonical, id) = collection_id(&dir.0.join("sub").join("..")).unwrap();
-        assert_eq!(canonical, std::fs::canonicalize(&dir.0).unwrap());
+        assert_eq!(canonical, rt_git::canonical(&dir.0).unwrap());
         assert!(!id.starts_with(r"\\?\"));
         assert!(!id.contains(".."));
     }

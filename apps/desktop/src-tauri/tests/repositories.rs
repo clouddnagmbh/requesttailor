@@ -290,7 +290,7 @@ fn clone_adds_the_new_folder_to_the_set_and_makes_it_active() {
 
     let parent = temp("clone-parent");
     let core = core();
-    let first = temp("first");
+    let first = temp("clone-first");
     repo(&first.0);
     repositories::open(&core, &first.0).unwrap();
 
