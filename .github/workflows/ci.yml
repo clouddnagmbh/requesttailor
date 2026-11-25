@@ -50,7 +50,8 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown
           node scripts/build-plugins.mjs
-      - run: cargo test --workspace --locked
+      # --no-fail-fast: one broken test binary must not hide the failures of the others.
+      - run: cargo test --workspace --locked --no-fail-fast
 
   # The desktop app as it ships (release, frontend embedded), without installer bundles.
   desktop:

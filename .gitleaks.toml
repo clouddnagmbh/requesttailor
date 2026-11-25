@@ -7,6 +7,13 @@ description = "Bruno's public e2e fixtures carry fake test credentials (see test
 # Commit c200c28 (MCP client tests) added a sample JWT (subject "1234567890") as a literal to
 # show that saved MCP tests refuse credentials; the test now builds it from parts.
 commits = ["c200c28ffde1f0b6399650cd9b25d9b163829675"]
+# Fake values that tests plant to prove they never reach a file or report (assert_no_canary):
+# they all start with RT-CANARY-.
+# The same for an `alg: none` JWT whose subject is RT-CANARY-... (crates/rt-cli/tests/security_audit.rs).
+regexes = [
+  '''RT-CANARY-[A-Za-z0-9_-]+''',
+  '''eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0\.eyJzdWIiOiJSVC1DQU5BUlkt[A-Za-z0-9_-]*\.?''',
+]
 paths = [
   '''^testdata/collections/bruno/''',
   '''^testdata/import/curl/curlconverter-get-digest-auth\.sh$''',
