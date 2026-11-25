@@ -53,6 +53,13 @@ function openAndTime(page: Page): Promise<number> {
 }
 
 test("git_graph and git_graph_frame: 10 000 commits", async ({ page }) => {
+  // Opt-in, for a slower machine than this one: RT_PERF_CPU_THROTTLE=4 slows the page's CPU 4x
+  // (CDP `Emulation.setCPUThrottlingRate`). Unset: the measurement is unchanged.
+  const throttle = Number(process.env.RT_PERF_CPU_THROTTLE ?? 1);
+  if (throttle > 1) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
+  }
   await page.goto(`/?backend=mock&graph=${COMMITS}`);
   await page.getByTestId("open-collection").click();
   await expect(page.getByTestId("collection-name")).toHaveText("Demo API");
