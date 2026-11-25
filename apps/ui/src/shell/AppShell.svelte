@@ -626,7 +626,7 @@
       onclick={() => theme.cycle()}
     >
       <span aria-hidden="true">{themeIcon[theme.preference]}</span>
-      {themeLabel[theme.preference]}
+      <span class="theme-label">{themeLabel[theme.preference]}</span>
     </button>
   </header>
 
@@ -818,6 +818,10 @@
   /* The header is full at this width; the mark gives way before anything overflows. */
   @media (max-width: 520px) {
     .brand-mark {
+      display: none;
+    }
+    /* Wider system fonts (Linux: DejaVu Sans) need the room too: the theme button keeps its icon. */
+    .theme-label {
       display: none;
     }
   }
