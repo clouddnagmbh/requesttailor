@@ -210,6 +210,10 @@ interface Stored {
   text: string | null;
 }
 
+function mockTraceOn(): boolean {
+  return new URLSearchParams(globalThis.location?.search ?? "").get("trace") === "1";
+}
+
 export class MockBackend implements Backend {
   readonly kind = "mock" as const;
   /** Every file "written" by `save`, for tests (`window.__rt.backend.files`); files of a
@@ -616,6 +620,23 @@ export class MockBackend implements Backend {
     const mask = (s: string) => secretValues.reduce((acc, v) => acc.split(v).join("***"), s);
     const reported = (n: string, v: string) => (n.toLowerCase() === "cookie" ? maskCookieHeader(v) : mask(v));
 
+    // Wave 19: `?trace=1` mirrors a collection with `extensions.requesttailor.trace.inject`:
+    // one `traceparent` unless the request has its own (the core's `trace::inject`).
+    let trace: SendReport["trace"];
+    if (mockTraceOn()) {
+      const own = headers.find(([n]) => n.toLowerCase() === "traceparent");
+      if (own) {
+        const m = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/.exec(own[1]);
+        if (m) trace = { trace_id: m[1]!, span_id: m[2]!, injected: false };
+      } else {
+        const bytes = crypto.getRandomValues(new Uint8Array(24));
+        const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+        const [traceId, spanId] = [hex(bytes.slice(0, 16)), hex(bytes.slice(16))];
+        headers.push(["traceparent", `00-${traceId}-${spanId}-01`]);
+        trace = { trace_id: traceId, span_id: spanId, injected: true };
+      }
+    }
+
     const report: SendReport = {
       version: 1,
       request_path: path,
@@ -625,6 +646,7 @@ export class MockBackend implements Backend {
       variables: used,
       unresolved: [...new Set(unresolved)],
       error: null,
+      ...(trace ? { trace } : {}),
     };
 
     const outcome = this.scriptOutcome?.(path) ?? null;

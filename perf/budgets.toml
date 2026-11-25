@@ -164,11 +164,11 @@ max = 100
 # strand removes it in the commit that adds the measurement. The thresholds are estimates: the
 # strand reports whether they hold after the first measurement. Pro budgets are constants in
 # the Pro tests (rule of wave 13).
-# Strand A (scripts/perf/trace.mjs).
+# Strand A (scripts/perf/trace.mjs, crates/rt-core/tests/trace_perf.rs). First measurement:
+# 0.003 ms fresh, 0.001 ms with an existing header, 0.000002 ms off; the threshold stands.
 [metrics.trace_inject]
 description = "The trace context on a request, `trace::inject` with and without an existing header (100 000 calls, release): median per call; 0 when off"
 unit = "ms"
-pending = "wave 19, strand A"
 max = 0.02
 
 # Strand B (scripts/perf/egress.mjs).

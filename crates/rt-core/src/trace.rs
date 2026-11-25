@@ -13,9 +13,6 @@
 //!
 //! A response that carries a trace id (`traceparent`, `x-trace-id`) of its own is read by
 //! [`from_response`]; its id is reported with `injected: false`.
-//!
-//! Interface commit: [`TraceContext`] (make, parse, format) is complete; [`inject`] and
-//! [`from_response`] are the hooks strand A fills in.
 
 use serde::{Deserialize, Serialize};
 
@@ -181,22 +178,67 @@ pub struct TraceRef {
     pub injected: bool,
 }
 
-/// Hook of strand A, called by `send_with` after `prepare` and before the guard: puts a
-/// `traceparent` on the request if `config.inject` is on and the request has none, and
-/// returns what to report. Interface: does nothing and answers `None`.
+/// Called by `send_with` after `prepare` and before the guard: puts a `traceparent` on the
+/// request if `config.inject` is on and the request has none, and returns what to report.
+/// Off: touches nothing and answers `None`. A `traceparent` the request already has stays as
+/// it is (reported with `injected: false`; an unreadable one is left alone and not reported).
+/// No other header is ever written.
 pub fn inject(
     request: &mut crate::transport::HttpRequest,
     config: &TraceConfig,
 ) -> Option<TraceRef> {
-    let _ = (request, config);
-    None
+    if !config.inject {
+        return None;
+    }
+    if let Some((_, own)) = request
+        .headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("traceparent"))
+    {
+        return TraceContext::parse(own).ok().map(|c| TraceRef {
+            trace_id: c.trace_id_hex(),
+            span_id: c.span_id_hex(),
+            injected: false,
+        });
+    }
+    let context = TraceContext::new();
+    request
+        .headers
+        .push(("traceparent".to_owned(), context.header_value()));
+    Some(TraceRef {
+        trace_id: context.trace_id_hex(),
+        span_id: context.span_id_hex(),
+        injected: true,
+    })
 }
 
-/// Hook of strand A: the trace id a response carries (`traceparent`, `x-trace-id`), used
-/// when the request had none. Interface: `None`.
+/// The trace id a response carries (`traceparent`, else `x-trace-id` with 32 hex characters),
+/// used when the request had none. Reported with `injected: false`.
 pub fn from_response(headers: &[(String, String)]) -> Option<TraceRef> {
-    let _ = headers;
-    None
+    let find = |wanted: &str| {
+        headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(wanted))
+            .map(|(_, value)| value.trim())
+    };
+    if let Some(c) = find("traceparent").and_then(|v| TraceContext::parse(v).ok()) {
+        return Some(TraceRef {
+            trace_id: c.trace_id_hex(),
+            span_id: c.span_id_hex(),
+            injected: false,
+        });
+    }
+    let id = find("x-trace-id")?.to_ascii_lowercase();
+    let valid = id.len() == 32
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        && id.bytes().any(|b| b != b'0');
+    valid.then_some(TraceRef {
+        trace_id: id,
+        span_id: String::new(),
+        injected: false,
+    })
 }
 
 #[cfg(test)]

@@ -227,3 +227,20 @@ export const demo17Extension: AppExtension = {
     },
   ],
 };
+
+// ---- Wave 19: segments with a tree (`?backend=mock&extensions=demo19`) ----
+// After every send it contributes server segments as source "trace" (a gateway, the application
+// inside it, a database call inside that) through `ExtensionContext.segments`.
+
+export const demo19Extension: AppExtension = {
+  id: "demo19",
+  onExchange: (ctx, event) => {
+    const id = event.response.response_id;
+    if (id === null) return;
+    ctx.segments(id, "trace", [
+      { id: "gw", label: "gateway", ms: 9, parent: "server", offset_ms: 0 },
+      { id: "app", label: "orders-service", ms: 7, parent: "gw", offset_ms: 1 },
+      { id: "db", label: "SELECT orders", ms: 4, parent: "app", offset_ms: 2 },
+    ]);
+  },
+};

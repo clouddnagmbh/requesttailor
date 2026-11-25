@@ -716,6 +716,11 @@ async fn finish<T: Transport>(
             let received = received(completed, &secrets);
             // Wave 18: what the response says about rate limits.
             report.rate_limit = crate::ratelimit::observe(&received);
+            // Wave 19: a trace id the response carries, when the request had none (only for
+            // collections that switched tracing on).
+            if report.trace.is_none() && context.collection.config.trace.inject {
+                report.trace = crate::trace::from_response(&received.headers);
+            }
             report.response = Some(received);
         }
         // Transports quote the URL and header values in their messages; secrets must not

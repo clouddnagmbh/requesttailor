@@ -33,6 +33,7 @@
   import TestsPanel from "./TestsPanel.svelte";
   import { testSummary, testsLabel } from "./tests";
   import TimingWaterfall from "./TimingWaterfall.svelte";
+  import TraceSegments from "../trace/TraceSegments.svelte";
   import VirtualLines from "./VirtualLines.svelte";
 
   let {
@@ -408,7 +409,10 @@
     {:else if tab === "headers"}
       <HeadersTable response={response.headers} request={result.report.request?.headers ?? null} />
     {:else if tab === "timing"}
-      <TimingWaterfall data={timing} />
+      <div class="timing-tab">
+        <TimingWaterfall data={timing} />
+        <TraceSegments {app} response={result} waitMs={timing.phases.find((p) => p.name === "ttfb")?.duration ?? 0} />
+      </div>
     {:else if tab === "tests"}
       <TestsPanel report={result.report} />
     {:else if tab === "console"}
@@ -493,6 +497,10 @@
   }
   .info {
     color: var(--rt-fg-muted);
+  }
+  .timing-tab {
+    height: 100%;
+    overflow: auto;
   }
   .metric {
     color: var(--rt-fg);
