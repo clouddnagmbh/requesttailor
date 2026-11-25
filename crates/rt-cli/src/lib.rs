@@ -867,6 +867,11 @@ pub struct Distribution<'a> {
     /// Hooks `rt mock --hook NAME[=ARG]` can switch on (since wave 18, [`mock::MockHook`]).
     /// Without entries every `--hook` is an error.
     pub mock_hooks: &'a [mock::MockHookEntry],
+    /// A distribution's part of `rt security audit` (since wave 19, R2): after the free
+    /// passive pass it handles the command, with the arguments it does not know in
+    /// [`security_cmd::Args::rest`], the passive result and a session to send probes through
+    /// the core (guard `Purpose::Audit`). Without it the free passive audit answers.
+    pub security_audit: Option<&'a dyn security_cmd::SecurityAuditExtension>,
 }
 
 /// [`run_with`] with everything a distribution adds.
@@ -905,7 +910,7 @@ where
         stderr,
         (&distribution.guard, &distribution.observers),
         (distribution.changelog, distribution.changelog_writers),
-        distribution.mock_hooks,
+        (distribution.mock_hooks, distribution.security_audit),
     )
 }
 
@@ -920,7 +925,7 @@ where
         stderr,
         (&GuardHandle::none(), &ObserverSet::new()),
         (&[], &[]),
-        &[],
+        (&[], None),
     )
 }
 
@@ -958,6 +963,11 @@ fn with_guard(command: Command, (guard, observers): (&GuardHandle, &ObserverSet)
             a.observers = observers.clone();
             Command::Shrink(a)
         }
+        Command::Security(mut a) => {
+            a.run.guard = guard.clone();
+            a.run.observers = observers.clone();
+            Command::Security(a)
+        }
         other => other,
     }
 }
@@ -971,7 +981,10 @@ fn run_guarded<I>(
         &[&dyn rt_app::contract::ChangelogSection],
         &[&dyn rt_app::contract::ChangelogWriter],
     ),
-    mock_hooks: &[mock::MockHookEntry],
+    (mock_hooks, security_audit): (
+        &[mock::MockHookEntry],
+        Option<&dyn security_cmd::SecurityAuditExtension>,
+    ),
 ) -> i32
 where
     I: IntoIterator,
@@ -1040,7 +1053,9 @@ where
         Ok(Command::Shrink(args)) => return shrink::run(args, stdout, stderr),
         Ok(Command::VerifyConsumers(args)) => return verify_consumers::run(args, stdout, stderr),
         Ok(Command::Journal(args)) => return journal::run(args, stdout, stderr),
-        Ok(Command::Security(args)) => return security_cmd::run(args, stdout, stderr),
+        Ok(Command::Security(args)) => {
+            return security_cmd::run(args, security_audit, stdout, stderr);
+        }
         Ok(Command::Notebook(args)) => return notebook::run(args, stdout, stderr),
         Err(e) => return fail(stderr, EXIT_USAGE, &format!("{e}\nTry 'rt --help'.")),
     };
