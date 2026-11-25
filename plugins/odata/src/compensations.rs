@@ -42,12 +42,10 @@ pub const IDS: [&str; 4] = [
 ];
 
 /// Why a draft is not put back.
-pub const DRAFT_INSTANCE_REASON: &str =
-    "A draft instance lives by the draft life cycle: discard or activate it in the app, a \
+pub const DRAFT_INSTANCE_REASON: &str = "A draft instance lives by the draft life cycle: discard or activate it in the app, a \
      later write cannot put it back.";
 /// Why a draft action is not put back.
-pub const DRAFT_ACTION_REASON: &str =
-    "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no \
+pub const DRAFT_ACTION_REASON: &str = "A draft action (Edit, Prepare, Activate) changes which instance exists; there is no \
      request that undoes it.";
 
 #[derive(Clone, Copy, PartialEq)]
@@ -109,11 +107,7 @@ fn rule(id: &str, pattern: &str, version: V) -> CompensationContribution {
             v(&["header:ETag", "$.d.__metadata.etag"]),
         ),
         V::V4 => (
-            v(&[
-                "header:Location",
-                "header:OData-EntityId",
-                "$['@odata.id']",
-            ]),
+            v(&["header:Location", "header:OData-EntityId", "$['@odata.id']"]),
             v(&["header:ETag", "$['@odata.etag']"]),
         ),
     };

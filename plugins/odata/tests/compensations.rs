@@ -65,9 +65,7 @@ fn rule_for(all: &Contributions, method: &str, url: &str) -> Option<Compensation
         .iter()
         .find(|c| {
             let m = &c.matches;
-            m.url_pattern
-                .as_ref()
-                .is_none_or(|p| glob(p, &target(url)))
+            m.url_pattern.as_ref().is_none_or(|p| glob(p, &target(url)))
                 && (m.methods.is_empty() || m.methods.iter().any(|x| x == method))
         })
         .cloned()
@@ -154,7 +152,12 @@ fn one_rule_per_layout_with_token_and_ids() {
     let ids: Vec<_> = all.compensations.iter().map(|c| c.id.as_str()).collect();
     assert_eq!(
         ids,
-        vec!["odata-v4-sap", "odata-v4-cap", "odata-v2-sap", "odata-v2-cap"]
+        vec![
+            "odata-v4-sap",
+            "odata-v4-cap",
+            "odata-v2-sap",
+            "odata-v2-cap"
+        ]
     );
     for c in &all.compensations {
         let token = c.rule.token.as_ref().expect("token");
@@ -177,10 +180,22 @@ fn one_rule_per_layout_with_token_and_ids() {
     }
     // The plugin has no network right for this: rules are data only.
     let layouts = [
-        ("PATCH", format!("https://h:44300{RAP}SalesOrder(1)"), "odata-v4-sap"),
+        (
+            "PATCH",
+            format!("https://h:44300{RAP}SalesOrder(1)"),
+            "odata-v4-sap",
+        ),
         ("POST", format!("https://h{CAP4}Books"), "odata-v4-cap"),
-        ("DELETE", format!("https://h{GW}SalesOrderItemSet('1','2')"), "odata-v2-sap"),
-        ("MERGE", format!("https://h{CAP2}Authors(1)"), "odata-v2-cap"),
+        (
+            "DELETE",
+            format!("https://h{GW}SalesOrderItemSet('1','2')"),
+            "odata-v2-sap",
+        ),
+        (
+            "MERGE",
+            format!("https://h{CAP2}Authors(1)"),
+            "odata-v2-cap",
+        ),
     ];
     for (method, url, id) in layouts {
         assert_eq!(rule_for(&all, method, &url).unwrap().id, id, "{url}");
@@ -193,18 +208,49 @@ fn drafts_are_not_reversible_with_a_reason() {
     let all = rules();
     let cases = [
         // CAP draft actions and instances.
-        (format!("https://h{CAP4}Books(ID=201,IsActiveEntity=true)/AdminService.draftEdit"), true),
-        (format!("https://h{CAP4}Books(ID=201,IsActiveEntity=false)/AdminService.draftActivate"), true),
-        (format!("https://h{CAP4}Books(ID=201,IsActiveEntity=false)"), true),
+        (
+            format!("https://h{CAP4}Books(ID=201,IsActiveEntity=true)/AdminService.draftEdit"),
+            true,
+        ),
+        (
+            format!("https://h{CAP4}Books(ID=201,IsActiveEntity=false)/AdminService.draftActivate"),
+            true,
+        ),
+        (
+            format!("https://h{CAP4}Books(ID=201,IsActiveEntity=false)"),
+            true,
+        ),
         // RAP actions.
-        (format!("https://h{RAP}SalesOrder(SalesOrderUUID=u,IsActiveEntity=true)/com.sap.gateway.srvd.zrt.v0001.Edit?x=1"), true),
-        (format!("https://h{RAP}SalesOrder(SalesOrderUUID=u,IsActiveEntity=false)/SAP__self.Activate"), true),
-        (format!("https://h{RAP}SalesOrder(SalesOrderUUID=u,IsActiveEntity=true)/Prepare"), true),
+        (
+            format!(
+                "https://h{RAP}SalesOrder(SalesOrderUUID=u,IsActiveEntity=true)/com.sap.gateway.srvd.zrt.v0001.Edit?x=1"
+            ),
+            true,
+        ),
+        (
+            format!(
+                "https://h{RAP}SalesOrder(SalesOrderUUID=u,IsActiveEntity=false)/SAP__self.Activate"
+            ),
+            true,
+        ),
+        (
+            format!("https://h{RAP}SalesOrder(SalesOrderUUID=u,IsActiveEntity=true)/Prepare"),
+            true,
+        ),
         // Gateway draft function imports.
-        (format!("https://h{GW}SalesOrderActivationAction?SalesOrderID='1'"), true),
+        (
+            format!("https://h{GW}SalesOrderActivationAction?SalesOrderID='1'"),
+            true,
+        ),
         // Ordinary entities stay reversible.
-        (format!("https://h{CAP4}Books(ID=201,IsActiveEntity=true)"), false),
-        (format!("https://h{RAP}SalesOrder(SalesOrderUUID=u,IsActiveEntity=true)"), false),
+        (
+            format!("https://h{CAP4}Books(ID=201,IsActiveEntity=true)"),
+            false,
+        ),
+        (
+            format!("https://h{RAP}SalesOrder(SalesOrderUUID=u,IsActiveEntity=true)"),
+            false,
+        ),
         (format!("https://h{GW}SalesOrderSet('1')"), false),
         (format!("https://h{CAP2}Authors(7)"), false),
     ];
@@ -309,7 +355,10 @@ fn v2_gateway_composite_key_from_location_and_delete_with_csrf() {
     );
     assert_eq!(rule.id, "odata-v2-sap");
     let url = App::derived(&rule, &r);
-    assert!(url.contains("SalesOrderItemSet(SalesOrderID='0500000001',ItemPosition='"), "{url}");
+    assert!(
+        url.contains("SalesOrderItemSet(SalesOrderID='0500000001',ItemPosition='"),
+        "{url}"
+    );
     // The body names the same entity (the second source).
     assert_eq!(
         read(&rule.rule.id_from[1..], &[], &body_of(&r)).as_deref(),
@@ -325,7 +374,11 @@ fn v2_gateway_composite_key_from_location_and_delete_with_csrf() {
 #[test]
 fn v2_gateway_etag_from_header_and_body_is_the_if_match() {
     let app = App::new();
-    let (rule, r) = app.create(GW, "SalesOrderSet", r#"{"CustomerID":"0000100001","Currency":"EUR"}"#);
+    let (rule, r) = app.create(
+        GW,
+        "SalesOrderSet",
+        r#"{"CustomerID":"0000100001","Currency":"EUR"}"#,
+    );
     let url = App::derived(&rule, &r);
     assert!(url.contains("SalesOrderSet('"), "{url}");
     let from_header = read_etag(&rule, &r).unwrap();
@@ -335,10 +388,27 @@ fn v2_gateway_etag_from_header_and_body_is_the_if_match() {
     let (name, token) = app.token(&rule, &url);
     // Without If-Match the S/4 service asks for it, with a stale one it refuses.
     let patch = r#"{"Currency":"USD"}"#;
-    assert_eq!(app.call("PATCH", &url, &[(&name, &token)], patch).status, 428);
+    assert_eq!(
+        app.call("PATCH", &url, &[(&name, &token)], patch).status,
+        428
+    );
     let stale = "W/\"datetimeoffset'2000-01-01T00%3A00%3A00.0000000Z'\"";
-    assert_eq!(app.call("PATCH", &url, &[(&name, &token), ("If-Match", stale)], patch).status, 412);
-    let ok = app.call("PATCH", &url, &[(&name, &token), ("If-Match", &from_header)], patch);
+    assert_eq!(
+        app.call(
+            "PATCH",
+            &url,
+            &[(&name, &token), ("If-Match", stale)],
+            patch
+        )
+        .status,
+        412
+    );
+    let ok = app.call(
+        "PATCH",
+        &url,
+        &[(&name, &token), ("If-Match", &from_header)],
+        patch,
+    );
     assert!(ok.status == 200 || ok.status == 204, "{}", ok.text());
     // The server did not allow deleting the order: the rule has no say in that.
     assert_ne!(app.delete(&rule, &url).status, 204);
@@ -359,13 +429,26 @@ fn v4_rap_key_with_uuid_and_is_active_entity_and_if_match() {
     assert_eq!(not_reversible(&rule, &url), None);
     let etag = read_etag(&rule, &r).unwrap();
     // `@odata.etag` of the body is the same version.
-    assert_eq!(read(&rule.rule.etag_from[1..], &[], &body_of(&r)), Some(etag.clone()));
+    assert_eq!(
+        read(&rule.rule.etag_from[1..], &[], &body_of(&r)),
+        Some(etag.clone())
+    );
     let (name, token) = app.token(&rule, &url);
     let patch = r#"{"Currency":"USD"}"#;
-    let ok = app.call("PATCH", &url, &[(&name, &token), ("If-Match", &etag)], patch);
+    let ok = app.call(
+        "PATCH",
+        &url,
+        &[(&name, &token), ("If-Match", &etag)],
+        patch,
+    );
     assert!(ok.status == 200 || ok.status == 204, "{}", ok.text());
     // The old version is stale now.
-    let again = app.call("PATCH", &url, &[(&name, &token), ("If-Match", &etag)], patch);
+    let again = app.call(
+        "PATCH",
+        &url,
+        &[(&name, &token), ("If-Match", &etag)],
+        patch,
+    );
     assert_eq!(again.status, 412);
 }
 
@@ -389,7 +472,12 @@ fn v4_cap_draft_enabled_entity_has_a_two_part_key() {
     assert_eq!(read.status, 200);
     let etag = read_etag(&rule, &read).expect("etag");
     let (name, token) = app.token(&rule, &url);
-    let r = app.call("PATCH", &url, &[(&name, &token), ("If-Match", &etag)], r#"{"stock":9}"#);
+    let r = app.call(
+        "PATCH",
+        &url,
+        &[(&name, &token), ("If-Match", &etag)],
+        r#"{"stock":9}"#,
+    );
     assert!(r.status == 200 || r.status == 204, "{}", r.text());
     // The draft of the same book is a draft: not reversible, with the reason.
     let draft = app.url(&format!("{CAP4}Books(ID=201,IsActiveEntity=false)"));
