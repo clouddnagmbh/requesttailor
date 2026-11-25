@@ -37,7 +37,7 @@
   >
     <dl class="summary" data-testid="confirm-send-summary">
       <dt>{pending.kind === "run" ? "Runs" : "Request"}</dt>
-      <dd>{#if pending.kind === "send"}<strong>{pending.method}</strong> {/if}<code>{pending.url}</code></dd>
+      <dd>{#if pending.kind === "send"}<strong>{pending.method}</strong>{" "}{/if}<code>{pending.url}</code></dd>
       <dt>Environment</dt>
       <dd><strong class="env">{pending.environment}</strong></dd>
     </dl>
