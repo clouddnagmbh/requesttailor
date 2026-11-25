@@ -17,7 +17,7 @@ pub type CloneIndex<'a> = &'a dyn Fn(&GitSource) -> Result<(Vec<u8>, String), St
 
 /// A refreshed source and the address its index was read from (relative module addresses are
 /// resolved against it).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Fetched {
     pub index: SourceIndex,
     pub index_url: String,

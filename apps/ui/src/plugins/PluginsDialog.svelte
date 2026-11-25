@@ -10,6 +10,7 @@
   import type { Manifest } from "../commands/types";
   import { readFiles } from "../import/report";
   import { getApp } from "../state/app.svelte";
+  import CataloguePanel from "./catalogue/CataloguePanel.svelte";
   import { describePermissions, installPlan, type InstallPlan } from "./permissions";
   import { pluginsState } from "./store.svelte";
 
@@ -22,6 +23,8 @@
   let pending = $state.raw<{ file: ImportSource; manifest: Manifest; plan: InstallPlan } | null>(null);
   let removing = $state<string | null>(null);
   let fileInput = $state<HTMLInputElement | null>(null);
+  /** "Installed" (the default) or "Catalogue" (wave 18: sources the user added). */
+  let tab = $state<"installed" | "catalogue">("installed");
 
   function opened(node: HTMLDialogElement) {
     node.showModal();
@@ -29,6 +32,7 @@
       error = null;
       pending = null;
       removing = null;
+      tab = "installed";
       void plugins.refresh();
     });
     return () => node.close();
@@ -96,7 +100,15 @@
       <button data-testid="plugins-close" onclick={onclose}>Close</button>
     </header>
 
+    <div class="tabs" role="tablist" aria-label="Plugins">
+      <button role="tab" aria-selected={tab === "installed"} data-testid="plugins-tab-installed" onclick={() => (tab = "installed")}>Installed</button>
+      <button role="tab" aria-selected={tab === "catalogue"} data-testid="plugins-tab-catalogue" onclick={() => (tab = "catalogue")}>Catalogue</button>
+    </div>
+
     <div class="body">
+      {#if tab === "catalogue"}
+        <CataloguePanel />
+      {:else}
       {#if error}<p class="error" role="alert" data-testid="plugins-error">{error}</p>{/if}
 
       {#if pending}
@@ -197,6 +209,7 @@
           {/each}
         </ul>
       {/if}
+      {/if}
     </div>
   </dialog>
 {/if}
@@ -229,6 +242,22 @@
   h3 {
     margin: 0;
     font-size: 1em;
+  }
+  .tabs {
+    display: flex;
+    gap: var(--rt-gap);
+    padding: 0 calc(var(--rt-gap) * 2);
+    background: var(--rt-bg-panel);
+    border-bottom: 1px solid var(--rt-border);
+  }
+  .tabs button {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: none;
+  }
+  .tabs button[aria-selected="true"] {
+    border-bottom-color: var(--rt-accent);
   }
   .body {
     display: flex;

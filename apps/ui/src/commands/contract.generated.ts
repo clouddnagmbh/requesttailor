@@ -7077,7 +7077,8 @@ export const installPlan: InstallPlan = {
   "sha256": "abababababababababababababababababababababababababababababababab",
   "source": "https://example.com/plugins.json",
   "update": false,
-  "warnings": []
+  "warnings": [],
+  "wasm_url": ""
 };
 
 export const installedSource: InstalledSource = {

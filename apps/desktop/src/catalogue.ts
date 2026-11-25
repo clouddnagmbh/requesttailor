@@ -13,7 +13,7 @@ export function tauriCatalogue(call: Call): CatalogueApi {
     sources: () => call("catalogue_sources"),
     addSource: (url) => call("catalogue_add_source", { url }),
     removeSource: (url) => call("catalogue_remove_source", { url }),
-    refresh: () => call("catalogue_refresh"),
+    refresh: (source) => call("catalogue_refresh", { source: source ?? null }),
     plan: (source, id) => call("catalogue_plan", { source, id }),
     install: (plan) => call("catalogue_install", { plan }),
     installed: () => call("catalogue_installed"),

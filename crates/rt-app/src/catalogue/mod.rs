@@ -17,7 +17,7 @@
 //!   module, a changed release, more rights);
 //! - [`net`]: the downloads over the app's `Transport` (native and browser, only on a user
 //!   action);
-//! - [`disk`]: the sources and the origin of installed plugins in the plugin folder
+//! - `disk` (not on wasm32): the sources and the origin of installed plugins in the plugin folder
 //!   (desktop and CLI; the web shell keeps the same data in browser storage).
 //!
 //! Index format (`plugins.json`, version 1): `{ version, name, plugins: [{ id, name, version,
@@ -27,6 +27,7 @@
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod disk;
 pub mod index;
 pub mod net;
@@ -108,6 +109,7 @@ pub struct InstallPlan {
     pub source: String,
     pub entry: CatalogueEntry,
     /// Where the module was downloaded from (`entry.wasm.url` resolved against the index).
+    #[serde(default)]
     pub wasm_url: String,
     /// SHA-256 of the downloaded module (equal to `entry.wasm.sha256`, else the plan is an
     /// error and is never returned).
