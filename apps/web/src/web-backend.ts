@@ -411,7 +411,11 @@ export class WebBackend implements Backend {
     this.security = webSecurity();
     this.notebook = webNotebook();
     this.debugger = webDebugger();
-    this.inspect = webInspect();
+    this.inspect = webInspect({
+      session: host.session,
+      core: () => host.deps.loadCore(),
+      coreInput: (input) => this.coreInput(this.session(), input, true),
+    });
     this.paging = webPaging();
     this.inbox = webInbox();
     this.lint = webLint(() => this.session());

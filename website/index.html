@@ -93,6 +93,7 @@ fails the build.</p>
 <tr><td>What three extensions that listen to every answer add to sending a request</td><td>at most <span data-budget="observer_overhead">1</span> ms</td></tr>
 <tr><td>Sending again after you save a file with <code>rt send --watch</code>, from the change to the request</td><td>at most <span data-budget="watch_resend">500</span> ms</td></tr>
 <tr><td>Comparing 100 reading requests in two environments, from start to the finished list</td><td>at most <span data-budget="env_compare">500</span> ms</td></tr>
+<tr><td>Passive checks of a 1 MiB response</td><td>at most <span data-budget="response_checks">20</span> ms</td></tr>
 <tr><td>Linting a collection with 1000 requests</td><td>at most <span data-budget="lint_1000">500</span> ms</td></tr>
 <tr><td>Finding the breaking changes between two versions of a GraphQL schema with 2000 types, or of Protobuf files with 500 messages</td><td>at most <span data-budget="schema_changes">300</span> ms</td></tr>
 </tbody>
