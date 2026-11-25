@@ -19,8 +19,6 @@ export { MockBackend } from "./commands/mock";
 export * from "./commands/wave12-stubs";
 // Wave 14 interface: the collection set over the single open collection (strand A replaces it).
 export * from "./commands/wave14-stubs";
-export * from "./commands/wave18-stubs";
-export * from "./commands/wave19-stubs";
 // Wave 17: a link that reached the app from outside waits in the share inbox (`apps/web/src/main.ts`).
 export { offerSharedLink } from "./share/inbox.svelte";
 export { looksShared } from "./share/detect";

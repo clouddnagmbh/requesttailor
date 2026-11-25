@@ -986,7 +986,7 @@ export interface Backend {
   /** Wave 16: the scripts of the collection and its folders (suggested edits). */
   readonly folderScripts: FolderScriptsApi;
   /** Wave 18: comparing environments, response checks, paging, the webhook inbox, lint, saved
-   *  views and the plugin catalogue (placeholders until the strands, `wave18-stubs.ts`). */
+   *  views and the plugin catalogue. */
   readonly envCompare: EnvCompareApi;
   readonly inspect: InspectApi;
   readonly paging: PagingApi;
@@ -994,7 +994,7 @@ export interface Backend {
   readonly lint: LintApi;
   readonly views: ViewsApi;
   readonly catalogue: CatalogueApi;
-  /** Wave 19: evidence and cleaning up (placeholders until the strands, `wave19-stubs.ts`). */
+  /** Wave 19: evidence and cleaning up. */
   readonly egress: EgressApi;
   readonly journal: JournalApi;
   readonly access: AccessApi;
