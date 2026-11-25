@@ -71,6 +71,24 @@ the close code), 1 for a transport error (also an `error` event during the sessi
 the request or the `--message` variant is not found, 3 when the request could not be
 prepared.
 
+## Webhook inbox: `rt inbox`
+
+`rt inbox [--port N] [--status CODE] [--json]` (wave 18) is a local receiver for webhooks. It
+listens on `127.0.0.1` only (default port 47855, `--port 0` picks a free one; there is no
+`--host`), takes `POST`, `PUT`, `PATCH`, `GET` and `DELETE` on any path, and answers every
+request with the same fixed reply (default `200` without a body, `--status` changes the
+code). It prints one line per request on stdout (`--json`: one `CapturedRequest` per line);
+the address goes to stderr. Stop with Ctrl-C.
+
+Limits: a body up to 2 MiB (`413` above), at most 200 requests per second (`429`), 500
+requests and 64 MiB in the buffer (the oldest fall out and are counted). Requests are kept in
+memory only: no file, no history, no MCP tool. The inbox sends no CORS header and never answers
+with what it captured. It has no tunnel and talks to no server of ours: to receive calls from
+the internet, point your own tool (a tunnel you run, a router rule) at this port.
+
+The web app cannot listen, so it uses the same inbox inside `rt agent` (`GET /v1/inbox`, see
+the protocol below); it starts only when the page asks, never with the companion.
+
 ## Output
 
 Machine-readable first: `rt send` prints one JSON object, the send report, on stdout. It is
@@ -788,11 +806,12 @@ Types: `rt_core::transport::companion`.
 
 | Endpoint | Request | Answer |
 | --- | --- | --- |
-| `GET /v1/status` | optional `Authorization: Bearer <token>` | `200 {"protocol": 1, "version": "...", "paired": bool, "features": ["stream"]}`; `paired` is true when the token belongs to the `Origin`; `features` lists optional endpoints |
+| `GET /v1/status` | optional `Authorization: Bearer <token>` | `200 {"protocol": 1, "version": "...", "paired": bool, "features": ["stream", "inbox"]}`; `paired` is true when the token belongs to the `Origin`; `features` lists optional endpoints |
 | `POST /v1/pair` | `{"code": "7KQ2-M9XD"}` (dash, spaces and case do not matter) | `200 {"token": "..."}`, or `403 {"error": "wrong code" \| "code expired" \| ...}` |
 | `POST /v1/secrets` | `Authorization: Bearer <token>`, JSON `SecretsRequest` (`{"provider": "one-password", "variables": [{"name": "...", "reference": "...", "enabled": true}]}`) | `200 {"values": [["name", "value"], ...]}` for the enabled entries; `422 {"error": "..."}` when a secret cannot be read (CLI missing, not signed in, timeout); `403 {"error": "..."}` without `--allow-secrets`; `401` without a valid token |
 | `POST /v1/send` | `Authorization: Bearer <token>`, JSON `WireRequest` (method, url, headers, base64 body, content type, timeout, redirect settings) | `200`, header `x-rt-head` with the JSON `WireHead` (status, version, headers, final URL, redirects, timing; non-ASCII escaped), body = the response body, streamed; `502` with a JSON transport error (`{"kind": "timeout"}`, `{"kind": "connect", "message": "..."}`, ...); `401` without a valid token |
 | `GET /v1/stream?token=<token>` | WebSocket upgrade (wave 8); then JSON text messages `StreamClientMessage`: first `{"op": "open", "open": {"kind": "websocket" \| "sse" \| "grpc", ...}}`, then `{"op": "send", "frame": {"type": "text", "data": "..."}}`, `{"op": "finish"}`, `{"op": "close"}` | `101`; then `StreamServerMessage`s: `{"op": "event", "event": {...}}` for every event of the native session (`opened` first, `closed` or `error` last), or `{"op": "failed", "error": {...}}` when opening or sending failed; the WebSocket then closes. `401` without a valid token, `400` without a WebSocket upgrade |
+| `GET /v1/inbox?token=<token>` | WebSocket upgrade (wave 18, `"inbox"` in `features`); then JSON text messages `InboxClientMessage`: `{"op": "start", "settings": {"port": 47855, "status": 200, "body": "", "delay_ms": 0}}`, `{"op": "stop"}`, `{"op": "clear"}`, `{"op": "status"}` | `101`; then `InboxServerMessage`s: `{"op": "status", "status": {...}}` (on connect and as the answer to each message), `{"op": "event", "event": {...}}` for every event of the inbox (a connecting page first gets the ones held), `{"op": "failed", "message": "..."}` (e.g. the port is in use). `401` without a valid token, `400` without a WebSocket upgrade |
 
 The timeout and redirect settings of the `WireRequest` apply exactly as in `rt send`; the
 timeout covers the whole exchange including the body. If it fires while the body is

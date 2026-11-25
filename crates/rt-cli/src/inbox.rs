@@ -3,12 +3,12 @@
 
 //! `rt inbox [--port N] [--status CODE] [--json]` (wave 18, strand E): the local webhook
 //! inbox in the foreground. Loopback only, nothing is written to a file; one line per request
-//! on stdout (`--json`: one `CapturedRequest` per line). Stops with Ctrl-C. Interface:
-//! parsed, runs "not implemented yet" (exit 2).
+//! on stdout (`--json`: one `CapturedRequest` per line); the address goes to stderr. Stops with
+//! Ctrl-C (exit 0); a port in use is exit 2. The times are UTC.
 
 use std::io::Write;
 
-use rt_app::inbox::{DEFAULT_PORT, InboxSettings};
+use rt_app::inbox::{CapturedRequest, DEFAULT_PORT, Inbox, InboxEvent, InboxSettings};
 
 pub const USAGE: &str = "  rt inbox [--port <PORT>] [--status <CODE>] [--json]\n";
 
@@ -48,10 +48,90 @@ pub fn parse(parser: &mut lexopt::Parser) -> Result<Option<Args>, String> {
 }
 
 pub fn run(args: Args, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
-    let _ = (args, stdout);
+    let inbox = Inbox::new();
+    if let Err(e) = inbox.set_settings(args.settings.clone()) {
+        let _ = writeln!(stderr, "rt: inbox: {e}");
+        return crate::EXIT_USAGE;
+    }
+    let status = match inbox.start() {
+        Ok(status) => status,
+        Err(e) => {
+            let _ = writeln!(stderr, "rt: inbox: {e}");
+            return crate::EXIT_USAGE;
+        }
+    };
     let _ = writeln!(
         stderr,
-        "rt: inbox is not implemented yet (wave 18, strand E)."
+        "Listening on {} (loopback only; requests are kept in memory). Stop with Ctrl-C.",
+        status.url.unwrap_or_default()
     );
-    crate::EXIT_USAGE
+    let runtime = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => {
+            let _ = writeln!(stderr, "rt: cannot start runtime: {e}");
+            return crate::EXIT_TRANSPORT;
+        }
+    };
+    let code = runtime.block_on(async {
+        let mut ctrl_c = std::pin::pin!(tokio::signal::ctrl_c());
+        let mut since = inbox.events(0).next;
+        loop {
+            tokio::select! {
+                _ = &mut ctrl_c => break,
+                () = tokio::time::sleep(std::time::Duration::from_millis(20)) => {}
+            }
+            let page = inbox.events(since);
+            since = page.next;
+            for event in page.events {
+                match event {
+                    InboxEvent::Request { request } => {
+                        let line = if args.json {
+                            serde_json::to_string(&*request).unwrap_or_default()
+                        } else {
+                            line(&request)
+                        };
+                        if writeln!(stdout, "{line}")
+                            .and_then(|()| stdout.flush())
+                            .is_err()
+                        {
+                            return crate::EXIT_OK; // the reader went away
+                        }
+                    }
+                    InboxEvent::Dropped { count } if !args.json => {
+                        let _ = writeln!(stderr, "{count} older requests dropped from the buffer");
+                    }
+                    _ => {}
+                }
+            }
+        }
+        crate::EXIT_OK
+    });
+    inbox.stop();
+    code
+}
+
+/// `14:03:22 POST /hooks/orders?x=1 (application/json, 128 B)`.
+fn line(request: &CapturedRequest) -> String {
+    let secs = request.at.div_euclid(1000).rem_euclid(86_400);
+    let content_type = request
+        .headers
+        .iter()
+        .find(|(n, _)| n.eq_ignore_ascii_case("content-type"))
+        .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_owned())
+        .filter(|v| !v.is_empty());
+    let what = match content_type {
+        Some(ct) => format!("{ct}, {} B", request.size),
+        None => format!("{} B", request.size),
+    };
+    format!(
+        "{:02}:{:02}:{:02} {} {} ({what})",
+        secs / 3600,
+        secs % 3600 / 60,
+        secs % 60,
+        request.method,
+        request.target
+    )
 }

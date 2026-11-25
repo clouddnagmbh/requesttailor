@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-// Wave 18, strand E: the webhook inbox, one Tauri command per method (`src-tauri/src/inbox.rs`,
-// placeholders until strand E).
+// Wave 18, strand E: the webhook inbox, one Tauri command per method (`src-tauri/src/inbox.rs`).
 
 import type { InboxApi } from "@requesttailor/ui";
 

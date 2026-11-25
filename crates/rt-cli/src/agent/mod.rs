@@ -9,6 +9,8 @@
 //! boundary; the rules are documented in `crates/rt-cli/README.md` ("Companion") and each one
 //! is tested in `tests/agent.rs`. Wire types: `rt_core::transport::companion`.
 
+/// `GET /v1/inbox` (wave 18, strand E).
+mod inbox;
 mod observe;
 mod pairing;
 mod server;
