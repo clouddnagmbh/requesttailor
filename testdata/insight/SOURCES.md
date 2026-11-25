@@ -18,3 +18,10 @@ that starts a service takes its port from its own range and says so in its test.
 `notebooks/orders.notebook.md`: a synthetic API notebook (login, list, a request file) written
 for the round-trip test of `rt_app::notebook`; no real host, no personal data. Ports 48830 to
 48835 belong to strand W (tests bind loopback ports of the system).
+
+## plugins/soap and plugins/sap-integration (wave 19, strands T and U)
+
+Their test data lives with the plugins (`plugins/soap/testdata/SOURCES.md`,
+`plugins/sap-integration/testdata/SOURCES.md`); everything is synthetic, written for this
+repository (Apache-2.0). The test services listen on loopback only. Ports: `plugins/soap` 48812
+and 48813 (48817 reserved), `plugins/sap-integration` 48818 to 48820.

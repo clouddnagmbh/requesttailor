@@ -245,30 +245,36 @@ pub fn add_to_workspace(
     };
     let mut work = workspace.clone();
     let doc = work.doc_mut();
-    let top = doc.add_folder("", &name)?;
-    if !source.defaults.scripts.is_empty() {
-        doc.set_folder_scripts(&top, &source.defaults.scripts)?;
+    // An import without requests (environments only, e.g. a list of destinations) adds no
+    // folder: there is nothing to put in it and nothing for defaults to be carried by.
+    let has_requests = count_requests(&source.items) > 0;
+    let mut top = String::new();
+    if has_requests {
+        top = doc.add_folder("", &name)?;
+        if !source.defaults.scripts.is_empty() {
+            doc.set_folder_scripts(&top, &source.defaults.scripts)?;
+        }
+        report_carried(&source.defaults, "collection", &mut out.losses);
+        if source.defaults.settings != Default::default() {
+            out.losses.push(loss(
+                "collection",
+                LossKind::Setting,
+                LossEffect::Dropped,
+                "collection request settings (timeouts, redirects) not taken over",
+            ));
+        }
+        if source.config != Default::default() {
+            out.losses.push(loss(
+                "collection",
+                LossKind::Setting,
+                LossEffect::Dropped,
+                "collection config (certificates, protobuf, agents) not taken over",
+            ));
+        }
+        let chain = vec![&source.defaults];
+        add_items(doc, &top, &source.items, &chain, &top, &mut out)?;
+        out.folder = top.clone();
     }
-    report_carried(&source.defaults, "collection", &mut out.losses);
-    if source.defaults.settings != Default::default() {
-        out.losses.push(loss(
-            "collection",
-            LossKind::Setting,
-            LossEffect::Dropped,
-            "collection request settings (timeouts, redirects) not taken over",
-        ));
-    }
-    if source.config != Default::default() {
-        out.losses.push(loss(
-            "collection",
-            LossKind::Setting,
-            LossEffect::Dropped,
-            "collection config (certificates, protobuf, agents) not taken over",
-        ));
-    }
-    let chain = vec![&source.defaults];
-    add_items(doc, &top, &source.items, &chain, &top, &mut out)?;
-    out.folder = top.clone();
 
     for env in &source.environments {
         match work.collection().environment(&env.name).cloned() {
@@ -293,7 +299,7 @@ pub fn add_to_workspace(
     }
 
     for (path, bytes) in &imported.files {
-        if owned_by_format(path, imported) {
+        if !has_requests || owned_by_format(path, imported) {
             continue;
         }
         let target = format!("{top}/{path}");
@@ -302,6 +308,7 @@ pub fn add_to_workspace(
     }
     // The spec an OpenAPI import kept becomes the collection's, unless it names one already.
     if let Some(spec) = rt_format::contract::configured_spec(imported)
+        && has_requests
         && !spec.starts_with('/')
         && imported.files.contains_key(&spec)
         && !owned_by_format(&spec, imported)
@@ -419,6 +426,16 @@ fn report_carried(defaults: &RequestDefaults, location: &str, losses: &mut Vec<L
             ),
         ));
     }
+}
+
+fn count_requests(items: &[Item]) -> usize {
+    items
+        .iter()
+        .map(|i| match i {
+            Item::Folder(f) => count_requests(&f.items),
+            Item::Request(_) => 1,
+        })
+        .sum()
 }
 
 fn add_items(

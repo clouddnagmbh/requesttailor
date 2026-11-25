@@ -339,3 +339,34 @@ fn a_kept_spec_becomes_the_contract_spec_of_the_open_collection() {
     assert_eq!((plain.contract_spec, plain.files.len()), (None, 0));
     assert!(!ws.dirty().contains(&rt_format::COLLECTION_FILE.to_owned()));
 }
+
+#[test]
+fn an_import_without_requests_adds_no_folder_and_no_carry_over_note() {
+    // Environments only (a list of destinations, say), with auth on the collection.
+    const EMPTY: &str = r#"{"info": {"name": "Destinations", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+      "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{token}}"}]},
+      "item": []}"#;
+    let files = [
+        SourceFile {
+            name: "dest.postman_collection.json",
+            data: EMPTY.as_bytes(),
+        },
+        SourceFile {
+            name: "staging.postman_environment.json",
+            data: STAGING.as_bytes(),
+        },
+    ];
+    let import = rt_format::import::import_files(Some(ImportFormat::Postman), &files).unwrap();
+    let mut workspace = base_with_prod();
+    let before = workspace.collection().items.len();
+    let result = add_to_workspace(&mut workspace, &import.files, "Destinations").unwrap();
+    assert_eq!(workspace.collection().items.len(), before, "no empty folder");
+    assert!(result.folder.is_empty());
+    assert_eq!(result.requests, 0);
+    assert_eq!(result.environments_added, ["Staging"]);
+    assert!(
+        result.losses.iter().all(|l| !l.detail.contains("inherited")),
+        "{:?}",
+        result.losses
+    );
+}
