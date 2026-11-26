@@ -16,10 +16,10 @@
 //!   the scheme of `rt_git::credentials`.
 //! - The app's own author identity (for when the Git configuration has none) is a JSON file
 //!   in `Core::data_dir`.
-//! - `commit` first runs the secret scanner (`rt_app::secret_scan`, wave 5) over the files
-//!   it would take and refuses with `AppError::SecretsFound` when it finds credentials;
-//!   `scan` lists them for the commit dialog. There is no way around it except marking a
-//!   line with `# rt-scan:allow`.
+//! - `commit` is refused with `AppError::SecretsFound` when the secret scanner
+//!   (`rt_app::secret_scan`, wave 5) finds credentials in the files it would take; `rt-git`
+//!   runs it as the repository's commit scanner (seam N2). `scan` lists them for the commit
+//!   dialog. There is no way around it except marking a line with `# rt-scan:allow`.
 
 use std::path::{Path, PathBuf};
 
@@ -106,10 +106,6 @@ pub fn commit<S: SecretStore>(
     message: &str,
     paths: &[String],
 ) -> Result<GitCommit> {
-    let findings = scan(core, paths)?;
-    if !findings.is_empty() {
-        return Err(AppError::SecretsFound(secret_scan::refusal(&findings)));
-    }
     let fallback = app_identity(core)?;
     Ok(repo(core)?.commit(message, paths, fallback.as_ref())?)
 }
