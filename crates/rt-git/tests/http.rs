@@ -117,7 +117,7 @@ fn push_clone_and_pull_without_credentials() {
     a.push(&NoCredentials).unwrap();
     write(&b_dir, "b.yml", "Bob\n");
     b.commit("Bob", &paths(&["b.yml"]), None).unwrap();
-    let err = b.push(&NoCredentials).unwrap_err();
+    let err = b.push(&NoCredentials).map_err(AppError::from).unwrap_err();
     assert!(
         matches!(&err, AppError::Git(m) if m.contains("pull first")),
         "{err:?}"
@@ -155,16 +155,20 @@ fn credentials_are_asked_for_and_used() {
 
     // No credentials: the remote's 401 becomes GitAuth(host), for push and for fetch.
     assert_eq!(
-        a.push(&NoCredentials).unwrap_err(),
+        a.push(&NoCredentials).map_err(AppError::from).unwrap_err(),
         AppError::GitAuth(host.clone())
     );
     assert_eq!(
-        a.pull(&NoCredentials, None).unwrap_err(),
+        a.pull(&NoCredentials, None)
+            .map_err(AppError::from)
+            .unwrap_err(),
         AppError::GitAuth(host.clone())
     );
     let parent = tmp("http-auth-b");
     assert_eq!(
-        rt_git::clone(&url, parent.path(), &NoCredentials, &opts()).unwrap_err(),
+        rt_git::clone(&url, parent.path(), &NoCredentials, &opts())
+            .map_err(AppError::from)
+            .unwrap_err(),
         AppError::GitAuth(host.clone())
     );
     assert!(
@@ -176,11 +180,15 @@ fn credentials_are_asked_for_and_used() {
     let store = MemorySecrets::default();
     rt_git::credentials::set(&store, &host, USER, "wrong").unwrap();
     assert_eq!(
-        a.push(&StoreCredentials(&store)).unwrap_err(),
+        a.push(&StoreCredentials(&store))
+            .map_err(AppError::from)
+            .unwrap_err(),
         AppError::GitAuth(host.clone())
     );
     assert_eq!(
-        a.pull(&StoreCredentials(&store), None).unwrap_err(),
+        a.pull(&StoreCredentials(&store), None)
+            .map_err(AppError::from)
+            .unwrap_err(),
         AppError::GitAuth(host.clone())
     );
 
@@ -217,7 +225,10 @@ fn credentials_never_go_over_plain_http_to_other_hosts() {
     let repo = reopen(work.path());
     repo.commit("a", &paths(&["a.yml"]), None).unwrap();
     // The host does not resolve; what matters is that no credentials are offered.
-    let err = repo.push(&StoreCredentials(&store)).unwrap_err();
+    let err = repo
+        .push(&StoreCredentials(&store))
+        .map_err(AppError::from)
+        .unwrap_err();
     assert!(!matches!(err, AppError::GitAuth(_)), "{err:?}");
 
     let ssh = tmp("ssh");
@@ -227,7 +238,7 @@ fn credentials_never_go_over_plain_http_to_other_hosts() {
     write(ssh.path(), "a.yml", "a\n");
     repo.commit("a", &paths(&["a.yml"]), None).unwrap();
     assert!(matches!(
-        repo.push(&NoCredentials),
+        repo.push(&NoCredentials).map_err(AppError::from),
         Err(AppError::Unsupported(_))
     ));
 }

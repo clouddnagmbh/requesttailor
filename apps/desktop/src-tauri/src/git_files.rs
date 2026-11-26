@@ -34,11 +34,11 @@ pub fn file_tree<S: SecretStore>(
     rev: Option<&str>,
     dir: &str,
 ) -> Result<Vec<GitTreeEntry>> {
-    repo(core)?.file_tree(rev, dir)
+    Ok(repo(core)?.file_tree(rev, dir)?)
 }
 
 pub fn blob<S: SecretStore>(core: &Core<S>, rev: Option<&str>, path: &str) -> Result<GitBlob> {
-    repo(core)?.blob(rev, path)
+    Ok(repo(core)?.blob(rev, path)?)
 }
 
 /// Runs `f` on a blocking thread (the status reads every file's metadata).

@@ -41,7 +41,7 @@ fn init_commit_selected_paths_and_log() {
     let dir = tmp("commit");
     let repo = new_repo(dir.path(), "Ada");
     assert!(matches!(
-        rt_git::init(dir.path(), &opts()),
+        rt_git::init(dir.path(), &opts()).map_err(AppError::from),
         Err(AppError::Git(_))
     ));
     let status = repo.status().unwrap();
@@ -122,21 +122,34 @@ fn init_commit_selected_paths_and_log() {
     assert_eq!(repo.log(1).unwrap().len(), 1);
 
     // Nothing selected, unchanged files, bad paths.
-    assert!(git_err(repo.commit("x", &[], None).unwrap_err()).contains("select"));
+    assert!(
+        git_err(
+            repo.commit("x", &[], None)
+                .map_err(AppError::from)
+                .unwrap_err()
+        )
+        .contains("select")
+    );
     assert!(
         git_err(
             repo.commit("x", &paths(&["users/get.yml"]), None)
+                .map_err(AppError::from)
                 .unwrap_err()
         )
         .contains("nothing to commit")
     );
     assert!(
-        git_err(repo.commit("x", &paths(&["../escape"]), None).unwrap_err())
-            .contains("invalid path")
+        git_err(
+            repo.commit("x", &paths(&["../escape"]), None)
+                .map_err(AppError::from)
+                .unwrap_err()
+        )
+        .contains("invalid path")
     );
     assert!(
         git_err(
             repo.commit("  ", &paths(&["users/post.yml"]), None)
+                .map_err(AppError::from)
                 .unwrap_err()
         )
         .contains("message")
@@ -150,7 +163,10 @@ fn identity_from_config_then_fallback() {
     let repo = reopen(dir.path());
     assert_eq!(repo.config_identity(), None);
     write(dir.path(), "a.yml", "a\n");
-    let err = repo.commit("first", &paths(&["a.yml"]), None).unwrap_err();
+    let err = repo
+        .commit("first", &paths(&["a.yml"]), None)
+        .map_err(AppError::from)
+        .unwrap_err();
     assert!(git_err(err).contains("identity"));
     let app = GitIdentity {
         name: "App User".into(),
@@ -273,10 +289,24 @@ fn branches_create_switch_and_refuse_to_lose_work() {
         None,
     )
     .unwrap();
-    assert!(git_err(repo.create_branch("bad name", false).unwrap_err()).contains("invalid"));
+    assert!(
+        git_err(
+            repo.create_branch("bad name", false)
+                .map_err(AppError::from)
+                .unwrap_err()
+        )
+        .contains("invalid")
+    );
 
     repo.create_branch("feature", true).unwrap();
-    assert!(git_err(repo.create_branch("feature", false).unwrap_err()).contains("exists"));
+    assert!(
+        git_err(
+            repo.create_branch("feature", false)
+                .map_err(AppError::from)
+                .unwrap_err()
+        )
+        .contains("exists")
+    );
     let repo = reopen(dir.path());
     assert_eq!(repo.status().unwrap().branch.as_deref(), Some("feature"));
     write(dir.path(), "shared.yml", "shared on feature\n");
@@ -309,14 +339,22 @@ fn branches_create_switch_and_refuse_to_lose_work() {
 
     // A local change to a file that differs between the branches blocks the switch ...
     write(dir.path(), "shared.yml", "local work\n");
-    let err = git_err(repo.checkout("feature").unwrap_err());
+    let err = git_err(
+        repo.checkout("feature")
+            .map_err(AppError::from)
+            .unwrap_err(),
+    );
     assert!(err.contains("shared.yml"), "{err}");
     assert_eq!(read(dir.path(), "shared.yml"), "local work\n");
     assert_eq!(repo.status().unwrap().branch.as_deref(), Some("main"));
     // ... an untracked file in the way too ...
     write(dir.path(), "shared.yml", "shared\n");
     write(dir.path(), "feature/only.yml", "untracked here\n");
-    let err = git_err(repo.checkout("feature").unwrap_err());
+    let err = git_err(
+        repo.checkout("feature")
+            .map_err(AppError::from)
+            .unwrap_err(),
+    );
     assert!(err.contains("feature/only.yml"), "{err}");
     std::fs::remove_dir_all(dir.path().join("feature")).unwrap();
     // ... but a change to a file both branches share is carried over.
@@ -327,7 +365,9 @@ fn branches_create_switch_and_refuse_to_lose_work() {
     assert_eq!(read(dir.path(), "notes.txt"), "local notes\n");
     assert!(!dir.path().join("main.yml").exists());
     assert_eq!(files(&repo), [("notes.txt".into(), GitFileState::Modified)]);
-    assert!(git_err(repo.checkout("nope").unwrap_err()).contains("no branch"));
+    assert!(
+        git_err(repo.checkout("nope").map_err(AppError::from).unwrap_err()).contains("no branch")
+    );
 }
 
 /// A bare remote and a first clone that pushed `main` to it.
@@ -414,6 +454,7 @@ fn push_sets_the_upstream_and_clone_checks_out() {
         &NoCredentials,
         &opts(),
     )
+    .map_err(AppError::from)
     .unwrap_err();
     assert!(git_err(err).contains("not empty"));
 }
@@ -452,7 +493,9 @@ fn pull_fast_forward_then_merge() {
     write(&b_dir, "b.yml", "from Bob\n");
     b.commit("Bob's file", &paths(&["b.yml"]), None).unwrap();
     // Pushing now is refused: the remote has a commit Bob does not have.
-    assert!(git_err(b.push(&NoCredentials).unwrap_err()).contains("pull first"));
+    assert!(
+        git_err(b.push(&NoCredentials).map_err(AppError::from).unwrap_err()).contains("pull first")
+    );
     let GitPullResult::Merged { oid } = b.pull(&NoCredentials, None).unwrap() else {
         panic!("expected a merge");
     };
@@ -487,7 +530,14 @@ fn pull_with_conflict_resolve_and_commit() {
 
     // Local changes in a file the merge would touch block the pull.
     write(&b_dir, "ada.yml", "untracked in the way\n");
-    assert!(git_err(b.pull(&NoCredentials, None).unwrap_err()).contains("ada.yml"));
+    assert!(
+        git_err(
+            b.pull(&NoCredentials, None)
+                .map_err(AppError::from)
+                .unwrap_err()
+        )
+        .contains("ada.yml")
+    );
     std::fs::remove_file(b_dir.join("ada.yml")).unwrap();
 
     let result = b.pull(&NoCredentials, None).unwrap();
@@ -533,10 +583,24 @@ fn pull_with_conflict_resolve_and_commit() {
     assert!(b.conflict("ada.yml").is_err());
 
     // Nothing else while the merge is open.
-    assert!(git_err(b.checkout("main").unwrap_err()).contains("merge"));
-    assert!(git_err(b.pull(&NoCredentials, None).unwrap_err()).contains("merge"));
-    assert!(git_err(b.push(&NoCredentials).unwrap_err()).contains("merge"));
-    assert!(git_err(b.commit("too early", &[], None).unwrap_err()).contains("conflicts"));
+    assert!(git_err(b.checkout("main").map_err(AppError::from).unwrap_err()).contains("merge"));
+    assert!(
+        git_err(
+            b.pull(&NoCredentials, None)
+                .map_err(AppError::from)
+                .unwrap_err()
+        )
+        .contains("merge")
+    );
+    assert!(git_err(b.push(&NoCredentials).map_err(AppError::from).unwrap_err()).contains("merge"));
+    assert!(
+        git_err(
+            b.commit("too early", &[], None)
+                .map_err(AppError::from)
+                .unwrap_err()
+        )
+        .contains("conflicts")
+    );
 
     b.resolve("users/get.yml", GitResolution::Theirs).unwrap();
     assert_eq!(

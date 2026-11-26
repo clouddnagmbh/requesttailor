@@ -38,6 +38,8 @@ similar = "3"
 # JSONPath (RFC 9535) for filtering response bodies; MIT, builds on wasm32 and iOS.
 serde_json_path = "0.7"
 thiserror = "2"
+# Seam N7: the Git core reports `GitError`; `From<GitError> for AppError` lives here.
+tk-git-types = { path = "../tk-git-types" }
 # Timeouts of the secret managers' CLIs (`secret_sources`); std::time::Instant panics on wasm32.
 web-time = "1"
 # Loopback redirect URIs of the OAuth 2.0 browser step (`auth::loopback`); already in the tree.

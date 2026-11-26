@@ -25,15 +25,15 @@ use crate::git::{app_identity, blocking, reload_repository, repo};
 type Result<T, E = AppError> = std::result::Result<T, E>;
 
 pub fn remotes<S: SecretStore>(core: &Core<S>) -> Result<Vec<GitRemote>> {
-    repo(core)?.remotes()
+    Ok(repo(core)?.remotes()?)
 }
 
 pub fn stashes<S: SecretStore>(core: &Core<S>) -> Result<Vec<GitStash>> {
-    repo(core)?.stashes()
+    Ok(repo(core)?.stashes()?)
 }
 
 pub fn plan<S: SecretStore>(core: &Core<S>, action: &GitAction) -> Result<GitPlan> {
-    repo(core)?.plan(action, core.has_unsaved_changes())
+    Ok(repo(core)?.plan(action, core.has_unsaved_changes())?)
 }
 
 fn reload_after<S: SecretStore>(core: &Core<S>, repo: &Repo, r: &GitActionResult) -> Result<()> {
@@ -67,7 +67,7 @@ pub fn last_action<S: SecretStore>(core: &Core<S>) -> Result<Option<GitUndoEntry
         return Ok(None);
     };
     match Repo::open(&root, &rt_git::Options::default())? {
-        Some(repo) => repo.last_action(),
+        Some(repo) => Ok(repo.last_action()?),
         None => Ok(None),
     }
 }

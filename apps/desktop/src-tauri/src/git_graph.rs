@@ -27,7 +27,7 @@ fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
     let root = core
         .root()
         .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
-    Repo::require(&root, &Options::default())
+    Ok(Repo::require(&root, &Options::default())?)
 }
 
 /// The set's collections inside `workdir`, by their folder relative to it.
@@ -53,11 +53,11 @@ pub(crate) fn collections_in<S: SecretStore>(core: &Core<S>, workdir: &Path) -> 
 }
 
 pub fn graph<S: SecretStore>(core: &Core<S>, query: &GitGraphQuery) -> Result<GitGraphPage> {
-    repo(core)?.commit_graph(query)
+    Ok(repo(core)?.commit_graph(query)?)
 }
 
 pub fn refs<S: SecretStore>(core: &Core<S>) -> Result<Vec<GitRef>> {
-    repo(core)?.refs()
+    Ok(repo(core)?.refs()?)
 }
 
 pub fn changes<S: SecretStore>(
@@ -77,7 +77,7 @@ pub fn file_diff<S: SecretStore>(
     to: Option<&str>,
     path: &str,
 ) -> Result<GitDiff> {
-    repo(core)?.file_diff(from, to, path)
+    Ok(repo(core)?.file_diff(from, to, path)?)
 }
 
 /// Runs `f` on a blocking thread (Git reads many objects).

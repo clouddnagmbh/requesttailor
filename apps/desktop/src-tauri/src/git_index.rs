@@ -28,23 +28,23 @@ pub fn index_diff<S: SecretStore>(
     path: &str,
     side: GitPatchSide,
 ) -> Result<GitIndexDiff> {
-    repo(core)?.index_diff(path, side)
+    Ok(repo(core)?.index_diff(path, side)?)
 }
 
 pub fn stage<S: SecretStore>(core: &Core<S>, paths: &[String]) -> Result<()> {
-    repo(core)?.stage(paths)
+    Ok(repo(core)?.stage(paths)?)
 }
 
 pub fn unstage<S: SecretStore>(core: &Core<S>, paths: &[String]) -> Result<()> {
-    repo(core)?.unstage(paths)
+    Ok(repo(core)?.unstage(paths)?)
 }
 
 pub fn stage_patch<S: SecretStore>(core: &Core<S>, patch: &GitPatchRequest) -> Result<()> {
-    repo(core)?.stage_patch(patch)
+    Ok(repo(core)?.stage_patch(patch)?)
 }
 
 pub fn unstage_patch<S: SecretStore>(core: &Core<S>, patch: &GitPatchRequest) -> Result<()> {
-    repo(core)?.unstage_patch(patch)
+    Ok(repo(core)?.unstage_patch(patch)?)
 }
 
 pub fn discard_patch<S: SecretStore>(core: &Core<S>, patch: &GitPatchRequest) -> Result<()> {
@@ -64,11 +64,11 @@ pub fn commit_staged<S: SecretStore>(
     commit: &GitStagedCommit,
 ) -> Result<GitCommit> {
     let fallback = app_identity(core)?;
-    repo(core)?.commit_staged(commit, fallback.as_ref())
+    Ok(repo(core)?.commit_staged(commit, fallback.as_ref())?)
 }
 
 pub fn verify<S: SecretStore>(core: &Core<S>, oids: &[String]) -> Result<Vec<GitSignatureCheck>> {
-    repo(core)?.verify(oids)
+    Ok(repo(core)?.verify(oids)?)
 }
 
 pub fn config<S: SecretStore>(core: &Core<S>, key: &str) -> Result<Option<String>> {

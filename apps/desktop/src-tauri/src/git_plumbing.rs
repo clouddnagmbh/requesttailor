@@ -22,20 +22,20 @@ use crate::git::{app_identity, blocking, repo};
 type Result<T, E = AppError> = std::result::Result<T, E>;
 
 pub fn commit_info<S: SecretStore>(core: &Core<S>, rev: &str) -> Result<GitCommitDetails> {
-    repo(core)?.commit_info(rev)
+    Ok(repo(core)?.commit_info(rev)?)
 }
 
 pub fn pick<S: SecretStore>(core: &Core<S>, request: &GitPickRequest) -> Result<GitPickResult> {
-    repo(core)?.pick(request)
+    Ok(repo(core)?.pick(request)?)
 }
 
 pub fn write_tree<S: SecretStore>(core: &Core<S>, write: &GitTreeWrite) -> Result<String> {
-    repo(core)?.write_tree(write)
+    Ok(repo(core)?.write_tree(write)?)
 }
 
 pub fn write_commit<S: SecretStore>(core: &Core<S>, write: &GitCommitWrite) -> Result<String> {
     let identity = app_identity(core)?;
-    repo(core)?.write_commit(write, identity.as_ref())
+    Ok(repo(core)?.write_commit(write, identity.as_ref())?)
 }
 
 pub fn resolve_text<S: SecretStore>(core: &Core<S>, path: &str, text: &str) -> Result<()> {

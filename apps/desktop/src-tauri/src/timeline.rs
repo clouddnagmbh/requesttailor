@@ -40,7 +40,7 @@ fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
     let root = core
         .root()
         .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
-    Repo::require(&root, &Options::default())
+    Ok(Repo::require(&root, &Options::default())?)
 }
 
 /// The recorded results below the data folder (`None`: nothing is persisted, as in tests
