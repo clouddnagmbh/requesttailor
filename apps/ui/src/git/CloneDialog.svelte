@@ -50,7 +50,7 @@
   >
     <h2 id="clone-title">Clone a repository</h2>
     {#key session}
-      <CloneForm oncancel={onclose} ondone={done} />
+      <CloneForm oncancel={onclose} ondone={(entry) => done(entry as RepositoryEntry)} />
     {/key}
   </dialog>
 {/if}
