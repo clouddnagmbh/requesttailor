@@ -14,8 +14,8 @@ use std::time::Duration;
 use bytes::Bytes;
 use futures_core::Stream;
 
-use super::NativeTransport;
-use crate::transport::{
+use rt_core::transport::native::NativeTransport;
+use rt_core::transport::{
     CompletedResponse, HttpBody, HttpRequest, HttpVersion, Response, SendOptions, Transport,
     TransportError, collect,
 };
@@ -384,7 +384,7 @@ async fn streams_a_1_mb_body_correctly() {
 
 /// Wraps a body and records how it is consumed, without keeping the data.
 struct Probe {
-    inner: crate::transport::BodyStream,
+    inner: rt_core::transport::BodyStream,
     chunks: Arc<AtomicUsize>,
     largest: Arc<AtomicU64>,
 }
@@ -664,7 +664,7 @@ async fn the_tls_details_of_a_response_are_known_even_on_a_reused_connection() {
         );
         assert_eq!(info.key_algorithm.as_deref(), Some("EC"));
         assert_eq!(info.key_bits, Some(256));
-        let now = crate::jwt::now_secs();
+        let now = rt_core::jwt::now_secs();
         assert!(info.not_before.unwrap() <= now + 86_400, "{info:?}");
         assert!(info.not_after.unwrap() > now, "{info:?}");
         // The next request reuses the connection (h2) and still has the details.

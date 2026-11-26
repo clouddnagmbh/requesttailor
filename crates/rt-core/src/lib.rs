@@ -27,7 +27,7 @@ pub mod runner;
 pub mod script;
 pub mod segments;
 pub mod send;
-pub mod serde_ms;
+pub use tk_net::serde_ms;
 pub mod services;
 pub mod snapshot;
 pub mod stream;
