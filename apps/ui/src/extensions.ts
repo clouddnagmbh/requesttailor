@@ -23,7 +23,7 @@ import type {
   GitActionTarget,
   GitHintTarget,
   GitHintView,
-  RevisionRangeTarget,
+  RevisionRangeTarget as KitRevisionRangeTarget,
 } from "@tailor-kit/git-ui";
 
 import type { Backend } from "./commands/backend";
@@ -353,7 +353,10 @@ export interface ExtensionDialog {
 // ---- Git views (since wave 15). The contribution types live in `packages/git-ui` (step K3) and
 // take the product's context as a parameter; here they are bound to `ExtensionContext`. ----
 
-export type { CommitFormTarget, ExtensionAction, ExtensionHint, GitActionTarget, GitHintTarget, GitHintView, RevisionRangeTarget };
+export type { CommitFormTarget, ExtensionAction, ExtensionHint, GitActionTarget, GitHintTarget, GitHintView };
+/** Two revisions selected together; `collection` is the active collection, if any (the kit
+ *  calls it `owner`; both are set). */
+export type RevisionRangeTarget = KitRevisionRangeTarget & { collection: string | null };
 export type ExtensionGitView = KitGitView<ExtensionContext>;
 export type ExtensionGitViewProps = KitGitViewProps<ExtensionContext>;
 export type ExtensionStaging = KitStaging<ExtensionContext>;

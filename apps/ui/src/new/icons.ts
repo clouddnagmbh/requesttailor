@@ -5,6 +5,8 @@
 // name an icon (`ExtensionNewItem.icon`, `ExtensionNodeAction.icon`); unknown names get the
 // generic tile icon.
 
+import "../ui";
+
 export const NEW_ICONS = [
   "http",
   "graphql",

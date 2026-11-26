@@ -148,7 +148,7 @@
   // per device, test ids).
   type SideView = "requests" | "search" | "history" | "git" | "mcp";
   const SIDE_VIEWS: { id: SideView; label: string; icon: string }[] = [
-    { id: "requests", label: "Collections", icon: "collection" },
+    { id: "requests", label: "Collections", icon: "library" },
     { id: "search", label: "Search", icon: "search" },
     { id: "history", label: "History", icon: "history" },
     { id: "git", label: "Git", icon: "branch" },

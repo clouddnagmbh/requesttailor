@@ -16,14 +16,22 @@ import type {
   ExtensionEditorAction,
   RequestActionTarget,
   ResponseActionTarget,
+  RevisionRangeTarget,
   RunActionTarget,
 } from "../extensions";
-import type { ExtensionActionRef } from "@tailor-kit/git-ui";
+import { extensionRangeActions as kitRangeActions, type ExtensionActionRef } from "@tailor-kit/git-ui";
 import type { ProvidedExtensions } from "./extension-tabs";
 
 // The reference type and the range actions of the commit graph live in `packages/git-ui` (step K3).
 export type { ExtensionActionRef };
-export { extensionRangeActions } from "@tailor-kit/git-ui";
+
+/** Actions on two revisions selected together (graph, comparison, diff). */
+export function extensionRangeActions(
+  provided: ProvidedExtensions | null,
+  target: Omit<RevisionRangeTarget, "owner">,
+): ExtensionActionRef<ExtensionAction>[] {
+  return kitRangeActions(provided, { ...target, owner: target.collection });
+}
 
 function collect<A extends { id: string }>(
   provided: ProvidedExtensions | null,

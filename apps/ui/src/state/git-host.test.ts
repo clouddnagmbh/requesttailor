@@ -17,7 +17,8 @@ describe("brand", () => {
   });
 
   it("keeps RequestTailor's literals", () => {
-    expect(RT_BRAND).toEqual({ productName: "RequestTailor", commitMime: "application/x-requesttailor-commit", refNamespace: "requesttailor" });
+    expect(RT_BRAND).toMatchObject({ productName: "RequestTailor", commitMime: "application/x-requesttailor-commit", refNamespace: "requesttailor", scopeNoun: "collection" });
+    expect(RT_BRAND.webRepositoryHint).toBe("In the browser, the repository must be the collection folder itself: the app cannot see the folders above it.");
   });
 });
 

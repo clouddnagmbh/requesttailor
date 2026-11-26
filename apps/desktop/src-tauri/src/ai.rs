@@ -41,7 +41,11 @@ fn ai_error(e: AiError) -> CommandError {
         .unwrap_or_else(|| "shell".to_owned());
     CommandError {
         kind,
-        message: e.to_string(),
+        // The kit says "project"; RequestTailor's unit is the collection.
+        message: match e {
+            AiError::OptedOut => "the AI assistant is off for this collection".to_owned(),
+            e => e.to_string(),
+        },
     }
 }
 
