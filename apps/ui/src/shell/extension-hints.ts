@@ -7,14 +7,10 @@
 // ./hint-store.
 
 import type { ExtensionHint, ExtensionNodeAction, GitHintTarget, HintTarget, NodeTarget } from "../extensions";
+import { dismissalKey as gitDismissalKey, type ExtensionHintRef } from "@tailor-kit/git-ui";
 import type { ProvidedExtensions } from "./extension-tabs";
 
-export interface ExtensionHintRef {
-  /** `<extension id>/<hint id>`, the key of its dismissal. */
-  key: string;
-  extension: string;
-  hint: ExtensionHint;
-}
+export type { ExtensionHintRef };
 
 export interface ExtensionNodeActionRef {
   /** `<extension id>/<action id>`. */
@@ -60,7 +56,7 @@ export function dismissalKey(ref: ExtensionHintRef, target: HintTarget | GitHint
     case "collection":
       return `${ref.key}@${target.collection}`;
     case "git":
-      return `${ref.key}@git:${target.repository}`;
+      return gitDismissalKey(ref, target);
   }
 }
 

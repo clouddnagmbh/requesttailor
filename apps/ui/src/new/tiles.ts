@@ -11,7 +11,7 @@ import { NEW_ITEMS, type NewItemKind } from "./kinds";
 import { aiFor } from "../ai/ai.svelte";
 import { openOpenApiWizard } from "../openapi/store.svelte";
 import { openPasteLink } from "../share/commands";
-import CloneRepositoryDialog from "../git/CloneRepositoryDialog.svelte";
+import CloneRepositoryDialog from "@tailor-kit/git-ui/CloneRepositoryDialog.svelte";
 
 /** "From OpenAPI": opens the OpenAPI import wizard (it asks for the target itself). */
 const OPENAPI_TILE: Tile = {

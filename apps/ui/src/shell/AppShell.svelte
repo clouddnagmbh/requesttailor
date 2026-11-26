@@ -43,13 +43,13 @@
   import { sendLabel } from "../environments/production";
   import { getProduction } from "../environments/production.svelte";
   import SessionVarsButton from "../scripts/SessionVarsButton.svelte";
-  import { setGitHost } from "../git/host";
-  import GitPanel from "../git/GitPanel.svelte";
+  import { setGitHost } from "@tailor-kit/git-ui";
+  import GitPanel from "@tailor-kit/git-ui/GitPanel.svelte";
   import GitViewHost from "../git/GitViewHost.svelte";
   import ToolHost from "./ToolHost.svelte";
   import { Tools } from "./tool-host.svelte";
   import { builtinCommands } from "./builtin-commands";
-  import { GitViews, provideGitViews } from "../git/views.svelte";
+  import { GitViews, provideGitViews } from "@tailor-kit/git-ui";
   import HistoryPanel from "../history/HistoryPanel.svelte";
   import { McpState } from "../mcp/mcp.svelte";
   import McpPanel from "../mcp/McpPanel.svelte";
@@ -86,7 +86,7 @@
   import SuggestHost from "../suggest/SuggestHost.svelte";
   import { inlineProposalOpen, suggestionOwnsEnter } from "../suggest/keys.svelte";
   import { suggestUndoFor } from "../suggest/undo.svelte";
-  import { extensionGitViews } from "./extension-git";
+  import { extensionGitViews } from "@tailor-kit/git-ui";
   import { extensionTabsFor, provideExtensions } from "./extension-tabs";
   import { buildCommands, LABELS, type Actions } from "./commands";
   import Resizer from "./Resizer.svelte";
@@ -107,7 +107,8 @@
   // svelte-ignore state_referenced_locally
   const app = provideApp(new AppState(backend));
   // The Git views talk to this, not to `AppState` (seam N6).
-  const gitHost = setGitHost(createGitHost(app));
+  // svelte-ignore state_referenced_locally
+  const gitHost = setGitHost(createGitHost(app, () => provided));
   const tabGroups = getTabGroups(app);
   tabGroups.attach();
   // Wave 9: extensions of a distribution (none in the builds of this repository); fixed like the backend.

@@ -11,11 +11,11 @@
   import { extensionRangeActions } from "../shell/extension-actions";
   import { getExtensions } from "../shell/extension-tabs";
   import type { CollectionDiff, DiffScope } from "../commands/types";
-  import { getGitViews } from "../git/views.svelte";
+  import { getGitViews } from "@tailor-kit/git-ui/views";
   import { getApp } from "../state/app.svelte";
   import { Button, EmptyState, SegmentedControl, Spinner } from "../ui";
   import { summary } from "./format";
-  import LineDiff from "./LineDiff.svelte";
+  import LineDiff from "@tailor-kit/git-ui/diff/LineDiff.svelte";
   import SemanticDiff from "./SemanticDiff.svelte";
 
   let { scope }: { scope: DiffScope } = $props();

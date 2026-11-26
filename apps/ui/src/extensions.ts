@@ -8,6 +8,23 @@
 
 import type { Component } from "svelte";
 
+import type {
+  CommitFormTarget,
+  ExtensionAction,
+  ExtensionDiffEditorProps as KitDiffEditorProps,
+  ExtensionFileEditor as KitFileEditor,
+  ExtensionGitView as KitGitView,
+  ExtensionGitViewProps as KitGitViewProps,
+  ExtensionHint,
+  ExtensionMergeEditorProps as KitMergeEditorProps,
+  ExtensionStaging as KitStaging,
+  ExtensionStagingProps as KitStagingProps,
+  GitActionTarget,
+  GitHintTarget,
+  GitHintView,
+  RevisionRangeTarget,
+} from "@tailor-kit/git-ui";
+
 import type { Backend } from "./commands/backend";
 import type {
   AiDelta,
@@ -16,8 +33,6 @@ import type {
   AiRequest,
   AiScope,
   BisectOutcome,
-  GitConflict,
-  GitWorkingCopy,
   RequestSpec,
   RunEvent,
   RunSummary,
@@ -207,17 +222,6 @@ export interface ExtensionEditorAction {
   run(editor: EditorHandle): unknown;
 }
 
-/** An action on a request, a response or a run (since wave 16). */
-export interface ExtensionAction {
-  /** Unique within the extension. */
-  id: string;
-  label: string;
-  icon?: string;
-  /** Shown as a button (at most two per place, the first ones); else in the "More" menu. */
-  inline?: boolean;
-  run: () => unknown;
-}
-
 /** The request shown in the request editor. */
 export interface RequestActionTarget {
   collection: string;
@@ -238,18 +242,6 @@ export interface ResponseActionTarget {
 export type RunActionTarget =
   | { kind: "run"; collection: string; folder: string; summary: RunSummary; events: readonly RunEvent[] }
   | { kind: "bisect"; collection: string; outcome: BisectOutcome };
-
-/** Two revisions selected together (since wave 16): two commits or tags in the commit graph, or
- *  the sides of the comparison and of the diff of two revisions. */
-export interface RevisionRangeTarget {
-  /** The active collection, if the repository has one. */
-  collection: string | null;
-  /** Older side: a commit, branch or tag. */
-  from: string;
-  /** Newer side. */
-  to: string;
-  source: "graph" | "compare" | "diff";
-}
 
 /** What the assistant panel looks at: follows the active tab. */
 export interface AssistantFocus {
@@ -358,41 +350,6 @@ export type HintTarget =
   /** At the top of an expanded collection node in the sidebar. */
   | { place: "collection"; collection: string };
 
-/** The Git views a hint can sit in (since wave 15). */
-export type GitHintView = "graph" | "changes" | "conflict" | "history";
-
-/** At the top of a Git view of repository `repository` (`AppExtension.gitHints`, since wave
- *  15); same rules as `HintTarget`. */
-export interface GitHintTarget {
-  place: "git";
-  repository: string;
-  view: GitHintView;
-  // What the user is doing in the view, for hints that only fit one situation. The view that
-  // shows the hint fills what it can tell; absent: unknown. Dismissals do not depend on them.
-  /** `graph`: how many commits are selected together (1 = just the one, 2 = a range). */
-  selected?: number;
-  /** `graph`: a commit row is being dragged right now. */
-  dragging?: boolean;
-  /** `changes`: the largest number of hunks (separate blocks of changed lines) in one changed
-   *  text file among the files shown so far; a file counts once it has been opened. */
-  hunks?: number;
-}
-
-/** A small, calm note the shell shows in a defined place (since wave 14): never a modal, never
- *  blocking, always dismissible. The shell shows at most one hint per place at a time (the
- *  first not dismissed, extensions in order) and remembers a dismissal per device. */
-export interface ExtensionHint {
-  /** Unique within the extension; dismissals are stored under `<extension id>/<hint id>`. */
-  id: string;
-  /** One or two short sentences, plain text. */
-  text: string;
-  /** Up to two buttons; running one does not dismiss the hint unless `dismiss` is set. */
-  actions?: readonly { label: string; run: () => unknown; dismiss?: boolean }[];
-  /** `device` (default): once dismissed, never again on this device; `target`: dismissed for
-   *  this collection or request only. */
-  scope?: "device" | "target";
-}
-
 /** A collection or folder node of the sidebar (since wave 14). */
 export type NodeTarget =
   | { kind: "collection"; collection: string }
@@ -433,132 +390,17 @@ export interface ExtensionDialog {
 // ---- Git views (since wave 15). Generic Git, nothing assumes a collection; paths are
 // repository-relative with a leading `/`. ----
 
-/** What a Git action of an extension is offered on. `repository` is `RepositoryEntry.id`. */
-export type GitActionTarget =
-  /** The repository as a whole: its sidebar node's menu, the Git panel's "Tools" section. */
-  | { kind: "repository"; repository: string }
-  /** One commit in the graph or a history list. */
-  | { kind: "commit"; repository: string; commit: string }
-  /** Several commits selected in the graph, newest first. */
-  | { kind: "commits"; repository: string; commits: string[] }
-  /** A branch, tag or remote branch (`GitRef.full`). */
-  | { kind: "ref"; repository: string; ref: string }
-  /** A file in the changes view, the file tree or a history list; `rev` absent: working tree. */
-  | { kind: "file"; repository: string; path: string; rev?: string }
-  /** The changed files of the working copy as a whole. */
-  | { kind: "changes"; repository: string; paths: string[] }
-  /** A parked change (`GitStash.index`). */
-  | { kind: "stash"; repository: string; index: number }
-  /** A conflicted file during a merge, cherry-pick, revert or rebase. */
-  | { kind: "conflict"; repository: string; path: string };
+// ---- Git views (since wave 15). The contribution types live in `packages/git-ui` (step K3) and
+// take the product's context as a parameter; here they are bound to `ExtensionContext`. ----
 
-/** A view in the main area's Git host, opened with `AppState.show({ kind: "git", view: {
- *  kind: "extension", id: "<extension>/<view>", props } })` (since wave 15). */
-export interface ExtensionGitView {
-  /** Unique within the extension. */
-  id: string;
-  /** Title bar of the view. */
-  title: string;
-  /** Semantic icon name (`ui/icons.ts`); default `graph`. */
-  icon?: string;
-  component: Component<ExtensionGitViewProps>;
-}
-
-export interface ExtensionGitViewProps {
-  ctx: ExtensionContext;
-  repository: string;
-  /** The `props` the view was opened with. */
-  props: Record<string, unknown>;
-  /** Closes the view (back to the previous one). */
-  close: () => void;
-}
-
-/** A staging view that replaces the file list of the app's commit form (since wave 15). With
- *  one, the form commits what the index holds (`GitApi.commitStaged`); without, the app keeps
- *  "commit without staging". The first extension's staging view wins. */
-export interface ExtensionStaging {
-  /** Shown as the file list's heading. */
-  title: string;
-  component: Component<ExtensionStagingProps>;
-  /** Whether it is in charge for this repository right now (e.g. allowed to); called reactively:
-   *  cheap, synchronous, no `$state` writes. Absent: always. */
-  active?(ctx: ExtensionContext, repository: string): boolean;
-}
-
-export interface ExtensionStagingProps {
-  ctx: ExtensionContext;
-  repository: string;
-  /** The working copy as last read; `refresh()` reads it again (after staging). */
-  workingCopy: GitWorkingCopy;
-  refresh: () => Promise<void>;
-}
-
-/** An editor for a file's diff or a conflicted file's merge, offered next to the app's own
- *  (since wave 15): the app's line and semantic views stay the default, the user can switch. */
-export type ExtensionFileEditor =
-  | {
-      id: string;
-      title: string;
-      kind: "diff";
-      /** Which files it can show; absent: all text files. */
-      accepts?(path: string): boolean;
-      component: Component<ExtensionDiffEditorProps>;
-    }
-  | {
-      id: string;
-      title: string;
-      kind: "merge";
-      accepts?(path: string): boolean;
-      component: Component<ExtensionMergeEditorProps>;
-    };
-
-/** What a diff editor gets: a file's two sides, read-only context in the app's own view. The
- *  host shows it in place of its own diff (the user switches back with the same control);
- *  `close()` returns to the host's own diff. */
-export interface ExtensionDiffEditorProps {
-  ctx: ExtensionContext;
-  repository: string;
-  /** Repository-relative, with a leading `/`. */
-  path: string;
-  /** Revs of both sides; `to` `null`: the working tree. */
-  from: string;
-  to: string | null;
-  close: () => void;
-}
-
-/**
- * What a merge editor gets. The contract of `resolve` and `close`:
- *
- * - `resolve(text)` writes `text` as the file's content and marks it resolved
- *   (`GitApi.resolveText`, which refuses while there are unsaved edits and says why), reloads
- *   the app's collections, and then **closes the editor itself**: the host returns to where the
- *   user came from. It resolves when all of that is done and rejects with the reason when not;
- *   the editor stays open then, so the user can retry or save first. Show the rejection's
- *   `message`.
- * - `close()` leaves the editor without resolving anything. Calling it after a successful
- *   `resolve` is harmless (the host closes once), so an editor may also call `close()` itself
- *   after `resolve` and does not have to.
- * - The editor is shown only for the file it was opened for; `conflict` holds the three
- *   versions (`base` the common ancestor, `ours`, `theirs`; absent = deleted on that side).
- */
-export interface ExtensionMergeEditorProps {
-  ctx: ExtensionContext;
-  repository: string;
-  conflict: GitConflict;
-  resolve: (text: string) => Promise<void>;
-  close: () => void;
-}
-
-/** The commit form an action works on (since wave 15). */
-export interface CommitFormTarget {
-  repository: string;
-  /** The message field. */
-  message: { get(): string; set(text: string): void };
-  /** Files that will be committed (repository-relative). */
-  paths: readonly string[];
-  /** The form commits the index (a staging view is in charge). */
-  staged: boolean;
-}
+export type { CommitFormTarget, ExtensionAction, ExtensionHint, GitActionTarget, GitHintTarget, GitHintView, RevisionRangeTarget };
+export type ExtensionGitView = KitGitView<ExtensionContext>;
+export type ExtensionGitViewProps = KitGitViewProps<ExtensionContext>;
+export type ExtensionStaging = KitStaging<ExtensionContext>;
+export type ExtensionStagingProps = KitStagingProps<ExtensionContext>;
+export type ExtensionFileEditor = KitFileEditor<ExtensionContext>;
+export type ExtensionDiffEditorProps = KitDiffEditorProps<ExtensionContext>;
+export type ExtensionMergeEditorProps = KitMergeEditorProps<ExtensionContext>;
 
 /** An extension's way of undoing writing requests (since wave 19): the journal asks it, per
  *  entry, what would put things back. It supplies **data** only; the core runs the steps

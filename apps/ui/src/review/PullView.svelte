@@ -22,10 +22,10 @@
   } from "../commands/types";
   import { fieldLabel } from "../diff/format";
   import SemanticDiff from "../diff/SemanticDiff.svelte";
-  import { getGitViews } from "../git/views.svelte";
-  import { getApp } from "../state/app.svelte";
+    import { getApp } from "../state/app.svelte";
   import { Avatar, Badge, Banner, Button, Card, Chip, EmptyState, Spinner, TextArea } from "../ui";
-  import { changedRequestPaths, CI_LABEL, groupComments, relativeTime, requestWord, stateLabel, withFields } from "./model";
+  import { CI_LABEL, getGitViews, groupComments, relativeTime, requestWord, stateLabel } from "@tailor-kit/git-ui";
+  import { changedRequestPaths, withFields } from "./pull-model";
 
   let {
     number,
