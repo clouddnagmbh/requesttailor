@@ -132,6 +132,8 @@
     const p = path;
     const input = { environment: app.environment, vars: [] };
     void revision;
+    // Changes made elsewhere (`applyExternal`, e.g. an extension's query builder) too.
+    void app.updateCount;
     void app.environments;
     void app.sendCount;
     void session.revision;

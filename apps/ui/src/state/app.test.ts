@@ -45,4 +45,20 @@ describe("AppState", () => {
     await app.edit("health.yml", { ...spec, url: "{{baseUrl}}/after" });
     expect(seen).toHaveLength(1);
   });
+
+  it("counts every change that reached the backend, external ones included", async () => {
+    const backend = new MockBackend();
+    const app = new AppState(backend);
+    await app.open();
+    await app.select("health.yml");
+    const spec = structuredClone(app.drafts["health.yml"]);
+    const before = app.updateCount;
+    await app.edit("health.yml", { ...spec, url: "{{baseUrl}}/mine" });
+    expect(app.updateCount).toBe(before + 1);
+    await app.applyExternal("health.yml", { ...spec, url: "{{baseUrl}}/theirs?$top=5" });
+    expect(app.updateCount).toBe(before + 2);
+    // The resolved URL (what the editor shows under the URL field) follows the external change.
+    const preview = await backend.preview("health.yml", { environment: app.environment, vars: [] });
+    expect(preview.url).toMatch(/\/theirs\?\$top=5$/);
+  });
 });

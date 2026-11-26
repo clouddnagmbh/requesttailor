@@ -188,6 +188,10 @@ export class AppState {
   /** Counts collection (re)loads: open, `adopt`, `reload`; views that cache collection data
    *  (Git status, search results) re-read when it changes. */
   loadCount = $state(0);
+  /** Counts request changes that reached the backend, from `edit` and from `applyExternal`
+   *  alike; views derived from the backend's copy of a request (the resolved URL) re-read
+   *  when it changes, so a change made elsewhere (an extension) shows there too. */
+  updateCount = $state(0);
 
   // ---- wave 14: several collections ----
 
@@ -765,6 +769,7 @@ export class AppState {
         // The edit belongs to the collection that was active when it was made.
         if (this.backendActive !== id) await this.backendTo(id);
         await this.backend.updateRequest(path, snapshot);
+        this.updateCount++;
         this.setDirty(id, await this.backend.dirty());
         if (this.trees[id]) this.trees[id] = await this.backend.tree();
         const shown = this.collection?.id;
