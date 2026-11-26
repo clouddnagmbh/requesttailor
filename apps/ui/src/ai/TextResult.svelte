@@ -5,7 +5,7 @@
 <script lang="ts">
   import type { ExtensionDialogProps } from "../extensions";
   import { Button, DialogFooter } from "../ui";
-  import Markdown from "./Markdown.svelte";
+  import { Markdown } from "@tailor-kit/ai-ui";
 
   let { close, props }: ExtensionDialogProps = $props();
 </script>

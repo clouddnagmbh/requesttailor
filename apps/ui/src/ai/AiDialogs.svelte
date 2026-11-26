@@ -3,17 +3,18 @@
 <!-- The AI assistant's dialogs (wave 8, strand E), mounted once by the shell. Which one is open
      is `AiState.view`; the buttons and palette entries only set it. -->
 <script lang="ts">
+  import { SettingsDialog, setAiHost } from "@tailor-kit/ai-ui";
   import { untrack } from "svelte";
 
   import { getApp } from "../state/app.svelte";
   import { aiFor } from "./ai.svelte";
   import CreateDialog from "./CreateDialog.svelte";
   import ExplainDialog from "./ExplainDialog.svelte";
-  import SettingsDialog from "./SettingsDialog.svelte";
   import TestsDialog from "./TestsDialog.svelte";
 
   const app = getApp();
   const ai = aiFor(app.backend);
+  setAiHost(ai);
   void ai.ensure();
   // Another collection: a dialog about the old one closes, and the policy is read again.
   $effect(() => {
@@ -26,7 +27,7 @@
 </script>
 
 {#if ai.view?.kind === "settings"}
-  <SettingsDialog {ai} />
+  <SettingsDialog />
 {:else if ai.view?.kind === "create"}
   {#key ai.view}<CreateDialog {ai} {app} folder={ai.view.folder} text={ai.view.text} mode={ai.view.mode} />{/key}
 {:else if ai.view?.kind === "explain"}

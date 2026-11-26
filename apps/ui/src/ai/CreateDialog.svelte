@@ -7,7 +7,7 @@
 <script lang="ts">
   import type { AppState } from "../state/app.svelte";
   import type { AiState } from "./ai.svelte";
-  import AiDialog from "./AiDialog.svelte";
+  import { AiDialog } from "@tailor-kit/ai-ui";
   import { folders } from "./apply";
   import { createFromText } from "./flows";
   import { looksLikeCurl } from "./task";

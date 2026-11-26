@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import { aiCapabilities, aiProviderKinds } from "../commands/contract.generated";
-import { AI_PROVIDERS } from "./providers";
+import { AI_PROVIDERS } from "@tailor-kit/ai-ui";
 
 describe("AI providers (wave 16 interface)", () => {
   it("lists the same providers and capabilities as rt_app::ai, in the same order", () => {

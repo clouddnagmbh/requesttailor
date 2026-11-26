@@ -6,9 +6,9 @@
   import type { AiAnswer } from "../commands/types";
   import type { AppState } from "../state/app.svelte";
   import type { AiState } from "./ai.svelte";
-  import AiDialog from "./AiDialog.svelte";
+  import { AiDialog } from "@tailor-kit/ai-ui";
   import { askError, withSuggestedTests } from "./apply";
-  import Markdown from "./Markdown.svelte";
+  import { Markdown } from "@tailor-kit/ai-ui";
 
   let { ai, app, path, response }: { ai: AiState; app: AppState; path: string; response: number } = $props();
 

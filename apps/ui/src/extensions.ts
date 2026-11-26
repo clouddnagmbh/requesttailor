@@ -6,14 +6,11 @@
 // Extensions are compiled into a distribution; plugins (WASM, `../plugins`) stay the way to
 // extend the app at run time.
 
+import type { ExtensionAi as KitExtensionAi, ExtensionAiRequest as KitExtensionAiRequest } from "@tailor-kit/ai-ui";
 import type { Component } from "svelte";
 
 import type { Backend } from "./commands/backend";
 import type {
-  AiDelta,
-  AiProviderKind,
-  AiReply,
-  AiRequest,
   AiScope,
   BisectOutcome,
   GitConflict,
@@ -65,47 +62,10 @@ export interface SuggestOutcome {
 
 // ---- Wave 16: AI for extensions, suggested edits, more places for actions ----
 
-/** A configured profile as an extension sees it (never a key). */
-export interface ExtensionAiProfile {
-  id: string;
-  label: string;
-  provider: AiProviderKind;
-  model: string;
-  /** What the provider can do (`rt_app::ai::AiProviderKind::capabilities`). */
-  tools: boolean;
-  streaming: boolean;
-}
-
-export interface ExtensionAiStatus {
-  /** At least one profile is set up. */
-  configured: boolean;
-  /** The active collection allows the assistant (`opencollection.yml` and this device). */
-  allowed: boolean;
-  profiles: ExtensionAiProfile[];
-  /** The profiles the roles `fast` and `smart` resolve to, if any. */
-  fast: string | null;
-  smart: string | null;
-}
-
-/** A call: the extension's own prompt; the core adds the masked context of `scope`. */
-export type ExtensionAiRequest = Omit<AiRequest, "id" | "scope"> & { scope?: AiScope };
-
-export interface ExtensionAiOptions {
-  /** Aborting cancels the call (the promise rejects with kind `cancelled`). */
-  signal?: AbortSignal;
-  /** Streamed pieces of the answer as they arrive. */
-  onDelta?: (delta: AiDelta) => void;
-  /** Show the "what will be sent" preview even when the settings do not require it. */
-  preview?: boolean;
-}
-
-/** `ExtensionContext.ai`. Calls go only to the user's own provider through the app's transport;
- *  secret values in scope are masked before anything leaves. Errors are `BackendError`s with
- *  the kinds of `AiError` (`not-configured`, `no-key`, `opted-out`, `cancelled`, …). */
-export interface ExtensionAi {
-  status(): Promise<ExtensionAiStatus>;
-  complete(request: ExtensionAiRequest, options?: ExtensionAiOptions): Promise<AiReply>;
-}
+// The AI extension API (`ExtensionContext.ai`) lives in @tailor-kit/ai-ui; its scope is ours.
+export type { ExtensionAiOptions, ExtensionAiProfile, ExtensionAiStatus } from "@tailor-kit/ai-ui";
+export type ExtensionAiRequest = KitExtensionAiRequest<AiScope>;
+export type ExtensionAi = KitExtensionAi<AiScope>;
 
 /** Text for a suggestion: what it does and why (Markdown, short). */
 export interface SuggestionNote {
