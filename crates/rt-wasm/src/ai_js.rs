@@ -47,7 +47,7 @@ fn ai_error(e: AiError) -> JsValue {
         .ok()
         .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(str::to_owned))
         .unwrap_or_else(|| "shell".to_owned());
-    named_error(&kind, &e.to_string())
+    named_error(&kind, &ai::error_message(&e))
 }
 
 fn optional<T: serde::de::DeserializeOwned>(

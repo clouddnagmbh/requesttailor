@@ -266,6 +266,15 @@ pub(crate) fn prompt_call(task: &AiTask, context: &AiContext) -> AiCall {
     prompt::build(task, context)
 }
 
+/// The message a shell shows for `e`. The kit's opt-out says "project"; RequestTailor's unit
+/// is the collection, so its text stays as before the extraction (desktop and web alike).
+pub fn error_message(e: &AiError) -> String {
+    match e {
+        AiError::OptedOut => "the AI assistant is off for this collection".to_owned(),
+        e => e.to_string(),
+    }
+}
+
 pub fn prepare(task: &AiTask, context: &AiContext, secrets: &[String]) -> Result<AiCall, AiError> {
     mask_call(prompt::build(task, context), secrets)
 }
@@ -295,6 +304,15 @@ pub async fn run<P: AiProvider + ?Sized>(
 mod tests {
     use super::*;
     use rt_core::services::LocalBoxFuture;
+
+    #[test]
+    fn the_opt_out_keeps_requesttailors_wording() {
+        assert_eq!(
+            error_message(&AiError::OptedOut),
+            "the AI assistant is off for this collection"
+        );
+        assert_eq!(error_message(&AiError::NoKey), AiError::NoKey.to_string());
+    }
 
     #[test]
     fn key_slots_keep_the_stored_strings() {
