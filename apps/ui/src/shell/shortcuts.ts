@@ -73,10 +73,7 @@ export const ALIASES: readonly Shortcut[] = [
   { command: "previous-tab", key: "[", code: "BracketLeft", shift: true, macOnly: true },
 ];
 
-export function isMacPlatform(nav: { platform?: string; userAgent?: string } | undefined = globalThis.navigator): boolean {
-  const p = nav?.platform || nav?.userAgent || "";
-  return /Mac|iPhone|iPad|iPod/.test(p);
-}
+export { isMacPlatform } from "@tailor-kit/ui";
 
 type KeyLike = Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey"> & { code?: string };
 

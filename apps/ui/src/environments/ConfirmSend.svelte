@@ -6,10 +6,10 @@
      reading requests are never asked. -->
 <script lang="ts">
   import { getApp } from "../state/app.svelte";
-  import Button from "../ui/Button.svelte";
-  import Checkbox from "../ui/Checkbox.svelte";
-  import Dialog from "../ui/Dialog.svelte";
-  import DialogFooter from "../ui/DialogFooter.svelte";
+  import Button from "@tailor-kit/ui/Button.svelte";
+  import Checkbox from "@tailor-kit/ui/Checkbox.svelte";
+  import Dialog from "@tailor-kit/ui/Dialog.svelte";
+  import DialogFooter from "@tailor-kit/ui/DialogFooter.svelte";
   import { confirmQuestion, setConfirmEnabled } from "./production";
   import { getProduction } from "./production.svelte";
 
