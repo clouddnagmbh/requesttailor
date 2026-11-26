@@ -16,14 +16,14 @@ use crate::git::{blocking, repo};
 type Result<T, E = AppError> = std::result::Result<T, E>;
 
 pub fn blame<S: SecretStore>(core: &Core<S>, rev: &str, path: &str) -> Result<GitBlame> {
-    repo(core)?.blame(rev, path)
+    Ok(repo(core)?.blame(rev, path)?)
 }
 
 pub fn search_history<S: SecretStore>(
     core: &Core<S>,
     query: &GitHistoryQuery,
 ) -> Result<GitHistoryPage> {
-    repo(core)?.search_history(query)
+    Ok(repo(core)?.search_history(query)?)
 }
 
 pub fn reflog<S: SecretStore>(
@@ -31,7 +31,7 @@ pub fn reflog<S: SecretStore>(
     name: &str,
     limit: u32,
 ) -> Result<Vec<GitReflogEntry>> {
-    repo(core)?.reflog(name, limit)
+    Ok(repo(core)?.reflog(name, limit)?)
 }
 
 #[tauri::command]

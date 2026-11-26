@@ -83,7 +83,7 @@ static COMPARES: std::sync::LazyLock<Compares> = std::sync::LazyLock::new(Compar
 
 fn open_repo(root: Option<std::path::PathBuf>) -> Result<Repo, AppError> {
     let root = root.ok_or_else(|| AppError::Shell("no collection is open".into()))?;
-    Repo::require(&root, &Options::default())
+    Ok(Repo::require(&root, &Options::default())?)
 }
 
 fn recorder(repo: &Repo, results: ResultsDir, source: RecordSource) -> RevisionRecorder {

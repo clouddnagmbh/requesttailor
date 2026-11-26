@@ -28,7 +28,7 @@ fn root<S: SecretStore>(core: &Core<S>) -> Result<PathBuf> {
 }
 
 fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
-    Repo::require(&root(core)?, &Options::default())
+    Ok(Repo::require(&root(core)?, &Options::default())?)
 }
 
 /// Reads a spec path from the work tree: relative to the collection, or with a leading `/`

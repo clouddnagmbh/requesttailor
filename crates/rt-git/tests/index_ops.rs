@@ -92,7 +92,10 @@ fn commit_staged_commits_the_index_only() {
     f.write("other.txt", "unstaged\n");
     let repo = f.repo();
     // Nothing staged yet.
-    let err = repo.commit_staged(&staged("x"), None).unwrap_err();
+    let err = repo
+        .commit_staged(&staged("x"), None)
+        .map_err(AppError::from)
+        .unwrap_err();
     assert!(err.to_string().contains("nothing is staged"), "{err}");
     repo.stage(&paths(&["/notes.txt"])).unwrap();
     assert!(repo.commit_staged(&staged("  "), None).is_err());
@@ -134,7 +137,10 @@ fn commit_staged_refuses_credentials_but_the_commit_form_is_unchanged() {
     let repo = f.repo();
     repo.stage(&paths(&["/keys.txt"])).unwrap();
     let head = ref_id(f.dir(), "refs/heads/main");
-    let err = repo.commit_staged(&staged("secrets"), None).unwrap_err();
+    let err = repo
+        .commit_staged(&staged("secrets"), None)
+        .map_err(AppError::from)
+        .unwrap_err();
     assert!(matches!(err, AppError::SecretsFound(_)), "{err:?}");
     assert_eq!(ref_id(f.dir(), "refs/heads/main"), head);
     // A marked line passes.
@@ -191,6 +197,7 @@ fn a_conflicted_file_is_refused_until_it_is_staged() {
     let repo = f.repo();
     let err = repo
         .index_diff("/notes.txt", GitPatchSide::Unstaged)
+        .map_err(AppError::from)
         .unwrap_err();
     assert!(err.to_string().contains("conflict"), "{err}");
     assert!(repo.commit_staged(&staged("m"), None).is_err());

@@ -67,6 +67,12 @@ impl From<AppError> for Failure {
     }
 }
 
+impl From<rt_git::GitError> for Failure {
+    fn from(e: rt_git::GitError) -> Self {
+        Failure::App(e.into())
+    }
+}
+
 impl From<Failure> for CommandError {
     fn from(f: Failure) -> Self {
         match f {
@@ -130,7 +136,7 @@ fn open_repo<S: SecretStore>(core: &Core<S>) -> std::result::Result<Option<Repo>
     let root = core
         .root()
         .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
-    Repo::open(&root, &Options::default())
+    Ok(Repo::open(&root, &Options::default())?)
 }
 
 /// The Git host and project of the open collection's `origin`.

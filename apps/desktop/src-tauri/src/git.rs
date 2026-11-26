@@ -61,15 +61,15 @@ fn refuse_unsaved<S: SecretStore>(core: &Core<S>, what: &str) -> Result<()> {
 }
 
 pub(crate) fn app_identity<S: SecretStore>(core: &Core<S>) -> Result<Option<GitIdentity>> {
-    rt_git::identity::load(core.data_dir.as_deref())
+    Ok(rt_git::identity::load(core.data_dir.as_deref())?)
 }
 
 pub fn status<S: SecretStore>(core: &Core<S>) -> Result<GitStatus> {
-    rt_git::status(&root(core)?, &options())
+    Ok(rt_git::status(&root(core)?, &options())?)
 }
 
 pub fn diff<S: SecretStore>(core: &Core<S>, path: &str) -> Result<GitDiff> {
-    repo(core)?.diff(path)
+    Ok(repo(core)?.diff(path)?)
 }
 
 /// Credentials typed into `paths` (relative to the collection root), as the files are in the
@@ -111,15 +111,15 @@ pub fn commit<S: SecretStore>(
         return Err(AppError::SecretsFound(secret_scan::refusal(&findings)));
     }
     let fallback = app_identity(core)?;
-    repo(core)?.commit(message, paths, fallback.as_ref())
+    Ok(repo(core)?.commit(message, paths, fallback.as_ref())?)
 }
 
 pub fn log<S: SecretStore>(core: &Core<S>, limit: u32) -> Result<Vec<GitCommit>> {
-    repo(core)?.log(limit)
+    Ok(repo(core)?.log(limit)?)
 }
 
 pub fn branches<S: SecretStore>(core: &Core<S>) -> Result<Vec<GitBranch>> {
-    repo(core)?.branches()
+    Ok(repo(core)?.branches()?)
 }
 
 pub fn checkout<S: SecretStore>(core: &Core<S>, branch: &str) -> Result<()> {
@@ -132,11 +132,11 @@ pub fn checkout<S: SecretStore>(core: &Core<S>, branch: &str) -> Result<()> {
 /// Creating a branch never changes files (with `checkout` both point at the same commit),
 /// so unsaved changes do not matter here.
 pub fn create_branch<S: SecretStore>(core: &Core<S>, name: &str, checkout: bool) -> Result<()> {
-    repo(core)?.create_branch(name, checkout)
+    Ok(repo(core)?.create_branch(name, checkout)?)
 }
 
 pub fn push<S: SecretStore>(core: &Core<S>) -> Result<()> {
-    repo(core)?.push(&StoreCredentials(core.secrets()))
+    Ok(repo(core)?.push(&StoreCredentials(core.secrets()))?)
 }
 
 pub fn pull<S: SecretStore>(core: &Core<S>) -> Result<GitPullResult> {
@@ -183,7 +183,7 @@ pub fn reload_repository<S: SecretStore>(
 }
 
 pub fn conflict<S: SecretStore>(core: &Core<S>, path: &str) -> Result<GitConflict> {
-    repo(core)?.conflict(path)
+    Ok(repo(core)?.conflict(path)?)
 }
 
 pub fn resolve<S: SecretStore>(
@@ -208,7 +208,7 @@ pub fn resolve<S: SecretStore>(
 }
 
 pub fn init<S: SecretStore>(core: &Core<S>) -> Result<()> {
-    rt_git::init(&root(core)?, &options())
+    Ok(rt_git::init(&root(core)?, &options())?)
 }
 
 /// Clones `url` into `<parent>/<repository name>` and opens it.
@@ -237,7 +237,7 @@ pub fn identity<S: SecretStore>(core: &Core<S>) -> Result<Option<GitIdentity>> {
 }
 
 pub fn set_identity<S: SecretStore>(core: &Core<S>, identity: &GitIdentity) -> Result<()> {
-    rt_git::identity::save(core.data_dir.as_deref(), identity)
+    Ok(rt_git::identity::save(core.data_dir.as_deref(), identity)?)
 }
 
 pub fn has_credentials<S: SecretStore>(core: &Core<S>, host: &str) -> Result<bool> {
@@ -260,15 +260,15 @@ pub fn delete_credentials<S: SecretStore>(core: &Core<S>, host: &str) -> Result<
 // ---- Wave 12 (interface): revisions, read without a checkout ----
 
 pub fn rev_parse<S: SecretStore>(core: &Core<S>, rev: &str) -> Result<String> {
-    repo(core)?.rev_parse(rev)
+    Ok(repo(core)?.rev_parse(rev)?)
 }
 
 pub fn tree_at<S: SecretStore>(core: &Core<S>, rev: &str) -> Result<GitTree> {
-    repo(core)?.tree_at(rev)
+    Ok(repo(core)?.tree_at(rev)?)
 }
 
 pub fn show<S: SecretStore>(core: &Core<S>, rev: &str, path: &str) -> Result<Option<String>> {
-    repo(core)?.show(rev, path)
+    Ok(repo(core)?.show(rev, path)?)
 }
 
 pub fn file_log<S: SecretStore>(
@@ -276,11 +276,11 @@ pub fn file_log<S: SecretStore>(
     path: &str,
     limit: u32,
 ) -> Result<Vec<GitFileCommit>> {
-    repo(core)?.file_log(path, limit)
+    Ok(repo(core)?.file_log(path, limit)?)
 }
 
 pub fn merge_base<S: SecretStore>(core: &Core<S>, a: &str, b: &str) -> Result<Option<String>> {
-    repo(core)?.merge_base(a, b)
+    Ok(repo(core)?.merge_base(a, b)?)
 }
 
 pub fn commits<S: SecretStore>(
@@ -289,7 +289,7 @@ pub fn commits<S: SecretStore>(
     to: &str,
     limit: u32,
 ) -> Result<Vec<GitCommit>> {
-    repo(core)?.commits(from, to, limit)
+    Ok(repo(core)?.commits(from, to, limit)?)
 }
 
 /// Runs `f` on a blocking thread (Git does file and network I/O; reqwest's blocking client

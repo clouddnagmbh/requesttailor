@@ -184,6 +184,33 @@ pub enum AppError {
     Shell(String),
 }
 
+/// Seam N7: the Git core's errors as the app's. Same kinds and messages as before the seam;
+/// an error the app plugged into the core (signer, credential store) comes back unchanged.
+impl From<tk_git_types::GitError> for AppError {
+    fn from(e: tk_git_types::GitError) -> Self {
+        use tk_git_types::GitError;
+        match e {
+            GitError::Failed(m) => AppError::Git(m),
+            GitError::Auth(host) => AppError::GitAuth(host),
+            GitError::SecretsFound(m) => AppError::SecretsFound(m),
+            GitError::Unsupported(m) => AppError::Unsupported(m),
+            GitError::Io(m) => AppError::Shell(m),
+            GitError::Host(inner) => match inner.downcast::<AppError>() {
+                Ok(app) => *app,
+                Err(other) => AppError::Git(other.to_string()),
+            },
+        }
+    }
+}
+
+/// An app error raised inside the Git core (by a signer or credential store the app plugged
+/// in) travels through it unchanged.
+impl From<AppError> for tk_git_types::GitError {
+    fn from(e: AppError) -> Self {
+        tk_git_types::GitError::Host(Box::new(e))
+    }
+}
+
 impl From<rt_format::FormatError> for AppError {
     fn from(e: rt_format::FormatError) -> Self {
         AppError::Format(e.to_string())

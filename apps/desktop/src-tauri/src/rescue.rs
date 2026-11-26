@@ -29,7 +29,7 @@ fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
     let root = core
         .root()
         .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
-    Repo::require(&root, &Options::default())
+    Ok(Repo::require(&root, &Options::default())?)
 }
 
 /// The history scan of the open collection's repository.
@@ -37,7 +37,7 @@ pub fn scan<S: SecretStore>(
     core: &Core<S>,
     progress: &mut dyn FnMut(ScanProgress),
 ) -> Result<HistoryScan> {
-    repo(core)?.scan_history(progress)
+    Ok(repo(core)?.scan_history(progress)?)
 }
 
 /// Rewrites the history as `plan` says (the user confirmed it in the UI); `now` (Unix
@@ -54,7 +54,7 @@ pub fn rewrite<S: SecretStore>(
     }
     let repo = repo(core)?;
     let result = repo.rewrite_history(plan, now, &mut |value| {
-        core.secret_set(&plan.environment, &plan.variable, value)
+        Ok(core.secret_set(&plan.environment, &plan.variable, value)?)
     })?;
     core.reload()?;
     Ok(result)

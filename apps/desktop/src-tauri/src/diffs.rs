@@ -22,7 +22,7 @@ fn repo<S: SecretStore>(core: &Core<S>) -> Result<Repo> {
     let root = core
         .root()
         .ok_or_else(|| AppError::Shell("no collection is open".into()))?;
-    Repo::require(&root, &Options::default())
+    Ok(Repo::require(&root, &Options::default())?)
 }
 
 fn files(repo: &Repo, rev: &str) -> Result<FileSet> {

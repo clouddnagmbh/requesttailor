@@ -28,7 +28,7 @@ fn root<S: SecretStore>(core: &Core<S>) -> Result<PathBuf> {
 /// The merge state of the open collection; none outside a repository.
 pub fn conflicts<S: SecretStore>(core: &Core<S>) -> Result<MergeState> {
     match Repo::open(&root(core)?, &Options::default())? {
-        Some(repo) => repo.merge_state(),
+        Some(repo) => Ok(repo.merge_state()?),
         None => Ok(MergeState::default()),
     }
 }
