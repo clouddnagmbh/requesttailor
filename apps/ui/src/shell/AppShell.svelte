@@ -43,7 +43,7 @@
   import { sendLabel } from "../environments/production";
   import { getProduction } from "../environments/production.svelte";
   import SessionVarsButton from "../scripts/SessionVarsButton.svelte";
-  import { gitApiCommands } from "../git/api-commands";
+  import { setGitHost } from "../git/host";
   import GitPanel from "../git/GitPanel.svelte";
   import GitViewHost from "../git/GitViewHost.svelte";
   import ToolHost from "./ToolHost.svelte";
@@ -76,6 +76,7 @@
   import { provideSessions, SessionsState } from "../stream/sessions.svelte";
   import ResponseView from "../response/ResponseView.svelte";
   import { AppState, provideApp } from "../state/app.svelte";
+  import { createGitHost } from "../state/git-host";
   import "@tailor-kit/ui/styles/base.css";
   import CompanionOffer from "../transport/CompanionOffer.svelte";
   import CommandPalette from "./CommandPalette.svelte";
@@ -105,6 +106,8 @@
   // The backend is fixed for the lifetime of the shell.
   // svelte-ignore state_referenced_locally
   const app = provideApp(new AppState(backend));
+  // The Git views talk to this, not to `AppState` (seam N6).
+  const gitHost = setGitHost(createGitHost(app));
   const tabGroups = getTabGroups(app);
   tabGroups.attach();
   // Wave 9: extensions of a distribution (none in the builds of this repository); fixed like the backend.
@@ -500,7 +503,7 @@
     ...(suggestUndo.last?.undo ? [{ id: "suggest-undo", label: "Undo suggestion", run: () => void suggestUndo.run() }] : []),
     ...aiCommands(app, ai),
     ...agentCommands(app),
-    ...gitApiCommands(app, gitViews),
+    ...gitHost.commands(gitViews),
     // Views of the distribution's extensions in the Git host (since wave 15): one palette
     // entry each, while there is a repository to look at.
     ...(app.activeRepository

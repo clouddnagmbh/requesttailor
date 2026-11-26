@@ -15,24 +15,27 @@ import type { Command } from "../shell/commands";
 import type { AppState } from "../state/app.svelte";
 import { timelineCommands } from "../timeline/commands";
 import { historyCommands } from "./history/commands";
+import type { GitHost } from "./host";
 import type { GitViews } from "./views.svelte";
 import { gitWizardCommands } from "./wizards/commands";
 
-export function gitApiCommands(app: AppState, views: GitViews): Command[] {
+// RequestTailor only: puts the generic Git commands (they take the host) and the collection-aware
+// ones (they take the app) in one list.
+export function gitApiCommands(app: AppState, host: GitHost, views: GitViews): Command[] {
   // A set with only repository roots has no collection: the generic Git commands still work on
   // the active repository (history, wizards, pull requests); the API-specific ones need a collection.
   if (!app.collection) {
-    return app.activeRepository ? [...reviewCommands(app, views), ...historyCommands(app, views), ...gitWizardCommands(app, views)] : [];
+    return app.activeRepository ? [...reviewCommands(host, views), ...historyCommands(host, views), ...gitWizardCommands(host, views)] : [];
   }
   return [
     ...diffCommands(app, views),
     ...mergeCommands(app, views),
     ...compareCommands(app, views),
     ...timelineCommands(app, views),
-    ...reviewCommands(app, views),
+    ...reviewCommands(host, views),
     ...contractCommands(app, views),
     ...rescueCommands(app, views),
-    ...historyCommands(app, views),
-    ...gitWizardCommands(app, views),
+    ...historyCommands(host, views),
+    ...gitWizardCommands(host, views),
   ];
 }
