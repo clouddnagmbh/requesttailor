@@ -5151,19 +5151,17 @@ dependencies = [
  "regex-lite",
  "rt-testserver",
  "rustls",
- "rustls-platform-verifier",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "thiserror 2.0.21",
+ "tk-net",
  "tokio",
  "tokio-rustls",
  "tokio-tungstenite",
- "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "web-sys",
  "web-time",
 ]
 
@@ -6723,6 +6721,39 @@ name = "tk-git-types"
 version = "1.0.1"
 dependencies = [
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "tk-net"
+version = "1.0.1"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "futures-core",
+ "futures-util",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "js-sys",
+ "p12-keystore",
+ "percent-encoding",
+ "pkcs8",
+ "rcgen",
+ "rustls",
+ "rustls-platform-verifier",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-rustls",
+ "tokio-tungstenite",
+ "tower-service",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "web-time",
 ]
 
 [[package]]

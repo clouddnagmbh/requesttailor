@@ -13,15 +13,12 @@
 //! Owners in wave 5: `TokenStore` and `AuthPrompt` strand C, `CookieJar` strand D,
 //! `RequestHooks` strand A. Changes here are interface changes.
 
-use std::future::Future;
-use std::pin::Pin;
-
 use serde::{Deserialize, Serialize};
 
 use crate::transport::{HttpRequest, ResponseHead};
 
-/// A boxed future that need not be `Send` (wasm32 has no threads).
-pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+/// Moved to `tk-net` (seam N4); same path as before.
+pub use tk_net::services::{DeviceCodePrompt, LocalBoxFuture};
 
 /// Everything optional `send_with` can use. Missing services switch the feature off: OAuth
 /// without a `TokenStore` fetches a token for every send, without an `AuthPrompt` the
@@ -101,15 +98,6 @@ pub trait AuthPrompt {
     fn cancelled(&self) -> bool {
         false
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DeviceCodePrompt {
-    pub user_code: String,
-    pub verification_uri: String,
-    pub verification_uri_complete: Option<String>,
-    /// Seconds.
-    pub expires_in: u64,
 }
 
 // -------------------------------------------------------------------------------------------
