@@ -75,7 +75,8 @@ fn the_value_goes_to_the_keychain_and_nowhere_else() {
             "info:\n  name: Get user\n  type: http\nhttp:\n  method: GET\n  url: https://api.example.com/users/1\n  headers:\n    - name: PRIVATE-TOKEN\n      value: {token}\n"
         ),
     );
-    // Committed outside the app (the app's own commit refuses credentials).
+    // Committed outside the app: the app's own commit refuses credentials, so the fixture
+    // commits without a commit scanner (seam N2).
     let options = rt_git::Options { isolated: true };
     rt_git::init(&work.0, &options).unwrap();
     std::fs::OpenOptions::new()
@@ -84,7 +85,9 @@ fn the_value_goes_to_the_keychain_and_nowhere_else() {
         .unwrap()
         .write_all(b"[user]\n\tname = Ada\n\temail = ada@example.com\n")
         .unwrap();
-    let repo = rt_git::Repo::require(&work.0, &options).unwrap();
+    let repo = rt_git::Repo::require(&work.0, &options)
+        .unwrap()
+        .with_scanner(None);
     let first = repo
         .commit(
             "Add the request",
