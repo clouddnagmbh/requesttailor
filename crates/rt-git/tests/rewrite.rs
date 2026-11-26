@@ -54,7 +54,8 @@ fn fixture(name: &str) -> Fixture {
     let remote = t.path().join("remote.git");
     std::fs::create_dir_all(&dir).unwrap();
     bare(&remote);
-    let repo = new_repo(&dir, "Ada");
+    // The token is committed on purpose; the app's own commit would refuse it (seam N2).
+    let repo = new_repo(&dir, "Ada").with_scanner(None);
     let token = token();
     write(&dir, "opencollection.yml", COLLECTION);
     write(
