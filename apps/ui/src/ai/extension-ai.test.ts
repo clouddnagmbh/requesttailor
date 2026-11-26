@@ -7,7 +7,6 @@ import type { Backend } from "../commands/backend";
 import { mockAi } from "../commands/mock-ai";
 import type { AppState } from "../state/app.svelte";
 import { createExtensionAi } from "./extension-ai";
-import { segments } from "./preview";
 
 async function setup() {
   const ai = mockAi();
@@ -82,16 +81,5 @@ describe("ExtensionContext.ai", () => {
     const run = ext.complete(req, { signal: ctl.signal });
     ctl.abort();
     await expect(run).rejects.toMatchObject({ kind: "cancelled" });
-  });
-});
-
-describe("preview text", () => {
-  it("marks the places secrets were replaced", () => {
-    expect(segments("a *** b")).toEqual([
-      { text: "a ", masked: false },
-      { text: "***", masked: true },
-      { text: " b", masked: false },
-    ]);
-    expect(segments("plain")).toEqual([{ text: "plain", masked: false }]);
   });
 });

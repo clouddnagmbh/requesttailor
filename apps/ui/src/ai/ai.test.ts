@@ -7,7 +7,6 @@ import { emptyRequest } from "../commands/mock";
 import { mockAi } from "../commands/mock-ai";
 import type { StoredResponse, TreeNode } from "../commands/types";
 import { failed, folderOf, folders, usable, withProposal, withSuggestedTests } from "./apply";
-import { inline, parseMarkdown } from "./markdown";
 
 function stored(status: number, extra: Partial<StoredResponse["report"]> = {}): StoredResponse {
   return {
@@ -93,24 +92,6 @@ describe("apply", () => {
     expect(usable({ provider: "anthropic", model: "claude-opus-5-5", base_url: null }, true)).toBe(true);
     expect(usable({ provider: "openai-compatible", model: "llama3.1", base_url: "http://localhost:11434/v1" }, false)).toBe(true);
     expect(usable({ provider: "openai-compatible", model: "llama3.1", base_url: null }, false)).toBe(false);
-  });
-});
-
-describe("markdown", () => {
-  it("parses the subset into text, never HTML", () => {
-    expect(inline("a **b** `c` *d* <i>")).toEqual([
-      { text: "a " },
-      { text: "b", bold: true },
-      { text: " " },
-      { text: "c", code: true },
-      { text: " " },
-      { text: "d", italic: true },
-      { text: " <i>" },
-    ]);
-    const blocks = parseMarkdown("# Cause\nThe token\nexpired.\n\n- one\n- two\n\n1. fix\n\n```js\nx()\n```");
-    expect(blocks.map((b) => b.kind)).toEqual(["h", "p", "ul", "ol", "code"]);
-    expect(blocks[1]).toEqual({ kind: "p", spans: [{ text: "The token expired." }] });
-    expect(blocks[4]).toEqual({ kind: "code", text: "x()" });
   });
 });
 

@@ -31,13 +31,12 @@ export * from "./commands/openapi-stub";
 /** Wave 14: branch and tag names as `rt_app::git::actions::check_ref_name` checks them (the web Git uses it too). */
 export { refNameProblem, suggestRefName } from "@tailor-kit/git-ui";
 export type * from "./extensions";
-export { AI_PROVIDERS, providerInfo } from "./ai/providers";
+export { AI_PROVIDERS, providerInfo } from "@tailor-kit/ai-ui";
 // Wave 16: the diff of a suggested change, for assistants that show their own suggestions.
 export { default as SuggestedEditView } from "./suggest/SuggestedEditView.svelte";
 export { requestBlocks, scriptBlocks, textBlock, type PreviewBlock } from "./suggest/model";
 // Wave 16: a model's Markdown answer rendered as text nodes only (never HTML).
-export { default as Markdown } from "./ai/Markdown.svelte";
-export { parseMarkdown, type Block as MarkdownBlock, type Span as MarkdownSpan } from "./ai/markdown";
+export { Markdown, parseMarkdown, type MarkdownBlock, type MarkdownSpan } from "@tailor-kit/ai-ui";
 
 // Wave 14 design foundation: UI primitives and the semantic icon set (guide: ui/README.md).
 export * from "./ui";

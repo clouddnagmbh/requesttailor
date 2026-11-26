@@ -5,6 +5,8 @@
 // and which dialog is open. The dialogs live in `AiDialogs.svelte` (mounted once by the
 // shell); the buttons in the response panel and the scripts tab only open them.
 
+import type { AiBrand, AiHost } from "@tailor-kit/ai-ui";
+
 import type { Backend } from "../commands/backend";
 import type { AiCollectionPolicy, AiConfig, AiSettings } from "../commands/types";
 import { usable } from "./apply";
@@ -15,7 +17,19 @@ export type AiView =
   | { kind: "explain"; path: string; response: number }
   | { kind: "tests"; path: string; response: number };
 
-export class AiState {
+/** RequestTailor's wording in the shared AI dialogs. */
+export const AI_BRAND: AiBrand = {
+  productName: "RequestTailor",
+  companionCommand: "rt agent",
+  scopeNoun: "collection",
+  fileOffNote: "The team turned it off in opencollection.yml (extensions.requesttailor.ai.enabled: false). That applies to everyone.",
+  sentText:
+    "What is sent: only when you ask, the task, the request (method, URL, headers, body, scripts) and for explain and tests the response, to the provider above and nowhere else. Secret values are replaced by *** before anything leaves this app, and so are credentials typed into headers, URLs or bodies. Proposals are shown to you first and never saved by the assistant. What the provider does with the data is up to your agreement with them.",
+};
+
+/** The state is also the `AiHost` of the shared settings dialog. */
+export class AiState implements AiHost {
+  readonly brand = AI_BRAND;
   config = $state<AiConfig | null>(null);
   /** Wave 16: profiles, roles and the preview mode; `null` until set up. */
   settings = $state<AiSettings | null>(null);

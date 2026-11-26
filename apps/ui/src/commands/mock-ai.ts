@@ -7,7 +7,7 @@
 
 import { BackendError, type AiApi } from "./backend";
 import { looksLikeCurl } from "../ai/task";
-import { providerInfo } from "../ai/providers";
+import { providerInfo } from "@tailor-kit/ai-ui";
 import type {
   AiCollectionPolicy,
   AiConfig,

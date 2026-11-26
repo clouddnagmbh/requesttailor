@@ -36,6 +36,7 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.15",
     "@lezer/highlight": "^1.2.5",
+    "@tailor-kit/ai-ui": "0.0.0",
     "@tailor-kit/git-ui": "0.0.0",
     "@tailor-kit/shell": "0.0.0",
     "@tailor-kit/ui": "0.0.0",

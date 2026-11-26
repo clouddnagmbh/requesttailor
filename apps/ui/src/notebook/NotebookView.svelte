@@ -7,7 +7,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
 
-  import Markdown from "../ai/Markdown.svelte";
+  import { Markdown } from "@tailor-kit/ai-ui";
   import type { BlockResult, Notebook, NotebookEntry } from "../commands/types";
   import type { ToolProps } from "../shell/tool-host.svelte";
   import { Badge, Banner, Button, Checkbox, EmptyState, Select, Spinner } from "../ui";

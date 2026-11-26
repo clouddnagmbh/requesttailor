@@ -6,7 +6,7 @@
      words are marked in one-line fields, changed lines in texts. Mod+Enter applies. Nothing
      here writes anything: the parent does that in `onapply`. -->
 <script lang="ts">
-  import Markdown from "../ai/Markdown.svelte";
+  import { Markdown } from "@tailor-kit/ai-ui";
   import Words from "../compare/Words.svelte";
   import { wordDiff } from "../compare/worddiff";
   import type { SuggestionNote } from "../extensions";
