@@ -76,7 +76,7 @@
   import { provideSessions, SessionsState } from "../stream/sessions.svelte";
   import ResponseView from "../response/ResponseView.svelte";
   import { AppState, provideApp } from "../state/app.svelte";
-  import "../styles/base.css";
+  import "@tailor-kit/ui/styles/base.css";
   import CompanionOffer from "../transport/CompanionOffer.svelte";
   import CommandPalette from "./CommandPalette.svelte";
   import AssistantPanel from "./AssistantPanel.svelte";

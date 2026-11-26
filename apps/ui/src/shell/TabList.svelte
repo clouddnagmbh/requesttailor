@@ -9,8 +9,8 @@
   import type { RequestRef } from "../commands/types";
   import { getApp } from "../state/app.svelte";
   import { Badge, IconButton } from "../ui";
-  import { portal, rectOf, viewport } from "../ui/floating";
-  import { place } from "../ui/position";
+  import { portal, rectOf, viewport } from "@tailor-kit/ui/floating";
+  import { place } from "@tailor-kit/ui/position";
   import { fuzzyFilter } from "./fuzzy";
   import { groupLabel, type TabGroup } from "./tab-groups";
   import { getTabGroups } from "./tab-groups.svelte";

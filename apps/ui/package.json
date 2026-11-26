@@ -13,9 +13,9 @@
       "default": "./src/index.ts"
     },
     "./gallery": {
-      "types": "./src/ui/gallery/index.ts",
-      "svelte": "./src/ui/gallery/index.ts",
-      "default": "./src/ui/gallery/index.ts"
+      "types": "./src/gallery.ts",
+      "svelte": "./src/gallery.ts",
+      "default": "./src/gallery.ts"
     }
   },
   "scripts": {
@@ -36,7 +36,7 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.15",
     "@lezer/highlight": "^1.2.5",
-    "@lucide/svelte": "1.70.0",
+    "@tailor-kit/ui": "0.0.0",
     "cm6-graphql": "^1.0.0",
     "graphql": "^17.1.0",
     "svelte": "^5.59.1"

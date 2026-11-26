@@ -5,8 +5,8 @@
 <script lang="ts">
   import { tick } from "svelte";
 
-  import { portal, rectOf, viewport } from "../ui/floating";
-  import { place } from "../ui/position";
+  import { portal, rectOf, viewport } from "@tailor-kit/ui/floating";
+  import { place } from "@tailor-kit/ui/position";
   import { COLOR_NAMES, GROUP_COLORS, type TabGroup } from "./tab-groups";
 
   let {

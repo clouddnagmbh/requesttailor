@@ -8,7 +8,7 @@ import { mount } from "svelte";
 import type { Backend } from "./commands/backend";
 import type { StartOptions } from "./extensions";
 import AppShell from "./shell/AppShell.svelte";
-import "./styles/tokens.css";
+import "@tailor-kit/ui/styles/tokens.css";
 
 export type * from "./commands/backend";
 export type * from "./commands/types";

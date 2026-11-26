@@ -5,7 +5,7 @@
      The component can end its content with `DialogFooter` for its buttons. -->
 <script lang="ts">
   import { getApp } from "../state/app.svelte";
-  import Dialog from "../ui/Dialog.svelte";
+  import Dialog from "@tailor-kit/ui/Dialog.svelte";
   import { getExtensions } from "./extension-tabs";
 
   const app = getApp();
