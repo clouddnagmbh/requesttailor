@@ -22,17 +22,9 @@
 
 use super::{AiNameTarget, AiTask};
 
-/// One parsed prompt file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Prompt {
-    pub id: &'static str,
-    pub version: u32,
-    /// `json`, `markdown` or `none` (fragments and the shared system prompt's own shape).
-    pub answer: &'static str,
-    /// `fast`, `smart` or `none`.
-    pub profile: &'static str,
-    pub body: &'static str,
-}
+// The loader (header, `<<name>>` values, `<<include:id>>` fragments) is `tk_ai::prompts`; the
+// files and the tasks that use them are RequestTailor's.
+pub use tk_ai::prompts::Prompt;
 
 /// Every prompt file, by id.
 pub const SOURCES: &[(&str, &str)] = &[
@@ -58,87 +50,20 @@ pub const SOURCES: &[(&str, &str)] = &[
     ("draft-docs", include_str!("prompts/draft-docs.md")),
 ];
 
-fn parse(source: &'static str) -> Option<Prompt> {
-    let rest = source.strip_prefix("---\n")?;
-    let (head, body) = rest.split_once("\n---\n")?;
-    let mut prompt = Prompt {
-        id: "",
-        version: 0,
-        answer: "",
-        profile: "",
-        body: body.strip_suffix('\n').unwrap_or(body),
-    };
-    for line in head.lines() {
-        let (key, value) = line.split_once(':')?;
-        let value = value.split('#').next().unwrap_or("").trim();
-        match key.trim() {
-            "id" => prompt.id = value,
-            "version" => prompt.version = value.parse().ok()?,
-            "answer" => prompt.answer = value,
-            "profile" => prompt.profile = value,
-            _ => return None,
-        }
-    }
-    (!prompt.id.is_empty() && prompt.version > 0 && !prompt.answer.is_empty()).then_some(prompt)
-}
-
 /// All prompts; `None` entries cannot happen in a build that passes the tests.
 pub fn all() -> Vec<Prompt> {
-    SOURCES.iter().filter_map(|(_, s)| parse(s)).collect()
+    tk_ai::prompts::all(SOURCES)
 }
 
 /// The prompt `id`.
 pub fn get(id: &str) -> Option<Prompt> {
-    SOURCES
-        .iter()
-        .find(|(i, _)| *i == id)
-        .and_then(|(_, s)| parse(s))
+    tk_ai::prompts::get(SOURCES, id)
 }
 
 /// The prompt `id` with `values` inserted for `<<name>>` and fragments for `<<include:id>>`.
 /// Unknown names stay as written.
 pub fn render(id: &str, values: &[(&str, &str)]) -> String {
-    let Some(prompt) = get(id) else {
-        return String::new();
-    };
-    expand(prompt.body, values, 0)
-}
-
-fn expand(template: &str, values: &[(&str, &str)], depth: usize) -> String {
-    let mut out = String::with_capacity(template.len());
-    let mut rest = template;
-    while let Some(start) = rest.find("<<") {
-        out.push_str(&rest[..start]);
-        let after = &rest[start + 2..];
-        let Some(end) = after.find(">>") else {
-            out.push_str(&rest[start..]);
-            return out;
-        };
-        let name = &after[..end];
-        let known = if let Some(fragment) = name.strip_prefix("include:") {
-            // Fragments hold no values and no further fragments.
-            get(fragment)
-                .filter(|_| depth == 0)
-                .map(|p| expand(p.body, &[], depth + 1))
-        } else {
-            values
-                .iter()
-                .find(|(n, _)| *n == name)
-                .map(|(_, v)| (*v).to_owned())
-        };
-        match known {
-            Some(text) => {
-                out.push_str(&text);
-                rest = &after[end + 2..];
-            }
-            None => {
-                out.push_str("<<");
-                rest = after;
-            }
-        }
-    }
-    out.push_str(rest);
-    out
+    tk_ai::prompts::render(SOURCES, id, values)
 }
 
 impl AiTask {

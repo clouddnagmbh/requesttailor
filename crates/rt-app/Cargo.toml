@@ -38,6 +38,8 @@ similar = "3"
 # JSONPath (RFC 9535) for filtering response bodies; MIT, builds on wasm32 and iOS.
 serde_json_path = "0.7"
 thiserror = "2"
+# Seam N5: providers, masking, profiles and the call runtime of the AI assistant.
+tk-ai = { path = "../tk-ai" }
 # Seam N7: the Git core reports `GitError`; `From<GitError> for AppError` lives here.
 tk-git-types = { path = "../tk-git-types" }
 # The text secret scanner; `secret_scan` configures it with RequestTailor's markers, rules and hints.
