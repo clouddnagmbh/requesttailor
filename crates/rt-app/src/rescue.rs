@@ -115,7 +115,7 @@ pub struct RescueResult {
 
 /// `refs/requesttailor/backup/<unix>/`.
 pub fn backup_prefix(unix: i64) -> String {
-    format!("{BACKUP_PREFIX}{unix}/")
+    crate::git::REF_NAMESPACE.backup_prefix_at(unix)
 }
 
 // ---------------------------------------------------------------------------------------------
