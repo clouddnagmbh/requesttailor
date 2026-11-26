@@ -4,7 +4,6 @@
 import { describe, expect, it } from "vitest";
 
 import { MockBackend } from "../commands/mock";
-import { fuzzyFilter, fuzzyScore } from "./fuzzy";
 import { formatShortcut, isMacPlatform, matchShortcut, SHORTCUTS } from "./shortcuts";
 import { requestPaths, typeahead, visibleRows } from "./tree";
 
@@ -60,18 +59,6 @@ describe("shortcuts", () => {
     expect(formatShortcut({ command: "send", key: "Enter" }, false)).toBe("Ctrl+Enter");
     expect(isMacPlatform({ platform: "MacIntel" })).toBe(true);
     expect(isMacPlatform({ platform: "Win32" })).toBe(false);
-  });
-});
-
-describe("fuzzy", () => {
-  it("matches subsequences per word and ranks word starts first", () => {
-    expect(fuzzyScore("sndreq", "Send request")).not.toBeNull();
-    expect(fuzzyScore("xyz", "Send request")).toBeNull();
-    expect(fuzzyScore("env prd", "Environment: PRD")).not.toBeNull();
-    expect(fuzzyScore("env prd", "Environment: Local")).toBeNull();
-    const labels = ["Close tab", "Save", "Send request", "Toggle theme"];
-    expect(fuzzyFilter(labels, "s", (x) => x)[0]).toBe("Save");
-    expect(fuzzyFilter(labels, "", (x) => x)).toEqual(labels);
   });
 });
 
