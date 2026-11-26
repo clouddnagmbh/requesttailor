@@ -5093,6 +5093,7 @@ dependencies = [
  "similar",
  "thiserror 2.0.21",
  "tk-git-types",
+ "tk-review",
  "tk-secrets",
  "tokio",
  "url",
@@ -6757,11 +6758,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "tk-review"
+version = "1.0.1"
+dependencies = [
+ "bytes",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tk-git-types",
+ "tk-net",
+ "tk-secrets",
+ "url",
+ "web-time",
+]
+
+[[package]]
 name = "tk-secrets"
 version = "1.0.1"
 dependencies = [
+ "base64 0.22.1",
  "keyring",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
 ]
 

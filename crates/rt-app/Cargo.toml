@@ -42,6 +42,8 @@ thiserror = "2"
 tk-git-types = { path = "../tk-git-types" }
 # Seam K2: secret storage; `From<SecretError> for AppError` lives here.
 tk-secrets = { path = "../tk-secrets" }
+# Seam K2: pull-request providers; `rt_app::review` binds them to the app.
+tk-review = { path = "../tk-review" }
 # Timeouts of the secret managers' CLIs (`secret_sources`); std::time::Instant panics on wasm32.
 web-time = "1"
 # Loopback redirect URIs of the OAuth 2.0 browser step (`auth::loopback`); already in the tree.
