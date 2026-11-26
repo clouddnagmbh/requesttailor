@@ -21,6 +21,7 @@ use std::path::PathBuf;
 use rt_app::diffs::{
     ChangeKind, ChangeTarget, ChangedFile, CollectionDiff, DiffValue, FieldChange, FileStatus,
 };
+use rt_app::git::GitTreeFiles as _;
 use rt_format::FileSet;
 use rt_git::{Options, Repo};
 

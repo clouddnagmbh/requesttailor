@@ -6,14 +6,14 @@
 //!
 //! The whole repository, not only the collection: paths are repository-relative with a
 //! leading `/`. `changes` names, for every file, the collection of the set it belongs to
-//! (`GitChangedFile::collection`), so the UI shows the semantic diff for it; every collection
+//! (`InCollection::collection` of each `GitChangedFile`), so the UI shows the semantic diff for it; every collection
 //! of the set inside this repository counts, not only the active one.
 
 use std::path::Path;
 
 use rt_app::git::GitDiff;
 use rt_app::git::graph::{
-    CollectionAt, GitChangedFile, GitGraphPage, GitGraphQuery, GitRef, assign_collections,
+    CollectionAt, GitChangedFile, GitGraphPage, GitGraphQuery, GitRef, in_collections,
 };
 use rt_app::{AppError, SecretStore};
 use rt_git::{Options, Repo};
@@ -66,9 +66,8 @@ pub fn changes<S: SecretStore>(
     to: &str,
 ) -> Result<Vec<GitChangedFile>> {
     let repo = repo(core)?;
-    let mut files = repo.changes(from, to)?;
-    assign_collections(&mut files, &collections_in(core, repo.workdir()));
-    Ok(files)
+    let files = repo.changes(from, to)?;
+    Ok(in_collections(files, &collections_in(core, repo.workdir())))
 }
 
 pub fn file_diff<S: SecretStore>(
@@ -253,7 +252,7 @@ mod tests {
         let files = changes(&core, None, &second.oid).unwrap();
         let named: Vec<(&str, GitFileChange, Option<&str>)> = files
             .iter()
-            .map(|f| (f.path.as_str(), f.change, f.collection.as_deref()))
+            .map(|f| (f.path.as_str(), f.change, f.extra.collection.as_deref()))
             .collect();
         assert_eq!(
             named,

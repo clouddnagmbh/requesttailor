@@ -25,7 +25,7 @@ use rt_app::git::{GitCommit, GitTree};
 use rt_app::{AppError, SecretStore, SendInput};
 use rt_core::send::SendOptions;
 use rt_core::transport::native::NativeTransport;
-use rt_git::{Options, Repo};
+use rt_git::{Options, Repo, RepoExt as _};
 use tauri::State;
 use tauri::ipc::Channel;
 

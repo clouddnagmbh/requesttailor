@@ -16,6 +16,7 @@ use rt_app::git::index::{GitPatchSide, GitStagedCommit};
 use rt_app::git::signing::{GitSignatureCheck, GitSignatureKind, GitSignatureState};
 use rt_app::{AppError, SecretKey, SecretStore};
 use rt_desktop::{Core, git, git_index};
+use rt_git::GitError;
 use rt_git::sign::{CommitSigner, SignatureVerifier, Signing};
 
 #[derive(Default)]
@@ -58,7 +59,7 @@ fn armor(payload: &[u8]) -> String {
 struct Signer;
 
 impl CommitSigner for Signer {
-    fn sign(&self, _workdir: &Path, payload: &[u8]) -> Result<Option<String>, AppError> {
+    fn sign(&self, _workdir: &Path, payload: &[u8]) -> Result<Option<String>, GitError> {
         Ok(Some(armor(payload)))
     }
 }
@@ -72,7 +73,7 @@ impl SignatureVerifier for Verifier {
         oid: &str,
         payload: &[u8],
         signature: &str,
-    ) -> Result<GitSignatureCheck, AppError> {
+    ) -> Result<GitSignatureCheck, GitError> {
         Ok(GitSignatureCheck {
             oid: oid.to_owned(),
             state: if signature == armor(payload) {

@@ -465,7 +465,10 @@ fn changes_of_a_commit_with_renames_binary_files_and_any_path() {
             ),
         ]
     );
-    assert!(c4.iter().all(|c| !c.binary && c.collection.is_none()));
+    assert!(
+        c4.iter()
+            .all(|c| !c.binary && c.extra == rt_app::git::NoExtra {})
+    );
 
     let f1 = repo.changes(None, &f.f1.to_string()).unwrap();
     assert_eq!(f1.len(), 1);
@@ -505,11 +508,11 @@ fn changes_of_a_commit_with_renames_binary_files_and_any_path() {
 fn collection_files_are_named_by_the_shell() {
     let f = fixture();
     let repo = reopen(&f.work);
-    let mut files = repo
+    let files = repo
         .changes(Some(&f.c1.to_string()), &f.c4.to_string())
         .unwrap();
-    rt_app::git::graph::assign_collections(
-        &mut files,
+    let files = rt_app::git::graph::in_collections(
+        files,
         &[rt_app::git::graph::CollectionAt {
             id: "billing".into(),
             dir: "api".into(),
@@ -517,7 +520,7 @@ fn collection_files_are_named_by_the_shell() {
     );
     let named: Vec<(&str, Option<&str>)> = files
         .iter()
-        .map(|c| (c.path.as_str(), c.collection.as_deref()))
+        .map(|c| (c.path.as_str(), c.extra.collection.as_deref()))
         .collect();
     assert_eq!(
         named,

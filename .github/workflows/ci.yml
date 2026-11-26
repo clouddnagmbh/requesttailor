@@ -109,7 +109,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Native-only crates (CLI, test server, desktop app) are excluded; everything else must build
       # for the browser.
-      - run: cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-odata-testserver --exclude rt-desktop --exclude rt-git --target wasm32-unknown-unknown --locked
+      - run: cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-odata-testserver --exclude rt-desktop --exclude rt-git --exclude tk-git --target wasm32-unknown-unknown --locked
 
   ios:
     name: check (ios)

@@ -9,6 +9,7 @@
 //! without a commit yet counts as an empty collection on the old side.
 
 use rt_app::diffs::CollectionDiff;
+use rt_app::git::GitTreeFiles as _;
 use rt_app::{AppError, SecretStore};
 use rt_format::FileSet;
 use rt_git::{Options, Repo};

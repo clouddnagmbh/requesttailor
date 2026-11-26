@@ -975,14 +975,16 @@ fn git_changed_files() -> Vec<rt_app::git::graph::GitChangedFile> {
             change: GitFileChange::Modified,
             from: None,
             binary: false,
-            collection: Some("/work/api".into()),
+            extra: rt_app::git::InCollection {
+                collection: Some("/work/api".into()),
+            },
         },
         GitChangedFile {
             path: "/docs/logo.png".into(),
             change: GitFileChange::Renamed,
             from: Some("/logo.png".into()),
             binary: true,
-            collection: None,
+            extra: rt_app::git::InCollection { collection: None },
         },
     ]
 }
@@ -2427,7 +2429,9 @@ mod wave15 {
                             kind: GitEntryKind::File,
                             staged: Some(GitFileChange::Modified),
                             unstaged: true,
-                            collection: Some("/work/api/orders".into()),
+                            extra: rt_app::git::InCollection {
+                                collection: Some("/work/api/orders".into()),
+                            },
                         },
                         GitWorkingFile {
                             path: "/docs/new-name.md".into(),
@@ -2436,7 +2440,7 @@ mod wave15 {
                             kind: GitEntryKind::File,
                             staged: Some(GitFileChange::Renamed),
                             unstaged: false,
-                            collection: None,
+                            extra: rt_app::git::InCollection { collection: None },
                         },
                         GitWorkingFile {
                             path: "/vendor/lib".into(),
@@ -2445,7 +2449,7 @@ mod wave15 {
                             kind: GitEntryKind::Submodule,
                             staged: None,
                             unstaged: true,
-                            collection: None,
+                            extra: rt_app::git::InCollection { collection: None },
                         },
                         GitWorkingFile {
                             path: "/notes.txt".into(),
@@ -2454,7 +2458,7 @@ mod wave15 {
                             kind: GitEntryKind::File,
                             staged: None,
                             unstaged: true,
-                            collection: None,
+                            extra: rt_app::git::InCollection { collection: None },
                         },
                     ],
                     truncated: false,

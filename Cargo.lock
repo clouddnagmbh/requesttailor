@@ -5207,18 +5207,12 @@ dependencies = [
 name = "rt-git"
 version = "1.0.1"
 dependencies = [
- "base64 0.22.1",
  "gix",
- "gix-pack",
- "gix-transport",
- "reqwest",
  "rt-app",
  "rt-core",
  "rt-format",
- "rustls",
- "serde",
  "serde_json",
- "similar",
+ "tk-git",
  "tk-git-types",
 ]
 
@@ -6736,9 +6730,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "tk-git"
+version = "1.0.1"
+dependencies = [
+ "base64 0.22.1",
+ "gix",
+ "gix-pack",
+ "gix-transport",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "similar",
+ "tk-git-types",
+ "tk-review",
+]
+
+[[package]]
 name = "tk-git-types"
 version = "1.0.1"
 dependencies = [
+ "serde",
+ "serde_json",
+ "similar",
  "thiserror 2.0.21",
 ]
 

@@ -6,10 +6,9 @@
 //!
 //! The whole repository, not only the active collection: paths are repository-relative with a
 //! leading `/`. Every collection of the set inside the repository is named on its files
-//! (`GitWorkingFile::collection`), so the UI shows the semantic diff for those.
+//! (`InCollection::collection` of each `GitWorkingFile`), so the UI shows the semantic diff for those.
 
-use rt_app::git::files::{GitBlob, GitTreeEntry, GitWorkingCopy};
-use rt_app::git::graph::collection_of;
+use rt_app::git::files::{GitBlob, GitTreeEntry, GitWorkingCopy, in_collections};
 use rt_app::{AppError, SecretStore};
 
 use crate::commands::{AppCore, CommandError};
@@ -21,12 +20,8 @@ type Result<T, E = AppError> = std::result::Result<T, E>;
 
 pub fn working_copy<S: SecretStore>(core: &Core<S>) -> Result<GitWorkingCopy> {
     let repo = repo(core)?;
-    let mut copy = repo.working_copy()?;
-    let collections = collections_in(core, repo.workdir());
-    for file in &mut copy.files {
-        file.collection = collection_of(&file.path, &collections).map(str::to_owned);
-    }
-    Ok(copy)
+    let copy = repo.working_copy()?;
+    Ok(in_collections(copy, &collections_in(core, repo.workdir())))
 }
 
 pub fn file_tree<S: SecretStore>(
@@ -193,7 +188,7 @@ mod tests {
         let rows: Vec<(&str, GitFileState, Option<&str>)> = copy
             .files
             .iter()
-            .map(|f| (f.path.as_str(), f.state, f.collection.as_deref()))
+            .map(|f| (f.path.as_str(), f.state, f.extra.collection.as_deref()))
             .collect();
         assert_eq!(
             rows,
