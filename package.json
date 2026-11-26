@@ -6,7 +6,7 @@
   "type": "module",
   "workspaces": [
     "apps/ui",
-    "packages/*",
+    "kit/packages/*",
     "apps/desktop",
     "apps/web",
     "sdk/typescript"

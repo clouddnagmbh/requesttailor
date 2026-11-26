@@ -36,6 +36,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       # The workspace includes the desktop app (apps/desktop/src-tauri), which links WebKitGTK.
@@ -78,6 +80,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       - name: Desktop build dependencies (Linux)
@@ -102,6 +106,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain and wasm32 target
         run: |
           rustup toolchain install
@@ -109,13 +115,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Native-only crates (CLI, test server, desktop app) are excluded; everything else must build
       # for the browser.
-      - run: cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-odata-testserver --exclude rt-desktop --exclude rt-git --exclude tk-git --target wasm32-unknown-unknown --locked
+      - run: cargo build --workspace --exclude rt-cli --exclude rt-testserver --exclude rt-odata-testserver --exclude rt-desktop --exclude rt-git --target wasm32-unknown-unknown --locked
 
   ios:
     name: check (ios)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain and iOS target
         run: |
           rustup toolchain install
@@ -131,6 +139,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain and wasm32 target
         run: |
           rustup toolchain install
@@ -154,6 +164,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
@@ -174,6 +186,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - run: rustup toolchain install
       - name: Desktop build dependencies (clippy checks the desktop app)
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ${{ env.TAURI_LINUX_DEPS }}
@@ -185,10 +199,6 @@ jobs:
           node-version-file: .nvmrc
       - name: License headers
         run: node scripts/check-license-headers.mjs
-      # Gate T2 of the tailor-kit extraction: no "collection" outside comments in crates/tk-* and
-      # packages/*.
-      - name: Domain words in the kit
-        run: node scripts/check-domain-words.mjs
       # Wave 7: the committed QuickJS engine (crates/rt-script/engine) must be what its source
       # and the pinned wasi-sdk build, byte for byte (downloads checked by SHA-256).
       - name: Script engine is reproducible
@@ -200,6 +210,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - run: rustup toolchain install
       - uses: taiki-e/install-action@v2
         with:
@@ -226,6 +238,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          submodules: true
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
@@ -255,6 +268,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          submodules: true
           fetch-depth: 0
       - name: Install gitleaks (pinned, checksum verified)
         run: |
@@ -288,6 +302,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       - name: wasm32 target (web measurements)
@@ -343,6 +359,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -366,6 +384,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -427,6 +447,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain and wasm32 target
         run: |
           rustup toolchain install
@@ -461,6 +483,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
@@ -520,6 +544,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Build the image
         run: docker build -f docker/Dockerfile --build-arg "REVISION=$GITHUB_SHA" -t rt:ci .
       - name: rt in the image, as a non-root user

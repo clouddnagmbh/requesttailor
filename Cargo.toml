@@ -9,8 +9,9 @@ members = [
     "plugins/sap-integration",
     "plugins/odata/testserver",
 ]
-# CI canaries are standalone workspaces that must never join the real build.
-exclude = ["ci"]
+# CI canaries are standalone workspaces that must never join the real build; the kit
+# (submodule kit/) is its own workspace.
+exclude = ["ci", "kit"]
 
 [workspace.package]
 version = "1.0.1"

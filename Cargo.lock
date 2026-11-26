@@ -6715,9 +6715,8 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tk-ai"
-version = "1.0.1"
+version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
  "bytes",
  "futures-core",
  "serde",
@@ -6731,7 +6730,7 @@ dependencies = [
 
 [[package]]
 name = "tk-git"
-version = "1.0.1"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "gix",
@@ -6748,17 +6747,16 @@ dependencies = [
 
 [[package]]
 name = "tk-git-types"
-version = "1.0.1"
+version = "0.1.0"
 dependencies = [
  "serde",
- "serde_json",
  "similar",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "tk-net"
-version = "1.0.1"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -6772,11 +6770,9 @@ dependencies = [
  "p12-keystore",
  "percent-encoding",
  "pkcs8",
- "rcgen",
  "rustls",
  "rustls-platform-verifier",
  "serde",
- "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "tokio-rustls",
@@ -6791,7 +6787,7 @@ dependencies = [
 
 [[package]]
 name = "tk-review"
-version = "1.0.1"
+version = "0.1.0"
 dependencies = [
  "bytes",
  "serde",
@@ -6806,7 +6802,7 @@ dependencies = [
 
 [[package]]
 name = "tk-scan"
-version = "1.0.1"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "serde",
@@ -6814,7 +6810,7 @@ dependencies = [
 
 [[package]]
 name = "tk-secrets"
-version = "1.0.1"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "keyring",

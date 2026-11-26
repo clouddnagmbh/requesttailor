@@ -57,6 +57,8 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Version from Cargo.toml, checked against the tag
         id: version
         env:
@@ -127,6 +129,8 @@ jobs:
       BUNDLES: app,dmg
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       # No build cache: release binaries are built from the tagged sources only.
       - name: Install pinned toolchain and targets
         run: |
@@ -318,6 +322,8 @@ jobs:
       ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install pinned toolchain, the musl target and musl-gcc (for ring)
         run: |
           rustup toolchain install
@@ -356,6 +362,8 @@ jobs:
       VERSION: ${{ needs.preflight.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: actions/download-artifact@v4
         with:
           pattern: release-*
@@ -436,6 +444,8 @@ jobs:
       ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Build
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/rt"
