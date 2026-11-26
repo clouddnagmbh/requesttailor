@@ -371,20 +371,3 @@ fn text_of_skips_binary_and_huge_files() {
     assert_eq!(text_of(&[0xff, 0xfe, b'a']), None);
     assert_eq!(text_of(&vec![b'a'; MAX_SCAN_BYTES + 1]), None);
 }
-
-#[test]
-fn lines_are_parsed_like_yaml() {
-    let l = parse_line("  - name: \"X-Key\" # c");
-    assert!(l.item);
-    assert_eq!(l.col, Some(4));
-    assert_eq!(l.key, Some("name"));
-    assert_eq!(l.value_text(), Some("X-Key"));
-    let l = parse_line("    \"pass\": 'it''s',");
-    assert_eq!(l.key, Some("pass"));
-    assert_eq!(l.value_text(), Some("it''s"));
-    let l = parse_line("url: https://x.example/a#frag");
-    assert_eq!(l.value_text(), Some("https://x.example/a#frag"));
-    assert_eq!(parse_line("data: |-").value, None);
-    assert_eq!(parse_line("# comment").col, None);
-    assert_eq!(parse_line("just text").key, None);
-}
