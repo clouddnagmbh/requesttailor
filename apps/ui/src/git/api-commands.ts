@@ -10,14 +10,10 @@ import { contractCommands } from "../contract/commands";
 import { diffCommands } from "../diff/commands";
 import { mergeCommands } from "../merge/commands";
 import { rescueCommands } from "../rescue/commands";
-import { reviewCommands } from "../review/commands";
+import { gitWizardCommands, historyCommands, reviewCommands, type GitHost, type GitViews } from "@tailor-kit/git-ui";
 import type { Command } from "../shell/commands";
 import type { AppState } from "../state/app.svelte";
 import { timelineCommands } from "../timeline/commands";
-import { historyCommands } from "./history/commands";
-import type { GitHost } from "./host";
-import type { GitViews } from "./views.svelte";
-import { gitWizardCommands } from "./wizards/commands";
 
 // RequestTailor only: puts the generic Git commands (they take the host) and the collection-aware
 // ones (they take the app) in one list.

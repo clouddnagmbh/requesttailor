@@ -11,7 +11,7 @@
   import type { GitRepoSummary, RepositoryEntry } from "../commands/types";
   import { getApp } from "../state/app.svelte";
   import { Badge, Icon, Menu, type MenuEntry } from "../ui";
-  import { gitActionEntries } from "./extension-git";
+  import { gitActionEntries } from "@tailor-kit/git-ui";
   import { getExtensions } from "./extension-tabs";
   import { repoStatusParts } from "./tree";
 

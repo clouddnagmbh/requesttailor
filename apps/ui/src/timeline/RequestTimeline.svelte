@@ -7,7 +7,7 @@
      until the user saves. `path` is the request's path today. -->
 <script lang="ts">
   import { fieldLabel, fieldValueText, isMultiline } from "../diff/format";
-  import { ago } from "../git/format";
+  import { ago } from "@tailor-kit/git-ui";
   import type { DiffValue, FieldBlame, FieldPath, RequestSpec, RequestTimeline, TestRecord, TimelineEntry } from "../commands/types";
   import { getApp } from "../state/app.svelte";
   import { Avatar, Badge, Banner, Button, EmptyState, Icon, SegmentedControl, Skeleton } from "../ui";

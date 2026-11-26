@@ -6,7 +6,7 @@
      made in the Git panel. -->
 <script lang="ts">
   import type { MergeState } from "../commands/types";
-  import ExtensionGitHint from "../shell/ExtensionGitHint.svelte";
+  import ExtensionGitHint from "@tailor-kit/git-ui/ExtensionGitHint.svelte";
   import { getApp } from "../state/app.svelte";
   import MergeFields from "./MergeFields.svelte";
 

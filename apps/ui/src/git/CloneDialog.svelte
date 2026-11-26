@@ -10,7 +10,7 @@
   import type { CollectionInfo } from "../commands/backend";
   import type { RepositoryEntry } from "../commands/types";
   import { getApp } from "../state/app.svelte";
-  import CloneForm from "./CloneForm.svelte";
+  import CloneForm from "@tailor-kit/git-ui/CloneForm.svelte";
 
   let {
     open,

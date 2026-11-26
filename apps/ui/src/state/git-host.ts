@@ -7,8 +7,10 @@
 import MergeFields from "../merge/MergeFields.svelte";
 import SemanticDiff from "../diff/SemanticDiff.svelte";
 import { gitApiCommands } from "../git/api-commands";
-import type { GitBrand, GitContent, GitHost } from "../git/host";
+import type { GitBrand, GitContent, GitHost, ProvidedGitExtensions } from "@tailor-kit/git-ui";
 import PullView from "../review/PullView.svelte";
+import { hintStore } from "../shell/hint-store";
+import { shellStorage } from "../shell/storage";
 import type { AppState } from "./app.svelte";
 
 export const RT_BRAND: GitBrand = {
@@ -17,7 +19,8 @@ export const RT_BRAND: GitBrand = {
   refNamespace: "requesttailor",
 };
 
-export function createGitHost(app: AppState): GitHost {
+/** `extensions` reads the shell's extensions when the views ask: the shell provides them after the host. */
+export function createGitHost(app: AppState, extensions: () => ProvidedGitExtensions | null = () => null): GitHost {
   const content: GitContent = {
     get activeOwner() {
       return app.activeCollection;
@@ -69,6 +72,11 @@ export function createGitHost(app: AppState): GitHost {
       app.error = message;
     },
     commands: (views) => gitApiCommands(app, host, views),
+    get extensions() {
+      return extensions();
+    },
+    storage: shellStorage,
+    hints: hintStore,
     content,
   };
   return host;

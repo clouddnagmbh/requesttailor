@@ -13,7 +13,7 @@ import "@tailor-kit/ui/styles/tokens.css";
 export type * from "./commands/backend";
 export type * from "./commands/types";
 export { BackendError, MCP_DEMO_URL } from "./commands/backend";
-export { LOCAL_CLONE_UNSUPPORTED, looksLocal } from "./commands/clone-source";
+export { LOCAL_CLONE_UNSUPPORTED, looksLocal } from "@tailor-kit/git-ui";
 export { MockBackend } from "./commands/mock";
 // Wave 12 interface: placeholders the shells use until each strand fills in its own file.
 export * from "./commands/wave12-stubs";
@@ -26,10 +26,10 @@ export * from "./commands/git-methods";
 export { applyLineSelection, chosenLines, splitLines } from "./commands/line-selection";
 export * from "./commands/repositories";
 // Wave 14, strand F: the graph's order and pages for shells that build it in TypeScript.
-export { dateOrder, graphPage, reachable, sortChanges, sortRefs, type GraphSource, type OrderCommit } from "./git/graph/order";
+export { dateOrder, graphPage, reachable, sortChanges, sortRefs, type GraphSource, type OrderCommit } from "@tailor-kit/git-ui";
 export * from "./commands/openapi-stub";
 /** Wave 14: branch and tag names as `rt_app::git::actions::check_ref_name` checks them (the web Git uses it too). */
-export { refNameProblem, suggestRefName } from "./git/wizards/refname";
+export { refNameProblem, suggestRefName } from "@tailor-kit/git-ui";
 export type * from "./extensions";
 export { AI_PROVIDERS, providerInfo } from "./ai/providers";
 // Wave 16: the diff of a suggested change, for assistants that show their own suggestions.
