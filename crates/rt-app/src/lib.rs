@@ -184,6 +184,13 @@ pub enum AppError {
     Shell(String),
 }
 
+/// Seam K2: a secret store's failure is a shell failure, with the same text as before the seam.
+impl From<tk_secrets::SecretError> for AppError {
+    fn from(e: tk_secrets::SecretError) -> Self {
+        AppError::Shell(e.to_string())
+    }
+}
+
 /// Seam N7: the Git core's errors as the app's. Same kinds and messages as before the seam;
 /// an error the app plugged into the core (signer, credential store) comes back unchanged.
 impl From<tk_git_types::GitError> for AppError {
