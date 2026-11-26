@@ -5094,6 +5094,7 @@ dependencies = [
  "similar",
  "thiserror 2.0.21",
  "tk-git-types",
+ "tk-scan",
  "tokio",
  "url",
  "web-time",
@@ -6723,6 +6724,14 @@ name = "tk-git-types"
 version = "1.0.1"
 dependencies = [
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "tk-scan"
+version = "1.0.1"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
 ]
 
 [[package]]
