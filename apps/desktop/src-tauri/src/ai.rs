@@ -41,7 +41,7 @@ fn ai_error(e: AiError) -> CommandError {
         .unwrap_or_else(|| "shell".to_owned());
     CommandError {
         kind,
-        message: e.to_string(),
+        message: ai::error_message(&e),
     }
 }
 

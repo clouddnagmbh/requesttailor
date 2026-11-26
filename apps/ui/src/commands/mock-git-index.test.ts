@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { applyLineSelection, chosenLines, splitLines } from "./line-selection";
 import { MockBackend } from "./mock";
 import { lineDiff, type MockGit } from "./mock-git";
-import { MOCK_GIT_CONFIG } from "./mock-git-index";
+import { MOCK_GIT_CONFIG } from "./mock-git";
 import type { GitPatchRequest } from "./types";
 
 describe("line selection", () => {

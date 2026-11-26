@@ -7,20 +7,53 @@
 // Changing these types is an interface change (working rule 1).
 
 import type {
-  ChangeTarget,
-  CollectionDiff,
+  ContentDiff,
   DeviceCodePrompt,
   DiffValue,
   FieldChange,
   FieldPath,
+  GitChangedFile as KitChangedFile,
   GitCommit,
   GitFileCommit,
-  RepositoryEntry,
+  GitWorkingCopy as KitWorkingCopy,
+  GitWorkingFile as KitWorkingFile,
+  FieldConflict as KitFieldConflict,
+  MergeState as KitMergeState,
+  ModelChange as KitModelChange,
+  RepositoryEntry as KitRepositoryEntry,
   SecretFinding,
 } from "@tailor-kit/git-ui/types";
 
 // The Git and review types live in `packages/git-ui` (step K3); every import of this file keeps working.
 export type * from "@tailor-kit/git-ui/types";
+
+// ---- RequestTailor's bindings of the kit's generic Git types ----
+// The kit does not know collections. These declarations shadow the kit names with the fields the
+// Rust side adds (`collection`, `collections`) and the targets of a field-level change.
+
+export type ChangeTarget =
+  | { kind: "collection" }
+  | { kind: "folder"; path: string }
+  | { kind: "request"; path: string }
+  | { kind: "environment"; name: string };
+
+/** The owner a file reports: `CollectionEntry.id` when it belongs to a collection of the set. */
+export interface CollectionOwned {
+  collection?: string;
+}
+/** Collections of the set inside a repository, in sidebar order (empty for a repository root). */
+export interface RepositoryCollections {
+  collections: string[];
+}
+
+export type GitChangedFile = KitChangedFile<CollectionOwned>;
+export type GitWorkingFile = KitWorkingFile<CollectionOwned>;
+export type GitWorkingCopy = KitWorkingCopy<CollectionOwned>;
+export type RepositoryEntry = KitRepositoryEntry<RepositoryCollections>;
+export type ModelChange = KitModelChange<ChangeTarget>;
+export type FieldConflict = KitFieldConflict<ChangeTarget>;
+export type MergeState = KitMergeState<ChangeTarget>;
+export type CollectionDiff = ContentDiff<ChangeTarget>;
 
 // ---- model (rt_core::model) ----
 

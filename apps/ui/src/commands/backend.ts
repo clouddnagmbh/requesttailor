@@ -14,9 +14,10 @@
 // per-collection command acts on the collection that is active when it is called, and
 // long-running calls (runner, streams, compare, bisect, MCP tests) keep it until they end.
 
-import { BackendError, type GitApi, type GitRepositoryApi, type ReviewApi } from "@tailor-kit/git-ui/api";
+import { BackendError, type GitApi as KitGitApi, type GitRepositoryApi, type ReviewApi } from "@tailor-kit/git-ui/api";
 
 import type {
+  CollectionOwned,
   CopiedAs,
   CopyKind,
   CopyOptions,
@@ -118,6 +119,7 @@ import type {
   TestRecord,
   Variable,
   VariableScope,
+  RepositoryCollections,
 } from "./types";
 import type {
   CapturedRequest,
@@ -194,7 +196,9 @@ import type {
 
 // The Git, repository and review calls the Git views make live in `packages/git-ui` (step K3).
 export { BackendError };
-export type { GitApi, ReviewApi };
+/** The Git calls, with the `collection` field RequestTailor's files carry. */
+export type GitApi = KitGitApi<CollectionOwned>;
+export type { ReviewApi };
 
 export interface CollectionInfo {
   /** Stable id for this collection on this device (used as `SecretKey.collection`). */
@@ -252,7 +256,7 @@ export interface TransportApi {
 /** Wave 15 (interface, strand A): repositories in the collection set. The list is part of
  *  `CollectionSet` (`repositories`, `active_repository`); these calls change it. The calls the
  *  Git views need are `GitRepositoryApi` (`@tailor-kit/git-ui`). */
-export interface RepositoryApi extends GitRepositoryApi {
+export interface RepositoryApi extends GitRepositoryApi<RepositoryCollections> {
   /** Folder picker; adds the folder as a root: its collections, or, without any, the Git
    *  repository it is in as a repository root (outside Git: a new collection, as `add`).
    *  `null` if cancelled. */
