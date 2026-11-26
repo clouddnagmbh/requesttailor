@@ -5076,7 +5076,6 @@ dependencies = [
  "bytes",
  "futures-core",
  "hmac 0.12.1",
- "keyring",
  "memchr",
  "miniz_oxide 0.9.1",
  "qrcode",
@@ -5094,6 +5093,7 @@ dependencies = [
  "similar",
  "thiserror 2.0.21",
  "tk-git-types",
+ "tk-secrets",
  "tokio",
  "url",
  "web-time",
@@ -6722,6 +6722,15 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 name = "tk-git-types"
 version = "1.0.1"
 dependencies = [
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "tk-secrets"
+version = "1.0.1"
+dependencies = [
+ "keyring",
+ "serde",
  "thiserror 2.0.21",
 ]
 
