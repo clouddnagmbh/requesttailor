@@ -13,9 +13,10 @@ use std::path::{Path, PathBuf};
 
 use rt_app::SecretStore;
 use rt_app::contract::{ContractReport, ContractSpec, ReadFile, Side, SpecChanges, safe_path};
+use rt_app::git::GitTreeFiles as _;
 use rt_app::{AppError, contract};
 use rt_format::FileSet;
-use rt_git::{Options, Repo};
+use rt_git::{Options, Repo, RepoExt as _};
 
 use crate::commands::{AppCore, CommandError};
 use crate::core::Core;

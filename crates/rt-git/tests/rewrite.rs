@@ -12,6 +12,7 @@
 
 mod common;
 
+use rt_git::RepoExt as _;
 use std::cell::RefCell;
 
 use common::*;

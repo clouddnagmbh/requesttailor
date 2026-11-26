@@ -14,6 +14,7 @@ use common::*;
 use rt_app::git::GitPullResult;
 use rt_app::git::actions::{GitAction, GitBlockReason};
 use rt_git::NoCredentials;
+use rt_git::RepoExt as _;
 use wizard::*;
 
 #[test]

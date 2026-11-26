@@ -1,52 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The RequestTailor Authors
 
-//! HTTPS credentials per host in the app's secret store. Key scheme: see the crate docs.
+//! HTTPS credentials per host in the app's secret store (key scheme: see the crate docs), on
+//! top of the core's [`CredentialSource`] (re-exported here at its old path).
 
 use rt_app::{AppError, SecretKey, SecretStore};
+use tk_git::GitError;
+pub use tk_git::credentials::*;
 
 /// `SecretKey::collection` of every Git credential entry.
 pub const COLLECTION: &str = "git:credentials";
 const USERNAME: &str = "username";
 const PASSWORD: &str = "password";
 
-/// Username and password (or token) for one host.
-#[derive(Clone, PartialEq, Eq)]
-pub struct Credentials {
-    pub username: String,
-    pub password: String,
-}
-
-impl std::fmt::Debug for Credentials {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Never print the password, not even in test failures.
-        f.debug_struct("Credentials")
-            .field("username", &self.username)
-            .field("password", &"***")
-            .finish()
-    }
-}
-
-/// Where network operations get credentials from.
-pub trait CredentialSource {
-    fn get(&self, host: &str) -> Result<Option<Credentials>, AppError>;
-}
-
-/// No credentials at all.
-pub struct NoCredentials;
-
-impl CredentialSource for NoCredentials {
-    fn get(&self, _host: &str) -> Result<Option<Credentials>, AppError> {
-        Ok(None)
-    }
-}
-
 /// Credentials from a secret store, under [`key`].
 pub struct StoreCredentials<'a, S>(pub &'a S);
 
 impl<S: SecretStore> CredentialSource for StoreCredentials<'_, S> {
-    fn get(&self, host: &str) -> Result<Option<Credentials>, AppError> {
-        get(self.0, host)
+    fn get(&self, host: &str) -> Result<Option<Credentials>, GitError> {
+        // The store's error travels through the core unchanged (`GitError::Host`).
+        get(self.0, host).map_err(GitError::from)
     }
 }
 

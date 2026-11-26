@@ -26,7 +26,7 @@ use rt_app::timeline::{
 use rt_app::{AppError, SecretStore};
 use rt_core::model::RequestSpec;
 use rt_core::runner::RunEvent;
-use rt_git::{Options, Repo};
+use rt_git::{Options, Repo, RepoExt as _};
 
 use crate::commands::{AppCore, CommandError};
 use crate::core::Core;

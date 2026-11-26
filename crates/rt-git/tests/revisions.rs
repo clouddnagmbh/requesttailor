@@ -8,6 +8,7 @@ mod common;
 
 use common::*;
 use rt_app::git::GitFileChange;
+use rt_app::git::GitTreeFiles as _;
 
 #[test]
 fn revisions_are_read_without_a_checkout() {

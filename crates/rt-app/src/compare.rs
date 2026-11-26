@@ -19,7 +19,7 @@ use rt_core::transport::Transport;
 use serde::{Deserialize, Serialize};
 
 use crate::AppError;
-use crate::git::{GitCommit, GitTree};
+use crate::git::{GitCommit, GitTree, GitTreeFiles};
 use crate::runner::RunSnapshot;
 
 /// What to run at a revision (`CompareApi.run`). The send input (environment, variables) is

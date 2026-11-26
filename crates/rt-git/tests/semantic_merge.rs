@@ -12,6 +12,7 @@ use common::*;
 use rt_app::git::{GitFileState, GitPullResult};
 use rt_app::merges::{ConflictChoice, Side};
 use rt_format::diff::{ChangeTarget, DiffValue};
+use rt_git::RepoExt as _;
 use rt_git::{NoCredentials, Repo};
 
 const COLLECTION: &str = "opencollection: 1.0.0\ninfo:\n  name: Shared\n";

@@ -17,7 +17,7 @@
 
 use rt_app::rescue::{HistoryScan, RescuePlan, RescueResult, ScanProgress};
 use rt_app::{AppError, SecretStore};
-use rt_git::{Options, Repo};
+use rt_git::{Options, Repo, RepoExt as _};
 use tauri::ipc::Channel;
 
 use crate::commands::{AppCore, CommandError};

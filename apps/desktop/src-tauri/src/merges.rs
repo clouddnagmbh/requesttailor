@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 use rt_app::merges::{ConflictChoice, MergeState};
 use rt_app::{AppError, SecretStore};
-use rt_git::{Options, Repo};
+use rt_git::{Options, Repo, RepoExt as _};
 
 use crate::commands::{AppCore, CommandError};
 use crate::core::Core;

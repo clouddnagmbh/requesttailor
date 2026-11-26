@@ -28,7 +28,8 @@ use rt_app::contract::{
     ChangelogFacts, ChangelogSection, ChangelogWriter, SchemaKind, SchemaSection, Side,
     changelog_facts, changelog_with,
 };
-use rt_git::{Options, Repo};
+use rt_app::git::GitTreeFiles as _;
+use rt_git::{Options, Repo, RepoExt as _};
 
 /// The line in `rt --help`'s "Usage:" list.
 pub const USAGE: &str = "  rt changelog <rev>..<rev> [<collection>] [--out <FILE>]\n";

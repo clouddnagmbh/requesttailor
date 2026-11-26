@@ -14,116 +14,18 @@
 //! every shell; the shells only list commits and refs (natively `rt-git/src/graph.rs`, in the
 //! browser `apps/web/src/git/graph.ts`). Additions are additive (new fields default).
 
-use serde::{Deserialize, Serialize};
+//!
+//! The types live in the Tailor Kit (`tk_git_types::graph`); RequestTailor adds the collection
+//! of each changed file ([`InCollection`]).
 
-use super::{GitCommit, GitFileChange};
+pub use tk_git_types::graph::*;
 
-/// What a ref is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum GitRefKind {
-    /// `refs/heads/*`.
-    Local,
-    /// `refs/remotes/*` (`origin/HEAD` is left out).
-    Remote,
-    /// `refs/tags/*` (annotated tags peeled to their commit).
-    Tag,
-    /// `HEAD` while detached.
-    Head,
-}
+use super::InCollection;
 
-/// A branch, remote branch or tag, with what the graph and the wizards need to explain it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GitRef {
-    /// Full name (`refs/heads/main`, `refs/remotes/origin/main`, `refs/tags/v1`, `HEAD`).
-    pub full: String,
-    /// Short name as shown (`main`, `origin/main`, `v1`, `HEAD`).
-    pub name: String,
-    pub kind: GitRefKind,
-    /// The commit it points to (full id).
-    pub target: String,
-    /// The checked-out branch (or the detached `HEAD`).
-    #[serde(default)]
-    pub current: bool,
-    /// Local branches: the upstream (`origin/main`), if set.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub upstream: Option<String>,
-    /// Local branches with an upstream: commits only here / only there.
-    #[serde(default)]
-    pub ahead: u32,
-    #[serde(default)]
-    pub behind: u32,
-    /// Annotated tags: the message's first line.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-}
-
-/// One page of the graph.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct GitGraphQuery {
-    /// Commits to skip (the order is stable while no ref moves).
-    #[serde(default)]
-    pub skip: u32,
-    /// At most this many commits (the UI asks for pages of a few thousand).
-    pub limit: u32,
-    /// Start from these refs (full names); `None`: all refs and `HEAD`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub refs: Option<Vec<String>>,
-}
-
-/// A commit in the graph.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GitGraphCommit {
-    #[serde(flatten)]
-    pub commit: GitCommit,
-    /// Parent ids, first parent first (two or more: a merge commit).
-    pub parents: Vec<String>,
-    /// Author email, for avatars and filters.
-    #[serde(default)]
-    pub email: String,
-    /// Full names of the refs pointing at it ([`GitRef::full`]).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub refs: Vec<String>,
-    /// Since wave 15: the commit carries a signature (`gpgsig`); `GitApi.verify` checks it.
-    #[serde(default)]
-    pub signed: bool,
-}
-
-/// Commits in topological order, newest first (a child always before its parents, ties by
-/// commit time), and all refs.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct GitGraphPage {
-    pub commits: Vec<GitGraphCommit>,
-    /// All refs, on every page (cheap; the graph labels and the branch list use them).
-    pub refs: Vec<GitRef>,
-    /// The commit `HEAD` points to; `None` in a repository without commits.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub head: Option<String>,
-    /// `HEAD` is not on a branch.
-    #[serde(default)]
-    pub detached: bool,
-    /// More commits follow (ask with `skip + commits.len()`).
-    #[serde(default)]
-    pub more: bool,
-}
-
-/// A file a commit (or a range) changed, for the commit details next to the graph.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GitChangedFile {
-    /// Repository-relative, with a leading `/`.
-    pub path: String,
-    pub change: GitFileChange,
-    /// Renames: the old path.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub from: Option<String>,
-    /// Binary content: no line diff, metadata only.
-    #[serde(default)]
-    pub binary: bool,
-    /// The collection of the set this file is a request (or environment, folder, collection
-    /// file) of: `CollectionEntry::id`. `None`: any other file, shown as a line diff.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub collection: Option<String>,
-}
+/// A file a commit (or a range) changed, with the collection of the set it belongs to: a request
+/// (or environment, folder, collection file) of `CollectionEntry::id`; `None`: any other file,
+/// shown as a line diff.
+pub type GitChangedFile = tk_git_types::graph::GitChangedFile<InCollection>;
 
 /// A collection of the set by where it sits in the repository, for [`assign_collections`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,11 +59,25 @@ pub fn collection_of<'a>(path: &str, collections: &'a [CollectionAt]) -> Option<
         .map(|(c, _)| c.id.as_str())
 }
 
-/// Fills [`GitChangedFile::collection`] for every file that belongs to one of `collections`.
+/// Fills [`InCollection::collection`] for every file that belongs to one of `collections`.
 pub fn assign_collections(files: &mut [GitChangedFile], collections: &[CollectionAt]) {
     for f in files {
-        f.collection = collection_of(&f.path, collections).map(str::to_owned);
+        f.extra.collection = collection_of(&f.path, collections).map(str::to_owned);
     }
+}
+
+/// The files the Git core lists ([`tk_git_types::graph::GitChangedFile`]) with the collection
+/// each belongs to ([`assign_collections`]).
+pub fn in_collections(
+    files: Vec<tk_git_types::graph::GitChangedFile>,
+    collections: &[CollectionAt],
+) -> Vec<GitChangedFile> {
+    let mut files: Vec<GitChangedFile> = files
+        .into_iter()
+        .map(|f| f.with_extra(InCollection::default()))
+        .collect();
+    assign_collections(&mut files, collections);
+    files
 }
 
 #[cfg(test)]
@@ -209,18 +125,20 @@ mod tests {
                 change: crate::git::GitFileChange::Added,
                 from: None,
                 binary: false,
-                collection: None,
+                extra: InCollection { collection: None },
             },
             GitChangedFile {
                 path: "/logo.png".into(),
                 change: crate::git::GitFileChange::Added,
                 from: None,
                 binary: true,
-                collection: Some("stale".into()),
+                extra: InCollection {
+                    collection: Some("stale".into()),
+                },
             },
         ];
         assign_collections(&mut files, &[at("c", "")]);
-        assert_eq!(files[0].collection.as_deref(), Some("c"));
-        assert_eq!(files[1].collection, None);
+        assert_eq!(files[0].extra.collection.as_deref(), Some("c"));
+        assert_eq!(files[1].extra.collection, None);
     }
 }
