@@ -51,6 +51,8 @@ function inputs() {
   for (const c of CRATES) {
     for (const part of ["src", "Cargo.toml", "build.rs"]) list.push(join(ROOT, "crates", c, part));
   }
+  // The shared crates (submodule kit/, K4) are compiled into the wasm too.
+  list.push(join(ROOT, "kit", "Cargo.toml"), join(ROOT, "kit", "crates"));
   return list;
 }
 

@@ -2687,7 +2687,7 @@ export interface DebugState {
 
 // ---- AI types moved to @tailor-kit/ai-ui (K3): same shapes, same names ----
 
-import type { AiPolicy, AiRequest as KitAiRequest } from "@tailor-kit/ai-ui";
+import type { AiPolicy, AiRequest as KitAiRequest } from "@tailor-kit/ai-ui/types";
 
 export type {
   AiCall,
@@ -2711,7 +2711,7 @@ export type {
   AiToolCall,
   AiToolResult,
   AiUsage,
-} from "@tailor-kit/ai-ui";
+} from "@tailor-kit/ai-ui/types";
 
 /** Wave 16: off if either is set (`AiPolicy` of the kit: here the active collection). */
 export type AiCollectionPolicy = AiPolicy;
