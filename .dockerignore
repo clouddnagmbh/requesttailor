@@ -10,6 +10,9 @@
 !crates/
 !apps/desktop/src-tauri/
 !plugins/
+# The kit's crates (submodule kit/): Cargo reads kit/Cargo.toml for the workspace fields.
+!kit/Cargo.toml
+!kit/crates/
 **/target/
 **/node_modules/
 **/dist/
