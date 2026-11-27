@@ -20,7 +20,8 @@ const entry = (page: import("@playwright/test").Page, path: string) => page.loca
 test("the tree lists folders first, marks changed files and dims ignored ones", async ({ page }) => {
   await openFiles(page);
   const top = await page.locator('[data-testid="tree-entry"]').evaluateAll((els) => els.map((e) => e.getAttribute("data-path")));
-  expect(top.slice(0, 4)).toEqual(["/assets", "/data", "/docs", "/legacy"]);
+  // The Git mock lists unchanged tracked files too (kit 667b1bf), so the unchanged /demo folder appears.
+  expect(top.slice(0, 5)).toEqual(["/assets", "/data", "/demo", "/docs", "/legacy"]);
   await expect(entry(page, "/README.md")).toHaveAttribute("data-state", "modified");
   await expect(entry(page, "/build.log")).toHaveClass(/ignored/);
   await entry(page, "/assets").click();
